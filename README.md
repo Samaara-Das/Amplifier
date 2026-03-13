@@ -1,6 +1,6 @@
 # Auto-Poster System
 
-Fully autonomous social media posting system that generates content via Claude Code CLI and posts to X, LinkedIn, and Facebook using Playwright browser automation with human behavior emulation.
+Fully autonomous social media posting system that generates content via Claude Code CLI and posts to 6 platforms (X, LinkedIn, Facebook, Instagram, Reddit, TikTok) using Playwright browser automation with human behavior emulation.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ Non-sensitive settings: timing, delays, browsing behavior. Adjust `AUTO_POSTER_R
 Brand voice, content pillars, hooks, and platform-specific rules. Edit this to control what kind of content gets generated.
 
 ### `config/platforms.json`
-Platform URLs, timeouts, and enable/disable flags. Instagram is disabled by default.
+Platform URLs, timeouts, enable/disable flags, per-platform proxy config, and subreddit list for Reddit.
 
 ## Usage
 
@@ -38,6 +38,9 @@ Platform URLs, timeouts, and enable/disable flags. Instagram is disabled by defa
 python scripts/login_setup.py x
 python scripts/login_setup.py linkedin
 python scripts/login_setup.py facebook
+python scripts/login_setup.py instagram
+python scripts/login_setup.py reddit
+python scripts/login_setup.py tiktok
 ```
 
 Each command opens a browser. Log in manually, complete 2FA, then close the browser. Sessions are saved in `profiles/`.
@@ -76,13 +79,13 @@ Registers two Windows Task Scheduler tasks:
 ## Project Structure
 
 ```
-config/              Configuration files
+config/              Configuration files (.env, platforms.json, content-templates.md)
 drafts/pending/      Drafts awaiting posting
 drafts/posted/       Successfully posted drafts
 drafts/failed/       Failed drafts with error info
-profiles/            Persistent browser login sessions (gitignored)
-scripts/             Main scripts
-  utils/             Shared modules (draft manager, human behavior)
+profiles/            Persistent browser login sessions per platform (gitignored)
+scripts/             Main scripts (post.py, generate.ps1, login_setup.py)
+  utils/             Shared modules (draft_manager, human_behavior, image_generator)
 logs/                Log files (gitignored)
 ```
 
@@ -97,11 +100,21 @@ Platform UI changed. Update the selector constants at the top of each platform f
 ### No drafts being posted
 Check `drafts/pending/` for files. Check `logs/poster.log` for errors.
 
+### TikTok posting fails with proxy/network error
+TikTok is blocked in some regions. Connect a VPN (e.g. Surfshark) to a non-blocked server, or configure a SOCKS proxy in `config/platforms.json` under the `tiktok.proxy` key.
+
 ### Generator producing invalid JSON
 Check `logs/generator.log`. The generator strips markdown fences and validates JSON. If Claude's output format changes, check the prompt in `scripts/generate.ps1`.
 
 ## Architecture
 
-- **Content Generation**: PowerShell calls Claude Code CLI with content guidelines. Claude acts as a social media marketer (not a coder) and outputs structured JSON.
-- **Posting**: Python/Playwright with persistent browser profiles. Each platform gets 1-5 min of pre/post-post browsing to emulate human behavior.
-- **Anti-detection**: Character-by-character typing (30-120ms), random scrolling, mouse movements, profile clicking, randomized platform order, 30-90s delays between platforms.
+- **Content Generation**: PowerShell calls Claude Code CLI with content guidelines. Claude acts as a social media marketer (not a coder) and writes draft JSON files directly to `drafts/pending/`. Each draft contains platform-specific content for all 6 platforms.
+- **Posting**: Python/Playwright with persistent browser profiles. Each platform gets 1-5 min of pre/post-post browsing to emulate human behavior. Platform order is randomized with 30-90s delays between platforms.
+- **Image/Video Generation**: TikTok requires video uploads — the system generates a branded 1080x1920 image and converts it to a 7s MP4 with a Ken Burns zoom effect (Pillow + moviepy). Instagram generates a 1080x1080 square branded image from the caption text.
+- **Anti-detection**: Character-by-character typing (30-120ms), random scrolling, mouse movements, profile clicking, randomized platform order.
+
+## Platform Notes
+
+- **TikTok** is geo-blocked in some regions (e.g. India). Connect a VPN before running the poster. Per-platform proxy support is available in `platforms.json`.
+- **Reddit** posts to 1 random subreddit per run from the list configured in `platforms.json`.
+- **Instagram** uses a multi-step dialog flow (Create → Post submenu → Upload image → crop → filter → caption → Share).
