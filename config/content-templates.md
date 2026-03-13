@@ -139,6 +139,8 @@ Trading as a skill AI can't replace, using AI tools to trade better.
 - 1-3 hashtags placed naturally
 - Contrarian takes get the most engagement
 - If topic deserves a thread, just post tweet 1 and add "(thread)" at end
+- For image posts, provide as JSON: {"text": "tweet text (max 280 chars)", "image_text": "1-2 BOLD punchy lines for branded image overlay"}
+- image_text should be DIFFERENT and PUNCHIER than the text — a scroll-stopping visual hook
 
 ### LinkedIn
 - 500-1500 characters
@@ -147,6 +149,8 @@ Trading as a skill AI can't replace, using AI tools to trade better.
 - End with a question to drive comments
 - 3-5 hashtags at end
 - Professional but never corporate-speak
+- For image posts, provide as JSON: {"text": "narrative text (500-1500 chars)", "image_text": "1-2 BOLD lines — a key stat or takeaway"}
+- The image grabs attention in the feed; the text tells the story
 
 ### Facebook
 - 200-800 characters
@@ -154,6 +158,8 @@ Trading as a skill AI can't replace, using AI tools to trade better.
 - Discussion starters work best — ask questions
 - Personal stories that invite sharing
 - 0-2 hashtags maximum
+- For image posts, provide as JSON: {"text": "conversational text (200-800 chars)", "image_text": "1-2 BOLD lines — conversation-starting visual hook"}
+- The image draws eyeballs; the text starts discussion
 
 ### Instagram
 - 300-1200 characters caption

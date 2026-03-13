@@ -53,9 +53,11 @@ async def _launch_context(pw, platform: str):
     profile_dir = ROOT / "profiles" / f"{platform}-profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
 
+    headless = os.getenv("HEADLESS", "false").lower() == "true"
+
     kwargs = dict(
         user_data_dir=str(profile_dir),
-        headless=False,
+        headless=headless,
         viewport={"width": 1280, "height": 800},
         args=[
             "--disable-blink-features=AutomationControlled",
@@ -73,6 +75,24 @@ async def _launch_context(pw, platform: str):
     return context
 
 
+# ─── Helpers ────────────────────────────────────────────────────────────────
+
+
+def _extract_content(draft_content: dict, platform: str) -> tuple[str, str | None]:
+    """Extract text and optional image_text from draft content for a platform.
+
+    Returns (text, image_text) where image_text is None for text-only posts.
+    """
+    content = draft_content.get(platform, "")
+    if isinstance(content, str):
+        return content, None
+    elif isinstance(content, dict):
+        text = content.get("text") or content.get("caption", "")
+        image_text = content.get("image_text")
+        return text, image_text
+    return str(content), None
+
+
 # ─── X (Twitter) ────────────────────────────────────────────────────────────
 
 X_COMPOSE_URL = "https://x.com/compose/post"
@@ -81,9 +101,19 @@ X_POST_BUTTON = '[data-testid="tweetButton"]'
 
 
 async def post_to_x(draft: dict, pw) -> bool:
-    """Post content to X (Twitter)."""
+    """Post content to X (Twitter). Supports text-only and text+image."""
     context = None
+    image_path = None
     try:
+        text, image_text = _extract_content(draft["content"], "x")
+
+        # Generate image if needed
+        if image_text:
+            from utils.image_generator import generate_landscape_image
+            image_path = ROOT / "drafts" / "pending" / f"x-{draft.get('id', 'temp')}.png"
+            generate_landscape_image(image_text, image_path)
+            logger.info("X: generated branded image at %s", image_path)
+
         context = await _launch_context(pw, "x")
         page = context.pages[0] if context.pages else await context.new_page()
 
@@ -97,8 +127,39 @@ async def post_to_x(draft: dict, pw) -> bool:
         await page.wait_for_selector(X_TEXTBOX, timeout=COMPOSE_TIMEOUT)
         await human_delay(1, 2)
 
+        # Upload image if available
+        if image_path and image_path.exists():
+            try:
+                file_input_selectors = [
+                    'input[data-testid="fileInput"]',
+                    'input[type="file"][accept*="image"]',
+                    'input[type="file"]',
+                ]
+                uploaded = False
+                for sel in file_input_selectors:
+                    try:
+                        fi = page.locator(sel).first
+                        if await fi.count() > 0:
+                            await fi.set_input_files(str(image_path))
+                            logger.info("X: uploaded image via %s", sel)
+                            uploaded = True
+                            break
+                    except Exception:
+                        continue
+                if uploaded:
+                    # Wait for image preview to appear
+                    try:
+                        await page.locator('[data-testid="attachments"]').wait_for(timeout=15000)
+                    except Exception:
+                        pass
+                    await human_delay(2, 4)
+                else:
+                    logger.warning("X: could not find file input, posting text-only")
+            except Exception as e:
+                logger.warning("X: image upload failed, posting text-only: %s", e)
+
         # Type content
-        await human_type(page, X_TEXTBOX, draft["content"]["x"])
+        await human_type(page, X_TEXTBOX, text)
         await human_delay(1, 3)
 
         # Click post — use JS click to bypass overlay div that intercepts pointer events
@@ -118,6 +179,11 @@ async def post_to_x(draft: dict, pw) -> bool:
         logger.error("Failed to post to X: %s", e, exc_info=True)
         return False
     finally:
+        if image_path:
+            try:
+                image_path.unlink(missing_ok=True)
+            except Exception:
+                pass
         if context:
             try:
                 await context.close()
@@ -133,9 +199,19 @@ LI_TEXTBOX = '[role="textbox"]'
 
 
 async def post_to_linkedin(draft: dict, pw) -> bool:
-    """Post content to LinkedIn."""
+    """Post content to LinkedIn. Supports text-only and text+image."""
     context = None
+    image_path = None
     try:
+        text, image_text = _extract_content(draft["content"], "linkedin")
+
+        # Generate image if needed
+        if image_text:
+            from utils.image_generator import generate_landscape_image
+            image_path = ROOT / "drafts" / "pending" / f"linkedin-{draft.get('id', 'temp')}.png"
+            generate_landscape_image(image_text, image_path)
+            logger.info("LinkedIn: generated branded image at %s", image_path)
+
         context = await _launch_context(pw, "linkedin")
         page = context.pages[0] if context.pages else await context.new_page()
 
@@ -151,13 +227,53 @@ async def post_to_linkedin(draft: dict, pw) -> bool:
         logger.info("LinkedIn: clicked compose trigger")
         await human_delay(3, 5)
 
+        # Upload image BEFORE typing text (if available)
+        if image_path and image_path.exists():
+            try:
+                uploaded = False
+                # Strategy 1: hidden file input
+                try:
+                    fi = page.locator('input[type="file"]').first
+                    if await fi.count() > 0:
+                        await fi.set_input_files(str(image_path))
+                        uploaded = True
+                        logger.info("LinkedIn: uploaded image via file input")
+                except Exception:
+                    pass
+                # Strategy 2: click media button → file chooser
+                if not uploaded:
+                    media_selectors = [
+                        'button[aria-label="Add a photo"]',
+                        'button[aria-label="Add media"]',
+                        'button:has(li-icon[type="image"])',
+                    ]
+                    for sel in media_selectors:
+                        try:
+                            btn = page.locator(sel).first
+                            if await btn.is_visible(timeout=3000):
+                                async with page.expect_file_chooser(timeout=5000) as fc_info:
+                                    await btn.click()
+                                fc = await fc_info.value
+                                await fc.set_files(str(image_path))
+                                uploaded = True
+                                logger.info("LinkedIn: uploaded image via file chooser (%s)", sel)
+                                break
+                        except Exception:
+                            continue
+                if uploaded:
+                    await human_delay(3, 5)
+                else:
+                    logger.warning("LinkedIn: could not upload image, posting text-only")
+            except Exception as e:
+                logger.warning("LinkedIn: image upload failed, posting text-only: %s", e)
+
         # Wait for textbox (in shadow DOM — locator pierces it, wait_for_selector does not)
         textbox = page.locator(LI_TEXTBOX).first
         await textbox.wait_for(timeout=COMPOSE_TIMEOUT)
         await human_delay(1, 2)
 
         # Type content
-        await human_type(page, LI_TEXTBOX, draft["content"]["linkedin"])
+        await human_type(page, LI_TEXTBOX, text)
         await human_delay(1, 3)
 
         # Click Post button
@@ -177,6 +293,11 @@ async def post_to_linkedin(draft: dict, pw) -> bool:
         logger.error("Failed to post to LinkedIn: %s", e, exc_info=True)
         return False
     finally:
+        if image_path:
+            try:
+                image_path.unlink(missing_ok=True)
+            except Exception:
+                pass
         if context:
             try:
                 await context.close()
@@ -192,9 +313,19 @@ FB_POST_BUTTON = '[aria-label="Post"]'
 
 
 async def post_to_facebook(draft: dict, pw) -> bool:
-    """Post content to Facebook."""
+    """Post content to Facebook. Supports text-only and text+image."""
     context = None
+    image_path = None
     try:
+        text, image_text = _extract_content(draft["content"], "facebook")
+
+        # Generate image if needed
+        if image_text:
+            from utils.image_generator import generate_landscape_image
+            image_path = ROOT / "drafts" / "pending" / f"facebook-{draft.get('id', 'temp')}.png"
+            generate_landscape_image(image_text, image_path)
+            logger.info("Facebook: generated branded image at %s", image_path)
+
         context = await _launch_context(pw, "facebook")
         page = context.pages[0] if context.pages else await context.new_page()
 
@@ -208,10 +339,56 @@ async def post_to_facebook(draft: dict, pw) -> bool:
         await page.wait_for_selector(FB_TEXTBOX, timeout=COMPOSE_TIMEOUT)
         await human_delay(1, 2)
 
+        # Upload image if available
+        if image_path and image_path.exists():
+            try:
+                uploaded = False
+                # Try clicking "Photo/video" button to open media area
+                photo_selectors = [
+                    '[aria-label="Photo/video"]',
+                    '[aria-label="Photo/Video"]',
+                    'div[role="button"]:has-text("Photo/video")',
+                    'div[role="button"]:has-text("Photo/Video")',
+                ]
+                for sel in photo_selectors:
+                    try:
+                        btn = page.locator(sel).first
+                        if await btn.is_visible(timeout=3000):
+                            await btn.click()
+                            logger.info("Facebook: clicked photo/video button via %s", sel)
+                            await human_delay(1, 2)
+                            break
+                    except Exception:
+                        continue
+
+                # Now find file input
+                fi_selectors = [
+                    'input[type="file"][accept*="image"]',
+                    'input[type="file"][accept*="video"]',
+                    'input[type="file"]',
+                ]
+                for sel in fi_selectors:
+                    try:
+                        fi = page.locator(sel).first
+                        if await fi.count() > 0:
+                            await fi.set_input_files(str(image_path))
+                            uploaded = True
+                            logger.info("Facebook: uploaded image via %s", sel)
+                            break
+                    except Exception:
+                        continue
+
+                if uploaded:
+                    await human_delay(3, 5)
+                else:
+                    logger.warning("Facebook: could not upload image, posting text-only")
+            except Exception as e:
+                logger.warning("Facebook: image upload failed, posting text-only: %s", e)
+
         # Type content
         textbox = page.locator(FB_TEXTBOX).last
         await textbox.click()
-        for char in draft["content"]["facebook"]:
+        for char in text:
             await textbox.press_sequentially(char, delay=0)
             delay_ms = random.uniform(30, 120)
             if random.random() < 0.05:
@@ -234,6 +411,11 @@ async def post_to_facebook(draft: dict, pw) -> bool:
         logger.error("Failed to post to Facebook: %s", e, exc_info=True)
         return False
     finally:
+        if image_path:
+            try:
+                image_path.unlink(missing_ok=True)
+            except Exception:
+                pass
         if context:
             try:
                 await context.close()

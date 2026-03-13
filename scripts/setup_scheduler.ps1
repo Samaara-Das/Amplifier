@@ -6,7 +6,7 @@ $ROOT = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 
 # ─── Configuration ──────────────────────────────────────────────────────────
 # Generation: once daily, 1 hour before first posting slot
-$GenerateTime = "17:30"          # IST 5:30 PM → gives 1 hour buffer before first post
+$GenerateTime = "09:00"          # IST 9:00 AM → user reviews during the day, posts start at 18:30
 $GenerateCount = 6               # 6 drafts per day (one per posting slot)
 
 # Posting slots (IST times → EST equivalents)

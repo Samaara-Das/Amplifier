@@ -197,6 +197,94 @@ def generate_tiktok_video(image_text: str, output_path: str | Path, duration: in
     return output_path
 
 
+def generate_landscape_image(
+    image_text: str, output_path: str | Path, width: int = 1200, height: int = 675
+) -> Path:
+    """Generate a landscape branded image for X, LinkedIn, or Facebook posts.
+
+    Args:
+        image_text: 1-2 lines of bold text to overlay on the image
+        output_path: Where to save the PNG
+        width: Image width (default 1200)
+        height: Image height (default 675)
+
+    Returns:
+        Path to the generated image
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    scheme = random.choice(COLOR_SCHEMES)
+    bg_color = scheme["bg"]
+    text_color = scheme["text"]
+    accent_color = scheme["accent"]
+
+    img = Image.new("RGB", (width, height), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # Gradient overlay
+    for y in range(height):
+        alpha = int(25 * (y / height))
+        draw.line([(0, y), (width, y)], fill=(
+            min(bg_color[0] + alpha, 255),
+            min(bg_color[1] + alpha, 255),
+            min(bg_color[2] + alpha, 255),
+        ))
+
+    # Accent borders (top and bottom)
+    draw.rectangle([(0, 0), (width, 5)], fill=accent_color)
+    draw.rectangle([(0, height - 5), (width, height)], fill=accent_color)
+
+    # Side accent bar
+    draw.rectangle([(30, height // 4), (35, 3 * height // 4)], fill=accent_color)
+
+    # Main text
+    font_size = 52
+    font = _get_bold_font(font_size)
+    lines = image_text.split("\n")
+
+    wrapped_lines = []
+    for line in lines:
+        wrapped = textwrap.wrap(line.strip(), width=30)
+        wrapped_lines.extend(wrapped)
+        wrapped_lines.append("")
+    while wrapped_lines and wrapped_lines[-1] == "":
+        wrapped_lines.pop()
+    # Limit to 4 lines
+    wrapped_lines = wrapped_lines[:4]
+
+    line_height = font_size + 16
+    total_height = len(wrapped_lines) * line_height
+    start_y = (height - total_height) // 2
+
+    for i, line in enumerate(wrapped_lines):
+        if not line:
+            continue
+        y = start_y + i * line_height
+        bbox = draw.textbbox((0, 0), line, font=font)
+        text_width = bbox[2] - bbox[0]
+        x = (width - text_width) // 2
+
+        # Text shadow
+        draw.text((x + 2, y + 2), line, fill=(0, 0, 0), font=font)
+        draw.text((x, y), line, fill=text_color, font=font)
+
+    # Watermark
+    small_font = _get_font(22)
+    watermark = "@autoposter"
+    bbox = draw.textbbox((0, 0), watermark, font=small_font)
+    wm_width = bbox[2] - bbox[0]
+    draw.text(
+        ((width - wm_width) // 2, height - 45),
+        watermark,
+        fill=(*accent_color, 180),
+        font=small_font,
+    )
+
+    img.save(str(output_path), "PNG", quality=95)
+    return output_path
+
+
 def generate_instagram_image(caption_text: str, output_path: str | Path) -> Path:
     """Generate a square branded image for Instagram posts.
 

@@ -37,9 +37,11 @@
 - [x] Output style updated with all confirmed decisions
 - [x] Update `config/content-templates.md` to encode the finalized strategy (complete rewrite with emotion-first + value-first principles, 5 pillars, platform formats)
 - [x] Update `scripts/setup_scheduler.ps1` to align posting times with US timezone (6 IST slots: 18:30, 20:30, 23:30, 01:30, 04:30, 06:30 = EST 8AM-8PM)
-- [ ] Content experimentation & review framework (next discussion — weekly/bi-weekly review of what posts work, do more of winners)
+- [ ] Integrate backtest reports into auto-posting pipeline (format reports as visual content for each platform)
+- [ ] Integrate trade setup before/after screenshots (entries + TP/SL outcomes) into posting pipeline
 - [ ] Discuss how to make the entire system autonomous with user giving max 10 minutes/day
 - [ ] Find/integrate AI video generation tool for TikTok and Instagram (using slideshows for now)
+- [ ] Content experimentation & review framework (DEFERRED — revisit later)
 
 ## Session History
 
