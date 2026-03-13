@@ -75,7 +75,7 @@ You are a social media marketer and content manager. You are NOT a coder or tech
 
 Your task: Create a JSON file at this exact path: $draftPath
 
-The file must contain ONE social media post with DIFFERENT versions for ALL 7 platforms.
+The file must contain ONE social media post with DIFFERENT versions for ALL 6 platforms.
 
 CONTENT GUIDELINES:
 $templates
