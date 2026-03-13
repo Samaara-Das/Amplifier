@@ -1,0 +1,42 @@
+{
+  "x": {
+    "name": "X (Twitter)",
+    "compose_url": "https://x.com/compose/post",
+    "home_url": "https://x.com/home",
+    "timeout_seconds": 30,
+    "enabled": true
+  },
+  "linkedin": {
+    "name": "LinkedIn",
+    "home_url": "https://www.linkedin.com/feed/",
+    "timeout_seconds": 30,
+    "enabled": true
+  },
+  "facebook": {
+    "name": "Facebook",
+    "home_url": "https://www.facebook.com/",
+    "timeout_seconds": 30,
+    "enabled": true
+  },
+  "instagram": {
+    "name": "Instagram",
+    "home_url": "https://www.instagram.com/",
+    "timeout_seconds": 30,
+    "enabled": true
+  },
+  "reddit": {
+    "name": "Reddit",
+    "home_url": "https://www.reddit.com/",
+    "timeout_seconds": 30,
+    "enabled": true,
+    "subreddits": ["programming", "webdev", "fintech"]
+  },
+  "tiktok": {
+    "name": "TikTok",
+    "home_url": "https://www.tiktok.com/",
+    "upload_url": "https://www.tiktok.com/creator#/upload?scene=creator_center",
+    "timeout_seconds": 30,
+    "enabled": true,
+    "note": "TikTok is blocked in India. Connect Surfshark VPN to a non-India server before running poster."
+  }
+}

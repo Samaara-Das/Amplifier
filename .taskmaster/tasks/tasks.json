@@ -1,0 +1,328 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Project Scaffolding",
+        "description": "Create directory structure, config files (platforms.json, .env, content-templates.md), requirements.txt",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": []
+      },
+      {
+        "id": "2",
+        "title": "Content Generator",
+        "description": "PowerShell script (generate.ps1) that calls Claude CLI to generate 7-platform JSON drafts. Handles CLAUDECODE env var, file validation, dedup.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "3",
+        "title": "Draft Manager",
+        "description": "Python module (draft_manager.py) for draft lifecycle: get_next_draft, mark_posted, mark_failed. Moves files between pending/posted/failed dirs.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "4",
+        "title": "Human Behavior Emulation",
+        "description": "Anti-detection module (human_behavior.py): human_type (char-by-char 30-120ms), human_scroll, random_mouse_movement, browse_feed (1-5 min realistic browsing).",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "5",
+        "title": "X (Twitter) Posting",
+        "description": "Post to X via Playwright. Uses dispatch_event('click') to bypass overlay div on tweet button. E2E tested and working.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "6",
+        "title": "LinkedIn Posting",
+        "description": "Post to LinkedIn via Playwright. Shadow DOM requires locator().wait_for() instead of wait_for_selector(). get_by_role for exact Post button match. E2E tested.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "Facebook Posting",
+        "description": "Post to Facebook via Playwright. Standard selectors work. E2E tested and working.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "Reddit Posting",
+        "description": "Post text posts to random subreddit from configured list. Shadow DOM (faceplate web components) requires locator pattern. E2E tested and working.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "TikTok Posting — E2E Test with Surfshark",
+        "description": "Post photo posts with generated branded images (1080x1920). Code complete. User has Surfshark VPN installed — configure proxy or use VPN directly to access TikTok from India.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "TikTok image generator",
+            "description": "Pillow-based 1080x1920 branded text-on-image with color schemes, text shadow, accent bars, watermark.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "TikTok posting function",
+            "description": "Upload image via file input, fill caption with fallback selectors, click post/publish button.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Configure Surfshark VPN for TikTok access",
+            "description": "User has Surfshark desktop app installed. Either use Surfshark's SOCKS5 proxy feature and update platforms.json proxy field, or simply connect VPN system-wide before running poster (remove proxy config from platforms.json).",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-08T10:16:31.480Z"
+          },
+          {
+            "id": 4,
+            "title": "TikTok login setup",
+            "description": "Connect Surfshark VPN, then run login_setup.py tiktok to create persistent browser session.",
+            "status": "done",
+            "dependencies": [
+              3
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T09:38:01.453Z"
+          },
+          {
+            "id": 5,
+            "title": "TikTok E2E test",
+            "description": "Test full TikTok posting flow: image generation, upload, caption, post. Fix selectors if needed.",
+            "status": "done",
+            "dependencies": [
+              4
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T11:13:18.620Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T11:13:18.620Z"
+      },
+      {
+        "id": "10",
+        "title": "Remove BlueSky Integration",
+        "description": "Remove BlueSky entirely: delete post_to_bluesky from post.py, remove from PLATFORM_POSTERS, platforms.json, login_setup.py, human_behavior.py, content-templates.md, and update generate.ps1 from 7 to 6 platforms.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "updatedAt": "2026-03-08T10:16:01.252Z",
+        "subtasks": []
+      },
+      {
+        "id": "11",
+        "title": "Instagram Posting",
+        "description": "Post photo+caption to Instagram desktop web. Generates 1080x1080 branded image. Flow: Create → upload → Next → Next → caption → Share. Code complete, needs login + E2E test.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Instagram image generator",
+            "description": "1080x1080 square branded image with text overlay, accent borders, watermark. Strips hashtags from image text.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Instagram posting function",
+            "description": "Implemented post_to_instagram() with desktop web flow: Create → file upload → Next (crop) → Next (filter) → caption → Share.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Instagram login setup",
+            "description": "Run login_setup.py instagram to create persistent browser session.",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-08T10:26:23.908Z"
+          },
+          {
+            "id": 4,
+            "title": "Instagram E2E test",
+            "description": "Test full posting flow. Instagram web posting can be flaky — may need selector adjustments.",
+            "status": "done",
+            "dependencies": [
+              3
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T10:58:17.154Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T10:58:17.154Z"
+      },
+      {
+        "id": "15",
+        "title": "Instagram E2E Testing",
+        "description": "Login to Instagram and E2E test the posting automation. User will test — may need selector fixes for Instagram's desktop web posting flow (Create → upload → Next → Next → caption → Share).",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "11"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Instagram login setup",
+            "description": "Run login_setup.py instagram to create persistent browser session.",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T10:58:26.567Z"
+          },
+          {
+            "id": 2,
+            "title": "Instagram E2E test run",
+            "description": "Run poster with a draft, verify Create → upload → Next → Next → caption → Share flow works. Fix selectors if needed.",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T10:58:37.696Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T10:58:37.696Z"
+      },
+      {
+        "id": "16",
+        "title": "TikTok E2E Testing with Surfshark",
+        "description": "Connect Surfshark VPN, login to TikTok, and E2E test posting automation. User has Surfshark installed on desktop.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "9"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure Surfshark + TikTok login",
+            "description": "Connect Surfshark VPN to a non-India server, then run login_setup.py tiktok.",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T11:27:10.379Z"
+          },
+          {
+            "id": 2,
+            "title": "TikTok E2E test run",
+            "description": "Run poster to test TikTok posting flow with VPN active. Fix selectors if needed.",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T11:27:19.962Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T11:27:19.962Z"
+      },
+      {
+        "id": "12",
+        "title": "Login Setup Helper",
+        "description": "CLI tool (login_setup.py) to launch persistent browser for manual login. Supports all 7 platforms with proxy support.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "13",
+        "title": "Windows Task Scheduler",
+        "description": "PowerShell script (setup_scheduler.ps1) to register scheduled tasks: AutoPoster-Generate (8AM, 1PM, 6PM) and AutoPoster-Post (every 2h from 9AM).",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "2",
+          "5"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "14",
+        "title": "Main Orchestrator",
+        "description": "Async orchestrator in post.py: loads draft, shuffles enabled platforms, posts sequentially with 30-90s delays, marks draft posted/failed.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-03-13T11:27:19.963Z",
+      "taskCount": 16,
+      "completedCount": 16,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}
