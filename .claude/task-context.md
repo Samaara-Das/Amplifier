@@ -1,177 +1,143 @@
 # Auto-Posting System — Task Context
 
-**Last Updated**: 2026-03-13
+**Last Updated**: 2026-03-14
 
 ## Current Task
-- **Brand Strategy Development** — system posts to 6 platforms but lacks a personal brand building strategy. Currently in strategy design phase.
+- **Next up: Task #17 — Implement Updated Auto-Poster Workflow** — rebuild the pipeline to match the finalized E2E flow in `docs/auto-poster-workflow.md`. This is a large task that needs subtask breakdown before starting.
 
 ## Task Progress Summary
 
-### Completed (16/16 implementation tasks — 100%)
-- [x] Project scaffolding (dirs, config, requirements.txt)
-- [x] Content generator (`scripts/generate.ps1`) — Claude CLI writes 6-platform JSON drafts
-- [x] Draft manager (`scripts/utils/draft_manager.py`) — pending → posted/failed lifecycle
-- [x] Human behavior emulation (`scripts/utils/human_behavior.py`) — typing, scrolling, mouse, browse_feed
-- [x] Login setup helper (`scripts/login_setup.py`) — supports 6 platforms
-- [x] Platform config (`config/platforms.json`) — 6 platforms with enable flags
-- [x] Brand voice & content templates (`config/content-templates.md`)
-- [x] Windows Task Scheduler setup (`scripts/setup_scheduler.ps1`)
-- [x] Main orchestrator (`scripts/post.py`)
-- [x] X (Twitter) posting — E2E tested, working
-- [x] LinkedIn posting — E2E tested, working (shadow DOM piercing with locators)
-- [x] Facebook posting — E2E tested, working
-- [x] Reddit posting — E2E tested, working (shadow DOM, faceplate components)
-- [x] TikTok posting — E2E tested, working (video upload via moviepy)
-- [x] Instagram posting — E2E tested, working (dialog overlay, force clicks)
-- [x] Remove BlueSky Integration (task 10) — fully removed from all files
+### Completed (16/16 MVP tasks — 100%)
+- [x] Tasks 1-14, 15-16: Full MVP built and E2E tested — project scaffolding, content generator, draft manager, human behavior emulation, all 6 platform posting functions, login helper, scheduler, main orchestrator
+- [x] All 6 platforms E2E verified: X, LinkedIn, Facebook, Reddit, TikTok, Instagram
+- [x] BlueSky integration removed (task 10)
 
-### Brand Strategy (In Progress)
-- [x] Created custom output style: `.claude/output-styles/brand-strategist.md`
-- [x] Embedded Emotion-First Principle into output style (non-negotiable)
-- [x] Scraped LinkedIn profile (~90+ posts reviewed) and TradingView profile (2 ideas, 5 scripts)
-- [x] Built comprehensive user context file: `memory/user_brand_context.md`
-- [x] Drafted full brand strategy (identity, 5 content pillars, platform strategy, posting schedule, monetization funnel, channel partner strategy)
-- [x] User CONFIRMED: posting schedule (US-aligned), content pillars, platform priorities, monetization funnel, branding, brand identity
-- [x] Brand identity reframed: NOT "tool builder" → "the person who helps people achieve financial freedom, side hustle, financial security"
-- [x] Full comprehensive strategy document written: `docs/brand-strategy.md` (brand foundation, 5 audience personas, 5 pillar deep-dives with platform-specific formats, 6 platform playbooks, 30+ hook templates, daily/weekly content calendar, monetization funnel, channel partner strategy, growth milestones)
-- [x] Output style updated with all confirmed decisions
-- [x] Update `config/content-templates.md` to encode the finalized strategy (complete rewrite with emotion-first + value-first principles, 5 pillars, platform formats)
-- [x] Update `scripts/setup_scheduler.ps1` to align posting times with US timezone (6 IST slots: 18:30, 20:30, 23:30, 01:30, 04:30, 06:30 = EST 8AM-8PM)
-- [ ] Integrate backtest reports into auto-posting pipeline (format reports as visual content for each platform)
-- [ ] Integrate trade setup before/after screenshots (entries + TP/SL outcomes) into posting pipeline
-- [ ] Discuss how to make the entire system autonomous with user giving max 10 minutes/day
-- [ ] Find/integrate AI video generation tool for TikTok and Instagram (using slideshows for now)
-- [ ] Content experimentation & review framework (DEFERRED — revisit later)
+### Brand Strategy (Completed — Session 5, 2026-03-13)
+- [x] Custom output style created: `.claude/output-styles/brand-strategist.md`
+- [x] Emotion-first principle embedded (non-negotiable)
+- [x] LinkedIn + TradingView profiles scraped and analyzed
+- [x] Full brand strategy document: `docs/brand-strategy.md`
+- [x] Content templates updated: `config/content-templates.md`
+- [x] Scheduler aligned to US timezone
+
+### E2E Workflow Planning (Completed — Session 6, 2026-03-14)
+- [x] Platform strategy decided: 4 platforms (X + Reddit active, LinkedIn + Facebook passive)
+- [x] Posting frequency researched: X 3/day, Reddit 2-3/week, LinkedIn 4/week Tue-Fri, Facebook 1/day
+- [x] Full E2E workflow documented: `docs/auto-poster-workflow.md`
+- [x] Weekly performance review loop designed
+- [x] Account warmup plan defined (weeks 1-2 gradual ramp-up)
+- [x] All 13 new tasks created in Task Master (tasks 17-30)
+
+### Pending — Now (sequential, with dependencies)
+- [ ] **17**: Implement Updated Auto-Poster Workflow (high)
+- [ ] **18**: Test Run — Confirm Updated Workflow Works (high, depends on 17)
+- [ ] **19**: Account Warmup — Gradual Ramp-Up Per Platform (high, depends on 18)
+- [ ] **21**: Discuss "I'm Back" LinkedIn Post Strategy (high, depends on 19)
+- [ ] **20**: Revamp Profiles — X, Reddit, LinkedIn, Facebook (high, depends on 21)
+
+### Pending — Later (independent, no blocking dependencies)
+- [ ] **22**: AI Video Generation for TikTok + Instagram (medium)
+- [ ] **23**: Financial Newsletters/Articles as Content Source (medium)
+- [ ] **25**: Facebook Groups Posting (medium)
+- [ ] **26**: TradingView Content Auto-Posting (medium)
+- [ ] **27**: Analytics Dashboard — Automate Weekly Review Data Pull (medium)
+- [ ] **28**: Content A/B Testing Framework (low)
+- [ ] **29**: Email List + Lead Magnet for Monetization Funnel (low)
+- [ ] **30**: Competitor Analysis Tooling (low)
 
 ## Session History
 
 ### Sessions 1-4 (2026-03-07 to 2026-03-13) — MVP Build & E2E Testing
 - Built entire auto-posting system from scratch
-- All 6 platforms E2E tested and working (X, LinkedIn, Facebook, Reddit, TikTok, Instagram)
-- Key technical discoveries: shadow DOM piercing, overlay click workarounds, TikTok video-only uploads, Draft.js editor handling
-- Full details in previous session logs (system is feature-complete)
+- All 6 platforms E2E tested and working
+- Key discoveries: shadow DOM piercing, overlay click workarounds, TikTok video-only uploads, Draft.js editor handling
 
 ### Session 5 (2026-03-13) — Brand Strategy Development
-1. **Output Style created** — `.claude/output-styles/brand-strategist.md` with `keep-coding-instructions: true`
-   - User taught me what Claude Code output styles are (modifies system prompt)
-   - Created at project level for brand strategy work
-   - Added builder-educator positioning, platform strategies, anti-patterns
+- Created brand strategist output style (`.claude/output-styles/brand-strategist.md`)
+- Embedded emotion-first principle as non-negotiable
+- Scraped LinkedIn (~90+ posts, 9.5K connections) and TradingView (357 followers, 5 scripts)
+- Built comprehensive user context: `memory/user_brand_context.md`
+- Full brand strategy document: `docs/brand-strategy.md` (brand foundation, 5 audience personas, 5 pillar deep-dives, 6 platform playbooks, 30+ hook templates, content calendar, monetization funnel, growth milestones)
+- Updated content-templates.md and scheduler for US timezone
 
-2. **Emotion-First Principle embedded** — User emphasized ALL content must lead with emotion
-   - People don't care about indicators or technical concepts
-   - They respond to: greed, security, financial stability, side hustle, earning money, fear of AI
-   - Added as non-negotiable section in output style with 8 specific emotional triggers and good/bad examples
-   - Platform-specific emotional hooks added
+### Session 6 (2026-03-14) — E2E Workflow Planning & Platform Strategy
+1. **Platform strategy decided** — narrowed from 6 to 4 active platforms:
+   - **Active (post + engage):** X (new account needed, new email), Reddit (existing, revamp profile)
+   - **Passive (auto-post only):** LinkedIn (existing 9.5K connections, revamp for US), Facebook (existing but empty, set up profile)
+   - **Paused:** TikTok (until AI video ready), Instagram (until TikTok content exists to repurpose)
+   - **Rationale:** 10 min/day engagement budget means depth beats breadth. X and Reddit are the only platforms where fresh accounts can grow through engagement.
 
-3. **User context gathered from arscontexta** — identity, goals, relationships, projects
+2. **Posting frequency researched** (web search, multiple sources):
+   - X: 3 tweets/day + 2 threads/week (replies drive growth more than posts)
+   - Reddit: 2-3 posts/week ONLY (9:1 comment-to-post ratio required, spam filters)
+   - LinkedIn: 4 posts/week Tue-Fri (daily posting HURTS — 40% reach drop from cannibalization)
+   - Facebook: 1/day, 7 days/week (algorithm rewards daily consistency)
+   - Total: ~36 posts/week
 
-4. **LinkedIn profile scraped** (Chrome DevTools MCP, ~90+ posts):
-   - 9,497 connections, 737 impressions/week despite 1-2 years dormant
-   - Headline: "Financial Market Algorithm Developer | Happy to share my free algos"
-   - 3 roles: Market DaVinci (algos, ICT learning modules), PoolsiFi (50+ strategies, TTE, ML algos), FCMB Bank UK (frontend)
-   - Content: mostly trading education (Elliott Wave, Ichimoku, liquidity, moving averages, supply/demand, divergences, risk management, trading psychology, automation advocacy)
-   - Style: "in simple English", structured lists, step-by-step, moderate emojis
-   - Cross-posted same content 3-5x to LinkedIn groups
-   - Best performers: practical how-tos (liquidity 27 reactions, trading plans 35, moving averages 21)
+3. **Full E2E workflow documented** — `docs/auto-poster-workflow.md`:
+   - **Phase 1: Content Research** (5:00 PM IST) — Coda notes, backtest reports (every 2-3 days), Stock Buddy performance page screenshots, market events calendar
+   - **Phase 2: Content Generation** (5:30 PM IST) — per-platform cadence, voice rules ("I learnt this, maybe you can try this too"), pillar rotation, cross-platform repurposing
+   - **Phase 3: User Review** (6:00 PM IST, 15 min) — dashboard approval, 1-day content buffer
+   - **Phase 4: Automated Posting** (6:30 PM – 1:30 AM IST) — platform-specific times aligned to US hours
+   - **Phase 5: Manual Engagement** (10 min/day) — X replies + Reddit comments (NOT automated)
+   - **Phase 6: Weekly Review** (Sunday 7 PM IST, 15 min) — metrics, top/bottom posts, adjust pillar mix
+   - Content sources explicitly REMOVED: trending market events (not v1), financial newsletters (future), Stock Buddy signals page (users won't understand)
+   - Images/slideshows must be visually striking, scroll-stopping, branded, mobile-first
 
-5. **TradingView profile reviewed**:
-   - 357 followers, Premium account, joined Oct 2021
-   - 5 scripts: structure break indicator (267 boosts), RSI divergence (237 boosts), indicators library, AO divergence library, stoch+supertrend strategy
-   - 2 ideas: Supply & Demand Part 1, Elliott Wave labeling (both educational)
+4. **Account warmup plan** — gradual ramp-up for new/empty accounts:
+   - X: Week 1 = 1 tweet/day, Week 2 = 2/day, Week 3+ = full cadence
+   - Reddit: Weeks 1-2 = comments only, Weeks 3-4 = 1 post/few days, Month 2+ = full
+   - LinkedIn: No warmup (existing 9.5K connections)
+   - Facebook: Week 1 = every other day, Week 2+ = daily
 
-6. **Full brand strategy drafted** with these components:
-   - **Brand identity**: builder-educator, not guru. Hide age (17) and location (India). US-only positioning.
-   - **5 content pillars**: "Stop Losing Money" (fear), "Make Money While You Sleep" (greed/automation), "The Market Cheat Code" (competence/edge), "Proof Not Promises" (trust/data), "Future-Proof Your Income" (AI fear/stability)
-   - **Platform priorities**: Tier 1 = TikTok + X, Tier 2 = Instagram + Reddit, Tier 3 = LinkedIn + Facebook
-   - **Posting schedule fix**: Current IST schedule misses US audience. Proposed US-aligned times (6:30PM-6:30AM IST = 8AM-8PM EST)
-   - **Monetization funnel**: Free content → free TradingView indicators → $20/month paid indicators/strategies
-   - **Channel partner strategy**: shareable content, engagement pods, tag-a-friend CTAs, eventual referral program
-   - **Content mix**: 50% education, 20% aspiration, 15% proof, 15% topical/engagement
+5. **Weekly performance review** — weeks 1-3 collect data only, week 4+ start adjusting. Don't overreact to early data.
 
-7. **Key user details captured**:
-   - 17 years old, doesn't want people to know his age
-   - Father is trading expert with 30+ years experience, builds strategies/indicators
-   - Targets US audience ONLY — teens (8th grade+), housewives, professional traders, working professionals, people afraid of AI
-   - Plans to sell indicators/strategies at $20/month
-   - All 6 social accounts are fresh (zero posts) except LinkedIn and TradingView
-   - AI video tool for TikTok/Instagram TBD — using slideshows for now
-   - Built Stock Buddy (AI app: teaches markets, proprietary indicators/strategies, signals, performance tracking, groups, 1000+ instruments)
-   - TradingView chosen as primary platform for publishing indicators/strategies (free, accessible, looks good)
-
-8. **Content experimentation framework** — noted for future discussion. Will build a testing and iteration loop: experiment with content types, track metrics per platform weekly/bi-weekly, double down on winners, kill losers.
-
-9. **Full brand strategy document written** — `docs/brand-strategy.md` containing:
-   - Brand foundation (voice table, positioning, what you never do)
-   - 5 detailed audience personas (teens, housewives, professionals, traders, AI-fearful) with emotional triggers, platforms, and path to $20/month
-   - 5 content pillars deep-dived with specific content angles, platform-specific formats, and example posts
-   - 6 platform playbooks (TikTok, X, Instagram, Reddit, LinkedIn, Facebook) with tactics, formats, growth strategies
-   - 30+ hook templates organized by emotional trigger (fear, greed, competence, trust, AI fear, engagement)
-   - Daily content calendar (6 slots mapped to IST/EST with pillar assignments)
-   - Weekly rhythm (themed days: Backtest Wednesdays, Aspiration Thursdays, etc.)
-   - Monetization funnel (3 stages over weeks 1-13+: Attention → Trust → Conversion)
-   - Channel partner strategy (find, activate, types)
-   - Growth milestones (Phase 1-4 over 12 months, targets from 500 to 50K+ followers)
-   - Brand rules quick reference (always do / never do)
-
-10. **User confirmed brand identity reframe** — NOT "tool builder" but "the person who helps people achieve financial freedom, have a side hustle, get the life they want, secure them financially." Content must be fun to watch/see and grab attention.
-
-11. **Output style fully updated** with all confirmed decisions — brand identity, content pillars, audience segments, platform tiers, posting schedule, monetization, anti-patterns including age/location hiding
+6. **13 new tasks created** in Task Master (17-30) covering implementation through long-term enhancements
 
 ## Important Decisions Made
-- **Output style over skill/subagent** for brand strategy work — modifies entire thinking mode
-- **Emotion-first is non-negotiable** — every post must lead with emotional hook, deliver substance after
-- **US-only targeting** — all content uses US markets (SPY, AAPL), USD, American English, US timezone posting
-- **Age hidden** — never reference school, college, generation. Content should be ageless.
-- **Location hidden** — no Indian references, no IST, no rupee
-- **TradingView as primary tool platform** — free, accessible, where indicators/strategies will be published
-- **Slideshows first, AI video later** — for TikTok and Instagram until AI video tool is figured out
-- **Personal brand (Samaara Das)** — not a company name
-- **$20/month subscription model** — affordable, needs volume
-- **Posting schedule confirmed**: IST 6:30PM-6:30AM = EST 8AM-8PM (6 slots)
-- **Brand identity**: NOT "tool builder" → "the person who helps people achieve financial freedom"
-- **Content must be fun, attention-grabbing, scroll-stopping** — never dry or boring
+- **4 platforms, not 6** — X + Reddit (active), LinkedIn + Facebook (passive). TikTok/Instagram paused.
+- **New X account needed** — fresh start with new email, not existing account
+- **Auto-poster = posting only** — no automated engagement. User handles X replies and Reddit comments manually.
+- **Content voice: "I learnt this, maybe you can try this too"** — never claiming trading experience, never ordering people
+- **1-day content buffer** — system keeps approved posts queued so it doesn't break if user misses a review day
+- **Market Events Calendar kept** — FOMC, CPI, earnings dates drive topical content
+- **CTA rotation** — month 1 = 100% value, month 2+ = 80/15/5 split
+- **LinkedIn "I'm back" post** — do this BEFORE profile revamps (informs profile strategy)
+- **Switch to Default output style** for implementation work (Brand Strategist is for content/strategy discussions)
+- **Start new chat** for task 17 implementation — current conversation is strategy-heavy, implementation needs room
 
 ## Key Reference Files
-- `scripts/post.py` — Main orchestrator + 6 platform posting functions
-- `scripts/generate.ps1` — Content generator (Claude CLI, 6 platforms)
+- `docs/auto-poster-workflow.md` — **THE** complete E2E workflow specification (Phase 1-6)
+- `docs/brand-strategy.md` — Full brand & content strategy document
+- `scripts/post.py` — Main orchestrator + platform posting functions
+- `scripts/generate.ps1` — Content generator (Claude CLI)
+- `scripts/review_dashboard.py` — Review dashboard (localhost:5111)
 - `scripts/utils/draft_manager.py` — Draft lifecycle
 - `scripts/utils/human_behavior.py` — Anti-detection behaviors
-- `scripts/utils/image_generator.py` — TikTok video + Instagram image generation
-- `scripts/login_setup.py` — Browser login helper (6 platforms)
-- `config/platforms.json` — Platform URLs, enable flags
-- `config/content-templates.md` — Brand voice, platform rules (NEEDS UPDATE with new strategy)
+- `scripts/utils/image_generator.py` — Image/video generation
+- `scripts/login_setup.py` — Browser login helper
+- `scripts/setup_scheduler.ps1` — Windows Task Scheduler
+- `config/platforms.json` — Platform URLs, enable flags, proxy config
+- `config/content-templates.md` — Brand voice, content pillars, platform format rules
 - `config/.env` — Timing/behavior config
-- `.claude/output-styles/brand-strategist.md` — Custom output style for brand strategy work (fully updated with all confirmed decisions)
-- `docs/brand-strategy.md` — **THE** comprehensive brand & content strategy document
-- `memory/user_brand_context.md` — Comprehensive user profile, audience, goals, LinkedIn/TradingView analysis
-- `memory/project_content_iteration.md` — Planned content experimentation framework
+- `.claude/output-styles/brand-strategist.md` — Custom output style for brand/content work
 
-## Immediate To-Dos (Do Now)
-1. [ ] **Create/revamp LinkedIn, X, and Facebook profiles** — bio, banner, profile pic aligned with brand strategy, optimized for US audience discovery
-2. [ ] **Ensure posts reach US audience** — verify posting times, hashtag strategy, profile settings (location/language set to US)
-3. [ ] **Get 6 posts drafted and reviewed** — generate 6 drafts (with images where applicable), review via dashboard, approve all
-4. [ ] **Let the auto-poster post** — run `post.py` to publish approved drafts to enabled platforms
-
-## To-Dos (Tomorrow — 2026-03-14)
-1. [ ] **Map the full E2E auto-poster flow** — document exactly what happens daily and weekly, end-to-end. Identify what's a core feature vs. nice-to-have add-on. Cover: generation → review → posting → scheduling → monitoring. Define the "10 min/day" user workflow.
-2. [ ] **Fix content quality — posts sound like a wannabe trader** — current content is impractical/fake because the generator has no real trading knowledge. Three things to build:
-   - **Trading knowledge skill/context** for Claude Code CLI — a knowledge base or output style that gives the generator real trader expertise (concepts, practical examples, real setups, real gotchas)
-   - **Coda docs integration** — generator reads user's Coda docs for content ideas, market notes, backtest results
-   - **Newsletter/article pipeline** — system reads chosen newsletters or articles and uses them as source material for posts (real insights, not made-up ones)
-
-## To-Dos (Later)
-1. [ ] **Create profiles on remaining platforms** — Instagram, Reddit, TikTok (accounts may need creation + login via `login_setup.py`)
-2. [ ] **Decide which platforms to post on** — confirm if posting should be on 1, some, or all 6 platforms
-3. **Content experimentation & review framework** — weekly/bi-weekly review of what posts work, track metrics per platform, do more of winners, kill losers
-4. **Autonomous operation** — how to make the entire system run with user giving max 10 minutes/day
+## Memory Files
+- `memory/project_platform_strategy.md` — Which platforms, why, active vs passive
+- `memory/project_e2e_flow.md` — Full E2E workflow details
+- `memory/user_brand_context.md` — User profile, audience, goals
+- `memory/project_content_iteration.md` — Content experimentation framework (future)
+- `memory/feedback_auto_commit_push.md` — Always commit and push without being asked
+- `memory/feedback_value_first_content.md` — All content must deliver actionable value
+- `memory/feedback_no_trading_experience.md` — Never claim trading experience
 
 ## Verified Patterns (selectors & techniques)
 - **X**: `[data-testid="tweetButton"]` + `dispatch_event("click")`
 - **LinkedIn**: `[role="button"]:has-text("Start a post")` → `[role="textbox"]` → `get_by_role("button", name="Post", exact=True)`
 - **Facebook**: `[aria-label="What's on your mind?"]` → `[role="textbox"]` → `[aria-label="Post"]`
 - **Reddit**: `textarea[name="title"]` → `[role="textbox"][name="body"]` → `button:has-text("Post")`
-- **TikTok**: Hidden `input[type="file"]` (video/*) → dismiss "Cancel"/"Got it" dialogs → `div.public-DraftEditor-content` for caption (Ctrl+A, Backspace, then type) → `button[data-e2e="post_video_button"]`
-- **Instagram**: `[aria-label="New post"]` → `svg[aria-label="Post"]` submenu → file input in dialog → `get_by_text("Next", force=True)` x2 → `div[aria-label="Write a caption..."]` → `get_by_role("button", name="Share", exact=True, force=True)` → wait for "Sharing" spinner → dialog close
+- **TikTok**: Hidden `input[type="file"]` (video/*) → dismiss dialogs → `div.public-DraftEditor-content` (Ctrl+A, Backspace, type) → `button[data-e2e="post_video_button"]`
+- **Instagram**: `[aria-label="New post"]` → `svg[aria-label="Post"]` → file input → `get_by_text("Next", force=True)` x2 → caption → `get_by_role("button", name="Share", force=True)`
 
 ## Test Commands
 ```bash
@@ -184,7 +150,10 @@ python scripts/post.py
 
 # Generate drafts
 powershell -File scripts/generate.ps1
-
-# Generate a specific number of drafts
 powershell -File scripts/generate.ps1 -count 3
+
+# Task Master
+task-master next
+task-master list --with-subtasks
+task-master show 17
 ```
