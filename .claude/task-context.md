@@ -146,9 +146,24 @@
 - `memory/user_brand_context.md` — Comprehensive user profile, audience, goals, LinkedIn/TradingView analysis
 - `memory/project_content_iteration.md` — Planned content experimentation framework
 
-## Next Discussions (Upcoming)
-1. **Content experimentation & review framework** — weekly/bi-weekly review of what posts work, track metrics per platform, do more of winners, kill losers
-2. **Autonomous operation** — how to make the entire system run with user giving max 10 minutes/day
+## Immediate To-Dos (Do Now)
+1. [ ] **Create/revamp LinkedIn, X, and Facebook profiles** — bio, banner, profile pic aligned with brand strategy, optimized for US audience discovery
+2. [ ] **Ensure posts reach US audience** — verify posting times, hashtag strategy, profile settings (location/language set to US)
+3. [ ] **Get 6 posts drafted and reviewed** — generate 6 drafts (with images where applicable), review via dashboard, approve all
+4. [ ] **Let the auto-poster post** — run `post.py` to publish approved drafts to enabled platforms
+
+## To-Dos (Tomorrow — 2026-03-14)
+1. [ ] **Map the full E2E auto-poster flow** — document exactly what happens daily and weekly, end-to-end. Identify what's a core feature vs. nice-to-have add-on. Cover: generation → review → posting → scheduling → monitoring. Define the "10 min/day" user workflow.
+2. [ ] **Fix content quality — posts sound like a wannabe trader** — current content is impractical/fake because the generator has no real trading knowledge. Three things to build:
+   - **Trading knowledge skill/context** for Claude Code CLI — a knowledge base or output style that gives the generator real trader expertise (concepts, practical examples, real setups, real gotchas)
+   - **Coda docs integration** — generator reads user's Coda docs for content ideas, market notes, backtest results
+   - **Newsletter/article pipeline** — system reads chosen newsletters or articles and uses them as source material for posts (real insights, not made-up ones)
+
+## To-Dos (Later)
+1. [ ] **Create profiles on remaining platforms** — Instagram, Reddit, TikTok (accounts may need creation + login via `login_setup.py`)
+2. [ ] **Decide which platforms to post on** — confirm if posting should be on 1, some, or all 6 platforms
+3. **Content experimentation & review framework** — weekly/bi-weekly review of what posts work, track metrics per platform, do more of winners, kill losers
+4. **Autonomous operation** — how to make the entire system run with user giving max 10 minutes/day
 
 ## Verified Patterns (selectors & techniques)
 - **X**: `[data-testid="tweetButton"]` + `dispatch_event("click")`

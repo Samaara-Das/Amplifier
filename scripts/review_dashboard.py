@@ -5,6 +5,9 @@ import os
 import sys
 from pathlib import Path
 
+import subprocess
+import threading
+
 from flask import Flask, jsonify, redirect, render_template_string, request, url_for
 from dotenv import load_dotenv
 
@@ -78,9 +81,17 @@ DASHBOARD_HTML = r"""
         .empty-state h2 { font-size: 20px; color: #888; margin-bottom: 8px; }
         .structured-fields { display: flex; flex-direction: column; gap: 8px; }
         .structured-fields label { font-size: 12px; color: #888; font-weight: 500; }
+        .ai-rewrite-bar { display: flex; gap: 8px; margin-top: 14px; margin-bottom: 4px; }
+        .ai-prompt-input { flex: 1; background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 8px 12px; font-size: 14px; font-family: inherit; }
+        .ai-prompt-input:focus { outline: none; border-color: #a855f7; }
+        .ai-prompt-input::placeholder { color: #555; }
+        .btn-ai { background: #a855f7; color: #fff; white-space: nowrap; }
+        .btn-ai:disabled { background: #555; cursor: wait; }
+        .btn-ai.loading { background: #7c3aed; }
         .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 14px; display: none; z-index: 100; }
         .toast.success { background: #22c55e; }
         .toast.error { background: #ef4444; }
+        .toast.info { background: #a855f7; }
     </style>
 </head>
 <body>
@@ -152,6 +163,15 @@ DASHBOARD_HTML = r"""
         {% endif %}
         {% endfor %}
 
+        <div class="ai-rewrite-bar">
+            <input type="text" class="ai-prompt-input" id="ai-prompt-{{ draft._filename }}"
+                   placeholder="Tell AI how to rewrite this post..."
+                   onkeydown="if(event.key==='Enter')aiRewrite('{{ draft._filename }}')">
+            <button class="btn btn-ai" onclick="aiRewrite('{{ draft._filename }}')" id="ai-btn-{{ draft._filename }}">
+                Rewrite with AI
+            </button>
+        </div>
+
         <div class="draft-actions">
             <button class="btn btn-save" onclick="saveDraft('{{ draft._filename }}')">Save Edits</button>
             <div class="spacer"></div>
@@ -206,6 +226,59 @@ DASHBOARD_HTML = r"""
         toast.className = `toast ${type}`;
         toast.style.display = 'block';
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    function aiRewrite(filename) {
+        const input = document.getElementById(`ai-prompt-${filename}`);
+        const btn = document.getElementById(`ai-btn-${filename}`);
+        const prompt = input.value.trim();
+        if (!prompt) { input.focus(); return; }
+
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Rewriting...';
+        showToast('AI is rewriting — this takes ~60s...', 'info');
+
+        fetch(`/ai-rewrite/${filename}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prompt})
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = 'Rewrite with AI';
+            if (data.status === 'ok' && data.draft) {
+                // Update all textareas with new content
+                const content = data.draft.content;
+                for (const [platform, val] of Object.entries(content)) {
+                    if (typeof val === 'object') {
+                        for (const [key, text] of Object.entries(val)) {
+                            const ta = document.querySelector(`textarea[data-draft="${filename}"][data-platform="${platform}"][data-key="${key}"]`);
+                            if (ta) { ta.value = text; updateCharCount(ta); }
+                        }
+                    } else {
+                        const ta = document.querySelector(`textarea[data-draft="${filename}"][data-platform="${platform}"]:not([data-key])`);
+                        if (ta) { ta.value = val; updateCharCount(ta); }
+                    }
+                }
+                // Update topic if changed
+                const titleEl = document.querySelector(`#draft-${filename} .draft-title`);
+                if (titleEl && data.draft.topic) titleEl.textContent = data.draft.topic;
+
+                input.value = '';
+                showToast('Draft rewritten!', 'success');
+            } else {
+                showToast(data.message || 'Rewrite failed', 'error');
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = 'Rewrite with AI';
+            showToast('Rewrite failed — check console', 'error');
+        });
     }
 
     function saveDraft(filename) {
@@ -275,6 +348,65 @@ def edit(filename):
     updated_content = request.json
     result = edit_draft(filename, updated_content)
     return jsonify({"status": "ok", "draft_id": result.get("id")})
+
+
+@app.route("/ai-rewrite/<filename>", methods=["POST"])
+def ai_rewrite(filename):
+    """Rewrite a draft using Claude CLI based on a user prompt."""
+    user_prompt = request.json.get("prompt", "").strip()
+    if not user_prompt:
+        return jsonify({"status": "error", "message": "No prompt provided"}), 400
+
+    draft_path = ROOT / "drafts" / "review" / filename
+    if not draft_path.exists():
+        return jsonify({"status": "error", "message": "Draft not found"}), 404
+
+    # Read current draft
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
+
+    # Read content templates for context
+    templates_path = ROOT / "config" / "content-templates.md"
+    templates = templates_path.read_text(encoding="utf-8") if templates_path.exists() else ""
+
+    # Build Claude prompt
+    claude_prompt = (
+        "You are a social media content editor. Your job is to update a draft based on the user's instruction.\n\n"
+        f"CONTENT GUIDELINES:\n{templates}\n\n"
+        f"CURRENT DRAFT:\n{json.dumps(draft, indent=2)}\n\n"
+        f"USER INSTRUCTION: {user_prompt}\n\n"
+        "Update the draft content based on the instruction above. Keep the exact same JSON structure "
+        "(same keys, same platforms, same field names). Only change the content text as needed.\n\n"
+        f"Write the updated JSON file to: {draft_path}\n\n"
+        "CRITICAL: Write the complete valid JSON file. Keep id, created_at, status, topic, pillar, and all "
+        "6 platform keys in content. Respect all platform format rules and character limits."
+    )
+
+    try:
+        env = os.environ.copy()
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["claude", "--dangerously-skip-permissions", "-p", claude_prompt],
+            capture_output=True, text=True, env=env, timeout=120,
+            cwd=str(ROOT),
+        )
+
+        # Re-read the updated file
+        if draft_path.exists():
+            updated = json.loads(draft_path.read_text(encoding="utf-8"))
+            if "content" in updated:
+                return jsonify({"status": "ok", "draft": updated})
+
+        return jsonify({
+            "status": "error",
+            "message": "Claude did not update the file correctly",
+            "output": result.stdout[:500] if result.stdout else result.stderr[:500],
+        }), 500
+
+    except subprocess.TimeoutExpired:
+        return jsonify({"status": "error", "message": "Claude CLI timed out (120s)"}), 504
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 if __name__ == "__main__":

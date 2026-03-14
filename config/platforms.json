@@ -4,7 +4,8 @@
     "compose_url": "https://x.com/compose/post",
     "home_url": "https://x.com/home",
     "timeout_seconds": 30,
-    "enabled": true
+    "enabled": false,
+    "note": "Account locked (underage at creation). Check back in a few days for unlock. Re-enable when resolved."
   },
   "linkedin": {
     "name": "LinkedIn",
