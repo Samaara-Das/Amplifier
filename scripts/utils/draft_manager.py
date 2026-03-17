@@ -22,14 +22,38 @@ def _ensure_dirs(root: Path) -> None:
         (root / sub).mkdir(parents=True, exist_ok=True)
 
 
-def get_next_draft() -> dict | None:
-    """Return the oldest pending draft (by mtime) or None."""
+def get_next_draft(slot: int | None = None) -> dict | None:
+    """Return the oldest pending draft (by mtime) or None.
+
+    If slot is given, only return drafts whose 'slot' field matches.
+    Falls back to any draft if no slot-specific draft is found (backward compat).
+    """
     root = _get_root()
     _ensure_dirs(root)
     pending = root / "drafts" / "pending"
     drafts = sorted(pending.glob("draft-*.json"), key=lambda p: p.stat().st_mtime)
     if not drafts:
         logger.info("No pending drafts found")
+        return None
+
+    # If slot filtering requested, try to find a matching draft first
+    if slot is not None:
+        for path in drafts:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("slot") == slot:
+                logger.info("Picked up draft for slot %d: %s", slot, path.name)
+                data["_path"] = str(path)
+                return data
+        # No slot-specific draft found — fall back to oldest unslotted draft
+        for path in drafts:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if "slot" not in data:
+                logger.info("No draft for slot %d, using unslotted draft: %s", slot, path.name)
+                data["_path"] = str(path)
+                return data
+        logger.info("No pending drafts for slot %d", slot)
         return None
 
     path = drafts[0]

@@ -55,7 +55,7 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added FIRST_POST_DATE= to config/.env. Added Get-CTAType function that parses date, calculates days since first post, returns "none" for month 1 or weighted random (80/15/5) for month 2+. Added $CTADescriptions with prompt text for none/soft/direct. CTA instruction injected into every Claude prompt. CTA type logged in generator start line.
 
 ## Subtask 7: Update draft JSON schema for new fields
-- [ ] Update draft_manager.py to handle new draft fields:
+- [x] Update draft_manager.py to handle new draft fields:
   - `slot` (int 1-6) — which posting slot this draft is for
   - `pillar` (string) — already exists in generate.ps1, ensure draft_manager preserves it
   - `format` (string) — "tweet", "thread", "long-form", "image-post", "video-post"
@@ -63,6 +63,7 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
   - Update `get_next_draft()` to optionally filter by slot number
   - Update `mark_posted()` / `mark_failed()` to preserve new fields
   - Keep backward compatible with existing drafts that don't have these fields
+- Done: Added optional `slot` parameter to `get_next_draft(slot=N)`. When slot is specified, it first looks for drafts with matching slot field, then falls back to unslotted drafts (backward compat), then returns None. mark_posted/mark_failed already preserve all fields (they write back the full dict). New fields (slot, pillar, format, platforms) from generate.ps1 flow through naturally.
 
 ## Subtask 8: Update post.py to use slot-filtered drafts
 - [ ] Now that draft_manager supports slot filtering (Subtask 7) and post.py supports slots (Subtask 3):
