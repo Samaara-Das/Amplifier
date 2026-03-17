@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 load_dotenv(ROOT / "config" / ".env")
 os.environ.setdefault("AUTO_POSTER_ROOT", str(ROOT))
 
-from utils.draft_manager import approve_draft, edit_draft, get_review_drafts, reject_draft
+from utils.draft_manager import approve_draft, edit_draft, get_failed_drafts, get_review_drafts, reject_draft, retry_failed_draft
 
 app = Flask(__name__)
 
@@ -239,6 +239,37 @@ DASHBOARD_HTML = r"""
     </div>
     {% endif %}
 
+    {% if failed_drafts %}
+    <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #2a2a3a;">
+        <div class="header">
+            <h1 style="color: #ef4444;">Failed Drafts</h1>
+            <span class="count" style="color: #ef4444;">{{ failed_drafts|length }} failed</span>
+        </div>
+        {% for draft in failed_drafts %}
+        <div class="draft-card" style="border-color: #7f1d1d;">
+            <div class="draft-header">
+                <span class="draft-title">{{ draft.topic or draft.id or draft._filename }}</span>
+                <span class="draft-meta">Failed: {{ draft.failed_at[:16] if draft.failed_at else 'unknown' }}</span>
+            </div>
+            <div class="draft-meta-badges">
+                <span class="meta-badge" style="background:#7f1d1d;color:#fca5a5;">{{ draft.error or 'Unknown error' }}</span>
+                {% if draft.retry_count %}
+                <span class="meta-badge" style="background:#713f12;color:#fde68a;">Retried {{ draft.retry_count }}x</span>
+                {% endif %}
+                {% if draft.slot %}
+                <span class="meta-badge slot">Slot {{ draft.slot }}</span>
+                {% endif %}
+            </div>
+            <div class="draft-actions">
+                <form method="POST" action="{{ url_for('retry', filename=draft._filename) }}" style="display:inline">
+                    <button class="btn" style="background:#f59e0b;color:#000;">Retry (move to pending)</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="toast" id="toast"></div>
 
     <script>
@@ -363,9 +394,11 @@ DASHBOARD_HTML = r"""
 @app.route("/")
 def index():
     drafts = get_review_drafts()
+    failed = get_failed_drafts()
     return render_template_string(
         DASHBOARD_HTML,
         drafts=drafts,
+        failed_drafts=failed,
         char_limits=CHAR_LIMITS,
         platform_labels=PLATFORM_LABELS,
         pillar_colors=PILLAR_COLORS,
@@ -382,6 +415,12 @@ def approve(filename):
 @app.route("/reject/<filename>", methods=["POST"])
 def reject(filename):
     reject_draft(filename)
+    return redirect(url_for("index"))
+
+
+@app.route("/retry/<filename>", methods=["POST"])
+def retry(filename):
+    retry_failed_draft(filename)
     return redirect(url_for("index"))
 
 

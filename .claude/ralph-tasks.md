@@ -93,11 +93,12 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added get_buffer_status() to draft_manager.py — counts pending drafts per slot (1-6) plus unslotted, returns total and empty_slots count. Added Get-BufferStatus function to generate.ps1 that calls Python to check buffer. When buffer is healthy (all slots have pending drafts) and no explicit -slot or -count flag, skips slots that already have pending drafts. When buffer has gaps, generates all slots normally.
 
 ## Subtask 11: Add failure retry logic to post.py
-- [ ] Currently post.py moves failed drafts to failed/ immediately. Update per workflow spec:
+- [x] Currently post.py moves failed drafts to failed/ immediately. Update per workflow spec:
   - On failure: wait 5 minutes, retry once
   - If retry fails: move to drafts/failed/, log the error
   - Failed drafts should be visible in the review dashboard for manual retry
   - Add a "retry_count" field to track retries
+- Done: Added RETRY_DELAY_SEC (300s default) config. Per-platform retry in main(): on failure, waits 5 min, retries once, logs result. Tracks retry_count and retried_platforms on draft. Added get_failed_drafts() and retry_failed_draft() to draft_manager.py. Review dashboard now shows failed drafts section (red-bordered cards with error, retry count, and "Retry" button to move back to pending).
 
 ## Subtask 12: Add legal disclaimers to generate.ps1
 - [ ] Ensure the generator prompt includes legal disclaimer rules from the workflow spec:

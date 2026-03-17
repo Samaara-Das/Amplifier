@@ -40,6 +40,7 @@ POST_INTERVAL_MIN = int(os.getenv("POST_INTERVAL_MIN_SEC", "30"))
 POST_INTERVAL_MAX = int(os.getenv("POST_INTERVAL_MAX_SEC", "90"))
 PAGE_LOAD_TIMEOUT = int(os.getenv("PAGE_LOAD_TIMEOUT_SEC", "30")) * 1000
 COMPOSE_TIMEOUT = int(os.getenv("COMPOSE_FIND_TIMEOUT_SEC", "15")) * 1000
+RETRY_DELAY_SEC = int(os.getenv("RETRY_DELAY_SEC", "300"))  # 5 minutes
 
 # Load platform config
 with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
@@ -982,6 +983,7 @@ async def main() -> None:
     from playwright.async_api import async_playwright
 
     results = {}
+    retry_results = {}
     async with async_playwright() as pw:
         for i, platform in enumerate(platforms_for_slot):
             if platform not in PLATFORM_POSTERS:
@@ -992,6 +994,21 @@ async def main() -> None:
             success = await poster(draft, pw)
             results[platform] = success
 
+            # Retry once on failure after RETRY_DELAY_SEC
+            if not success:
+                logger.warning(
+                    "%s failed. Retrying in %d seconds...", platform, RETRY_DELAY_SEC
+                )
+                await asyncio.sleep(RETRY_DELAY_SEC)
+                logger.info("Retrying %s (attempt 2)...", platform)
+                retry_success = await poster(draft, pw)
+                retry_results[platform] = retry_success
+                if retry_success:
+                    results[platform] = True
+                    logger.info("Retry succeeded for %s", platform)
+                else:
+                    logger.error("Retry also failed for %s", platform)
+
             # Wait between platforms (not after last one)
             if i < len(platforms_for_slot) - 1:
                 wait = random.uniform(POST_INTERVAL_MIN, POST_INTERVAL_MAX)
@@ -1001,12 +1018,19 @@ async def main() -> None:
     succeeded = [p for p, ok in results.items() if ok]
     failed = [p for p, ok in results.items() if not ok]
 
+    # Track retry info on the draft
+    if retry_results:
+        draft["retry_count"] = draft.get("retry_count", 0) + 1
+        draft["retried_platforms"] = {
+            p: "success" if ok else "failed" for p, ok in retry_results.items()
+        }
+
     if succeeded:
         mark_posted(draft, succeeded)
         if failed:
-            logger.warning("Partial success. Failed platforms: %s", failed)
+            logger.warning("Partial success. Failed platforms (after retry): %s", failed)
     else:
-        errors = ", ".join(f"{p}: failed" for p in failed)
+        errors = ", ".join(f"{p}: failed (after retry)" for p in failed)
         mark_failed(draft, f"All platforms failed: {errors}")
 
     logger.info("=== Auto-Poster finished (slot %d) ===", slot)

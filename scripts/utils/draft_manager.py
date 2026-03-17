@@ -165,6 +165,41 @@ def get_buffer_status() -> dict:
     return counts
 
 
+def get_failed_drafts() -> list[dict]:
+    """Return all drafts in failed/ sorted by failed_at (newest first)."""
+    root = _get_root()
+    _ensure_dirs(root)
+    failed_dir = root / "drafts" / "failed"
+    drafts = []
+    for path in sorted(failed_dir.glob("draft-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["_filename"] = path.name
+        drafts.append(data)
+    return drafts
+
+
+def retry_failed_draft(filename: str) -> dict:
+    """Move a draft from failed/ back to pending/ for retry."""
+    root = _get_root()
+    _ensure_dirs(root)
+    src = root / "drafts" / "failed" / filename
+    with open(src, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    data["status"] = "pending"
+    data["retry_count"] = data.get("retry_count", 0) + 1
+    data["retried_at"] = datetime.now(timezone.utc).isoformat()
+    # Clear previous failure info
+    data.pop("error", None)
+    data.pop("failed_at", None)
+    with open(src, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    dest = root / "drafts" / "pending" / filename
+    shutil.move(str(src), str(dest))
+    logger.info("Draft %s moved from failed/ → pending/ (retry #%d)", filename, data["retry_count"])
+    return data
+
+
 def mark_failed(draft: dict, error: str) -> None:
     """Add failure metadata and move draft to failed/."""
     root = _get_root()
