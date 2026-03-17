@@ -1,0 +1,118 @@
+# Ralph Task List — Auto-Poster Workflow (Task 17)
+
+Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
+
+---
+
+## Subtask 1: Enable all 6 platforms in platforms.json
+- [ ] Edit `config/platforms.json` — set `enabled: true` for ALL 6 platforms (x, linkedin, facebook, instagram, reddit, tiktok)
+- Remove the "note" about X being locked (it's resolved now)
+- Keep TikTok's note about VPN requirement
+- Keep Reddit's subreddit list as-is
+
+## Subtask 2: Update posting schedule for per-platform cadence
+- [ ] Edit `scripts/setup_scheduler.ps1` to match the workflow spec in `docs/auto-poster-workflow.md`:
+  - Slot 1 (18:30 IST / 8AM EST): X tweet #1 + LinkedIn (Tue-Fri only)
+  - Slot 2 (20:30 IST / 10AM EST): Facebook post
+  - Slot 3 (23:30 IST / 1PM EST): X tweet #2 + Reddit (2-3x/week)
+  - Slot 4 (01:30 IST / 3PM EST): X tweet #3 or thread
+  - Slot 5 (04:30 IST / 6PM EST): TikTok
+  - Slot 6 (06:30 IST / 8PM EST): Instagram
+- The scheduler should still register the same 6 time slots, but the description/comments should reflect which platforms post when
+
+## Subtask 3: Update post.py to support per-slot platform selection
+- [ ] Currently `post.py` posts to ALL enabled platforms every time it runs. Update it to:
+  - Accept an optional `--slot` argument (1-6) or auto-detect based on current IST time
+  - Each slot posts to specific platforms per the schedule (see Subtask 2)
+  - When no slot specified, auto-detect: find the closest slot to current time
+  - Keep the existing randomized order + delays within a slot
+  - Keep all existing platform posting functions UNCHANGED (they work)
+  - Read `docs/auto-poster-workflow.md` Phase 4 for the exact slot→platform mapping
+
+## Subtask 4: Update generate.ps1 for per-platform volume
+- [ ] Currently generates a single draft with all 6 platforms. Update to generate the right volume per the workflow spec:
+  - X: 3 tweets/day + 1 thread (Tue & Thu) = up to 4 items
+  - Reddit: 1 post (only 2-3 days/week) — skip Mon/Wed/Sat
+  - LinkedIn: 1 post (Tue-Fri only) — skip Mon/Sat/Sun
+  - Facebook: 1 post daily
+  - TikTok: 1 post daily
+  - Instagram: 1 post daily
+  - Total: ~8-10 drafts per day depending on day of week
+  - Each draft should specify which posting slot it's for (add a "slot" field to the JSON)
+  - Read `docs/auto-poster-workflow.md` Phase 2 for volume details
+
+## Subtask 5: Add content pillar rotation to generate.ps1
+- [ ] Add pillar rotation logic to the generator:
+  - Daily mix: 2x Pillar 1/3, 1x Pillar 2, 1x Pillar 4, 1x Pillar 5, 1x Wildcard
+  - The prompt to Claude should specify WHICH pillar to generate for each draft
+  - Track which pillars were used today (check existing drafts in review/ and pending/)
+  - Content series: Backtest Wednesday (Reddit+X), Setup of the Week Monday (X+LinkedIn), One Thing I Learned Friday (all)
+  - Read `docs/auto-poster-workflow.md` Phase 2 "Content Pillar Rotation" section
+
+## Subtask 6: Add CTA rotation to generate.ps1
+- [ ] Add CTA rotation logic:
+  - Need a way to track which "month" the system is in (count from first post date)
+  - Month 1: 100% pure value, zero CTAs
+  - Month 2+: 80% pure value, 15% soft CTA ("Free indicator — link in bio"), 5% direct CTA
+  - Pass the CTA instruction into the Claude prompt so it generates the right mix
+  - Store the "first post date" in config/.env as FIRST_POST_DATE (default to today if not set)
+
+## Subtask 7: Update draft JSON schema for new fields
+- [ ] Update draft_manager.py to handle new draft fields:
+  - `slot` (int 1-6) — which posting slot this draft is for
+  - `pillar` (string) — already exists in generate.ps1, ensure draft_manager preserves it
+  - `format` (string) — "tweet", "thread", "long-form", "image-post", "video-post"
+  - `platforms` (list of strings) — which platforms this draft targets (e.g. ["x", "linkedin"])
+  - Update `get_next_draft()` to optionally filter by slot number
+  - Update `mark_posted()` / `mark_failed()` to preserve new fields
+  - Keep backward compatible with existing drafts that don't have these fields
+
+## Subtask 8: Update post.py to use slot-filtered drafts
+- [ ] Now that draft_manager supports slot filtering (Subtask 7) and post.py supports slots (Subtask 3):
+  - When post.py runs for a specific slot, call `get_next_draft(slot=N)` to get a draft for THAT slot
+  - Only post to the platforms listed in the draft's `platforms` field
+  - If no draft exists for this slot, log a warning and skip (don't post nothing)
+  - Keep the retry-once-on-failure behavior from the workflow spec
+
+## Subtask 9: Update review dashboard with pillar tags and slot info
+- [ ] Edit `scripts/review_dashboard.py` to show new metadata:
+  - Display pillar tag (color-coded badge) for each draft
+  - Display target slot number and time
+  - Display target platforms list
+  - Display format type (tweet/thread/long-form/etc.)
+  - Show image preview if draft has image_text field (already partially done)
+  - Keep the existing approve/reject/edit functionality unchanged
+
+## Subtask 10: Add content buffer logic
+- [ ] Implement 1-day content buffer per the workflow spec:
+  - In draft_manager.py, add a function `get_buffer_status()` that counts approved (pending) drafts per slot
+  - If buffer has 0 drafts for any slot, the system should generate extra drafts
+  - In generate.ps1, check buffer status before generating — if buffer is healthy (1+ day ahead), generate only tomorrow's content
+  - If buffer is empty, generate 2 days worth (today + tomorrow)
+  - Add a simple buffer check: `python -c "from scripts.utils.draft_manager import get_buffer_status; print(get_buffer_status())"`
+
+## Subtask 11: Add failure retry logic to post.py
+- [ ] Currently post.py moves failed drafts to failed/ immediately. Update per workflow spec:
+  - On failure: wait 5 minutes, retry once
+  - If retry fails: move to drafts/failed/, log the error
+  - Failed drafts should be visible in the review dashboard for manual retry
+  - Add a "retry_count" field to track retries
+
+## Subtask 12: Add legal disclaimers to generate.ps1
+- [ ] Ensure the generator prompt includes legal disclaimer rules from the workflow spec:
+  - X: "NFA. Educational only." at end of tweet
+  - Reddit: Full disclaimer paragraph at bottom
+  - LinkedIn/Facebook: "Not financial advice. For educational purposes only." at bottom
+  - Setup-based posts: "These are just for educational and entertainment purposes."
+  - Backtest posts: "Past performance does not guarantee future results."
+  - Pure educational / engagement posts: no disclaimer needed
+  - Read `docs/auto-poster-workflow.md` "Legal Disclaimers" section for exact wording
+
+---
+
+## Notes
+- After ALL subtasks are [x], output: RALPH_ALL_TASKS_COMPLETE
+- Do NOT change working platform selectors in post.py
+- Do NOT add tests — verify with import checks and python -c
+- Read every file before editing
+- Keep changes minimal per subtask

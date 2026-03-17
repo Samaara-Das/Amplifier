@@ -26,6 +26,9 @@ node_modules/
 *.njsproj
 *.sln
 *.sw?
+# Ralph autonomous loop logs
+ralph_logs/
+
 # OS specific
 .DS_Store
 

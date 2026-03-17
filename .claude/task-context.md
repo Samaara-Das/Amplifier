@@ -1,9 +1,12 @@
 # Auto-Posting System — Task Context
 
-**Last Updated**: 2026-03-14
+**Last Updated**: 2026-03-17
 
 ## Current Task
-- **Next up: Task #17 — Implement Updated Auto-Poster Workflow** — rebuild the pipeline to match the finalized E2E flow in `docs/auto-poster-workflow.md`. This is a large task that needs subtask breakdown before starting.
+- **IN PROGRESS: Task #17 — Implement Updated Auto-Poster Workflow** via Ralph autonomous loop
+- Subtask breakdown in `.claude/ralph-tasks.md` (12 subtasks)
+- Ralph picks one subtask per iteration, implements it, commits, moves on
+- **Decision change (2026-03-17):** ALL 6 platforms enabled (was 4). User wants full coverage.
 
 ## Task Progress Summary
 
@@ -96,7 +99,7 @@
 6. **13 new tasks created** in Task Master (17-30) covering implementation through long-term enhancements
 
 ## Important Decisions Made
-- **4 platforms, not 6** — X + Reddit (active), LinkedIn + Facebook (passive). TikTok/Instagram paused.
+- **~~4 platforms, not 6~~** — UPDATED 2026-03-17: ALL 6 platforms enabled. X + Reddit (active engagement), LinkedIn + Facebook (auto-post), TikTok + Instagram (auto-post).
 - **New X account needed** — fresh start with new email, not existing account
 - **Auto-poster = posting only** — no automated engagement. User handles X replies and Reddit comments manually.
 - **Content voice: "I learnt this, maybe you can try this too"** — never claiming trading experience, never ordering people
