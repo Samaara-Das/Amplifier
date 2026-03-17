@@ -4,8 +4,7 @@
     "compose_url": "https://x.com/compose/post",
     "home_url": "https://x.com/home",
     "timeout_seconds": 30,
-    "enabled": false,
-    "note": "Account locked (underage at creation). Check back in a few days for unlock. Re-enable when resolved."
+    "enabled": true
   },
   "linkedin": {
     "name": "LinkedIn",
@@ -23,13 +22,13 @@
     "name": "Instagram",
     "home_url": "https://www.instagram.com/",
     "timeout_seconds": 30,
-    "enabled": false
+    "enabled": true
   },
   "reddit": {
     "name": "Reddit",
     "home_url": "https://www.reddit.com/",
     "timeout_seconds": 30,
-    "enabled": false,
+    "enabled": true,
     "subreddits": ["Daytrading", "Forex", "StockMarket", "SwingTrading", "AlgoTrading"]
   },
   "tiktok": {
@@ -37,7 +36,7 @@
     "home_url": "https://www.tiktok.com/",
     "upload_url": "https://www.tiktok.com/creator#/upload?scene=creator_center",
     "timeout_seconds": 30,
-    "enabled": false,
+    "enabled": true,
     "note": "TikTok is blocked in India. Connect Surfshark VPN to a non-India server before running poster."
   }
 }

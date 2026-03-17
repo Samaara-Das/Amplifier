@@ -5,10 +5,9 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 ---
 
 ## Subtask 1: Enable all 6 platforms in platforms.json
-- [ ] Edit `config/platforms.json` — set `enabled: true` for ALL 6 platforms (x, linkedin, facebook, instagram, reddit, tiktok)
-- Remove the "note" about X being locked (it's resolved now)
-- Keep TikTok's note about VPN requirement
-- Keep Reddit's subreddit list as-is
+- [x] Edit `config/platforms.json` — set `enabled: true` for ALL 6 platforms (x, linkedin, facebook, instagram, reddit, tiktok)
+- Removed X lock note, kept TikTok VPN note, kept Reddit subreddits
+- Done: all 6 platforms enabled, JSON validated
 
 ## Subtask 2: Update posting schedule for per-platform cadence
 - [ ] Edit `scripts/setup_scheduler.ps1` to match the workflow spec in `docs/auto-poster-workflow.md`:
