@@ -956,12 +956,24 @@ async def main() -> None:
         logger.info("No platforms to post to for slot %d today. Exiting.", slot)
         return
 
-    draft = get_next_draft()
+    draft = get_next_draft(slot=slot)
     if draft is None:
-        logger.info("No pending drafts. Exiting.")
+        logger.warning("No pending drafts for slot %d. Exiting.", slot)
         return
 
     logger.info("Processing draft: %s (topic: %s)", draft.get("id"), draft.get("topic"))
+
+    # If draft specifies target platforms, intersect with slot platforms
+    draft_platforms = draft.get("platforms")
+    if draft_platforms:
+        platforms_for_slot = [p for p in platforms_for_slot if p in draft_platforms]
+        if not platforms_for_slot:
+            logger.warning(
+                "Draft targets %s but slot %d has %s today. No overlap — skipping.",
+                draft_platforms, slot, get_slot_platforms(slot),
+            )
+            return
+        logger.info("Filtered to draft's target platforms: %s", platforms_for_slot)
 
     # Randomize order within slot
     random.shuffle(platforms_for_slot)

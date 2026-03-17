@@ -66,11 +66,12 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added optional `slot` parameter to `get_next_draft(slot=N)`. When slot is specified, it first looks for drafts with matching slot field, then falls back to unslotted drafts (backward compat), then returns None. mark_posted/mark_failed already preserve all fields (they write back the full dict). New fields (slot, pillar, format, platforms) from generate.ps1 flow through naturally.
 
 ## Subtask 8: Update post.py to use slot-filtered drafts
-- [ ] Now that draft_manager supports slot filtering (Subtask 7) and post.py supports slots (Subtask 3):
+- [x] Now that draft_manager supports slot filtering (Subtask 7) and post.py supports slots (Subtask 3):
   - When post.py runs for a specific slot, call `get_next_draft(slot=N)` to get a draft for THAT slot
   - Only post to the platforms listed in the draft's `platforms` field
   - If no draft exists for this slot, log a warning and skip (don't post nothing)
   - Keep the retry-once-on-failure behavior from the workflow spec
+- Done: main() now passes slot to get_next_draft(slot=slot). If draft has a `platforms` field, intersects it with the slot's scheduled platforms — skips if no overlap. Warns and exits cleanly if no draft found for the slot.
 
 ## Subtask 9: Update review dashboard with pillar tags and slot info
 - [ ] Edit `scripts/review_dashboard.py` to show new metadata:
