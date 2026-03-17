@@ -75,13 +75,14 @@
    - Total: ~36 posts/week
 
 3. **Full E2E workflow documented** — `docs/auto-poster-workflow.md`:
-   - **Phase 1: Content Research** (5:00 PM IST) — Coda notes, backtest reports (every 2-3 days), Stock Buddy performance page screenshots, market events calendar
+   - **Phase 1: Content Research** (5:00 PM IST) — Coda notes, backtest reports (every 2-3 days), your own indicator signal screenshots, market events calendar
    - **Phase 2: Content Generation** (5:30 PM IST) — per-platform cadence, voice rules ("I learnt this, maybe you can try this too"), pillar rotation, cross-platform repurposing
    - **Phase 3: User Review** (6:00 PM IST, 15 min) — dashboard approval, 1-day content buffer
    - **Phase 4: Automated Posting** (6:30 PM – 1:30 AM IST) — platform-specific times aligned to US hours
    - **Phase 5: Manual Engagement** (10 min/day) — X replies + Reddit comments (NOT automated)
    - **Phase 6: Weekly Review** (Sunday 7 PM IST, 15 min) — metrics, top/bottom posts, adjust pillar mix
-   - Content sources explicitly REMOVED: trending market events (not v1), financial newsletters (future), Stock Buddy signals page (users won't understand)
+   - Content sources explicitly REMOVED: trending market events (not v1), financial newsletters (future), Stock Buddy entirely (IP risk — own everything you post)
+   - Legal disclaimers added: "NFA" on all platforms, "educational and entertainment purposes" on setup posts, "past performance" on backtests
    - Images/slideshows must be visually striking, scroll-stopping, branded, mobile-first
 
 4. **Account warmup plan** — gradual ramp-up for new/empty accounts:

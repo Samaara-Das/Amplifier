@@ -38,10 +38,12 @@ From the backtest automater system (192.168.1.11:5050). Pillar 4 gold ("Proof No
 - Voice: "I ran this backtest and here's what surprised me"
 - NOT: "This strategy has 73% win rate, use it"
 
-**3. Stock Buddy Performance Page Screenshots**
-How past signals played out over time. Good for Pillar 3 ("Market Cheat Code") and Pillar 4.
-- Voice: "Built a tool that watches for these setups — here's how it's been performing"
-- **Signals page is NOT used** — end users won't understand raw signal data. Only the performance page.
+**3. Your Own Indicator Signal Screenshots**
+Charts where YOUR published TradingView indicators (structure break, RSI divergence, etc.) flagged setups, annotated with what happened next. Good for Pillar 3 ("Market Cheat Code") and Pillar 4.
+- Voice: "My indicator flagged this setup on $SPY — here's what happened next"
+- Before/after format: signal flagged → what price did after
+- These come from YOUR published indicators — zero IP risk
+- **Stock Buddy is NOT used as a content source** — using a third party's signals/data risks IP complaints. Own everything you post.
 
 **4. Market Events Calendar**
 Pre-loaded calendar of known market events: FOMC meetings, CPI/jobs data releases, earnings dates for major tickers ($SPY, $AAPL, $TSLA, $NVDA, $QQQ). On event days, the system prioritizes topical "wildcard" content over standard pillar rotation — these are high-engagement moments.
@@ -96,6 +98,33 @@ Posts must NEVER sound like the user has trading experience or is ordering peopl
 - Simple language — explain so anyone can understand
 - No jargon without an immediate plain-English explanation
 
+### Legal Disclaimers (NON-NEGOTIABLE)
+
+All content involving setups, signals, strategies, or backtest results MUST include a disclaimer. This is a US legal standard for finance content.
+
+**Profile bios (all 4 platforms):**
+"Not a financial advisor. Educational content only. Not financial advice."
+
+**Per-platform post disclaimers:**
+
+| Platform | Where | Format |
+|----------|-------|--------|
+| **X** | End of tweet | "NFA. Educational only." (FinTwit convention) |
+| **Reddit** | Bottom of post | "Disclaimer: I'm not a financial advisor. This is educational content, not financial advice. Past performance doesn't guarantee future results. Do your own research." (Many finance subs require this — automod may remove posts without it) |
+| **LinkedIn** | Bottom of post | "Not financial advice. For educational purposes only." |
+| **Facebook** | Bottom of post | "Not financial advice. For educational purposes only." |
+
+**On setup-based posts (indicator signals, chart annotations — all platforms):**
+Always add: "These are just for educational and entertainment purposes."
+
+**On backtest result posts (all platforms):**
+Always add: "Past performance does not guarantee future results."
+
+**Posts that DON'T need a disclaimer:**
+- Pure educational posts explaining concepts (what is RSI, what is support/resistance)
+- Engagement questions ("What's your biggest trading mistake?")
+- Pillar 5 posts about AI and career security (no trading claims)
+
 ### Content Pillar Rotation (daily, across all platforms)
 
 | Slots | Pillar | Theme |
@@ -140,7 +169,7 @@ Same core insight. Four completely different posts.
 | Series | Day | Platforms | Description |
 |--------|-----|-----------|-------------|
 | **Backtest Wednesday** | Wednesday | Reddit + X (thread) | A backtest result with full methodology and key findings |
-| **Setup of the Week** | Monday | X + LinkedIn | Stock Buddy performance screenshot with analysis |
+| **Setup of the Week** | Monday | X + LinkedIn | Your indicator signal screenshot with annotated analysis |
 | **One Thing I Learned This Week** | Friday | All platforms | Reflection post — one insight from the week's research |
 
 ---
@@ -323,7 +352,7 @@ Weekly Review (Sunday 7:00 PM IST)
 
 | Component | What It Does | Automated? |
 |-----------|-------------|------------|
-| Content Research Pipeline | Reads Coda notes, backtest reports, Stock Buddy performance, market calendar. Produces content brief. | Yes |
+| Content Research Pipeline | Reads Coda notes, backtest reports, your indicator signal screenshots, market calendar. Produces content brief. | Yes |
 | Content Generator | Takes brief, generates platform-specific drafts with hooks, images, correct formats. | Yes |
 | Review Dashboard | Shows drafts for approval/rejection/editing. | Manual (~15 min/day) |
 | Posting Engine | Posts approved drafts at scheduled times with human behavior emulation. | Yes |
