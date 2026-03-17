@@ -46,12 +46,13 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added $PillarDescriptions, $DefaultPillarMap (even/odd day alternation for slots 1/4), $ContentSeries overrides (Setup of the Week Mon/slot1, Backtest Wednesday Wed/slot3, One Thing I Learned Fri/slot1). Get-PillarForSlot and Get-SeriesForSlot functions. Get-TodaysPillars scans existing drafts for dedup. Prompt now includes specific pillar + series instructions + used-today tracking. Pillar value pre-set in JSON template.
 
 ## Subtask 6: Add CTA rotation to generate.ps1
-- [ ] Add CTA rotation logic:
+- [x] Add CTA rotation logic:
   - Need a way to track which "month" the system is in (count from first post date)
   - Month 1: 100% pure value, zero CTAs
   - Month 2+: 80% pure value, 15% soft CTA ("Free indicator — link in bio"), 5% direct CTA
   - Pass the CTA instruction into the Claude prompt so it generates the right mix
   - Store the "first post date" in config/.env as FIRST_POST_DATE (default to today if not set)
+- Done: Added FIRST_POST_DATE= to config/.env. Added Get-CTAType function that parses date, calculates days since first post, returns "none" for month 1 or weighted random (80/15/5) for month 2+. Added $CTADescriptions with prompt text for none/soft/direct. CTA instruction injected into every Claude prompt. CTA type logged in generator start line.
 
 ## Subtask 7: Update draft JSON schema for new fields
 - [ ] Update draft_manager.py to handle new draft fields:

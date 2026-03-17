@@ -159,6 +159,52 @@ $ContentSeries["4-1"] = @{
     Desc = "CONTENT SERIES: One Thing I Learned This Week (Friday). Reflection post - one insight from the weeks research. Personal, authentic, discovery-oriented."
 }
 
+# ─── CTA Rotation ────────────────────────────────────────────────────────
+# Month 1: 100% pure value. Month 2+: 80% value, 15% soft CTA, 5% direct CTA.
+# Reads FIRST_POST_DATE from config/.env to determine which month we're in.
+
+function Get-CTAType {
+    # Parse FIRST_POST_DATE from .env
+    $firstPostDate = $null
+    if (Test-Path $ENV_FILE) {
+        $envLines = Get-Content -Path $ENV_FILE -Encoding UTF8
+        foreach ($line in $envLines) {
+            if ($line -match '^\s*FIRST_POST_DATE\s*=\s*(.+)\s*$') {
+                $dateStr = $Matches[1].Trim()
+                if ($dateStr -ne "") {
+                    try { $firstPostDate = [DateTime]::ParseExact($dateStr, "yyyy-MM-dd", $null) } catch {}
+                }
+            }
+        }
+    }
+
+    # If no date set, we're always in month 1
+    if ($null -eq $firstPostDate) {
+        return "none"
+    }
+
+    $daysSinceFirst = ((Get-Date) - $firstPostDate).Days
+    if ($daysSinceFirst -lt 30) {
+        # Month 1: pure value only
+        return "none"
+    }
+
+    # Month 2+: weighted random — 80% value, 15% soft, 5% direct
+    $roll = Get-Random -Minimum 1 -Maximum 101  # 1-100
+    if ($roll -le 80) { return "none" }
+    elseif ($roll -le 95) { return "soft" }
+    else { return "direct" }
+}
+
+$CTADescriptions = @{
+    "none"   = "NO CTA. Pure value only. Do not mention any product, link, or call to action."
+    "soft"   = 'SOFT CTA. End with a gentle nudge like "Free indicator on my TradingView — link in bio" or "I share tools like this for free on TradingView". Do NOT be pushy.'
+    "direct" = 'DIRECT CTA. End with a clear call to action like "Premium version drops next month — DM if you want early access" or "I build tools that do this automatically — check the link in bio". Still deliver full value in the post itself.'
+}
+
+$todayCTA = Get-CTAType
+$ctaInstruction = $CTADescriptions[$todayCTA]
+
 # ─── Determine today's schedule ────────────────────────────────────────────
 
 # Convert PowerShell DayOfWeek (Sun=0..Sat=6) to Python-style (Mon=0..Sun=6)
@@ -252,7 +298,7 @@ foreach ($s in $slotsToGenerate) {
     }
 }
 
-Write-Log "INFO" "=== Content Generator started ($todayName, $($activeSlots.Count) active slots) ==="
+Write-Log "INFO" "=== Content Generator started ($todayName, $($activeSlots.Count) active slots, CTA=$todayCTA) ==="
 foreach ($as in $activeSlots) {
     Write-Log "INFO" "  Slot $($as.Slot) ($($as.TimeEST) EST): $($as.Platforms -join ', ')"
 }
@@ -327,6 +373,8 @@ CONTENT PILLAR FOR THIS DRAFT: $pillarDesc
 $seriesBlock
 Pillars already used today: $usedPillarsList
 Make sure this draft's topic and angle is DIFFERENT from any pillar already used today.
+
+CTA INSTRUCTION: $ctaInstruction
 
 CONTENT GUIDELINES:
 $templates
