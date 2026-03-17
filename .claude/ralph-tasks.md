@@ -37,12 +37,13 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Validation checks that only expected platform keys exist in generated JSON
 
 ## Subtask 5: Add content pillar rotation to generate.ps1
-- [ ] Add pillar rotation logic to the generator:
+- [x] Add pillar rotation logic to the generator:
   - Daily mix: 2x Pillar 1/3, 1x Pillar 2, 1x Pillar 4, 1x Pillar 5, 1x Wildcard
   - The prompt to Claude should specify WHICH pillar to generate for each draft
   - Track which pillars were used today (check existing drafts in review/ and pending/)
   - Content series: Backtest Wednesday (Reddit+X), Setup of the Week Monday (X+LinkedIn), One Thing I Learned Friday (all)
   - Read `docs/auto-poster-workflow.md` Phase 2 "Content Pillar Rotation" section
+- Done: Added $PillarDescriptions, $DefaultPillarMap (even/odd day alternation for slots 1/4), $ContentSeries overrides (Setup of the Week Mon/slot1, Backtest Wednesday Wed/slot3, One Thing I Learned Fri/slot1). Get-PillarForSlot and Get-SeriesForSlot functions. Get-TodaysPillars scans existing drafts for dedup. Prompt now includes specific pillar + series instructions + used-today tracking. Pillar value pre-set in JSON template.
 
 ## Subtask 6: Add CTA rotation to generate.ps1
 - [ ] Add CTA rotation logic:

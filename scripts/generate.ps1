@@ -114,6 +114,51 @@ $PlatformFormats = @{
     }
 }
 
+# ─── Content Pillar Rotation ──────────────────────────────────────────────
+# Daily mix: 2x Pillar 1/3, 1x Pillar 2, 1x Pillar 4, 1x Pillar 5, 1x Wildcard
+# Pillars: 1="Stop Losing Money", 2="Make Money While You Sleep", 3="Market Cheat Code",
+#          4="Proof Not Promises", 5="Future-Proof Your Income", wildcard=engagement/trending
+
+$PillarDescriptions = @{
+    "1"        = "Pillar 1: Stop Losing Money - common mistakes, what losing traders do wrong, fear/pain avoidance"
+    "3"        = "Pillar 3: The Market Cheat Code - simplified education framed as giving them an EDGE, competence"
+    "2"        = "Pillar 2: Make Money While You Sleep - automation, passive income, side hustle, freedom"
+    "4"        = "Pillar 4: Proof Not Promises - backtest results, strategy performance, data, credibility"
+    "5"        = "Pillar 5: Future-Proof Your Income - AI fear, job security, trading as a skill AI cant take"
+    "wildcard" = "Wildcard - engagement question, trending market event, reflection, or rotate any pillar"
+}
+
+# Default pillar per slot (even days alternate Pillar 1/3 split)
+# Slot 1: Pillar 1 or 3 (alternates), Slot 2: Pillar 2, Slot 3: Pillar 4
+# Slot 4: Pillar 3 or 1 (opposite of slot 1), Slot 5: Pillar 5, Slot 6: Wildcard
+$DefaultPillarMap = @{
+    1 = @{ Even = "1"; Odd = "3" }  # alternates by day-of-month
+    2 = @{ Even = "2"; Odd = "2" }
+    3 = @{ Even = "4"; Odd = "4" }
+    4 = @{ Even = "3"; Odd = "1" }  # opposite of slot 1
+    5 = @{ Even = "5"; Odd = "5" }
+    6 = @{ Even = "wildcard"; Odd = "wildcard" }
+}
+
+# Content series overrides: (dayOfWeek, slot) -> series name + pillar
+# Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
+$ContentSeries = @{}
+$ContentSeries["0-1"] = @{
+    Series = "Setup of the Week"
+    Pillar = "3"
+    Desc = "CONTENT SERIES: Setup of the Week (Monday). Show YOUR indicator signal screenshot with annotated analysis. Before/after format: signal flagged then what price did after. Voice: My indicator flagged this setup on `$SPY - here is what happened next."
+}
+$ContentSeries["2-3"] = @{
+    Series = "Backtest Wednesday"
+    Pillar = "4"
+    Desc = "CONTENT SERIES: Backtest Wednesday. Share a backtest result with full methodology and key findings. Data-heavy, transparent. Voice: I ran this backtest and here is what surprised me."
+}
+$ContentSeries["4-1"] = @{
+    Series = "One Thing I Learned This Week"
+    Pillar = "wildcard"
+    Desc = "CONTENT SERIES: One Thing I Learned This Week (Friday). Reflection post - one insight from the weeks research. Personal, authentic, discovery-oriented."
+}
+
 # ─── Determine today's schedule ────────────────────────────────────────────
 
 # Convert PowerShell DayOfWeek (Sun=0..Sat=6) to Python-style (Mon=0..Sun=6)
@@ -121,6 +166,46 @@ $psDow = [int](Get-Date).DayOfWeek
 $today = ($psDow + 6) % 7
 $dayNames = @("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
 $todayName = $dayNames[$today]
+$dayOfMonth = (Get-Date).Day
+$isEvenDay = ($dayOfMonth % 2 -eq 0)
+
+function Get-PillarForSlot {
+    param([int]$SlotNum)
+    # Check content series override first
+    $seriesKey = "$today-$SlotNum"
+    if ($ContentSeries.ContainsKey($seriesKey)) {
+        return $ContentSeries[$seriesKey].Pillar
+    }
+    # Default pillar based on even/odd day
+    $mapping = $DefaultPillarMap[$SlotNum]
+    if ($isEvenDay) { return $mapping.Even } else { return $mapping.Odd }
+}
+
+function Get-SeriesForSlot {
+    param([int]$SlotNum)
+    $seriesKey = "$today-$SlotNum"
+    if ($ContentSeries.ContainsKey($seriesKey)) {
+        return $ContentSeries[$seriesKey]
+    }
+    return $null
+}
+
+# Scan existing today's drafts for pillar tracking
+function Get-TodaysPillars {
+    $todayPrefix = Get-Date -Format "yyyyMMdd"
+    $usedPillars = @()
+    foreach ($dir in @($REVIEW_DIR, $PENDING_DIR)) {
+        if (Test-Path $dir) {
+            Get-ChildItem -Path $dir -Filter "draft-$todayPrefix*.json" -ErrorAction SilentlyContinue | ForEach-Object {
+                try {
+                    $content = Get-Content -Path $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+                    if ($content.pillar) { $usedPillars += $content.pillar }
+                } catch {}
+            }
+        }
+    }
+    return $usedPillars
+}
 
 # Unset CLAUDECODE to allow nested CLI calls
 $env:CLAUDECODE = $null
@@ -211,7 +296,24 @@ foreach ($as in $activeSlots) {
     $platformsList = ($platforms | Sort-Object) -join ", "
     $formatLabel = if ($xFormat -eq "thread" -and $platforms -contains "x") { "thread" } else { "post" }
 
-    Write-Log "INFO" "Generating slot $s draft ($platformsList, format=$formatLabel)..."
+    # Determine pillar and series for this slot
+    $slotPillar = Get-PillarForSlot -SlotNum $s
+    $slotSeries = Get-SeriesForSlot -SlotNum $s
+    $pillarDesc = $PillarDescriptions[$slotPillar]
+    $usedPillars = Get-TodaysPillars
+    $usedPillarsList = if ($usedPillars.Count -gt 0) { $usedPillars -join ", " } else { "(none yet)" }
+
+    $seriesBlock = ""
+    if ($slotSeries) {
+        $seriesBlock = @"
+
+$($slotSeries.Desc)
+This is a RECURRING SERIES - make it feel like part of a regular series, not a one-off.
+"@
+        Write-Log "INFO" "Generating slot $s draft ($platformsList, format=$formatLabel, pillar=$slotPillar, series=$($slotSeries.Series))..."
+    } else {
+        Write-Log "INFO" "Generating slot $s draft ($platformsList, format=$formatLabel, pillar=$slotPillar)..."
+    }
 
     $prompt = @"
 You are a social media marketer and content manager. You are NOT a coder or technical assistant.
@@ -220,6 +322,11 @@ Your task: Create a JSON file at this exact path: $draftPath
 
 This draft is for POSTING SLOT $s ($($as.TimeEST) EST, $todayName).
 Generate content ONLY for these platforms: $platformsList
+
+CONTENT PILLAR FOR THIS DRAFT: $pillarDesc
+$seriesBlock
+Pillars already used today: $usedPillarsList
+Make sure this draft's topic and angle is DIFFERENT from any pillar already used today.
 
 CONTENT GUIDELINES:
 $templates
@@ -247,7 +354,7 @@ Write the file with EXACTLY this JSON structure:
   "platforms": $('["' + ($validationKeys -join '", "') + '"]'),
   "format": "$formatLabel",
   "topic": "brief topic label",
-  "pillar": "1|2|3|4|5|wildcard",
+  "pillar": "$slotPillar",
   "content": {
 $jsonBlock
   }
