@@ -1,6 +1,8 @@
 """Main poster orchestrator — picks up drafts and posts to enabled platforms."""
 
+import argparse
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
@@ -844,9 +846,115 @@ PLATFORM_POSTERS = {
     "tiktok": post_to_tiktok,
 }
 
+# ─── Slot → Platform Mapping ──────────────────────────────────────────────
+# Per the workflow spec in docs/auto-poster-workflow.md Phase 4
+# IST posting times and platform assignments per slot.
+# Some platforms only post on certain days of the week (0=Mon, 6=Sun).
+
+SLOT_SCHEDULE = {
+    1: {  # 18:30 IST = 8:00 AM EST
+        "time_ist": "18:30",
+        "platforms": {
+            "x": {"days": [0, 1, 2, 3, 4, 5, 6]},          # daily
+            "linkedin": {"days": [1, 2, 3, 4]},              # Tue-Fri
+        },
+    },
+    2: {  # 20:30 IST = 10:00 AM EST
+        "time_ist": "20:30",
+        "platforms": {
+            "facebook": {"days": [0, 1, 2, 3, 4, 5, 6]},    # daily
+        },
+    },
+    3: {  # 23:30 IST = 1:00 PM EST
+        "time_ist": "23:30",
+        "platforms": {
+            "x": {"days": [0, 1, 2, 3, 4, 5, 6]},          # daily
+            "reddit": {"days": [1, 3, 5]},                   # Tue, Thu, Sat (2-3x/week)
+        },
+    },
+    4: {  # 01:30 IST = 3:00 PM EST
+        "time_ist": "01:30",
+        "platforms": {
+            "x": {"days": [0, 1, 2, 3, 4, 5, 6]},          # daily
+        },
+    },
+    5: {  # 04:30 IST = 6:00 PM EST
+        "time_ist": "04:30",
+        "platforms": {
+            "tiktok": {"days": [0, 1, 2, 3, 4, 5, 6]},     # daily
+        },
+    },
+    6: {  # 06:30 IST = 8:00 PM EST
+        "time_ist": "06:30",
+        "platforms": {
+            "instagram": {"days": [0, 1, 2, 3, 4, 5, 6]},  # daily
+        },
+    },
+}
+
+# IST slot times in minutes from midnight for auto-detection
+_SLOT_TIMES_MIN = {
+    slot: int(info["time_ist"].split(":")[0]) * 60 + int(info["time_ist"].split(":")[1])
+    for slot, info in SLOT_SCHEDULE.items()
+}
+
+
+def _auto_detect_slot() -> int:
+    """Find the closest slot to the current IST time."""
+    # IST = UTC + 5:30
+    from datetime import timezone, timedelta
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist)
+    now_min = now_ist.hour * 60 + now_ist.minute
+
+    best_slot = 1
+    best_diff = float("inf")
+    for slot, slot_min in _SLOT_TIMES_MIN.items():
+        diff = abs(now_min - slot_min)
+        # Handle wrap-around midnight
+        diff = min(diff, 1440 - diff)
+        if diff < best_diff:
+            best_diff = diff
+            best_slot = slot
+    return best_slot
+
+
+def get_slot_platforms(slot: int) -> list[str]:
+    """Return the list of platforms to post to for a given slot and today's day of week."""
+    if slot not in SLOT_SCHEDULE:
+        logger.warning("Unknown slot %d, falling back to all enabled platforms", slot)
+        return [p for p in PLATFORM_POSTERS if PLATFORMS.get(p, {}).get("enabled", False)]
+
+    from datetime import timezone, timedelta
+    ist = timezone(timedelta(hours=5, minutes=30))
+    today = datetime.now(ist).weekday()  # 0=Mon, 6=Sun
+
+    slot_info = SLOT_SCHEDULE[slot]
+    platforms = []
+    for platform, rules in slot_info["platforms"].items():
+        if not PLATFORMS.get(platform, {}).get("enabled", False):
+            continue
+        if today in rules["days"]:
+            platforms.append(platform)
+
+    return platforms
+
 
 async def main() -> None:
-    logger.info("=== Auto-Poster started ===")
+    parser = argparse.ArgumentParser(description="Auto-Poster: post drafts to social platforms")
+    parser.add_argument("--slot", type=int, choices=range(1, 7), default=None,
+                        help="Posting slot (1-6). Auto-detects from current IST time if omitted.")
+    args = parser.parse_args()
+
+    slot = args.slot if args.slot else _auto_detect_slot()
+    platforms_for_slot = get_slot_platforms(slot)
+
+    logger.info("=== Auto-Poster started (slot %d) ===", slot)
+    logger.info("Platforms for slot %d today: %s", slot, platforms_for_slot or "(none)")
+
+    if not platforms_for_slot:
+        logger.info("No platforms to post to for slot %d today. Exiting.", slot)
+        return
 
     draft = get_next_draft()
     if draft is None:
@@ -855,29 +963,25 @@ async def main() -> None:
 
     logger.info("Processing draft: %s (topic: %s)", draft.get("id"), draft.get("topic"))
 
-    # Filter to enabled platforms
-    enabled = [p for p in PLATFORM_POSTERS if PLATFORMS.get(p, {}).get("enabled", False)]
-    if not enabled:
-        logger.warning("No platforms enabled. Exiting.")
-        mark_failed(draft, "No platforms enabled")
-        return
-
-    # Randomize order
-    random.shuffle(enabled)
-    logger.info("Posting order: %s", enabled)
+    # Randomize order within slot
+    random.shuffle(platforms_for_slot)
+    logger.info("Posting order: %s", platforms_for_slot)
 
     from playwright.async_api import async_playwright
 
     results = {}
     async with async_playwright() as pw:
-        for i, platform in enumerate(enabled):
+        for i, platform in enumerate(platforms_for_slot):
+            if platform not in PLATFORM_POSTERS:
+                logger.warning("No poster function for %s, skipping", platform)
+                continue
             logger.info("Posting to %s...", platform)
             poster = PLATFORM_POSTERS[platform]
             success = await poster(draft, pw)
             results[platform] = success
 
             # Wait between platforms (not after last one)
-            if i < len(enabled) - 1:
+            if i < len(platforms_for_slot) - 1:
                 wait = random.uniform(POST_INTERVAL_MIN, POST_INTERVAL_MAX)
                 logger.info("Waiting %.0f seconds before next platform...", wait)
                 await asyncio.sleep(wait)
@@ -893,7 +997,7 @@ async def main() -> None:
         errors = ", ".join(f"{p}: failed" for p in failed)
         mark_failed(draft, f"All platforms failed: {errors}")
 
-    logger.info("=== Auto-Poster finished ===")
+    logger.info("=== Auto-Poster finished (slot %d) ===", slot)
 
 
 if __name__ == "__main__":

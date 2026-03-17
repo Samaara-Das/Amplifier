@@ -20,13 +20,11 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Split single AutoPoster-Post task into 6 individual tasks (AutoPoster-Post-Slot-1 through -6), each passing --slot N to post.py. Removes old single-task format. Summary shows per-slot platform assignments.
 
 ## Subtask 3: Update post.py to support per-slot platform selection
-- [ ] Currently `post.py` posts to ALL enabled platforms every time it runs. Update it to:
-  - Accept an optional `--slot` argument (1-6) or auto-detect based on current IST time
-  - Each slot posts to specific platforms per the schedule (see Subtask 2)
-  - When no slot specified, auto-detect: find the closest slot to current time
-  - Keep the existing randomized order + delays within a slot
-  - Keep all existing platform posting functions UNCHANGED (they work)
-  - Read `docs/auto-poster-workflow.md` Phase 4 for the exact slot→platform mapping
+- [x] Added `--slot` argument (1-6) with auto-detection from current IST time
+- Added SLOT_SCHEDULE dict mapping each slot to platforms with day-of-week rules
+- LinkedIn Tue-Fri only (slot 1), Reddit Tue/Thu/Sat only (slot 3), all others daily
+- get_slot_platforms() filters by enabled + day of week. All platform functions unchanged.
+- Verified: import OK, slot detection works, --help shows argument, platform lists correct.
 
 ## Subtask 4: Update generate.ps1 for per-platform volume
 - [ ] Currently generates a single draft with all 6 platforms. Update to generate the right volume per the workflow spec:
