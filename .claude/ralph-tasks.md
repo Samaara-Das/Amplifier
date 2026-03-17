@@ -101,7 +101,7 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added RETRY_DELAY_SEC (300s default) config. Per-platform retry in main(): on failure, waits 5 min, retries once, logs result. Tracks retry_count and retried_platforms on draft. Added get_failed_drafts() and retry_failed_draft() to draft_manager.py. Review dashboard now shows failed drafts section (red-bordered cards with error, retry count, and "Retry" button to move back to pending).
 
 ## Subtask 12: Add legal disclaimers to generate.ps1
-- [ ] Ensure the generator prompt includes legal disclaimer rules from the workflow spec:
+- [x] Ensure the generator prompt includes legal disclaimer rules from the workflow spec:
   - X: "NFA. Educational only." at end of tweet
   - Reddit: Full disclaimer paragraph at bottom
   - LinkedIn/Facebook: "Not financial advice. For educational purposes only." at bottom
@@ -109,6 +109,7 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
   - Backtest posts: "Past performance does not guarantee future results."
   - Pure educational / engagement posts: no disclaimer needed
   - Read `docs/auto-poster-workflow.md` "Legal Disclaimers" section for exact wording
+- Done: Added LEGAL DISCLAIMERS section to the Claude prompt in generate.ps1. Per-platform disclaimer rules (X/Reddit/LinkedIn/Facebook/TikTok/Instagram), plus conditional disclaimers for setup and backtest posts. Posts that don't need disclaimers (pure education, engagement, Pillar 5 AI/career) are excluded.
 
 ## Subtask 13: Auto-react and repost on all 6 platforms
 - [ ] Add automated engagement to post.py — after posting, the system should also react to and repost OTHER people's content on each platform. This makes the account look active and human, not a broadcast bot. NO commenting (that stays manual).

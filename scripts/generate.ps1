@@ -443,6 +443,19 @@ $jsonBlock
   }
 }
 
+LEGAL DISCLAIMERS (NON-NEGOTIABLE):
+All content involving setups, signals, strategies, or backtest results MUST include a disclaimer.
+- X: End every tweet/thread with "NFA. Educational only." (this is FinTwit convention)
+- Reddit: Add this full paragraph at the bottom of the body: "Disclaimer: I'm not a financial advisor. This is educational content, not financial advice. Past performance doesn't guarantee future results. Do your own research."
+- LinkedIn: End with "Not financial advice. For educational purposes only."
+- Facebook: End with "Not financial advice. For educational purposes only."
+- TikTok: End caption with "NFA. Educational only."
+- Instagram: End caption with "Not financial advice. Educational only."
+- If the post is about a setup or indicator signal, ALSO add: "These are just for educational and entertainment purposes."
+- If the post includes backtest results or performance data, ALSO add: "Past performance does not guarantee future results."
+- Posts that do NOT need a disclaimer: pure educational concept explanations (what is RSI, what is support/resistance), engagement questions, Pillar 5 posts about AI/career security with no trading claims.
+- Disclaimers should feel natural, not copy-pasted — vary the wording slightly but keep the legal meaning.
+
 CRITICAL RULES:
 - Write the file to: $draftPath
 - The "content" object MUST have ONLY these keys: $($validationKeys -join ", ")
