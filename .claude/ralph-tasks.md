@@ -27,16 +27,14 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Verified: import OK, slot detection works, --help shows argument, platform lists correct.
 
 ## Subtask 4: Update generate.ps1 for per-platform volume
-- [ ] Currently generates a single draft with all 6 platforms. Update to generate the right volume per the workflow spec:
-  - X: 3 tweets/day + 1 thread (Tue & Thu) = up to 4 items
-  - Reddit: 1 post (only 2-3 days/week) — skip Mon/Wed/Sat
-  - LinkedIn: 1 post (Tue-Fri only) — skip Mon/Sat/Sun
-  - Facebook: 1 post daily
-  - TikTok: 1 post daily
-  - Instagram: 1 post daily
-  - Total: ~8-10 drafts per day depending on day of week
-  - Each draft should specify which posting slot it's for (add a "slot" field to the JSON)
-  - Read `docs/auto-poster-workflow.md` Phase 2 for volume details
+- [x] Rewrote generate.ps1 to produce one draft per posting slot (6 slots)
+- Each draft targets only the platforms active for that slot on that day
+- Slot schedule mirrors post.py SLOT_SCHEDULE: X in slots 1/3/4, LinkedIn Tue-Fri (slot 1), Reddit Tue/Thu/Sat (slot 3), Facebook (slot 2), TikTok (slot 5), Instagram (slot 6)
+- X threads auto-detected for slot 4 on Tue/Thu
+- New draft JSON fields: slot (int), platforms (array), format (post/thread)
+- Added -slot param for single-slot generation
+- Backward compat: -count N generates first N slots
+- Validation checks that only expected platform keys exist in generated JSON
 
 ## Subtask 5: Add content pillar rotation to generate.ps1
 - [ ] Add pillar rotation logic to the generator:

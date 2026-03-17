@@ -1,8 +1,10 @@
 # Auto-Poster Content Generator
 # Calls Claude Code CLI to generate social media drafts
+# Generates per-slot drafts with platform-specific content
 
 param(
-    [int]$count = 0
+    [int]$count = 0,
+    [int]$slot = 0      # 0 = all slots, 1-6 = specific slot only
 )
 
 # Config
@@ -29,21 +31,99 @@ function Write-Log {
     Write-Host $entry
 }
 
-# Load .env for GENERATE_COUNT default
-$defaultCount = 2
-if (Test-Path $ENV_FILE) {
-    Get-Content $ENV_FILE | ForEach-Object {
-        if ($_ -match '^GENERATE_COUNT=(\d+)') {
-            $defaultCount = [int]$Matches[1]
+# ─── Slot Schedule (mirrors post.py SLOT_SCHEDULE) ─────────────────────────
+# Day of week: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6 (Python-style)
+
+$SlotSchedule = @{
+    1 = @{
+        TimeEST = "8:00 AM"
+        Platforms = @{
+            "x"        = @(0,1,2,3,4,5,6)    # daily
+            "linkedin" = @(1,2,3,4)           # Tue-Fri
+        }
+    }
+    2 = @{
+        TimeEST = "10:00 AM"
+        Platforms = @{
+            "facebook" = @(0,1,2,3,4,5,6)    # daily
+        }
+    }
+    3 = @{
+        TimeEST = "1:00 PM"
+        Platforms = @{
+            "x"      = @(0,1,2,3,4,5,6)      # daily
+            "reddit" = @(1,3,5)               # Tue, Thu, Sat
+        }
+    }
+    4 = @{
+        TimeEST = "3:00 PM"
+        Platforms = @{
+            "x" = @(0,1,2,3,4,5,6)           # daily
+        }
+    }
+    5 = @{
+        TimeEST = "6:00 PM"
+        Platforms = @{
+            "tiktok" = @(0,1,2,3,4,5,6)      # daily
+        }
+    }
+    6 = @{
+        TimeEST = "8:00 PM"
+        Platforms = @{
+            "instagram" = @(0,1,2,3,4,5,6)   # daily
         }
     }
 }
-if ($count -eq 0) { $count = $defaultCount }
 
-# Unset CLAUDECODE to allow nested CLI calls (e.g. when run from within Claude Code)
+# Platform content format instructions for prompts
+$PlatformFormats = @{
+    "x_tweet"  = @{
+        Key = 'x'
+        Desc = 'X/Twitter tweet (max 280 chars, punchy, 1-3 hashtags). Can be a plain string (text-only) OR a JSON object with "text" and "image_text" keys (text + branded image).'
+        Example = '    "x": "your tweet text here"'
+    }
+    "x_thread" = @{
+        Key = 'x'
+        Desc = 'X/Twitter THREAD (3-7 tweets). Must be a JSON array of strings, each max 280 chars. First tweet is the hook. Last tweet has CTA or summary.'
+        Example = '    "x": ["Hook tweet...", "Second tweet...", "Third tweet...", "Final tweet..."]'
+    }
+    "linkedin"  = @{
+        Key = 'linkedin'
+        Desc = 'LinkedIn post (800-1300 chars, professional story-driven tone, line breaks, 3-5 hashtags at end). Can be a plain string OR {"text", "image_text"} object.'
+        Example = '    "linkedin": "Your LinkedIn post text here..."'
+    }
+    "facebook"  = @{
+        Key = 'facebook'
+        Desc = 'Facebook post (200-800 chars, conversational and casual, 0-2 hashtags). Can be a plain string OR {"text", "image_text"} object.'
+        Example = '    "facebook": "Your Facebook post text here..."'
+    }
+    "reddit"    = @{
+        Key = 'reddit'
+        Desc = 'Reddit post -- MUST be a JSON object with "title" (60-120 chars, specific, no clickbait) and "body" (500-1500 chars, detailed, data-first, no hashtags, no emojis).'
+        Example = '    "reddit": {"title": "your title", "body": "your detailed body text"}'
+    }
+    "tiktok"    = @{
+        Key = 'tiktok'
+        Desc = 'TikTok post -- MUST be a JSON object with "caption" (100-300 chars, short punchy, 3-5 hashtags) and "image_text" (1-3 short punchy lines for text overlay on video).'
+        Example = '    "tiktok": {"caption": "your caption", "image_text": "BOLD\nPUNCHY\nLINES"}'
+    }
+    "instagram" = @{
+        Key = 'instagram'
+        Desc = 'Instagram caption (300-1200 chars, emojis OK, hashtags at end, visually-oriented language).'
+        Example = '    "instagram": "Your Instagram caption here..."'
+    }
+}
+
+# ─── Determine today's schedule ────────────────────────────────────────────
+
+# Convert PowerShell DayOfWeek (Sun=0..Sat=6) to Python-style (Mon=0..Sun=6)
+$psDow = [int](Get-Date).DayOfWeek
+$today = ($psDow + 6) % 7
+$dayNames = @("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
+$todayName = $dayNames[$today]
+
+# Unset CLAUDECODE to allow nested CLI calls
 $env:CLAUDECODE = $null
-
-Write-Log "INFO" "=== Content Generator started (count=$count) ==="
 
 # Read content templates
 if (-not (Test-Path $TEMPLATES_FILE)) {
@@ -61,22 +141,85 @@ foreach ($dir in @($REVIEW_DIR, $PENDING_DIR, $POSTED_DIR)) {
 }
 $existingList = if ($existingDrafts.Count -gt 0) { $existingDrafts -join ", " } else { "(none yet)" }
 
-# Generate drafts
-for ($i = 1; $i -le $count; $i++) {
-    $draftId = Get-Date -Format "yyyyMMdd-HHmmss"
-    # Add index suffix if generating multiple in same second
-    if ($i -gt 1) { $draftId = "$draftId-$i" }
+# ─── Determine which slots to generate ─────────────────────────────────────
+
+if ($slot -gt 0 -and $slot -le 6) {
+    $slotsToGenerate = @($slot)
+} elseif ($count -gt 0) {
+    # Legacy: -count N generates first N slots (backward compat with scheduler)
+    $slotsToGenerate = @(1..[Math]::Min($count, 6))
+} else {
+    $slotsToGenerate = @(1..6)
+}
+
+# Build list of active slots with their platforms for today
+$activeSlots = @()
+foreach ($s in $slotsToGenerate) {
+    $slotInfo = $SlotSchedule[$s]
+    $activePlatforms = @()
+    foreach ($platform in $slotInfo.Platforms.Keys) {
+        if ($slotInfo.Platforms[$platform] -contains $today) {
+            $activePlatforms += $platform
+        }
+    }
+    if ($activePlatforms.Count -gt 0) {
+        $activeSlots += @{ Slot = $s; Platforms = $activePlatforms; TimeEST = $slotInfo.TimeEST }
+    }
+}
+
+Write-Log "INFO" "=== Content Generator started ($todayName, $($activeSlots.Count) active slots) ==="
+foreach ($as in $activeSlots) {
+    Write-Log "INFO" "  Slot $($as.Slot) ($($as.TimeEST) EST): $($as.Platforms -join ', ')"
+}
+
+if ($activeSlots.Count -eq 0) {
+    Write-Log "INFO" "No active slots for today. Exiting."
+    exit 0
+}
+
+# ─── Generate one draft per active slot ────────────────────────────────────
+
+$generated = 0
+foreach ($as in $activeSlots) {
+    $s = $as.Slot
+    $platforms = $as.Platforms
+
+    $draftId = "$(Get-Date -Format 'yyyyMMdd-HHmmss')-s$s"
     $draftFile = "draft-$draftId.json"
     $draftPath = Join-Path $REVIEW_DIR $draftFile
 
-    Write-Log "INFO" "Generating draft $i of $count (ID: $draftId)..."
+    # Determine X format: thread on Tue/Thu in slot 4, tweet otherwise
+    $xFormat = "tweet"
+    if ($s -eq 4 -and ($today -eq 1 -or $today -eq 3)) {
+        $xFormat = "thread"
+    }
+
+    # Build platform-specific content instructions
+    $platformInstructions = @()
+    $jsonKeys = @()
+    $validationKeys = @()
+    foreach ($p in $platforms) {
+        $formatKey = $p
+        if ($p -eq "x") { $formatKey = "x_$xFormat" }
+        $fmt = $PlatformFormats[$formatKey]
+        $platformInstructions += "- $($fmt.Key.ToUpper()): $($fmt.Desc)"
+        $jsonKeys += "    $($fmt.Example)"
+        $validationKeys += $fmt.Key
+    }
+    $platformBlock = $platformInstructions -join "`n"
+    $jsonBlock = $jsonKeys -join ",`n"
+    $platformsList = ($platforms | Sort-Object) -join ", "
+    $formatLabel = if ($xFormat -eq "thread" -and $platforms -contains "x") { "thread" } else { "post" }
+
+    Write-Log "INFO" "Generating slot $s draft ($platformsList, format=$formatLabel)..."
 
     $prompt = @"
 You are a social media marketer and content manager. You are NOT a coder or technical assistant.
 
 Your task: Create a JSON file at this exact path: $draftPath
 
-The file must contain ONE social media post with DIFFERENT versions for ALL 6 platforms.
+This draft is for POSTING SLOT $s ($($as.TimeEST) EST, $todayName).
+Generate content ONLY for these platforms: $platformsList
 
 CONTENT GUIDELINES:
 $templates
@@ -84,11 +227,8 @@ $templates
 EXISTING DRAFTS (avoid repeating these topics):
 $existingList
 
-Write the file with EXACTLY this JSON structure (all 6 platform keys required).
-
-For x, linkedin, and facebook: you can provide EITHER a plain string (text-only post) OR a JSON object with "text" and "image_text" keys (text + branded image post).
-- Text-only: "x": "your tweet text here"
-- Text + image: "x": {"text": "your tweet text here", "image_text": "1-2 BOLD punchy lines for branded image overlay"}
+PLATFORMS FOR THIS DRAFT:
+$platformBlock
 
 IMAGE VS TEXT-ONLY RULES:
 - Pillar 4 (Proof/Results) posts: ALWAYS use image format for x, linkedin, facebook (stats and data are visual)
@@ -97,28 +237,29 @@ IMAGE VS TEXT-ONLY RULES:
 - Engagement/wildcard posts: always text-only
 - When using image format, image_text should be DIFFERENT and PUNCHIER than the text — not a copy
 
+Write the file with EXACTLY this JSON structure:
+
 {
   "id": "$draftId",
   "created_at": "$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')",
   "status": "review",
+  "slot": $s,
+  "platforms": $('["' + ($validationKeys -join '", "') + '"]'),
+  "format": "$formatLabel",
   "topic": "brief topic label",
   "pillar": "1|2|3|4|5|wildcard",
   "content": {
-    "x": "X/Twitter version (max 280 chars, punchy, 1-3 hashtags) OR {text, image_text} object",
-    "linkedin": "LinkedIn version (500-1500 chars, professional tone, line breaks, 3-5 hashtags at end) OR {text, image_text} object",
-    "facebook": "Facebook version (200-800 chars, conversational, 0-2 hashtags) OR {text, image_text} object",
-    "instagram": "Instagram caption (300-1200 chars, emojis, hashtags at end)",
-    "reddit": {"title": "concise descriptive title 60-120 chars", "body": "detailed informative body 200-1500 chars, no hashtags, no emojis"},
-    "tiktok": {"caption": "short punchy caption 100-300 chars with 3-5 hashtags", "image_text": "1-3 short punchy lines for text overlay on image"}
+$jsonBlock
   }
 }
 
 CRITICAL RULES:
 - Write the file to: $draftPath
-- The "content" object MUST have exactly 6 keys: x, linkedin, facebook, instagram, reddit, tiktok
-- x, linkedin, facebook can be a string (text-only) OR a JSON object with "text" and "image_text" keys
+- The "content" object MUST have ONLY these keys: $($validationKeys -join ", ")
+- Do NOT include platforms not listed above
 - reddit value MUST be a JSON object with "title" and "body" keys
 - tiktok value MUST be a JSON object with "caption" and "image_text" keys
+$(if ($xFormat -eq "thread") { '- x value MUST be a JSON array of 3-7 tweet strings (this is a THREAD)' } else { '- x can be a string (text-only) OR a JSON object with "text" and "image_text" keys' })
 - Each platform version must be DIFFERENT in tone, length, and style
 - Be specific, opinionated, and authentic — never sound like generic AI
 - Every post must contain at least one concrete detail (a tool name, a number, a real scenario)
@@ -135,11 +276,16 @@ CRITICAL RULES:
                 if (-not $parsed.content) {
                     throw "Missing 'content' field"
                 }
-                if (-not $parsed.content.x -or -not $parsed.content.linkedin -or -not $parsed.content.facebook) {
-                    throw "Missing required platform keys in 'content' (need x, linkedin, facebook)"
+                # Validate expected platform keys exist
+                foreach ($vk in $validationKeys) {
+                    $val = $parsed.content.$vk
+                    if ($null -eq $val) {
+                        throw "Missing required platform key '$vk' in content"
+                    }
                 }
-                Write-Log "INFO" "Draft saved: $draftFile (topic: $($parsed.topic))"
+                Write-Log "INFO" "Draft saved: $draftFile (slot=$s, topic=$($parsed.topic), platforms=$platformsList)"
                 $existingList = "$existingList, $draftFile"
+                $generated++
             } catch {
                 Write-Log "ERROR" "Draft file created but invalid JSON: $_"
                 Remove-Item -Path $draftPath -Force
@@ -150,16 +296,17 @@ CRITICAL RULES:
         }
 
     } catch {
-        Write-Log "ERROR" "Failed to generate draft $draftId : $_"
+        Write-Log "ERROR" "Failed to generate draft for slot ${s}: $_"
     }
 
     # Small delay between generations
-    if ($i -lt $count) {
+    if ($as -ne $activeSlots[-1]) {
         Start-Sleep -Seconds 2
     }
 }
 
-# Send Windows toast notification that drafts are ready for review
+# ─── Toast notification ────────────────────────────────────────────────────
+
 try {
     $reviewCount = (Get-ChildItem -Path $REVIEW_DIR -Filter "draft-*.json" -ErrorAction SilentlyContinue | Measure-Object).Count
     if ($reviewCount -gt 0) {
@@ -175,4 +322,4 @@ try {
     Write-Log "WARN" "Could not send toast notification: $_"
 }
 
-Write-Log "INFO" "=== Content Generator finished ==="
+Write-Log "INFO" "=== Content Generator finished ($generated/$($activeSlots.Count) drafts generated) ==="
