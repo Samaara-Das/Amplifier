@@ -145,6 +145,26 @@ def edit_draft(filename: str, updated_content: dict) -> dict:
     return data
 
 
+def get_buffer_status() -> dict:
+    """Count approved (pending) drafts per slot. Returns {slot: count, ...} for slots 1-6 plus 'unslotted'."""
+    root = _get_root()
+    _ensure_dirs(root)
+    pending = root / "drafts" / "pending"
+    counts = {i: 0 for i in range(1, 7)}
+    counts["unslotted"] = 0
+    for path in pending.glob("draft-*.json"):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        slot = data.get("slot")
+        if slot in counts:
+            counts[slot] += 1
+        else:
+            counts["unslotted"] += 1
+    counts["total"] = sum(v for k, v in counts.items() if k != "unslotted") + counts["unslotted"]
+    counts["empty_slots"] = sum(1 for i in range(1, 7) if counts[i] == 0)
+    return counts
+
+
 def mark_failed(draft: dict, error: str) -> None:
     """Add failure metadata and move draft to failed/."""
     root = _get_root()

@@ -272,6 +272,32 @@ foreach ($dir in @($REVIEW_DIR, $PENDING_DIR, $POSTED_DIR)) {
 }
 $existingList = if ($existingDrafts.Count -gt 0) { $existingDrafts -join ", " } else { "(none yet)" }
 
+# ─── Content Buffer Check ──────────────────────────────────────────────────
+# 1-day buffer: if buffer is healthy (1+ pending draft per slot), generate tomorrow only.
+# If buffer is empty (0 drafts for any slot), generate today + tomorrow (2 days).
+
+function Get-BufferStatus {
+    try {
+        $output = python -c "import json; from scripts.utils.draft_manager import get_buffer_status; print(json.dumps(get_buffer_status()))" 2>&1
+        return $output | ConvertFrom-Json
+    } catch {
+        Write-Log "WARN" "Could not check buffer status: $_"
+        return $null
+    }
+}
+
+$bufferStatus = Get-BufferStatus
+$bufferHealthy = $false
+if ($null -ne $bufferStatus) {
+    Write-Log "INFO" "Buffer status: total=$($bufferStatus.total), empty_slots=$($bufferStatus.empty_slots)"
+    if ($bufferStatus.empty_slots -eq 0) {
+        $bufferHealthy = $true
+        Write-Log "INFO" "Buffer healthy (all slots have pending drafts) — generating tomorrow's content only"
+    } else {
+        Write-Log "INFO" "Buffer gaps detected — generating full day of content"
+    }
+}
+
 # ─── Determine which slots to generate ─────────────────────────────────────
 
 if ($slot -gt 0 -and $slot -le 6) {
@@ -286,6 +312,15 @@ if ($slot -gt 0 -and $slot -le 6) {
 # Build list of active slots with their platforms for today
 $activeSlots = @()
 foreach ($s in $slotsToGenerate) {
+    # Skip slots that already have pending drafts (buffer is covered)
+    if ($bufferHealthy -and $null -ne $bufferStatus -and $slot -eq 0 -and $count -eq 0) {
+        $slotCount = $bufferStatus."$s"
+        if ($null -ne $slotCount -and $slotCount -gt 0) {
+            Write-Log "INFO" "  Slot $s already buffered ($slotCount pending) — skipping"
+            continue
+        }
+    }
+
     $slotInfo = $SlotSchedule[$s]
     $activePlatforms = @()
     foreach ($platform in $slotInfo.Platforms.Keys) {

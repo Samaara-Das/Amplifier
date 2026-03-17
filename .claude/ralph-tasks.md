@@ -84,12 +84,13 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added PILLAR_COLORS (6 pillars with bg/text colors), SLOT_TIMES (1-6 mapped to EST times). Draft cards now show color-coded pillar badge, slot+time badge, format badge, platforms badge, and image_text preview. All existing functionality unchanged.
 
 ## Subtask 10: Add content buffer logic
-- [ ] Implement 1-day content buffer per the workflow spec:
+- [x] Implement 1-day content buffer per the workflow spec:
   - In draft_manager.py, add a function `get_buffer_status()` that counts approved (pending) drafts per slot
   - If buffer has 0 drafts for any slot, the system should generate extra drafts
   - In generate.ps1, check buffer status before generating — if buffer is healthy (1+ day ahead), generate only tomorrow's content
   - If buffer is empty, generate 2 days worth (today + tomorrow)
   - Add a simple buffer check: `python -c "from scripts.utils.draft_manager import get_buffer_status; print(get_buffer_status())"`
+- Done: Added get_buffer_status() to draft_manager.py — counts pending drafts per slot (1-6) plus unslotted, returns total and empty_slots count. Added Get-BufferStatus function to generate.ps1 that calls Python to check buffer. When buffer is healthy (all slots have pending drafts) and no explicit -slot or -count flag, skips slots that already have pending drafts. When buffer has gaps, generates all slots normally.
 
 ## Subtask 11: Add failure retry logic to post.py
 - [ ] Currently post.py moves failed drafts to failed/ immediately. Update per workflow spec:
