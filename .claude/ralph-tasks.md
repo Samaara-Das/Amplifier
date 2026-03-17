@@ -112,7 +112,7 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: Added LEGAL DISCLAIMERS section to the Claude prompt in generate.ps1. Per-platform disclaimer rules (X/Reddit/LinkedIn/Facebook/TikTok/Instagram), plus conditional disclaimers for setup and backtest posts. Posts that don't need disclaimers (pure education, engagement, Pillar 5 AI/career) are excluded.
 
 ## Subtask 13: Auto-react and repost on all 6 platforms
-- [ ] Add automated engagement to post.py — after posting, the system should also react to and repost OTHER people's content on each platform. This makes the account look active and human, not a broadcast bot. NO commenting (that stays manual).
+- [x] Add automated engagement to post.py — after posting, the system should also react to and repost OTHER people's content on each platform. This makes the account look active and human, not a broadcast bot. NO commenting (that stays manual).
 - **Per-platform behavior:**
   - **X**: Like 5-10 tweets in the feed + Retweet 1-2 relevant tweets. Use `[data-testid="like"]` and `[data-testid="retweet"]` buttons. Target FinTwit/trading content.
   - **LinkedIn**: Like 3-5 posts in the feed. Use the Like button (reaction button). Repost 1 relevant post per session.
@@ -133,6 +133,7 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
   - If cap reached, skip engagement for that platform
   - Never engage with content that has sensitive/political keywords (add a basic blocklist)
 - **Selectors:** Read each platform's posting function in post.py first to understand the existing page state and selector patterns. Use the same Playwright patterns (locator-based, force=True where needed, dispatch_event where overlays intercept).
+- Done: Added auto_engage() to human_behavior.py with per-platform functions: X (like 5-10 tweets + retweet 1-2), LinkedIn (like 3-5 + repost 0-1), Facebook (like 3-5 + share 0-1), Instagram (like 5-10), Reddit (upvote 5-10), TikTok (like 3-5). Daily caps in config/.env (MAX_LIKES_X, MAX_RETWEETS_X, etc). Engagement tracker in logs/engagement-tracker.json resets daily. Blocklist skips political/sensitive content. Integrated into browse_feed() — engages once midway through each browsing session. No changes to post.py platform functions.
 
 ---
 
