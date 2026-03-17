@@ -108,6 +108,29 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
   - Pure educational / engagement posts: no disclaimer needed
   - Read `docs/auto-poster-workflow.md` "Legal Disclaimers" section for exact wording
 
+## Subtask 13: Auto-react and repost on all 6 platforms
+- [ ] Add automated engagement to post.py — after posting, the system should also react to and repost OTHER people's content on each platform. This makes the account look active and human, not a broadcast bot. NO commenting (that stays manual).
+- **Per-platform behavior:**
+  - **X**: Like 5-10 tweets in the feed + Retweet 1-2 relevant tweets. Use `[data-testid="like"]` and `[data-testid="retweet"]` buttons. Target FinTwit/trading content.
+  - **LinkedIn**: Like 3-5 posts in the feed. Use the Like button (reaction button). Repost 1 relevant post per session.
+  - **Facebook**: React to 3-5 posts in the feed (Like button). Share 1 relevant post.
+  - **Instagram**: Like 5-10 posts in the feed. Use the heart button `[aria-label="Like"]`.
+  - **Reddit**: Upvote 5-10 posts in target subreddits (configured in platforms.json). Use the upvote button.
+  - **TikTok**: Like 3-5 videos in the feed. Use the heart/like button.
+- **Implementation approach:**
+  - Create a new function `auto_engage(page, platform)` in `scripts/utils/human_behavior.py` (it already has `browse_feed` — extend it)
+  - Call `auto_engage()` during the existing pre/post browsing phase (don't add a separate step)
+  - Use random delays between each like/repost (human_delay pattern already exists)
+  - Scroll the feed naturally (reuse existing browse_feed scrolling logic), find interactive elements, engage
+  - Keep engagement counts randomized within ranges (e.g., 5-10 likes, not exactly 7 every time)
+  - Log all engagement actions to poster.log
+- **Safety:**
+  - Add a per-platform daily engagement cap in config/.env (e.g., MAX_LIKES_X=15, MAX_RETWEETS_X=3)
+  - Track daily engagement counts in a simple JSON file (`logs/engagement-tracker.json`) — reset daily
+  - If cap reached, skip engagement for that platform
+  - Never engage with content that has sensitive/political keywords (add a basic blocklist)
+- **Selectors:** Read each platform's posting function in post.py first to understand the existing page state and selector patterns. Use the same Playwright patterns (locator-based, force=True where needed, dispatch_event where overlays intercept).
+
 ---
 
 ## Notes
