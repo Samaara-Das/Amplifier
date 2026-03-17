@@ -74,13 +74,14 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: main() now passes slot to get_next_draft(slot=slot). If draft has a `platforms` field, intersects it with the slot's scheduled platforms — skips if no overlap. Warns and exits cleanly if no draft found for the slot.
 
 ## Subtask 9: Update review dashboard with pillar tags and slot info
-- [ ] Edit `scripts/review_dashboard.py` to show new metadata:
+- [x] Edit `scripts/review_dashboard.py` to show new metadata:
   - Display pillar tag (color-coded badge) for each draft
   - Display target slot number and time
   - Display target platforms list
   - Display format type (tweet/thread/long-form/etc.)
   - Show image preview if draft has image_text field (already partially done)
   - Keep the existing approve/reject/edit functionality unchanged
+- Done: Added PILLAR_COLORS (6 pillars with bg/text colors), SLOT_TIMES (1-6 mapped to EST times). Draft cards now show color-coded pillar badge, slot+time badge, format badge, platforms badge, and image_text preview. All existing functionality unchanged.
 
 ## Subtask 10: Add content buffer logic
 - [ ] Implement 1-day content buffer per the workflow spec:

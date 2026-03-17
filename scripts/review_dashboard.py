@@ -39,6 +39,24 @@ PLATFORM_LABELS = {
     "tiktok": "TikTok",
 }
 
+PILLAR_COLORS = {
+    "stop_losing_money": {"bg": "#7f1d1d", "color": "#fca5a5", "label": "Stop Losing Money"},
+    "make_money_while_you_sleep": {"bg": "#14532d", "color": "#86efac", "label": "Make Money While You Sleep"},
+    "market_cheat_code": {"bg": "#1e3a5f", "color": "#93c5fd", "label": "Market Cheat Code"},
+    "proof_not_promises": {"bg": "#4a1d6a", "color": "#d8b4fe", "label": "Proof, Not Promises"},
+    "future_proof_your_income": {"bg": "#713f12", "color": "#fde68a", "label": "Future-Proof Your Income"},
+    "wildcard": {"bg": "#334155", "color": "#cbd5e1", "label": "Wildcard"},
+}
+
+SLOT_TIMES = {
+    1: "8:00 AM EST",
+    2: "10:00 AM EST",
+    3: "1:00 PM EST",
+    4: "3:00 PM EST",
+    5: "6:00 PM EST",
+    6: "8:00 PM EST",
+}
+
 DASHBOARD_HTML = r"""
 <!DOCTYPE html>
 <html lang="en">
@@ -64,7 +82,14 @@ DASHBOARD_HTML = r"""
         .draft-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .draft-title { font-size: 18px; font-weight: 600; color: #fff; }
         .draft-meta { font-size: 12px; color: #666; }
-        .draft-pillar { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: #2a2a4a; color: #8888cc; margin-left: 8px; }
+        .draft-pillar { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; margin-left: 8px; }
+        .draft-meta-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+        .meta-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: #2a2a3a; color: #aaa; }
+        .meta-badge.slot { background: #1e293b; color: #94a3b8; }
+        .meta-badge.format { background: #1a1a2e; color: #818cf8; }
+        .meta-badge.platform-target { background: #1c2333; color: #67e8f9; }
+        .image-preview { background: #12121e; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 12px; color: #888; }
+        .image-preview-label { font-size: 11px; color: #666; margin-bottom: 4px; }
         .platform-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
         .platform-tab { padding: 6px 12px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 13px; background: #12121e; color: #888; border: 1px solid #2a2a3a; border-bottom: none; }
         .platform-tab.active { background: #1a1a2e; color: #fff; border-color: #3b82f6; }
@@ -112,9 +137,25 @@ DASHBOARD_HTML = r"""
         <div class="draft-header">
             <div>
                 <span class="draft-title">{{ draft.topic or draft.id or draft._filename }}</span>
-                {% if draft.pillar %}<span class="draft-pillar">Pillar {{ draft.pillar }}</span>{% endif %}
+                {% if draft.pillar and draft.pillar in pillar_colors %}
+                <span class="draft-pillar" style="background:{{ pillar_colors[draft.pillar].bg }};color:{{ pillar_colors[draft.pillar].color }}">{{ pillar_colors[draft.pillar].label }}</span>
+                {% elif draft.pillar %}
+                <span class="draft-pillar" style="background:#2a2a4a;color:#8888cc">{{ draft.pillar }}</span>
+                {% endif %}
             </div>
             <span class="draft-meta">{{ draft.created_at[:16] if draft.created_at else '' }} &middot; {{ draft._filename }}</span>
+        </div>
+
+        <div class="draft-meta-badges">
+            {% if draft.slot %}
+            <span class="meta-badge slot">Slot {{ draft.slot }}{% if draft.slot in slot_times %} &middot; {{ slot_times[draft.slot] }}{% endif %}</span>
+            {% endif %}
+            {% if draft.format %}
+            <span class="meta-badge format">{{ draft.format }}</span>
+            {% endif %}
+            {% if draft.platforms %}
+            <span class="meta-badge platform-target">{{ draft.platforms | join(', ') }}</span>
+            {% endif %}
         </div>
 
         <div class="platform-tabs" data-draft="{{ draft._filename }}">
@@ -157,6 +198,12 @@ DASHBOARD_HTML = r"""
                     <textarea data-draft="{{ draft._filename }}" data-platform="{{ platform }}"
                               rows="{{ [3, (content|length // 60 + 2)]|max }}"
                               oninput="updateCharCount(this)">{{ content }}</textarea>
+                {% endif %}
+                {% if content is mapping and content.image_text %}
+                <div class="image-preview">
+                    <div class="image-preview-label">Image text preview</div>
+                    {{ content.image_text }}
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -321,6 +368,8 @@ def index():
         drafts=drafts,
         char_limits=CHAR_LIMITS,
         platform_labels=PLATFORM_LABELS,
+        pillar_colors=PILLAR_COLORS,
+        slot_times=SLOT_TIMES,
     )
 
 
