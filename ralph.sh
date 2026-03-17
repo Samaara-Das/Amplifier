@@ -6,7 +6,7 @@
 # Runs Claude Code CLI in a loop, picking one task per iteration,
 # implementing it, verifying it, committing, and moving to the next.
 
-MAX_ITERATIONS=${1:-12}
+MAX_ITERATIONS=${1:-20}
 DONE_SIGNAL="RALPH_ALL_TASKS_COMPLETE"
 LOG_DIR="ralph_logs"
 ITERATION=1
