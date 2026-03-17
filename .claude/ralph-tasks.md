@@ -10,14 +10,14 @@ Ralph picks the first `[ ]` task each iteration. Mark `[x]` when done.
 - Done: all 6 platforms enabled, JSON validated
 
 ## Subtask 2: Update posting schedule for per-platform cadence
-- [ ] Edit `scripts/setup_scheduler.ps1` to match the workflow spec in `docs/auto-poster-workflow.md`:
+- [x] Edit `scripts/setup_scheduler.ps1` to match the workflow spec in `docs/auto-poster-workflow.md`:
   - Slot 1 (18:30 IST / 8AM EST): X tweet #1 + LinkedIn (Tue-Fri only)
   - Slot 2 (20:30 IST / 10AM EST): Facebook post
   - Slot 3 (23:30 IST / 1PM EST): X tweet #2 + Reddit (2-3x/week)
   - Slot 4 (01:30 IST / 3PM EST): X tweet #3 or thread
   - Slot 5 (04:30 IST / 6PM EST): TikTok
   - Slot 6 (06:30 IST / 8PM EST): Instagram
-- The scheduler should still register the same 6 time slots, but the description/comments should reflect which platforms post when
+- Done: Split single AutoPoster-Post task into 6 individual tasks (AutoPoster-Post-Slot-1 through -6), each passing --slot N to post.py. Removes old single-task format. Summary shows per-slot platform assignments.
 
 ## Subtask 3: Update post.py to support per-slot platform selection
 - [ ] Currently `post.py` posts to ALL enabled platforms every time it runs. Update it to:

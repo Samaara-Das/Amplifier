@@ -9,18 +9,20 @@ $ROOT = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $GenerateTime = "09:00"          # IST 9:00 AM → user reviews during the day, posts start at 18:30
 $GenerateCount = 6               # 6 drafts per day (one per posting slot)
 
-# Posting slots (IST times → EST equivalents)
-# Slot 1: 18:30 IST = 8:00 AM EST — East Coast morning scroll
-# Slot 2: 20:30 IST = 10:00 AM EST — Mid-morning, peak LinkedIn + X
-# Slot 3: 23:30 IST = 1:00 PM EST — Lunch break, high TikTok/Instagram
-# Slot 4: 01:30 IST = 3:00 PM EST — Afternoon, post-market discussion
-# Slot 5: 04:30 IST = 6:00 PM EST — Evening scroll, highest TikTok engagement
-# Slot 6: 06:30 IST = 8:00 PM EST — Night wind-down, strong Instagram/Facebook
-$PostTimes = @("18:30", "20:30", "23:30", "01:30", "04:30", "06:30")
+# Posting slots — per-platform cadence (IST times → EST equivalents)
+# Each slot runs post.py with --slot N so it posts only to that slot's platforms
+$PostSlots = @(
+    @{ Slot = 1; Time = "18:30"; EST = "8:00 AM";  Platforms = "X tweet #1 + LinkedIn (Tue-Fri)" },
+    @{ Slot = 2; Time = "20:30"; EST = "10:00 AM"; Platforms = "Facebook post" },
+    @{ Slot = 3; Time = "23:30"; EST = "1:00 PM";  Platforms = "X tweet #2 + Reddit (2-3x/week)" },
+    @{ Slot = 4; Time = "01:30"; EST = "3:00 PM";  Platforms = "X tweet #3 or thread" },
+    @{ Slot = 5; Time = "04:30"; EST = "6:00 PM";  Platforms = "TikTok" },
+    @{ Slot = 6; Time = "06:30"; EST = "8:00 PM";  Platforms = "Instagram" }
+)
 
 # Task names
 $GenerateTaskName = "AutoPoster-Generate"
-$PostTaskName = "AutoPoster-Post"
+$PostTaskPrefix = "AutoPoster-Post-Slot"
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -62,23 +64,14 @@ Register-ScheduledTask `
 
 Write-Host "Registered $GenerateTaskName (daily at $GenerateTime IST, generates $GenerateCount drafts)"
 
-# ─── Register Post Task ────────────────────────────────────────────────────
+# ─── Register Post Tasks (one per slot) ───────────────────────────────────
+# Each slot gets its own task so it can pass --slot N to post.py,
+# which posts only to that slot's assigned platforms.
 
-Write-Host "`n=== Setting up $PostTaskName ==="
-Remove-ExistingTask $PostTaskName
+# Remove old single-task format if it exists
+Remove-ExistingTask "AutoPoster-Post"
 
 $postScript = Join-Path $ROOT "scripts\post.py"
-$postAction = New-ScheduledTaskAction `
-    -Execute "python" `
-    -Argument "`"$postScript`"" `
-    -WorkingDirectory $ROOT
-
-# Create 6 daily triggers — one per posting slot
-$postTriggers = @()
-foreach ($time in $PostTimes) {
-    $trigger = New-ScheduledTaskTrigger -Daily -At $time
-    $postTriggers += $trigger
-}
 
 $postSettings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
@@ -86,15 +79,28 @@ $postSettings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 90)
 
-Register-ScheduledTask `
-    -TaskName $PostTaskName `
-    -Action $postAction `
-    -Trigger $postTriggers `
-    -Settings $postSettings `
-    -Description "Auto-Poster: Post pending drafts to all platforms (6 US-aligned slots daily)" `
-    -RunLevel Limited | Out-Null
+foreach ($slot in $PostSlots) {
+    $taskName = "$PostTaskPrefix-$($slot.Slot)"
+    Write-Host "`n=== Setting up $taskName ==="
+    Remove-ExistingTask $taskName
 
-Write-Host "Registered $PostTaskName (6 daily slots at IST: $($PostTimes -join ', '))"
+    $postAction = New-ScheduledTaskAction `
+        -Execute "python" `
+        -Argument "`"$postScript`" --slot $($slot.Slot)" `
+        -WorkingDirectory $ROOT
+
+    $postTrigger = New-ScheduledTaskTrigger -Daily -At $slot.Time
+
+    Register-ScheduledTask `
+        -TaskName $taskName `
+        -Action $postAction `
+        -Trigger $postTrigger `
+        -Settings $postSettings `
+        -Description "Auto-Poster Slot $($slot.Slot): $($slot.Platforms) ($($slot.Time) IST = $($slot.EST) EST)" `
+        -RunLevel Limited | Out-Null
+
+    Write-Host "Registered $taskName ($($slot.Time) IST = $($slot.EST) EST) — $($slot.Platforms)"
+}
 
 # ─── Summary ───────────────────────────────────────────────────────────────
 
@@ -102,12 +108,9 @@ Write-Host "`n=== Setup Complete ==="
 Write-Host ""
 Write-Host "Schedule (IST → EST):"
 Write-Host "  Generate:  $GenerateTime IST → creates $GenerateCount drafts"
-Write-Host "  Post Slot 1:  18:30 IST = 8:00 AM EST  (East Coast morning)"
-Write-Host "  Post Slot 2:  20:30 IST = 10:00 AM EST (Mid-morning peak)"
-Write-Host "  Post Slot 3:  23:30 IST = 1:00 PM EST  (Lunch break)"
-Write-Host "  Post Slot 4:  01:30 IST = 3:00 PM EST  (Afternoon)"
-Write-Host "  Post Slot 5:  04:30 IST = 6:00 PM EST  (Evening scroll)"
-Write-Host "  Post Slot 6:  06:30 IST = 8:00 PM EST  (Night wind-down)"
+foreach ($slot in $PostSlots) {
+    Write-Host "  Slot $($slot.Slot):  $($slot.Time) IST = $($slot.EST) EST — $($slot.Platforms)"
+}
 Write-Host ""
 Write-Host "Registered tasks:"
 Get-ScheduledTask -TaskName "AutoPoster-*" | Format-Table TaskName, State, @{L="Triggers";E={($_.Triggers | ForEach-Object { $_.StartBoundary }) -join ", "}} -AutoSize
