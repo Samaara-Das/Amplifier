@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Company Dashboard{% endblock %}
+
+{% block nav %}
+<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}">Campaigns</a></li>
+<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}">Create Campaign</a></li>
+<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}">Billing</a></li>
+<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
+<div class="sidebar-section" style="margin-top: 24px;"></div>
+<li><a href="/company/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Campaigns</h1>
+    <a href="/company/campaigns/new" class="btn btn-primary">+ Create Campaign</a>
+</div>
+
+{% if campaigns %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Budget</th>
+                <th>Remaining</th>
+                <th>Users</th>
+                <th>Posts</th>
+                <th>Impressions</th>
+                <th>Engagement</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in campaigns %}
+            <tr>
+                <td style="font-weight: 500; color: #f8fafc;">{{ c.title }}</td>
+                <td>
+                    <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">
+                        {{ c.status }}
+                    </span>
+                </td>
+                <td>${{ "%.2f"|format(c.budget_total) }}</td>
+                <td>${{ "%.2f"|format(c.budget_remaining) }}</td>
+                <td>{{ c.user_count }}</td>
+                <td>{{ c.post_count }}</td>
+                <td>{{ "{:,}".format(c.impressions) }}</td>
+                <td>{{ "{:,}".format(c.engagement) }}</td>
+                <td>
+                    <a href="/company/campaigns/{{ c.id }}" class="btn btn-secondary btn-sm">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty">
+    <h3>No campaigns yet</h3>
+    <p>Create your first campaign to start reaching users.</p>
+    <a href="/company/campaigns/new" class="btn btn-primary" style="margin-top: 16px;">Create Campaign</a>
+</div>
+{% endif %}
+{% endblock %}

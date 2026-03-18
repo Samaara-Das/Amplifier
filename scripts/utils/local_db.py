@@ -240,6 +240,25 @@ def get_posts_for_campaign(campaign_server_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_all_posts() -> list[dict]:
+    """Return all local posts joined with campaign titles and latest metrics."""
+    conn = _get_db()
+    rows = conn.execute("""
+        SELECT p.*, c.title as campaign_title,
+               m.impressions, m.likes, m.reposts, m.comments, m.clicks
+        FROM local_post p
+        LEFT JOIN local_campaign c ON p.campaign_server_id = c.server_id
+        LEFT JOIN (
+            SELECT post_id, impressions, likes, reposts, comments, clicks
+            FROM local_metric
+            WHERE id IN (SELECT MAX(id) FROM local_metric GROUP BY post_id)
+        ) m ON m.post_id = p.id
+        ORDER BY p.posted_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 # ── Metrics ────────────────────────────────────────────────────────
 
 

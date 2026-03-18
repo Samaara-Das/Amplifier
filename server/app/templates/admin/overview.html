@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Overview — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Campaign Platform{% endblock %}
+
+{% block nav %}
+<li><a href="/admin/" class="active">Overview</a></li>
+<li><a href="/admin/users">Users</a></li>
+<li><a href="/admin/campaigns">Campaigns</a></li>
+<li><a href="/admin/fraud">Fraud Flags</a></li>
+<li><a href="/admin/payouts">Payouts</a></li>
+<div class="sidebar-section">Account</div>
+<li><a href="/admin/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>System Overview</h1>
+</div>
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val">{{ total_users }}</div>
+        <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val green">{{ active_users }}</div>
+        <div class="stat-label">Active Users</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ total_campaigns }}</div>
+        <div class="stat-label">Total Campaigns</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val green">{{ active_campaigns }}</div>
+        <div class="stat-label">Active Campaigns</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ total_posts }}</div>
+        <div class="stat-label">Total Posts</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val yellow">${{ "%.2f"|format(total_payouts) }}</div>
+        <div class="stat-label">Total Payouts</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val green">${{ "%.2f"|format(platform_revenue) }}</div>
+        <div class="stat-label">Platform Revenue</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">Recent Activity</div>
+    {% if recent %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Campaign</th>
+                <th>Status</th>
+                <th>Assigned</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in recent %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.user_email }}</td>
+                <td>{{ item.campaign_title }}</td>
+                <td>
+                    {% if item.status == 'paid' %}
+                    <span class="badge badge-green">{{ item.status }}</span>
+                    {% elif item.status == 'posted' %}
+                    <span class="badge badge-blue">{{ item.status }}</span>
+                    {% elif item.status == 'assigned' %}
+                    <span class="badge badge-yellow">{{ item.status }}</span>
+                    {% elif item.status == 'skipped' %}
+                    <span class="badge badge-red">{{ item.status }}</span>
+                    {% else %}
+                    <span class="badge badge-gray">{{ item.status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.assigned_at.strftime('%Y-%m-%d %H:%M') if item.assigned_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No activity yet</h3>
+        <p>Campaign assignments will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

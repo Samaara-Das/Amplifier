@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Settings — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Company Dashboard{% endblock %}
+
+{% block nav %}
+<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}">Campaigns</a></li>
+<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}">Create Campaign</a></li>
+<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}">Billing</a></li>
+<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
+<div class="sidebar-section" style="margin-top: 24px;"></div>
+<li><a href="/company/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings</h1>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if success %}
+<div class="alert alert-success">{{ success }}</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-title">Company Profile</div>
+    <form method="post" action="/company/settings">
+        <div class="form-group">
+            <label for="name">Company Name</label>
+            <input type="text" id="name" name="name" class="form-control" value="{{ company.name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" class="form-control" value="{{ company.email }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Profile</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">Account Info</div>
+    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
+        <div>
+            <span style="color: #64748b;">Account ID:</span>
+            <span style="color: #cbd5e1;">{{ company.id }}</span>
+        </div>
+        <div>
+            <span style="color: #64748b;">Member since:</span>
+            <span style="color: #cbd5e1;">{{ company.created_at.strftime('%b %d, %Y') if company.created_at else 'N/A' }}</span>
+        </div>
+        <div>
+            <span style="color: #64748b;">Current balance:</span>
+            <span style="color: #4ade80; font-weight: 600;">${{ "%.2f"|format(company.balance|float) }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

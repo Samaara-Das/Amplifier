@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Fraud Flags — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Campaign Platform{% endblock %}
+
+{% block nav %}
+<li><a href="/admin/">Overview</a></li>
+<li><a href="/admin/users">Users</a></li>
+<li><a href="/admin/campaigns">Campaigns</a></li>
+<li><a href="/admin/fraud" class="active">Fraud Flags</a></li>
+<li><a href="/admin/payouts">Payouts</a></li>
+<div class="sidebar-section">Account</div>
+<li><a href="/admin/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Fraud Detection</h1>
+    <form method="POST" action="/admin/fraud/run-check">
+        <button type="submit" class="btn btn-primary">Run Check</button>
+    </form>
+</div>
+
+{% if check_result %}
+<div class="alert alert-info">
+    Trust check complete: {{ check_result.anomaly_flags }} anomaly flag(s), {{ check_result.deletion_checks }} deletion check(s).
+</div>
+{% endif %}
+
+<!-- Metrics Anomalies -->
+<div class="card">
+    <div class="card-title">Metrics Anomalies</div>
+    {% if anomalies %}
+    <table>
+        <thead>
+            <tr>
+                <th>User ID</th>
+                <th>Email</th>
+                <th>Avg Engagement</th>
+                <th>Overall Avg</th>
+                <th>Ratio</th>
+                <th>Samples</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in anomalies %}
+            <tr>
+                <td>{{ a.user_id }}</td>
+                <td>{{ a.user_email }}</td>
+                <td>{{ "%.1f"|format(a.avg_engagement) }}</td>
+                <td>{{ "%.1f"|format(a.overall_avg) }}</td>
+                <td>
+                    <span class="badge badge-red">{{ "%.1f"|format(a.ratio) }}x</span>
+                </td>
+                <td>{{ a.metric_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No anomalies detected</h3>
+        <p>Click "Run Check" to scan for users with engagement &gt;3x the average.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Deletion Flags -->
+<div class="card">
+    <div class="card-title">Deletion Checks</div>
+    {% if deletions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Post ID</th>
+                <th>Assignment ID</th>
+                <th>Post URL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in deletions %}
+            <tr>
+                <td>{{ d.post_id }}</td>
+                <td>{{ d.assignment_id }}</td>
+                <td><a href="{{ d.post_url }}" target="_blank" rel="noopener">{{ d.post_url[:60] }}{% if d.post_url|length > 60 %}...{% endif %}</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No deletion flags</h3>
+        <p>Posts marked "live" and older than 24h that should be spot-checked will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Penalties -->
+<div class="card">
+    <div class="card-title">Recent Penalties</div>
+    {% if penalties %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Reason</th>
+                <th>Amount</th>
+                <th>Description</th>
+                <th>Appealed</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in penalties %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.user_email }}</td>
+                <td>
+                    {% if p.reason == 'fake_metrics' %}
+                    <span class="badge badge-red">{{ p.reason }}</span>
+                    {% elif p.reason == 'content_removed' %}
+                    <span class="badge badge-yellow">{{ p.reason }}</span>
+                    {% elif p.reason == 'platform_violation' %}
+                    <span class="badge badge-red">{{ p.reason }}</span>
+                    {% elif p.reason == 'off_brief' %}
+                    <span class="badge badge-yellow">{{ p.reason }}</span>
+                    {% else %}
+                    <span class="badge badge-gray">{{ p.reason }}</span>
+                    {% endif %}
+                </td>
+                <td>${{ "%.2f"|format(p.amount) }}</td>
+                <td>{{ p.description or '—' }}</td>
+                <td>
+                    {% if p.appealed %}
+                    <span class="badge badge-blue">Yes</span>
+                    {% else %}
+                    <span style="color: #475569;">No</span>
+                    {% endif %}
+                </td>
+                <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No penalties recorded</h3>
+        <p>Penalties from trust score adjustments will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

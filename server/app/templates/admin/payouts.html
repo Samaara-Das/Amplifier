@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Payouts — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Campaign Platform{% endblock %}
+
+{% block nav %}
+<li><a href="/admin/">Overview</a></li>
+<li><a href="/admin/users">Users</a></li>
+<li><a href="/admin/campaigns">Campaigns</a></li>
+<li><a href="/admin/fraud">Fraud Flags</a></li>
+<li><a href="/admin/payouts" class="active">Payouts</a></li>
+<div class="sidebar-section">Account</div>
+<li><a href="/admin/logout">Logout</a></li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    .breakdown-detail {
+        font-size: 11px;
+        color: #64748b;
+        max-width: 200px;
+    }
+    .breakdown-detail span {
+        display: inline-block;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Payout Management</h1>
+    <div class="action-buttons">
+        <form method="POST" action="/admin/payouts/run-billing" style="display:inline;">
+            <button type="submit" class="btn btn-primary">Run Billing Cycle</button>
+        </form>
+        <form method="POST" action="/admin/payouts/run-payout" style="display:inline;">
+            <button type="submit" class="btn btn-success">Run Payout Cycle</button>
+        </form>
+    </div>
+</div>
+
+{% if result_msg %}
+<div class="alert alert-success">{{ result_msg }}</div>
+{% endif %}
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val yellow">${{ "%.2f"|format(total_pending) }}</div>
+        <div class="stat-label">Total Pending</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val green">${{ "%.2f"|format(total_paid) }}</div>
+        <div class="stat-label">Total Paid</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val red">${{ "%.2f"|format(total_failed) }}</div>
+        <div class="stat-label">Total Failed</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">All Payouts</div>
+    {% if payouts %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Campaign</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Breakdown</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payouts %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.user_email }}</td>
+                <td>{{ p.campaign_title }}</td>
+                <td>${{ "%.2f"|format(p.amount) }}</td>
+                <td>
+                    {% if p.status == 'paid' %}
+                    <span class="badge badge-green">paid</span>
+                    {% elif p.status == 'pending' %}
+                    <span class="badge badge-yellow">pending</span>
+                    {% elif p.status == 'processing' %}
+                    <span class="badge badge-blue">processing</span>
+                    {% elif p.status == 'failed' %}
+                    <span class="badge badge-red">failed</span>
+                    {% else %}
+                    <span class="badge badge-gray">{{ p.status }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="breakdown-detail">
+                        {% if p.breakdown.get('aggregate') %}
+                        <span>Aggregate payout</span>
+                        {% elif p.breakdown.get('platform') %}
+                        <span>{{ p.breakdown.platform }}</span>
+                        {% if p.breakdown.get('impressions') %}<span>{{ p.breakdown.impressions }} imp</span>{% endif %}
+                        {% if p.breakdown.get('likes') %}<span>{{ p.breakdown.likes }} likes</span>{% endif %}
+                        {% if p.breakdown.get('reposts') %}<span>{{ p.breakdown.reposts }} rp</span>{% endif %}
+                        {% if p.breakdown.get('multiplier') %}<span>{{ p.breakdown.multiplier }}x</span>{% endif %}
+                        {% else %}
+                        <span>—</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No payouts yet</h3>
+        <p>Run a billing cycle to process post metrics into payout records.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
