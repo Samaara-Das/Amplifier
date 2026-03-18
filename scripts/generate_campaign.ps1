@@ -1,4 +1,4 @@
-# Campaign Content Generator
+# Amplifier Campaign Content Generator
 # Takes a campaign brief from the server and generates platform-specific content
 # Uses Claude Code CLI (same as generate.ps1 but driven by campaign data instead of content-templates)
 

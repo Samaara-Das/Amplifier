@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Database (SQLite for dev/testing, PostgreSQL for production)
-    database_url: str = "sqlite+aiosqlite:///./campaign_platform.db"
+    database_url: str = "sqlite+aiosqlite:///./amplifier.db"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

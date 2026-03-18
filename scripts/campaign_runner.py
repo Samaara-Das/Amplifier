@@ -1,4 +1,4 @@
-"""Campaign runner — polls server for campaigns, generates content, posts, reports metrics.
+"""Amplifier runner — polls server for campaigns, generates content, posts, reports metrics.
 
 This is the main entry point for campaign mode. It runs as a background loop
 that periodically checks for new campaigns and processes them.
@@ -259,7 +259,7 @@ async def process_campaign(campaign: dict, mode: str = "full_auto"):
 async def run_poll_loop():
     """Main polling loop — fetches campaigns and processes them."""
     mode = get_setting("mode", "semi_auto")
-    logger.info("Campaign runner started (mode: %s, poll interval: %ds)", mode, POLL_INTERVAL)
+    logger.info("Amplifier runner started (mode: %s, poll interval: %ds)", mode, POLL_INTERVAL)
 
     while True:
         try:
@@ -305,7 +305,7 @@ async def run_once():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Campaign runner — poll, generate, post")
+    parser = argparse.ArgumentParser(description="Amplifier runner — poll, generate, post")
     parser.add_argument("--once", action="store_true", help="Run once then exit (no loop)")
     parser.add_argument("--mode", choices=["full_auto", "semi_auto", "manual"],
                         help="Override operating mode")

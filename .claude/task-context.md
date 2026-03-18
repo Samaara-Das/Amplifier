@@ -1,4 +1,4 @@
-# Auto-Posting System — Task Context
+# Amplifier — Task Context
 
 **Last Updated**: 2026-03-18
 
@@ -9,22 +9,22 @@
 
 ## Project Overview
 Two interconnected systems:
-1. **Auto-Poster** (main branch) — Personal social media automation (6 platforms, Playwright, Claude CLI)
-2. **Campaign Platform** (feat/campaign-architecture) — Two-sided marketplace: companies create campaigns, users earn by posting via auto-poster
+1. **Amplifier** (main branch) — Personal social media automation (6 platforms, Playwright, Claude CLI)
+2. **Amplifier Server** (feat/campaign-architecture) — Two-sided marketplace: companies create campaigns, users earn by posting via Amplifier
 
 ## Task Progress Summary
 
-### Original Auto-Poster (main branch — 100% complete)
+### Original Amplifier (main branch — 100% complete)
 - [x] Tasks 1-17: Full MVP + workflow + all 6 platforms E2E verified
 - [x] Brand strategy, content pillars, scheduling, auto-engagement
 
-### Campaign Platform — Core (19/19 tasks complete)
+### Amplifier Server — Core (19/19 tasks complete)
 - [x] Phase 1 (Tasks 1-8): Server foundation — FastAPI, 8 models, JWT auth, campaign CRUD, matching, APIs
 - [x] Phase 2 (Tasks 9-14): User app — server client, local DB, campaign generation, polling/posting, dashboard, metrics
 - [x] Phase 3 (Tasks 15-16): Billing engine, trust/fraud system
 - [x] Phase 4 (Tasks 17-19): PyInstaller/Inno Setup, onboarding, Stripe Connect
 
-### Campaign Platform — Dashboards (17/17 pages complete)
+### Amplifier Server — Dashboards (17/17 pages complete)
 - [x] Task #20: Company Dashboard (6 pages) — login, campaigns, create, detail, billing, settings
 - [x] Task #21: Admin Dashboard (6 pages) — overview, users, campaigns, fraud, payouts, login
 - [x] Task #22: User App Dashboard (5 tabs) — campaigns, posts, earnings, settings, onboarding
@@ -40,10 +40,10 @@ Two interconnected systems:
 
 ## Session History
 
-### Sessions 1-8 (2026-03-07 to 2026-03-18) — Original Auto-Poster
+### Sessions 1-8 (2026-03-07 to 2026-03-18) — Original Amplifier
 - Built entire system, 6 platforms E2E tested, brand strategy, Task 17 workflow
 
-### Session 9 (2026-03-18) — Campaign Platform Architecture & Build
+### Session 9 (2026-03-18) — Amplifier Server Architecture & Build
 - Designed two-sided marketplace architecture (user-side compute, pull-based)
 - Built 19 tasks: server (52 routes, 8 models), user app (7 new files), distribution
 - E2E tested via Chrome DevTools: 21 API tests pass, 8 edge cases pass, trust system verified
@@ -89,7 +89,7 @@ Two interconnected systems:
 
 ## Test Commands
 ```bash
-# Campaign Platform Server
+# Amplifier Server
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 # → Swagger: http://localhost:8000/docs
 # → Company: http://localhost:8000/company/login
@@ -102,7 +102,7 @@ python scripts/campaign_dashboard.py  # http://localhost:5222
 python scripts/campaign_runner.py --once
 python scripts/campaign_runner.py
 
-# Original Auto-Poster
+# Original Amplifier
 python scripts/post.py --slot 3
 powershell -File scripts/generate.ps1
 python scripts/review_dashboard.py  # http://localhost:5111

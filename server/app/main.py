@@ -20,8 +20,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Campaign Platform API",
-    description="Two-sided marketplace for social media campaign distribution",
+    title="Amplifier API",
+    description="Social media campaign distribution platform",
     version="0.1.0",
 )
 

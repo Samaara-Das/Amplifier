@@ -10,7 +10,7 @@ config = context.config
 # Override sqlalchemy.url from environment variable if set
 database_url = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:password@localhost:5432/campaign_platform",
+    "postgresql+asyncpg://postgres:password@localhost:5432/amplifier",
 )
 # Alembic needs sync driver for migrations
 sync_url = database_url.replace("+asyncpg", "+psycopg2").replace("postgresql://", "postgresql+psycopg2://")

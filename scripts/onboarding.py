@@ -155,7 +155,7 @@ def step_verify():
 def run_onboarding():
     """Run full onboarding flow."""
     print("=" * 50)
-    print("  Campaign Auto-Poster Setup")
+    print("  Amplifier Setup")
     print("=" * 50)
 
     init_db()

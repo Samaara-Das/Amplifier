@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Two interconnected systems in one repo:
-1. **Auto-Poster** — Personal social media automation engine (6 platforms, Playwright, Claude CLI)
-2. **Campaign Platform** — Two-sided marketplace server where companies create campaigns and users earn money by posting campaign content via the auto-poster
+1. **Amplifier** — Personal social media automation engine (6 platforms, Playwright, Claude CLI)
+2. **Amplifier Server** — Two-sided marketplace server where companies create campaigns and users earn money by posting campaign content via Amplifier
 
 ## Commands
 
 ```bash
-# ── Auto-Poster (original) ──────────────────────────────
+# ── Amplifier Engine ──────────────────────────────
 pip install -r requirements.txt
 playwright install chromium
 
@@ -22,7 +22,7 @@ python scripts/post.py                     # post oldest approved draft
 python scripts/post.py --slot 3            # post for specific time slot
 powershell scripts/setup_scheduler.ps1     # register Windows Task Scheduler jobs
 
-# ── Campaign Platform Server ─────────────────────────────
+# ── Amplifier Server ─────────────────────────────
 cd server
 pip install -r requirements.txt
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
@@ -30,7 +30,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 # Company dashboard: http://localhost:8000/company/login
 # Admin dashboard: http://localhost:8000/admin/login (password: "admin")
 
-# ── Campaign User App ────────────────────────────────────
+# ── Amplifier User App ────────────────────────────────────
 python scripts/onboarding.py               # first-run setup (register, connect platforms, set mode)
 python scripts/campaign_dashboard.py       # user dashboard at http://localhost:5222
 python scripts/campaign_runner.py          # start campaign polling loop
@@ -40,7 +40,7 @@ python scripts/utils/metric_scraper.py     # scrape engagement metrics from post
 
 ## Architecture
 
-### Auto-Poster Engine
+### Amplifier Engine
 Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Flask dashboard) → **post** (Python + Playwright).
 
 - `scripts/generate.ps1` — Invokes `claude --dangerously-skip-permissions` to write draft JSON files to `drafts/review/`. Per-slot generation, pillar rotation, CTA rotation, legal disclaimers.
@@ -48,7 +48,7 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - `scripts/post.py` — Async orchestrator. Picks pending draft, posts via Playwright to enabled platforms with human behavior emulation.
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
-### Campaign Platform Server (`server/`)
+### Amplifier Server (`server/`)
 FastAPI + SQLite (dev) / PostgreSQL (prod). 52 API routes total.
 
 **API endpoints** (`/api/`):
@@ -71,7 +71,7 @@ FastAPI + SQLite (dev) / PostgreSQL (prod). 52 API routes total.
 
 **Models** (8 tables): Company, Campaign, User, CampaignAssignment, Post, Metric, Payout, Penalty
 
-### Campaign User App
+### Amplifier User App
 Local Flask dashboard + campaign runner that connects to the server.
 
 - `scripts/campaign_dashboard.py` — Flask on port 5222. 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding

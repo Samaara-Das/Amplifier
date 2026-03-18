@@ -64,7 +64,7 @@ DASHBOARD_HTML = r"""
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Campaign Dashboard</title>
+    <title>Amplifier</title>
     <style>
         /* ── Reset & base ─────────────────────────────────── */
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -271,7 +271,7 @@ DASHBOARD_HTML = r"""
 
     <!-- ═══════════ Top bar ═══════════ -->
     <div class="topbar">
-        <h1>Campaign Dashboard</h1>
+        <h1>Amplifier</h1>
         <div class="topbar-right">
             <div class="mini-stat">
                 <div class="mini-stat-val">${{ "%.2f"|format(earnings.total_earned) }}</div>
@@ -1212,5 +1212,5 @@ def api_posts():
 if __name__ == "__main__":
     init_db()
     port = int(os.getenv("CAMPAIGN_DASHBOARD_PORT", "5222"))
-    print(f"Campaign Dashboard running at http://localhost:{port}")
+    print(f"Amplifier Dashboard running at http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=True)

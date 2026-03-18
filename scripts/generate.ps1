@@ -1,4 +1,4 @@
-# Auto-Poster Content Generator
+# Amplifier Content Generator
 # Calls Claude Code CLI to generate social media drafts
 # Generates per-slot drafts with platform-specific content
 
@@ -516,7 +516,7 @@ try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
         $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
         $textNodes = $template.GetElementsByTagName("text")
-        $textNodes.Item(0).InnerText = "Auto-Poster: $reviewCount drafts ready for review"
+        $textNodes.Item(0).InnerText = "Amplifier: $reviewCount drafts ready for review"
         $textNodes.Item(1).InnerText = "Open http://localhost:5111 to review and approve"
         $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
         [Windows.UI.Notifications.ToastNotifier]::new("AutoPoster").Show($toast)

@@ -1,5 +1,5 @@
-# PyInstaller spec file for Campaign Auto-Poster
-# Build with: pyinstaller campaign_poster.spec
+# PyInstaller spec file for Amplifier
+# Build with: pyinstaller amplifier.spec
 
 import os
 from pathlib import Path
@@ -44,7 +44,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='CampaignPoster',
+    name='Amplifier',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -61,5 +61,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='CampaignPoster',
+    name='Amplifier',
 )

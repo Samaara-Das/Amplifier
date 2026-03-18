@@ -76,7 +76,7 @@ def start_runner():
 
 
 def main():
-    logger.info("Campaign Auto-Poster starting...")
+    logger.info("Amplifier starting...")
 
     init_db()
 

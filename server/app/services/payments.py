@@ -52,7 +52,7 @@ async def create_company_checkout(company_id: int, amount_cents: int, db: AsyncS
             line_items=[{
                 "price_data": {
                     "currency": "usd",
-                    "product_data": {"name": "Campaign Platform Balance Top-Up"},
+                    "product_data": {"name": "Amplifier Balance Top-Up"},
                     "unit_amount": amount_cents,
                 },
                 "quantity": 1,

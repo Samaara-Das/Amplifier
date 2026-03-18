@@ -1,4 +1,4 @@
-# Campaign Platform Architecture
+# Amplifier Architecture
 
 ## Overview
 

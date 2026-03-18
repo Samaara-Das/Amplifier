@@ -1,4 +1,4 @@
-# Auto-Poster System
+# Amplifier
 
 Fully autonomous social media posting system that generates content via Claude Code CLI and posts to 6 platforms (X, LinkedIn, Facebook, Instagram, Reddit, TikTok) using Playwright browser automation with human behavior emulation.
 

@@ -1,4 +1,4 @@
-# Campaign Platform PRD
+# Amplifier PRD
 
 ## Overview
 

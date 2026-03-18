@@ -1,13 +1,13 @@
-; Inno Setup Script for Campaign Auto-Poster
+; Inno Setup Script for Amplifier
 ; Compile with Inno Setup 6.x
 
 [Setup]
-AppName=Campaign Auto-Poster
+AppName=Amplifier
 AppVersion=0.1.0
-AppPublisher=Campaign Platform
-DefaultDirName={autopf}\CampaignPoster
-DefaultGroupName=Campaign Auto-Poster
-OutputBaseFilename=CampaignPoster-Setup-0.1.0
+AppPublisher=Amplifier
+DefaultDirName={autopf}\Amplifier
+DefaultGroupName=Amplifier
+OutputBaseFilename=Amplifier-Setup-0.1.0
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -23,26 +23,26 @@ Name: "startupicon"; Description: "Start automatically with Windows"; GroupDescr
 
 [Files]
 ; PyInstaller output directory
-Source: "dist\CampaignPoster\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\Amplifier\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Config files
 Source: "config\platforms.json"; DestDir: "{app}\config"; Flags: ignoreversion
 Source: "config\.env.example"; DestDir: "{app}\config"; DestName: ".env"; Flags: onlyifdoesntexist
 
 [Icons]
-Name: "{group}\Campaign Auto-Poster"; Filename: "{app}\CampaignPoster.exe"
-Name: "{group}\Campaign Dashboard"; Filename: "http://localhost:5222"
+Name: "{group}\Amplifier"; Filename: "{app}\Amplifier.exe"
+Name: "{group}\Amplifier Dashboard"; Filename: "http://localhost:5222"
 Name: "{group}\Uninstall"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Campaign Auto-Poster"; Filename: "{app}\CampaignPoster.exe"; Tasks: desktopicon
+Name: "{autodesktop}\Amplifier"; Filename: "{app}\Amplifier.exe"; Tasks: desktopicon
 
 [Run]
 ; Install Playwright browsers on first run
-Filename: "{app}\CampaignPoster.exe"; Parameters: "--install-browsers"; Description: "Install browser components"; StatusMsg: "Installing browser components..."
-Filename: "{app}\CampaignPoster.exe"; Description: "Launch Campaign Auto-Poster"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Amplifier.exe"; Parameters: "--install-browsers"; Description: "Install browser components"; StatusMsg: "Installing browser components..."
+Filename: "{app}\Amplifier.exe"; Description: "Launch Amplifier"; Flags: nowait postinstall skipifsilent
 
 [Registry]
 ; Auto-start with Windows (optional)
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "CampaignPoster"; ValueData: """{app}\CampaignPoster.exe"""; Flags: uninsdeletevalue; Tasks: startupicon
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Amplifier"; ValueData: """{app}\Amplifier.exe"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\data"
