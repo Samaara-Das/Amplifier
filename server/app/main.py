@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import auth, campaigns, users, metrics, admin
+from app.routers import auth, campaigns, users, metrics, admin, company_dashboard
 
 settings = get_settings()
 
@@ -25,8 +25,22 @@ app.include_router(campaigns.router, prefix="/api", tags=["campaigns"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(company_dashboard.router, prefix="/api", tags=["company-dashboard"])
+
+
+APP_VERSION = "0.1.0"
 
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/api/version")
+async def version():
+    """Version endpoint for auto-update checks."""
+    return {
+        "version": APP_VERSION,
+        "download_url": "",  # Set when installer is hosted
+        "changelog": "Initial release",
+    }
