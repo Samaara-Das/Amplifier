@@ -75,8 +75,9 @@ async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBr
             )
         )
 
-    # Also return existing non-completed assignments
-    existing_result = await db.execute(
+    # Also return existing non-completed assignments (exclude ones we just created)
+    newly_created_ids = {a.assignment_id for a in new_assignments}
+    existing_query = (
         select(CampaignAssignment)
         .join(Campaign)
         .where(
@@ -87,9 +88,12 @@ async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBr
             )
         )
     )
+    existing_result = await db.execute(existing_query)
     existing_assignments = existing_result.scalars().all()
 
     for assignment in existing_assignments:
+        if assignment.id in newly_created_ids:
+            continue  # Already included from new matches above
         campaign = assignment.campaign
         new_assignments.append(
             CampaignBrief(

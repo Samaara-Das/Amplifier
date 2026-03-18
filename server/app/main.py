@@ -1,12 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from contextlib import asynccontextmanager
+
 from app.core.config import get_settings
+from app.core.database import init_tables
 from app.routers import auth, campaigns, users, metrics, admin, company_dashboard
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables on startup (for SQLite dev mode)
+    if settings.database_url.startswith("sqlite"):
+        await init_tables()
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Campaign Platform API",
     description="Two-sided marketplace for social media campaign distribution",
     version="0.1.0",

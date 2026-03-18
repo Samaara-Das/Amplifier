@@ -1,6 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Numeric, Integer, DateTime, func
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+from sqlalchemy import String, Numeric, Integer, DateTime, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -14,15 +13,15 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     device_fingerprint: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    platforms: Mapped[dict] = mapped_column(JSONB, default=dict)
+    platforms: Mapped[dict] = mapped_column(JSON, default=dict)
     # platforms: {"x": {"username": "@handle", "connected": true},
     #             "linkedin": {"username": "...", "connected": true}, ...}
 
-    follower_counts: Mapped[dict] = mapped_column(JSONB, default=dict)
+    follower_counts: Mapped[dict] = mapped_column(JSON, default=dict)
     # follower_counts: {"x": 1500, "linkedin": 500, "facebook": 200, ...}
 
-    niche_tags: Mapped[list] = mapped_column(ARRAY(String), default=list)
-    # ["finance", "tech", "lifestyle"]
+    niche_tags: Mapped[list] = mapped_column(JSON, default=list)
+    # ["finance", "tech", "lifestyle"] — stored as JSON array
 
     trust_score: Mapped[int] = mapped_column(Integer, default=50)
     mode: Mapped[str] = mapped_column(String(20), default="semi_auto")

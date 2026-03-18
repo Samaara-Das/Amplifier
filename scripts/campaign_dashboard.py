@@ -245,7 +245,8 @@ DASHBOARD_HTML = r"""
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + view).classList.add('active');
-        event.target.classList.add('active');
+        var tab = event.target.closest('.nav-tab');
+        if (tab) tab.classList.add('active');
     }
     </script>
 </body>

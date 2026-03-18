@@ -51,7 +51,9 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
 
     Returns summary: {posts_processed, total_earned, total_deducted_from_budgets}
     """
-    # Find final metrics that haven't been billed (no payout record for the post)
+    # Find final metrics that haven't been billed yet
+    # A metric is "billed" if a payout record references it in the breakdown
+    # We track billed metric IDs via a JSON field in the payout breakdown
     result = await db.execute(
         select(Metric, Post, CampaignAssignment, Campaign)
         .join(Post, Metric.post_id == Post.id)
@@ -66,23 +68,22 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
     )
     rows = result.all()
 
-    # Filter out already-billed posts (check if payout exists)
+    # Get all existing payout metric IDs to skip already-billed metrics
+    existing_payouts = await db.execute(select(Payout))
+    billed_metric_ids = set()
+    for p in existing_payouts.scalars().all():
+        breakdown = p.breakdown or {}
+        if "metric_id" in breakdown:
+            billed_metric_ids.add(breakdown["metric_id"])
+
     posts_processed = 0
     total_earned = 0.0
     total_budget_deducted = 0.0
 
     for metric, post, assignment, campaign in rows:
-        # Check if already billed
-        existing = await db.execute(
-            select(Payout).where(
-                and_(
-                    Payout.user_id == assignment.user_id,
-                    Payout.campaign_id == campaign.id,
-                )
-            )
-        )
-        if existing.scalar_one_or_none():
-            continue  # Already billed
+        # Check if this specific metric was already billed
+        if metric.id in billed_metric_ids:
+            continue
 
         # Check campaign budget
         if float(campaign.budget_remaining) <= 0:
@@ -126,6 +127,9 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
             period_end=now,
             status="pending",
             breakdown={
+                "metric_id": metric.id,
+                "post_id": post.id,
+                "platform": post.platform,
                 "impressions": metric.impressions,
                 "likes": metric.likes,
                 "reposts": metric.reposts,
