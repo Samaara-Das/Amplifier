@@ -3,150 +3,199 @@
 **Last Updated**: 2026-03-18
 
 ## Current Task
-- **COMPLETED: Task #17 — Implement Updated Auto-Poster Workflow** (all 13 subtasks done via Ralph)
-- Next up: **Task #18 — Test Run** (depends on 17, now unblocked)
-- Task Master still shows #17 as pending — needs `task-master set-status --id=17 --status=done`
+- **Branch: `feat/campaign-architecture`** — New campaign platform architecture
+- All 19 campaign platform tasks completed and E2E tested
+- 4 bugs found and fixed during UAT testing
+- Ready for user manual testing
+
+## Project Overview
+Two interconnected systems:
+1. **Original Auto-Poster** (main branch) — Personal social media automation (6 platforms, Playwright, Claude CLI)
+2. **Campaign Platform** (feat/campaign-architecture branch) — Two-sided marketplace where companies pay users to promote campaigns via the auto-poster
 
 ## Task Progress Summary
 
-### Completed (16/16 MVP tasks + Task 17 — 100%)
-- [x] Tasks 1-14, 15-16: Full MVP built and E2E tested
-- [x] All 6 platforms E2E verified: X, LinkedIn, Facebook, Reddit, TikTok, Instagram
-- [x] BlueSky integration removed (task 10)
-- [x] **Task 17: Updated Auto-Poster Workflow** — all 13 subtasks (see below)
+### Original Auto-Poster (main branch — 100% complete)
+- [x] Tasks 1-17: Full MVP + workflow + all 6 platforms E2E verified
+- [x] All brand strategy, content pillars, scheduling, auto-engagement
 
-### Task 17 Subtasks (all complete, 2026-03-17 to 2026-03-18)
-1. [x] Enable all 6 platforms in platforms.json
-2. [x] Update posting schedule — 6 individual scheduler tasks (AutoPoster-Post-Slot-1 through -6)
-3. [x] Add `--slot` argument to post.py with auto-detection from IST time + SLOT_SCHEDULE mapping
-4. [x] Rewrite generate.ps1 for per-slot drafts (one draft per posting slot, slot-aware platforms)
-5. [x] Content pillar rotation — $PillarDescriptions, day alternation, content series (Setup Mon, Backtest Wed, One Thing Fri)
-6. [x] CTA rotation — FIRST_POST_DATE in .env, month 1 = 100% value, month 2+ = 80/15/5 weighted random
-7. [x] Draft JSON schema — slot, pillar, format, platforms fields; get_next_draft(slot=N) filtering
-8. [x] post.py uses slot-filtered drafts, intersects draft.platforms with slot schedule
-9. [x] Review dashboard — pillar/slot/format/platform badges with color coding
-10. [x] Content buffer — get_buffer_status() in draft_manager, generate.ps1 skips slots with pending drafts
-11. [x] Failure retry — 5-min delay + retry once per platform, failed drafts visible in dashboard with retry button
-12. [x] Legal disclaimers in generator prompt — per-platform rules, conditional for setup/backtest posts
-13. [x] Auto-engagement — likes/retweets/upvotes/reposts on all 6 platforms during browse_feed()
+### Campaign Platform (feat/campaign-architecture — 19/19 tasks complete)
 
-### Brand Strategy (Completed — Session 5, 2026-03-13)
-- [x] Custom output style, emotion-first principle, brand strategy doc, content templates, US timezone alignment
+**Phase 1: Server Foundation (Tasks 1-8)**
+- [x] FastAPI project structure (`server/`)
+- [x] PostgreSQL models (8 tables: Company, Campaign, User, Assignment, Post, Metric, Payout, Penalty)
+- [x] Alembic migrations setup
+- [x] JWT auth (separate user/company flows)
+- [x] Campaign CRUD API for companies
+- [x] User profile API
+- [x] Campaign matching algorithm (hard filters + soft scoring)
+- [x] Assignment + post registration APIs
 
-### E2E Workflow Planning (Completed — Session 6, 2026-03-14)
-- [x] Platform strategy, posting frequency, full E2E workflow doc, warmup plan, weekly review loop, 13 new tasks
+**Phase 2: User App (Tasks 9-14)**
+- [x] Server communication layer (`scripts/utils/server_client.py`)
+- [x] SQLite local database (`scripts/utils/local_db.py`)
+- [x] Campaign content generation via Claude CLI (`scripts/generate_campaign.ps1`)
+- [x] Campaign polling loop + posting flow (`scripts/campaign_runner.py`)
+- [x] Campaign dashboard — Flask UI (`scripts/campaign_dashboard.py`, port 5222)
+- [x] Metric scraping for all 6 platforms (`scripts/utils/metric_scraper.py`)
 
-### Pending — Now (sequential, with dependencies)
-- [ ] **18**: Test Run — Confirm Updated Workflow Works (high, depends on 17 ✓)
-- [ ] **19**: Account Warmup — Gradual Ramp-Up Per Platform (high, depends on 18)
-- [ ] **21**: Discuss "I'm Back" LinkedIn Post Strategy (high, depends on 19)
-- [ ] **20**: Revamp Profiles — X, Reddit, LinkedIn, Facebook (high, depends on 21)
+**Phase 3: Server Services (Tasks 15-16)**
+- [x] Billing engine + company analytics dashboard
+- [x] Trust score system + fraud detection + penalties
 
-### Pending — Later (independent, no blocking dependencies)
-- [ ] **22**: AI Video Generation for TikTok + Instagram (medium)
-- [ ] **23**: Financial Newsletters/Articles as Content Source (medium)
-- [ ] **25**: Facebook Groups Posting (medium)
-- [ ] **26**: TradingView Content Auto-Posting (medium)
-- [ ] **27**: Analytics Dashboard — Automate Weekly Review Data Pull (medium)
-- [ ] **28**: Content A/B Testing Framework (low)
-- [ ] **29**: Email List + Lead Magnet for Monetization Funnel (low)
-- [ ] **30**: Competitor Analysis Tooling (low)
+**Phase 4: Distribution & Payments (Tasks 17-19)**
+- [x] PyInstaller spec + Inno Setup installer
+- [x] Auto-update + user onboarding flow
+- [x] Stripe Connect integration (user payouts + company top-ups)
 
 ## Session History
 
-### Sessions 1-4 (2026-03-07 to 2026-03-13) — MVP Build & E2E Testing
-- Built entire auto-posting system from scratch
-- All 6 platforms E2E tested and working
-- Key discoveries: shadow DOM piercing, overlay click workarounds, TikTok video-only uploads, Draft.js editor handling
+### Sessions 1-8 (2026-03-07 to 2026-03-18) — Original Auto-Poster
+- Built entire auto-posting system from scratch through Task 17
+- All 6 platforms E2E tested, brand strategy, scheduling, auto-engagement
+- See previous context for full session-by-session details
 
-### Session 5 (2026-03-13) — Brand Strategy Development
-- Created brand strategist output style
-- Full brand strategy document with 5 audience personas, 5 pillars, 6 platform playbooks, 30+ hook templates
-- Updated content-templates.md and scheduler for US timezone
+### Session 9 (2026-03-18) — Campaign Platform Architecture & Build
 
-### Session 6 (2026-03-14) — E2E Workflow Planning & Platform Strategy
-- Platform strategy: X + Reddit (active engagement), LinkedIn + Facebook (passive auto-post), TikTok + Instagram (paused → later enabled)
-- Posting frequency: X 3/day, Reddit 2-3/week, LinkedIn Tue-Fri, Facebook daily
-- Full E2E workflow: `docs/auto-poster-workflow.md` (6 phases: research → generate → review → post → engage → weekly review)
-- Account warmup plan, weekly performance review, 13 new tasks (17-30)
+**Architecture Discussion:**
+- User proposed: companies create campaigns, users earn by auto-posting campaign content
+- Key decision: **user-side compute** — AI generation, posting, and scraping all happen on user's device
+- Server is lightweight marketplace: campaign distribution, matching, billing, analytics
+- Pull-based communication (user app polls server every 5-15 min)
+- Social media credentials never leave user's device
 
-### Sessions 7-8 (2026-03-17 to 2026-03-18) — Task 17 Implementation via Ralph
-- Ralph autonomous loop implemented all 13 subtasks of Task 17
-- Key changes per subtask:
-  - **Scheduler**: Split single task into 6 slot-specific tasks in setup_scheduler.ps1
-  - **post.py**: Added --slot arg, SLOT_SCHEDULE dict, get_slot_platforms(), slot-filtered draft selection, per-platform retry with 5-min delay
-  - **generate.ps1**: Complete rewrite for per-slot generation, pillar rotation (day alternation + content series), CTA rotation (month-based), legal disclaimers per platform
-  - **draft_manager.py**: get_next_draft(slot=N), get_buffer_status(), get_failed_drafts(), retry_failed_draft()
-  - **review_dashboard.py**: Pillar/slot/format/platform badges, failed drafts section with retry button
-  - **human_behavior.py**: auto_engage() with per-platform likes/retweets/upvotes/reposts, daily caps in .env, engagement tracker JSON, blocklist for sensitive content, integrated into browse_feed() midway through each session
+**Server Built (27 API endpoints):**
+- Auth: register/login for users and companies (JWT)
+- Campaigns: CRUD for companies, matching + polling for users
+- Posts/Metrics: batch registration and submission
+- Admin: user management, system stats
+- Company dashboard: HTML analytics with per-campaign breakdowns
+- Version endpoint for auto-updates
+
+**User App Built (7 new files):**
+- `server_client.py` — Auth, polling, reporting with exponential backoff retry
+- `local_db.py` — SQLite for campaigns, posts, metrics, earnings (5 tables)
+- `generate_campaign.ps1` — Claude CLI content gen from campaign briefs
+- `campaign_runner.py` — Main loop: poll → generate → post → report (supports full_auto/semi_auto/manual)
+- `campaign_dashboard.py` — Flask UI with campaigns, earnings, trust score, settings tabs
+- `metric_scraper.py` — Revisit posts at T+1h/6h/24h/72h, scrape engagement per platform
+- `onboarding.py` — First-run: register, connect platforms, set niches/followers, choose mode
+
+**E2E Testing via Chrome DevTools MCP (21 tests, all pass):**
+
+API Tests:
+1. Company register → 200
+2. User register → 200
+3. User profile update → 200
+4. Campaign creation (budget validation) → 200
+5. Campaign activation → 200
+6. Campaign matching + polling → 200, correct match
+7. Assignment status update → 200
+8. Post registration (3 posts) → 200
+9. Metric submission (3 metrics) → 200
+10. Billing cycle → $31.20 earned across 3 posts
+11. User earnings → $31.20
+12. Admin stats → correct
+13. Version endpoint → 0.1.0
+
+Edge Cases:
+- User token on company endpoint → 403
+- Company token on user endpoint → 403
+- Invalid status transition → 400
+- Post to invalid assignment → 0 created
+- Duplicate registration → 400
+- Suspended user access → 403
+- Unsuspend then access → 200
+- Wrong password → 401
+
+Trust System:
+- campaign_completed: +3 (50→53)
+- above_avg_engagement: +2 (53→55)
+- post_deleted_24h: -10 + penalty (55→45)
+
+**4 Bugs Found & Fixed:**
+1. **passlib bcrypt crash on Python 3.14** — `ValueError: password cannot be longer than 72 bytes`. Replaced `passlib.CryptContext` with direct `bcrypt.hashpw/checkpw` in `server/app/core/security.py`
+2. **Campaign matching returned duplicates** — New assignments were created then re-fetched by the "existing assignments" query. Fixed by tracking `newly_created_ids` and excluding them in `server/app/services/matching.py`
+3. **Billing only processed 1 of N posts per campaign** — Dedup was per (user_id, campaign_id) which blocked all posts after the first. Changed to per `metric_id` tracking in `server/app/services/billing.py`
+4. **Dashboard tab switching broken** — `event.target` on text node has no `classList`. Fixed with `event.target.closest('.nav-tab')` in `scripts/campaign_dashboard.py`
+
+**Additional: SQLite dev mode** — Server models switched from PostgreSQL-specific JSONB/ARRAY to portable JSON type. Added `init_tables()` for auto table creation with SQLite. StaticPool for async SQLite compatibility.
 
 ## Important Decisions Made
-- **ALL 6 platforms enabled** (updated 2026-03-17, was 4)
-- **Auto-engagement added** — likes/retweets/upvotes during browse_feed, but NO commenting (stays manual)
-- **New X account needed** — fresh start with new email
-- **Content voice: "I learnt this, maybe you can try this too"** — never claiming trading experience
-- **1-day content buffer** — system keeps approved posts queued
-- **CTA rotation** — month 1 = 100% value, month 2+ = 80/15/5 split
-- **LinkedIn "I'm back" post** — do this BEFORE profile revamps
+
+### Campaign Platform Architecture
+- **User-side compute** — AI generation, browser automation, metric scraping all on user device
+- **Pull-based polling** — User app polls server every 5-15 min (no websockets at 100K+ scale)
+- **Credentials never leave device** — Server never touches social media passwords/cookies
+- **Content modes**: Full Auto (1.5x), Semi-Auto (2.0x), Manual (2.0x), Repost (1.0x)
+- **Billing**: pay per impression/engagement, 20% platform cut, auto-pause at low budget
+- **Trust score**: 0-100, starts 50, adjusts on events, affects campaign priority
+- **Fraud detection**: spot-check 5% of post URLs, anomaly detection, deletion monitoring
+- **Tech stack**: FastAPI + PostgreSQL (prod) / SQLite (dev) + Redis + ARQ for server
+- **Distribution**: PyInstaller + Inno Setup Windows installer
+- **Payments**: Stripe Connect Express for user payouts
+
+### Original System Decisions
+- ALL 6 platforms enabled, auto-engagement during browse_feed, no commenting (manual only)
+- Content voice: "I learnt this, maybe you can try this too" — never claiming trading experience
+- CTA rotation: month 1 = 100% value, month 2+ = 80/15/5 split
 
 ## Key Reference Files
-- `docs/auto-poster-workflow.md` — Complete E2E workflow specification (Phase 1-6)
-- `docs/brand-strategy.md` — Full brand & content strategy document
-- `scripts/post.py` — Main orchestrator + platform posting + slot scheduling
-- `scripts/generate.ps1` — Content generator (per-slot, pillar rotation, CTA rotation, legal disclaimers)
-- `scripts/review_dashboard.py` — Review dashboard with badges and failed draft retry
-- `scripts/utils/draft_manager.py` — Draft lifecycle + slot filtering + buffer status
-- `scripts/utils/human_behavior.py` — Anti-detection + auto-engagement on all platforms
-- `scripts/utils/image_generator.py` — Image/video generation
-- `scripts/setup_scheduler.ps1` — Windows Task Scheduler (6 slot-specific tasks)
-- `config/platforms.json` — Platform URLs, enable flags, proxy config, subreddits
-- `config/content-templates.md` — Brand voice, content pillars, platform format rules
-- `config/.env` — Timing, behavior, engagement caps, CTA config
-- `.claude/ralph-tasks.md` — Task 17 subtask tracker (all 13 complete)
 
-## Memory Files
-- `memory/project_platform_strategy.md` — Which platforms, why, active vs passive
-- `memory/project_e2e_flow.md` — Full E2E workflow details
-- `memory/user_brand_context.md` — User profile, audience, goals
-- `memory/project_content_iteration.md` — Content experimentation framework (future)
-- `memory/feedback_auto_commit_push.md` — Always commit and push without being asked
-- `memory/feedback_value_first_content.md` — All content must deliver actionable value
-- `memory/feedback_no_trading_experience.md` — Never claim trading experience
+### Campaign Platform (new)
+- `docs/campaign-platform-architecture.md` — Full system design document
+- `.taskmaster/docs/campaign-platform-prd.md` — PRD for task breakdown
+- `server/` — FastAPI server (27 endpoints, 8 models, matching, billing, trust, analytics)
+- `server/app/main.py` — Server entry point with lifespan + SQLite auto-init
+- `server/app/services/matching.py` — Campaign matching algorithm
+- `server/app/services/billing.py` — Earnings calculation engine
+- `server/app/services/trust.py` — Trust score + fraud detection
+- `server/app/services/payments.py` — Stripe Connect integration
+- `server/app/routers/company_dashboard.py` — Company analytics HTML dashboard
+- `scripts/campaign_runner.py` — Main campaign loop (poll → generate → post → report)
+- `scripts/campaign_dashboard.py` — User campaign dashboard (Flask, port 5222)
+- `scripts/onboarding.py` — First-run user setup
+- `scripts/generate_campaign.ps1` — Campaign content generator (Claude CLI)
+- `scripts/utils/server_client.py` — Server API client with retry
+- `scripts/utils/local_db.py` — Local SQLite database
+- `scripts/utils/metric_scraper.py` — Post engagement scraping
+- `scripts/app_entry.py` — Packaged app entry point
+- `campaign_poster.spec` — PyInstaller build spec
+- `installer.iss` — Inno Setup Windows installer
 
-## Verified Patterns (selectors & techniques)
-- **X**: `[data-testid="tweetButton"]` + `dispatch_event("click")` | Engagement: `[data-testid="like"]`, `[data-testid="retweet"]` + `[data-testid="retweetConfirm"]`
-- **LinkedIn**: `[role="button"]:has-text("Start a post")` → `[role="textbox"]` → `get_by_role("button", name="Post", exact=True)` | Engagement: `button[aria-label*="Like"]`, `button[aria-label*="Repost"]`
-- **Facebook**: `[aria-label="What's on your mind?"]` → `[role="textbox"]` → `[aria-label="Post"]` | Engagement: `[aria-label="Like"]`, `[aria-label="Share"]`
-- **Reddit**: `textarea[name="title"]` → `[role="textbox"][name="body"]` → `button:has-text("Post")` | Engagement: `button[aria-label="Upvote"]`
-- **TikTok**: Hidden `input[type="file"]` (video/*) → dismiss dialogs → `div.public-DraftEditor-content` (Ctrl+A, Backspace, type) → `button[data-e2e="post_video_button"]` | Engagement: `[data-e2e="like-icon"]`
-- **Instagram**: `[aria-label="New post"]` → `svg[aria-label="Post"]` → file input → Next x2 → caption → Share (all force=True) | Engagement: `svg[aria-label="Like"]`
+### Original Auto-Poster
+- `scripts/post.py` — Main poster + 6 platform functions + slot scheduling
+- `scripts/generate.ps1` — Content generator (pillar rotation, CTA, legal disclaimers)
+- `scripts/review_dashboard.py` — Draft review dashboard (port 5111)
+- `scripts/utils/draft_manager.py` — Draft lifecycle + slot filtering
+- `scripts/utils/human_behavior.py` — Anti-detection + auto-engagement
+- `config/platforms.json` — Platform config, subreddits, proxy
+- `config/content-templates.md` — Brand voice, content pillars
 
 ## Test Commands
 ```bash
-# Login setup for a platform
-python scripts/login_setup.py tiktok
-python scripts/login_setup.py instagram
+# === Campaign Platform ===
+# Start server (from server/ directory)
+cd server
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+# Swagger docs: http://localhost:8000/docs
 
-# Run the poster (picks up next pending draft for auto-detected slot)
+# Start user campaign dashboard
+python scripts/campaign_dashboard.py  # http://localhost:5222
+
+# Run onboarding
+python scripts/onboarding.py
+
+# Run campaign runner (once or loop)
+python scripts/campaign_runner.py --once
+python scripts/campaign_runner.py
+
+# Run metric scraping
+python scripts/utils/metric_scraper.py
+
+# === Original Auto-Poster ===
 python scripts/post.py
 python scripts/post.py --slot 3
-
-# Generate drafts
 powershell -File scripts/generate.ps1
-powershell -File scripts/generate.ps1 -count 3
-powershell -File scripts/generate.ps1 -slot 2
-
-# Check content buffer status
-python -c "from scripts.utils.draft_manager import get_buffer_status; print(get_buffer_status())"
-
-# Check engagement tracker
-python -c "from scripts.utils.human_behavior import _load_engagement_tracker; print(_load_engagement_tracker())"
-
-# Review dashboard
-python scripts/review_dashboard.py  # opens http://localhost:5111
-
-# Task Master
-task-master next
-task-master list --with-subtasks
-task-master set-status --id=17 --status=done
+python scripts/review_dashboard.py  # http://localhost:5111
 ```
