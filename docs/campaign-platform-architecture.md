@@ -282,47 +282,46 @@ Scraping uses the same Playwright browser profiles already logged in.
 - POST /api/admin/users/{id}/suspend — suspend user
 - GET /api/admin/fraud/flags — flagged anomalies for review
 
-## MVP Scope (1,000 Users)
+## Web Dashboards (all implemented)
 
-### Phase 1: Server Foundation
-- FastAPI project setup with PostgreSQL + Redis
-- Auth system (JWT) for users and companies
-- Database models and migrations (Alembic)
-- Campaign CRUD API for companies
-- User registration and profile API
+### Company Dashboard (`/company/`) — 6 pages, Jinja2 templates
+- **Login/Register** — Tabbed form, JWT stored in httponly cookie
+- **Campaigns List** — Table with status badges, budget, metrics, view action
+- **Create Campaign** — Full form: title, brief, budget, payout rules, targeting (min followers, niches, platform checkboxes), content guidance, dates
+- **Campaign Detail** — Stats row, budget progress bar, brief, payout rules, per-platform breakdown, activate/pause/cancel buttons
+- **Billing** — Balance stats, add funds form (Stripe placeholder), campaign allocation history
+- **Settings** — Company profile update, account info
 
-### Phase 2: Campaign Distribution
-- Campaign matching algorithm
-- Assignment API (GET /campaigns/mine)
-- Assignment status tracking
+### Admin Dashboard (`/admin/`) — 6 pages, Jinja2 templates
+- **Login** — Password auth (env var `ADMIN_PASSWORD`, default "admin")
+- **Overview** — System stats (users, campaigns, posts, payouts, revenue), recent activity
+- **Users** — Trust score bars, mode, platform count, status filter, suspend/unsuspend
+- **Campaigns** — All campaigns cross-company with status, budget, metrics
+- **Fraud Detection** — Metrics anomalies, deletion checks, recent penalties, "Run Check" button
+- **Payouts** — Pending/paid/failed totals, payout table, "Run Billing Cycle" and "Run Payout Cycle" buttons
 
-### Phase 3: User App Evolution
-- Server communication layer (auth, polling, reporting)
-- Campaign-aware content generation (adapt generate.ps1 to accept campaign briefs)
-- Local SQLite database for campaigns, posts, metrics
-- Updated Flask dashboard showing campaigns + earnings
-- Mode selection (full auto / semi-auto / manual)
+### User App Dashboard (Flask, `localhost:5222`) — 5 tabs
+- **Campaigns** — Status summary strip (assigned/ready/posted/approved/skipped), campaign cards with actions
+- **Posts** — Platform filter, metrics table (impressions, likes, reposts)
+- **Earnings** — 4 summary cards, per-campaign table, per-platform breakdown, recent payouts
+- **Settings** — Mode selector, poll interval, platform connection status grid
+- **Onboarding** — 4-step wizard: register/login, connect platforms, set profile, choose mode
 
-### Phase 4: Metrics & Billing
-- Metric scraping (revisit posts at intervals via Playwright)
-- Metric reporting API
-- Server-side metric aggregation
-- Billing calculation engine
-- Company analytics dashboard
+## Implementation Status
 
-### Phase 5: Trust & Quality
-- Trust score system
-- Fraud detection background jobs
-- Penalty system
-- Spot-check scraping
+All phases complete and E2E tested:
 
-### Phase 6: Distribution
-- PyInstaller packaging
-- Inno Setup installer
-- Onboarding flow (register → connect platforms → set mode)
-- Auto-update mechanism
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Server foundation (FastAPI, models, auth, APIs) | Done |
+| 2 | Campaign distribution (matching, assignments) | Done |
+| 3 | User app (client, local DB, generation, polling, dashboard) | Done |
+| 4 | Metrics & billing (scraping, billing engine, company analytics) | Done |
+| 5 | Trust & quality (trust scores, fraud detection, penalties) | Done |
+| 6 | Distribution (PyInstaller, Inno Setup, onboarding, auto-update) | Done |
+| 7 | Payments (Stripe Connect, payout cycles) | Done |
+| 8 | Web dashboards (17 pages: company 6, admin 6, user 5) | Done |
 
-### Phase 7: Payments
-- Stripe Connect integration
-- Automated payout cycles
-- Earning withdrawal for users
+### Pending
+- Rename project to "Amplifier"
+- Deploy server to Vercel
