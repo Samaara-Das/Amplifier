@@ -365,7 +365,7 @@ Poll for campaigns matched to the authenticated user. Runs the matching algorith
 **Notes:**
 - This endpoint is designed for polling. The Amplifier user app calls it every 5-15 minutes.
 - The matching algorithm applies hard filters (required platforms, min followers) and soft scoring (niche tags, trust score).
-- New assignments are created with status `"matched"` and a default payout multiplier based on user mode.
+- New assignments are created with status `"assigned"` and a default payout multiplier based on user mode.
 
 **Errors:**
 
