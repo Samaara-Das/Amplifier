@@ -1,5 +1,7 @@
 """Company web pages — Jinja2 templates with cookie-based auth."""
 
+import os
+
 from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -22,7 +24,8 @@ from app.models.post import Post
 from app.models.metric import Metric
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+_template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
+templates = Jinja2Templates(directory=_template_dir)
 settings = get_settings()
 
 

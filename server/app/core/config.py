@@ -4,6 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Database (SQLite for dev/testing, PostgreSQL for production)
+    # On Vercel serverless, SQLite uses /tmp/ (ephemeral — use PostgreSQL for production)
     database_url: str = "sqlite+aiosqlite:///./amplifier.db"
 
     # Redis
