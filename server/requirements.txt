@@ -6,6 +6,7 @@ jinja2>=3.1.0
 
 # Database
 sqlalchemy[asyncio]>=2.0.36
+aiosqlite>=0.20.0
 asyncpg>=0.30.0
 alembic>=1.14.0
 
@@ -26,7 +27,5 @@ email-validator>=2.2.0
 # Payments (Phase 7)
 # stripe>=11.0.0
 
-# Dev
+# HTTP client
 httpx>=0.28.0
-pytest>=8.3.0
-pytest-asyncio>=0.25.0
