@@ -1,20 +1,20 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-18
+**Last Updated**: 2026-03-21
 
 ## Current Task
-- **Branch: `feat/campaign-architecture`** — Campaign platform fully built
-- All 19 core tasks + 17 dashboard pages completed and E2E tested
-- Next: Rename to "Amplifier" (task #23), Deploy to Vercel (task #25)
+- **Branch: `feat/campaign-architecture`** — Campaign platform fully built, renamed, and deployed
+- All tasks complete: 19 core + 17 dashboard pages + rename + Vercel deploy
+- No pending tasks on this branch
 
 ## Project Overview
 Two interconnected systems:
-1. **Amplifier** (main branch) — Personal social media automation (6 platforms, Playwright, Claude CLI)
+1. **Amplifier Engine** (main branch) — Personal social media automation (6 platforms, Playwright, Claude CLI)
 2. **Amplifier Server** (feat/campaign-architecture) — Two-sided marketplace: companies create campaigns, users earn by posting via Amplifier
 
 ## Task Progress Summary
 
-### Original Amplifier (main branch — 100% complete)
+### Amplifier Engine (main branch — 100% complete)
 - [x] Tasks 1-17: Full MVP + workflow + all 6 platforms E2E verified
 - [x] Brand strategy, content pillars, scheduling, auto-engagement
 
@@ -30,9 +30,9 @@ Two interconnected systems:
 - [x] Task #22: User App Dashboard (5 tabs) — campaigns, posts, earnings, settings, onboarding
 - [x] Task #24: E2E tested all 17 pages via Chrome DevTools — 0 bugs found
 
-### Pending
-- [ ] **#23**: Rename project to "Amplifier" — ask user before proceeding
-- [ ] **#25**: Host campaign server on Vercel
+### Completed — Final Tasks
+- [x] **#23**: Renamed entire project to "Amplifier" (35 files, GitHub repo, all branding)
+- [x] **#25**: Deployed to Vercel — live at https://server-five-omega-23.vercel.app
 
 ### Original System — Pending (from main branch)
 - [ ] 18: Test Run, 19: Account Warmup, 20: Profile Revamps, 21: LinkedIn "I'm Back" Post
@@ -50,13 +50,32 @@ Two interconnected systems:
 - Fixed 4 bugs: passlib crash, matching duplicates, billing dedup, tab switching
 
 ### Session 10 (2026-03-18) — Dashboard Pages & E2E Testing
-- Built 17 web pages using 3 parallel agents:
-  - **Company dashboard** (Jinja2): login/register, campaigns list, create campaign form (brief/budget/targeting/dates), campaign detail (stats/budget bar/platform breakdown/actions), billing (top-up/allocations), settings
-  - **Admin dashboard** (Jinja2): login, system overview (stats/activity), user management (trust bars/suspend), all campaigns, fraud detection (anomalies/deletions/penalties + Run Check), payouts (Run Billing Cycle/Run Payout Cycle)
-  - **User app dashboard** (Flask): 5 tabs — campaigns (status strip/approve/skip), posts (platform filter/metrics), earnings (4 cards/per-campaign/per-platform), settings (mode/poll/platform connections), onboarding (4-step wizard)
-- Shared base template with consistent dark theme, sidebar nav, responsive layout
-- E2E tested all 17 pages: company register → create campaign → activate → admin billing cycle → payouts. 0 bugs found.
+- Built 17 web pages using 3 parallel agents (company 6, admin 6, user 5)
+- Shared base template with consistent dark theme, sidebar nav
+- E2E tested all 17 pages via Chrome DevTools — 0 bugs found
 - Total: 52 API routes, 17 web pages, 3 dashboards
+
+### Session 11 (2026-03-18 to 2026-03-21) — Rename to Amplifier & Vercel Deploy
+- **Rename** (Task #23): Renamed from "Auto-Posting-System" / "Campaign Platform" to "Amplifier"
+  - 35 files renamed using 3 parallel agents (server, scripts, docs)
+  - GitHub repo renamed: `Samaara-Das/Auto-Posting-System` → `Samaara-Das/Amplifier`
+  - Git remote updated to new URL
+  - Branding: "Amplifier for Business" (company), "Amplifier Admin" (admin), "Amplifier" (user app)
+  - Spec file renamed: `campaign_poster.spec` → `amplifier.spec`
+  - DB name: `campaign_platform.db` → `amplifier.db`
+  - Local folder rename still pending (user will do manually: `ren "Auto-Posting-System" "Amplifier"`)
+
+- **Vercel Deploy** (Task #25): Deployed server to Vercel autonomously
+  - Created `vercel.json` at repo root with `rootDirectory: server`
+  - Created `server/api/index.py` entry point for Vercel's @vercel/python
+  - Fixed template path in company_pages.py (use `__file__`-relative instead of relative)
+  - SQLite uses `/tmp/` on Vercel (ephemeral — for demo/testing)
+  - Added `aiosqlite` to requirements, removed test-only deps
+  - Auto-init tables on Vercel startup via lifespan event
+  - Deployed via `vercel deploy --yes --prod`
+  - **Live URL**: https://server-five-omega-23.vercel.app
+  - Verified: health, version, Swagger docs, company login, admin login, registration, admin stats — all working
+  - Note: SQLite on Vercel resets between cold starts. For production, set `DATABASE_URL` env var to PostgreSQL (Neon/Supabase)
 
 ## Important Decisions Made
 - **User-side compute** — AI generation, posting, scraping on user device
@@ -65,9 +84,11 @@ Two interconnected systems:
 - **Content modes**: Full Auto (1.5x), Semi-Auto (2.0x), Manual (2.0x), Repost (1.0x)
 - **Billing**: pay per impression/engagement, 20% platform cut, per-metric dedup
 - **Trust**: 0-100 score, affects campaign priority
-- **Tech stack**: FastAPI + SQLite (dev) / PostgreSQL (prod) + Redis + ARQ
+- **Tech stack**: FastAPI + SQLite (dev/Vercel) / PostgreSQL (prod) + Redis + ARQ
 - **Dashboards**: Jinja2 templates (server), inline HTML (Flask user app), shared dark theme
-- **Admin auth**: simple password from env var, company auth via JWT cookies
+- **Admin auth**: simple password from env var (default "admin"), company auth via JWT cookies
+- **Vercel deployment**: rootDirectory=server, @vercel/python, SQLite in /tmp/, auto-init tables
+- **Deploy autonomously**: user wants Vercel deployment done without intervention (feedback memory saved)
 
 ## Key Reference Files
 
@@ -77,23 +98,39 @@ Two interconnected systems:
 - `server/app/routers/admin_pages.py` — Admin dashboard (6 pages)
 - `server/app/templates/base.html` — Shared Jinja2 base template
 - `server/app/services/{matching,billing,trust,payments}.py` — Business logic
+- `server/api/index.py` — Vercel serverless entry point
+- `vercel.json` — Vercel deployment config (at repo root)
 
 ### User App
 - `scripts/campaign_dashboard.py` — User dashboard (5 tabs, port 5222)
 - `scripts/campaign_runner.py` — Campaign loop (poll → generate → post → report)
 - `scripts/utils/{server_client,local_db,metric_scraper}.py` — Supporting modules
 
+### Distribution
+- `amplifier.spec` — PyInstaller build spec
+- `installer.iss` — Inno Setup Windows installer
+
 ### Docs
 - `docs/campaign-platform-architecture.md` — Full system design
 - `.taskmaster/docs/campaign-platform-prd.md` — PRD for task breakdown
 
+## Deployed URLs
+- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
+- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
+- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login (pw: `admin`)
+- **Health check**: https://server-five-omega-23.vercel.app/health
+- **API base**: https://server-five-omega-23.vercel.app/api/
+
 ## Test Commands
 ```bash
+# === Deployed Server ===
+# Company: https://server-five-omega-23.vercel.app/company/login (register new account)
+# Admin: https://server-five-omega-23.vercel.app/admin/login (pw: admin)
+# Swagger: https://server-five-omega-23.vercel.app/docs
+
+# === Local Development ===
 # Amplifier Server
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-# → Swagger: http://localhost:8000/docs
-# → Company: http://localhost:8000/company/login
-# → Admin: http://localhost:8000/admin/login (pw: admin)
 
 # User App Dashboard
 python scripts/campaign_dashboard.py  # http://localhost:5222
@@ -102,8 +139,11 @@ python scripts/campaign_dashboard.py  # http://localhost:5222
 python scripts/campaign_runner.py --once
 python scripts/campaign_runner.py
 
-# Original Amplifier
+# Original Amplifier Engine
 python scripts/post.py --slot 3
 powershell -File scripts/generate.ps1
 python scripts/review_dashboard.py  # http://localhost:5111
+
+# Rename local folder (user pending):
+# ren "C:\Users\dassa\Work\Auto-Posting-System" "Amplifier"
 ```
