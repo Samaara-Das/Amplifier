@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+
+{% block nav %}
+<li><a href="/admin/">Overview</a></li>
+<li><a href="/admin/users">Users</a></li>
+<li><a href="/admin/campaigns" class="active">Campaigns</a></li>
+<li><a href="/admin/fraud">Fraud Flags</a></li>
+<li><a href="/admin/payouts">Payouts</a></li>
+<div class="sidebar-section">Account</div>
+<li><a href="/admin/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>All Campaigns</h1>
+</div>
+
+<div class="card">
+    {% if campaigns %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Company</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Budget</th>
+                <th>Remaining</th>
+                <th>Users</th>
+                <th>Posts</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in campaigns %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.company_name }}</td>
+                <td>
+                    <a href="/api/company/campaigns/{{ c.id }}/analytics">{{ c.title }}</a>
+                </td>
+                <td>
+                    {% if c.status == 'active' %}
+                    <span class="badge badge-green">active</span>
+                    {% elif c.status == 'draft' %}
+                    <span class="badge badge-gray">draft</span>
+                    {% elif c.status == 'paused' %}
+                    <span class="badge badge-yellow">paused</span>
+                    {% elif c.status == 'completed' %}
+                    <span class="badge badge-blue">completed</span>
+                    {% elif c.status == 'cancelled' %}
+                    <span class="badge badge-red">cancelled</span>
+                    {% else %}
+                    <span class="badge badge-gray">{{ c.status }}</span>
+                    {% endif %}
+                </td>
+                <td>${{ "%.2f"|format(c.budget_total) }}</td>
+                <td>${{ "%.2f"|format(c.budget_remaining) }}</td>
+                <td>{{ c.user_count }}</td>
+                <td>{{ c.post_count }}</td>
+                <td>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No campaigns yet</h3>
+        <p>Campaigns created by companies will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

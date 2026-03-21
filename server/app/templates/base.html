@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Amplifier{% endblock %}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        a { color: #38bdf8; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Layout */
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; background: #1e293b; padding: 20px 0; border-right: 1px solid #334155; position: fixed; height: 100vh; overflow-y: auto; }
+        .sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid #334155; margin-bottom: 12px; }
+        .sidebar-brand h2 { font-size: 16px; color: #f8fafc; }
+        .sidebar-brand small { font-size: 11px; color: #64748b; }
+        .sidebar-nav { list-style: none; }
+        .sidebar-nav li a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: #94a3b8; font-size: 14px; transition: all 0.15s; }
+        .sidebar-nav li a:hover, .sidebar-nav li a.active { background: #334155; color: #f8fafc; text-decoration: none; }
+        .sidebar-nav li a.active { border-left: 3px solid #38bdf8; }
+        .sidebar-section { padding: 12px 20px 6px; font-size: 11px; color: #475569; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+        .main { flex: 1; margin-left: 240px; padding: 24px 32px; }
+
+        /* Cards */
+        .card { background: #1e293b; border-radius: 10px; padding: 20px; border: 1px solid #334155; }
+        .card + .card { margin-top: 16px; }
+        .card-title { font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 16px; }
+
+        /* Stats row */
+        .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .stat { background: #1e293b; padding: 16px 24px; border-radius: 10px; border: 1px solid #334155; min-width: 160px; flex: 1; }
+        .stat-val { font-size: 26px; font-weight: 700; color: #38bdf8; }
+        .stat-val.green { color: #4ade80; }
+        .stat-val.yellow { color: #facc15; }
+        .stat-val.red { color: #f87171; }
+        .stat-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+        td { font-size: 14px; color: #cbd5e1; }
+        tr:hover td { background: #1e293b; }
+
+        /* Status badges */
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .badge-green { background: #14532d; color: #86efac; }
+        .badge-blue { background: #1e3a5f; color: #93c5fd; }
+        .badge-yellow { background: #713f12; color: #fde68a; }
+        .badge-red { background: #7f1d1d; color: #fca5a5; }
+        .badge-gray { background: #334155; color: #94a3b8; }
+
+        /* Buttons */
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; font-weight: 500; }
+        .form-control { width: 100%; padding: 10px 14px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .form-control:focus { outline: none; border-color: #3b82f6; }
+        textarea.form-control { min-height: 100px; resize: vertical; }
+        select.form-control { cursor: pointer; }
+        .form-row { display: flex; gap: 16px; }
+        .form-row > .form-group { flex: 1; }
+        .form-help { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+        /* Page header */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h1 { font-size: 24px; color: #f8fafc; }
+
+        /* Trust bar */
+        .trust-bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+        .trust-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+        /* Empty state */
+        .empty { text-align: center; padding: 48px 20px; color: #64748b; }
+        .empty h3 { font-size: 18px; color: #94a3b8; margin-bottom: 8px; }
+
+        /* Alerts */
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .alert-success { background: #14532d; color: #86efac; border: 1px solid #166534; }
+        .alert-error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+        .alert-info { background: #1e3a5f; color: #93c5fd; border: 1px solid #1e40af; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px; }
+            .stats { flex-direction: column; }
+            .form-row { flex-direction: column; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                <h2>{% block brand %}Amplifier{% endblock %}</h2>
+                <small>{% block brand_sub %}{% endblock %}</small>
+            </div>
+            <ul class="sidebar-nav">
+                {% block nav %}{% endblock %}
+            </ul>
+        </nav>
+        <main class="main">
+            {% if flash_msg %}
+            <div class="alert alert-{{ flash_type|default('info') }}">{{ flash_msg }}</div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}{{ campaign.title }} — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Amplifier for Business{% endblock %}
+
+{% block nav %}
+<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}">Campaigns</a></li>
+<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}">Create Campaign</a></li>
+<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}">Billing</a></li>
+<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
+<div class="sidebar-section" style="margin-top: 24px;"></div>
+<li><a href="/company/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ campaign.title }}</h1>
+        <div style="margin-top: 6px;">
+            <span class="badge {% if campaign.status == 'active' %}badge-green{% elif campaign.status == 'draft' %}badge-gray{% elif campaign.status == 'paused' %}badge-yellow{% elif campaign.status == 'completed' %}badge-blue{% elif campaign.status == 'cancelled' %}badge-red{% endif %}">
+                {{ campaign.status }}
+            </span>
+        </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        {% if campaign.status == 'draft' %}
+        <form method="post" action="/company/campaigns/{{ campaign.id }}/status" style="display:inline;">
+            <input type="hidden" name="new_status" value="active">
+            <button type="submit" class="btn btn-success btn-sm">Activate</button>
+        </form>
+        <form method="post" action="/company/campaigns/{{ campaign.id }}/status" style="display:inline;">
+            <input type="hidden" name="new_status" value="cancelled">
+            <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+        </form>
+        {% elif campaign.status == 'active' %}
+        <form method="post" action="/company/campaigns/{{ campaign.id }}/status" style="display:inline;">
+            <input type="hidden" name="new_status" value="paused">
+            <button type="submit" class="btn btn-secondary btn-sm">Pause</button>
+        </form>
+        <form method="post" action="/company/campaigns/{{ campaign.id }}/status" style="display:inline;">
+            <input type="hidden" name="new_status" value="cancelled">
+            <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+        </form>
+        {% elif campaign.status == 'paused' %}
+        <form method="post" action="/company/campaigns/{{ campaign.id }}/status" style="display:inline;">
+            <input type="hidden" name="new_status" value="active">
+            <button type="submit" class="btn btn-success btn-sm">Reactivate</button>
+        </form>
+        <form method="post" action="/company/campaigns/{{ campaign.id }}/status" style="display:inline;">
+            <input type="hidden" name="new_status" value="cancelled">
+            <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+        </form>
+        {% endif %}
+        <a href="/company/" class="btn btn-secondary btn-sm">Back</a>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val">{{ "{:,}".format(impressions) }}</div>
+        <div class="stat-label">Impressions</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val green">{{ "{:,}".format(engagement) }}</div>
+        <div class="stat-label">Engagement</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val yellow">${{ "%.2f"|format(spent) }}</div>
+        <div class="stat-label">Spent</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ user_count }}</div>
+        <div class="stat-label">Creators</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ post_count }}</div>
+        <div class="stat-label">Posts</div>
+    </div>
+</div>
+
+<!-- Budget Bar -->
+<div class="card">
+    <div class="card-title">Budget</div>
+    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px;">
+        <span style="color: #94a3b8;">Total: ${{ "%.2f"|format(campaign.budget_total|float) }}</span>
+        <span style="color: #94a3b8;">Remaining: ${{ "%.2f"|format(campaign.budget_remaining|float) }}</span>
+    </div>
+    {% set pct = ((spent / (campaign.budget_total|float)) * 100) if (campaign.budget_total|float) > 0 else 0 %}
+    <div class="trust-bar">
+        <div class="trust-fill" style="width: {{ pct }}%; background: {% if pct < 50 %}#22c55e{% elif pct < 80 %}#facc15{% else %}#ef4444{% endif %};"></div>
+    </div>
+    <div style="font-size: 12px; color: #64748b; margin-top: 6px;">{{ "%.1f"|format(pct) }}% of budget used</div>
+</div>
+
+<!-- Campaign Info -->
+<div class="card">
+    <div class="card-title">Campaign Brief</div>
+    <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap;">{{ campaign.brief }}</p>
+    {% if campaign.content_guidance %}
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155;">
+        <div style="font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 8px;">Content Guidance</div>
+        <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap;">{{ campaign.content_guidance }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Payout Rules -->
+<div class="card">
+    <div class="card-title">Payout Rules</div>
+    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+        {% if campaign.payout_rules %}
+        <div style="font-size: 14px;">
+            <span style="color: #64748b;">Per 1K impressions:</span>
+            <span style="color: #4ade80; font-weight: 600;">${{ "%.2f"|format(campaign.payout_rules.get('rate_per_1k_impressions', 0)) }}</span>
+        </div>
+        <div style="font-size: 14px;">
+            <span style="color: #64748b;">Per like:</span>
+            <span style="color: #4ade80; font-weight: 600;">${{ "%.2f"|format(campaign.payout_rules.get('rate_per_like', 0)) }}</span>
+        </div>
+        <div style="font-size: 14px;">
+            <span style="color: #64748b;">Per repost:</span>
+            <span style="color: #4ade80; font-weight: 600;">${{ "%.2f"|format(campaign.payout_rules.get('rate_per_repost', 0)) }}</span>
+        </div>
+        <div style="font-size: 14px;">
+            <span style="color: #64748b;">Per click:</span>
+            <span style="color: #4ade80; font-weight: 600;">${{ "%.2f"|format(campaign.payout_rules.get('rate_per_click', 0)) }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Per-Platform Breakdown -->
+<div class="card">
+    <div class="card-title">Platform Breakdown</div>
+    {% if platforms %}
+    <table>
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>Posts</th>
+                <th>Impressions</th>
+                <th>Likes</th>
+                <th>Reposts</th>
+                <th>Comments</th>
+                <th>Clicks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in platforms %}
+            <tr>
+                <td style="font-weight: 500; color: #f8fafc; text-transform: capitalize;">{{ p.platform }}</td>
+                <td>{{ p.posts }}</td>
+                <td>{{ "{:,}".format(p.impressions) }}</td>
+                <td>{{ "{:,}".format(p.likes) }}</td>
+                <td>{{ "{:,}".format(p.reposts) }}</td>
+                <td>{{ "{:,}".format(p.comments) }}</td>
+                <td>{{ "{:,}".format(p.clicks) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No posts yet</h3>
+        <p>Metrics will appear here once creators start posting.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Dates -->
+<div class="card">
+    <div class="card-title">Schedule</div>
+    <div style="display: flex; gap: 32px; font-size: 14px;">
+        <div>
+            <span style="color: #64748b;">Start:</span>
+            <span style="color: #cbd5e1;">{{ campaign.start_date.strftime('%b %d, %Y %H:%M') if campaign.start_date else 'N/A' }}</span>
+        </div>
+        <div>
+            <span style="color: #64748b;">End:</span>
+            <span style="color: #cbd5e1;">{{ campaign.end_date.strftime('%b %d, %Y %H:%M') if campaign.end_date else 'N/A' }}</span>
+        </div>
+        <div>
+            <span style="color: #64748b;">Created:</span>
+            <span style="color: #cbd5e1;">{{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

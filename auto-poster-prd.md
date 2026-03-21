@@ -1,4 +1,4 @@
-# Auto-Poster — Product Requirements Document
+# Amplifier — Product Requirements Document
 
 ## Document Info
 - **Version**: 1.1

@@ -2,52 +2,84 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Overview
+
+Two interconnected systems in one repo:
+1. **Amplifier** — Personal social media automation engine (6 platforms, Playwright, Claude CLI)
+2. **Amplifier Server** — Two-sided marketplace server where companies create campaigns and users earn money by posting campaign content via Amplifier
+
 ## Commands
 
 ```bash
-# Install dependencies
+# ── Amplifier Engine ──────────────────────────────
 pip install -r requirements.txt
 playwright install chromium
 
-# One-time login for a platform (opens browser for manual login + 2FA)
 python scripts/login_setup.py <platform>   # x | linkedin | facebook | instagram | reddit | tiktok
+powershell scripts/generate.ps1            # generate drafts (Claude CLI)
+python scripts/review_dashboard.py         # review dashboard at http://localhost:5111
+python scripts/post.py                     # post oldest approved draft
+python scripts/post.py --slot 3            # post for specific time slot
+powershell scripts/setup_scheduler.ps1     # register Windows Task Scheduler jobs
 
-# Generate drafts (calls Claude Code CLI internally)
-powershell scripts/generate.ps1            # default count from .env (GENERATE_COUNT)
-powershell scripts/generate.ps1 -count 3
+# ── Amplifier Server ─────────────────────────────
+cd server
+pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+# Swagger docs: http://localhost:8000/docs
+# Company dashboard: http://localhost:8000/company/login
+# Admin dashboard: http://localhost:8000/admin/login (password: "admin")
 
-# Review generated drafts before posting
-python scripts/review_dashboard.py         # opens http://localhost:5111
-
-# Post oldest approved draft to all enabled platforms
-python scripts/post.py
-
-# Register Windows Task Scheduler jobs (run as Admin)
-powershell scripts/setup_scheduler.ps1
+# ── Amplifier User App ────────────────────────────────────
+python scripts/onboarding.py               # first-run setup (register, connect platforms, set mode)
+python scripts/campaign_dashboard.py       # user dashboard at http://localhost:5222
+python scripts/campaign_runner.py          # start campaign polling loop
+python scripts/campaign_runner.py --once   # single poll + process
+python scripts/utils/metric_scraper.py     # scrape engagement metrics from posted URLs
 ```
 
 ## Architecture
 
+### Amplifier Engine
 Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Flask dashboard) → **post** (Python + Playwright).
 
-### Content Generation (`scripts/generate.ps1`)
-PowerShell invokes `claude --dangerously-skip-permissions` to write draft JSON files directly to `drafts/review/`. Must unset `CLAUDECODE` env var first to allow nested CLI calls. Each draft contains platform-specific content for all 6 platforms in a single JSON file. Supports text-only and text+image formats (X, LinkedIn, Facebook can use either).
+- `scripts/generate.ps1` — Invokes `claude --dangerously-skip-permissions` to write draft JSON files to `drafts/review/`. Per-slot generation, pillar rotation, CTA rotation, legal disclaimers.
+- `scripts/review_dashboard.py` — Flask app on localhost:5111. Platform-by-platform previews, character counts, edit, approve/reject.
+- `scripts/post.py` — Async orchestrator. Picks pending draft, posts via Playwright to enabled platforms with human behavior emulation.
+- Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
-### Review Dashboard (`scripts/review_dashboard.py`)
-Flask app on localhost:5111. Shows all drafts in `drafts/review/` with platform-by-platform previews, character counts, and edit capability. User approves or rejects each draft. Approved drafts move to `drafts/pending/`, rejected to `drafts/rejected/`. Nothing gets posted without explicit approval.
+### Amplifier Server (`server/`)
+FastAPI + SQLite (dev) / PostgreSQL (prod). 52 API routes total.
 
-### Posting (`scripts/post.py`)
-Async Python orchestrator. Picks the oldest pending (approved) draft, launches a separate persistent Chromium browser context per platform (stored in `profiles/<platform>-profile/`), posts sequentially in randomized order with 30-90s delays between platforms. Supports headless mode via `HEADLESS=true` in `.env`.
+**API endpoints** (`/api/`):
+- Auth: user + company register/login (JWT)
+- Campaigns: CRUD for companies, matching + polling for users
+- Posts/Metrics: batch registration and submission
+- Admin: user management, system stats
+- Version: auto-update endpoint
 
-Draft lifecycle: `drafts/review/` → `drafts/pending/` (approved) → `drafts/posted/` (success) or `drafts/failed/` (failure). Also `drafts/rejected/` for rejected drafts. Managed by `scripts/utils/draft_manager.py`.
+**Web dashboards:**
+- **Company** (`/company/`) — 6 pages: login, campaigns list, create campaign, campaign detail, billing, settings
+- **Admin** (`/admin/`) — 6 pages: overview, users, campaigns, fraud detection, payouts, login
 
-### Human Behavior Emulation (`scripts/utils/human_behavior.py`)
-Every platform interaction includes 1-5 minutes of pre/post browsing (scrolling, profile clicks, mouse movements) and character-by-character typing (30-120ms per char with 5% chance of longer pauses). Configured via `config/.env` timing values.
+**Services:**
+- `matching.py` — Campaign-to-user matching (hard filters + soft scoring)
+- `billing.py` — Earnings calculation from metrics + payout rules
+- `trust.py` — Trust score adjustments + fraud detection (anomaly, deletion, cross-user)
+- `payments.py` — Stripe Connect integration (user payouts, company top-ups)
+- `background_jobs.py` — ARQ worker (billing every 6h, trust checks 2x/day)
 
-### Image/Video Generation (`scripts/utils/image_generator.py`)
-- **X, LinkedIn, Facebook**: Generates 1200x675 landscape branded image when draft has `image_text` field. Text-only posts skip image generation.
-- **TikTok**: Generates 1080x1920 branded image → converts to 7s MP4 with Ken Burns zoom (via moviepy + Pillow + numpy). TikTok web only accepts video uploads.
-- **Instagram**: Generates 1080x1080 square branded image from caption text.
+**Models** (8 tables): Company, Campaign, User, CampaignAssignment, Post, Metric, Payout, Penalty
+
+### Amplifier User App
+Local Flask dashboard + campaign runner that connects to the server.
+
+- `scripts/campaign_dashboard.py` — Flask on port 5222. 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding
+- `scripts/campaign_runner.py` — Polls server for campaigns, generates content via Claude CLI, posts via existing Playwright engine, reports metrics
+- `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
+- `scripts/utils/local_db.py` — Local SQLite database for offline campaign/post/metric tracking
+- `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement
+- `scripts/generate_campaign.ps1` — Content generation from campaign briefs via Claude CLI
 
 ## Platform-Specific Selector Patterns
 
@@ -65,6 +97,7 @@ Each platform function in `post.py` has selector constants at the top. Key gotch
 - `config/platforms.json` — Enable/disable platforms, set URLs, configure subreddits and proxy per platform
 - `config/.env` — Timing params (browse duration, typing delays, post intervals), headless mode, not secrets
 - `config/content-templates.md` — Brand voice, content pillars, emotion-first + value-first principles, platform format rules
+- `server/.env.example` — Server config (database URL, JWT secret, Stripe keys, platform cut %)
 
 ## Scheduling (US-aligned)
 
@@ -76,6 +109,7 @@ Generation runs at 09:00 IST (user reviews during the day). Posting at 6 daily s
 - Windows-only (Windows fonts in image generator, PowerShell for generation, Task Scheduler for automation)
 - Each platform needs a one-time manual login via `login_setup.py` to establish the persistent browser profile
 - Per-platform proxy support in `_launch_context()` for geo-restricted platforms (configured in `platforms.json`)
-- Currently only X, LinkedIn, Facebook enabled. Instagram, Reddit, TikTok disabled for now.
+- All 6 platforms enabled: X, LinkedIn, Facebook, Instagram, Reddit, TikTok
 - Reddit posts to 1 random subreddit per run from the configured list
 - No test suite exists — verify changes by running against real platforms
+- Server uses SQLite for dev/testing, PostgreSQL for production

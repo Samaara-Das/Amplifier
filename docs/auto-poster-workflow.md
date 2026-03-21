@@ -1,4 +1,4 @@
-# Auto-Poster E2E Workflow
+# Amplifier E2E Workflow
 
 The complete daily and weekly pipeline for the auto-posting system.
 

@@ -1,4 +1,4 @@
-# Auto-Poster Windows Task Scheduler Setup
+# Amplifier Windows Task Scheduler Setup
 # Registers scheduled tasks for content generation and posting
 # Posting times aligned to US audience: IST 6:30PM-6:30AM = EST 8AM-8PM
 
@@ -59,7 +59,7 @@ Register-ScheduledTask `
     -Action $generateAction `
     -Trigger $generateTrigger `
     -Settings $generateSettings `
-    -Description "Auto-Poster: Generate 6 social media drafts via Claude Code CLI (runs 1h before first post)" `
+    -Description "Amplifier: Generate 6 social media drafts via Claude Code CLI (runs 1h before first post)" `
     -RunLevel Limited | Out-Null
 
 Write-Host "Registered $GenerateTaskName (daily at $GenerateTime IST, generates $GenerateCount drafts)"
@@ -96,7 +96,7 @@ foreach ($slot in $PostSlots) {
         -Action $postAction `
         -Trigger $postTrigger `
         -Settings $postSettings `
-        -Description "Auto-Poster Slot $($slot.Slot): $($slot.Platforms) ($($slot.Time) IST = $($slot.EST) EST)" `
+        -Description "Amplifier Slot $($slot.Slot): $($slot.Platforms) ($($slot.Time) IST = $($slot.EST) EST)" `
         -RunLevel Limited | Out-Null
 
     Write-Host "Registered $taskName ($($slot.Time) IST = $($slot.EST) EST) — $($slot.Platforms)"

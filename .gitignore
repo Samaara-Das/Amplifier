@@ -29,6 +29,10 @@ node_modules/
 # Ralph autonomous loop logs
 ralph_logs/
 
+# Runtime data
+data/
+*.db
+
 # OS specific
 .DS_Store
 

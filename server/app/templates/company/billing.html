@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Billing — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Amplifier for Business{% endblock %}
+
+{% block nav %}
+<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}">Campaigns</a></li>
+<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}">Create Campaign</a></li>
+<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}">Billing</a></li>
+<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
+<div class="sidebar-section" style="margin-top: 24px;"></div>
+<li><a href="/company/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Billing</h1>
+</div>
+
+<!-- Balance Card -->
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val green">${{ "%.2f"|format(company.balance|float) }}</div>
+        <div class="stat-label">Current Balance</div>
+    </div>
+    <div class="stat">
+        {% set total_allocated = allocations|sum(attribute='amount') if allocations else 0 %}
+        <div class="stat-val">${{ "%.2f"|format(total_allocated) }}</div>
+        <div class="stat-label">Total Allocated</div>
+    </div>
+    <div class="stat">
+        {% set total_spent = allocations|sum(attribute='spent') if allocations else 0 %}
+        <div class="stat-val yellow">${{ "%.2f"|format(total_spent) }}</div>
+        <div class="stat-label">Total Spent</div>
+    </div>
+</div>
+
+<!-- Top-up Form -->
+<div class="card">
+    <div class="card-title">Add Funds</div>
+    <form method="post" action="/company/billing/topup" style="display: flex; gap: 12px; align-items: flex-end;">
+        <div class="form-group" style="margin-bottom: 0; flex: 1; max-width: 300px;">
+            <label for="amount">Amount ($)</label>
+            <input type="number" id="amount" name="amount" class="form-control" min="1" step="0.01" placeholder="100.00" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height: 42px;">Add Funds</button>
+    </form>
+    <div class="form-help" style="margin-top: 8px;">Stripe integration placeholder. Funds are added instantly for testing.</div>
+</div>
+
+<!-- Payment History -->
+<div class="card">
+    <div class="card-title">Campaign Budget Allocations</div>
+    {% if allocations %}
+    <table>
+        <thead>
+            <tr>
+                <th>Campaign</th>
+                <th>Allocated</th>
+                <th>Spent</th>
+                <th>Remaining</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in allocations %}
+            <tr>
+                <td style="font-weight: 500; color: #f8fafc;">{{ a.campaign_title }}</td>
+                <td>${{ "%.2f"|format(a.amount) }}</td>
+                <td>${{ "%.2f"|format(a.spent) }}</td>
+                <td>${{ "%.2f"|format(a.amount - a.spent) }}</td>
+                <td>
+                    <span class="badge {% if a.status == 'active' %}badge-green{% elif a.status == 'draft' %}badge-gray{% elif a.status == 'paused' %}badge-yellow{% elif a.status == 'completed' %}badge-blue{% elif a.status == 'cancelled' %}badge-red{% endif %}">
+                        {{ a.status }}
+                    </span>
+                </td>
+                <td style="color: #64748b;">{{ a.date.strftime('%b %d, %Y') if a.date else 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No allocations yet</h3>
+        <p>Budget allocations will appear here when you create campaigns.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

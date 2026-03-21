@@ -942,7 +942,7 @@ def get_slot_platforms(slot: int) -> list[str]:
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Auto-Poster: post drafts to social platforms")
+    parser = argparse.ArgumentParser(description="Amplifier: post drafts to social platforms")
     parser.add_argument("--slot", type=int, choices=range(1, 7), default=None,
                         help="Posting slot (1-6). Auto-detects from current IST time if omitted.")
     args = parser.parse_args()
@@ -950,7 +950,7 @@ async def main() -> None:
     slot = args.slot if args.slot else _auto_detect_slot()
     platforms_for_slot = get_slot_platforms(slot)
 
-    logger.info("=== Auto-Poster started (slot %d) ===", slot)
+    logger.info("=== Amplifier started (slot %d) ===", slot)
     logger.info("Platforms for slot %d today: %s", slot, platforms_for_slot or "(none)")
 
     if not platforms_for_slot:
@@ -1033,7 +1033,7 @@ async def main() -> None:
         errors = ", ".join(f"{p}: failed (after retry)" for p in failed)
         mark_failed(draft, f"All platforms failed: {errors}")
 
-    logger.info("=== Auto-Poster finished (slot %d) ===", slot)
+    logger.info("=== Amplifier finished (slot %d) ===", slot)
 
 
 if __name__ == "__main__":

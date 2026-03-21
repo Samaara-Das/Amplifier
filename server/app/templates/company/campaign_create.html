@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Create Campaign — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Amplifier for Business{% endblock %}
+
+{% block nav %}
+<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}">Campaigns</a></li>
+<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}">Create Campaign</a></li>
+<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}">Billing</a></li>
+<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
+<div class="sidebar-section" style="margin-top: 24px;"></div>
+<li><a href="/company/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create Campaign</h1>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/company/campaigns/new">
+    <div class="card">
+        <div class="card-title">Campaign Details</div>
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" class="form-control" placeholder="e.g. Spring Product Launch" required>
+        </div>
+        <div class="form-group">
+            <label for="brief">Brief</label>
+            <textarea id="brief" name="brief" class="form-control" placeholder="Describe what you want creators to post about..." required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="content_guidance">Content Guidance</label>
+            <textarea id="content_guidance" name="content_guidance" class="form-control" placeholder="Tone, must-include phrases, forbidden phrases..."></textarea>
+            <div class="form-help">Optional. Provide tone, must-include phrases, or content restrictions.</div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="budget">Budget ($)</label>
+                <input type="number" id="budget" name="budget" class="form-control" min="1" step="0.01" placeholder="500.00" required>
+                <div class="form-help">Current balance: ${{ "%.2f"|format(company.balance|float) }}</div>
+            </div>
+            <div class="form-group">
+                <label for="start_date">Start Date</label>
+                <input type="datetime-local" id="start_date" name="start_date" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="end_date">End Date</label>
+                <input type="datetime-local" id="end_date" name="end_date" class="form-control" required>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Payout Rules</div>
+        <div class="form-help" style="margin-bottom: 16px;">Set how much you pay creators per engagement metric.</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="rate_per_1k_impressions">Per 1K Impressions ($)</label>
+                <input type="number" id="rate_per_1k_impressions" name="rate_per_1k_impressions" class="form-control" min="0" step="0.01" value="0.50">
+            </div>
+            <div class="form-group">
+                <label for="rate_per_like">Per Like ($)</label>
+                <input type="number" id="rate_per_like" name="rate_per_like" class="form-control" min="0" step="0.01" value="0.01">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="rate_per_repost">Per Repost ($)</label>
+                <input type="number" id="rate_per_repost" name="rate_per_repost" class="form-control" min="0" step="0.01" value="0.05">
+            </div>
+            <div class="form-group">
+                <label for="rate_per_click">Per Click ($)</label>
+                <input type="number" id="rate_per_click" name="rate_per_click" class="form-control" min="0" step="0.01" value="0.10">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Targeting</div>
+        <div class="form-group">
+            <label for="min_followers_json">Minimum Followers (JSON)</label>
+            <input type="text" id="min_followers_json" name="min_followers_json" class="form-control" placeholder='{"x": 100, "linkedin": 50}' value="{}">
+            <div class="form-help">JSON object mapping platform to minimum follower count. e.g. {"x": 100, "linkedin": 50}</div>
+        </div>
+        <div class="form-group">
+            <label for="niche_tags">Niche Tags</label>
+            <input type="text" id="niche_tags" name="niche_tags" class="form-control" placeholder="finance, crypto, tech">
+            <div class="form-help">Comma-separated tags to match creator niches.</div>
+        </div>
+        <div class="form-group">
+            <label>Required Platforms</label>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
+                {% for platform in ['x', 'linkedin', 'facebook', 'reddit', 'tiktok', 'instagram'] %}
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
+                    <input type="checkbox" name="required_platforms" value="{{ platform }}" style="accent-color: #3b82f6;">
+                    {{ platform|capitalize }}
+                </label>
+                {% endfor %}
+            </div>
+            <div class="form-help">Select which platforms creators must post on.</div>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 12px;">
+        <button type="submit" class="btn btn-primary">Create Campaign</button>
+        <a href="/company/" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    input[type="datetime-local"].form-control {
+        color-scheme: dark;
+    }
+</style>
+{% endblock %}

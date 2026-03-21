@@ -1,93 +1,144 @@
-# Auto-Poster System
+# Amplifier
 
-Fully autonomous social media posting system that generates content via Claude Code CLI and posts to 6 platforms (X, LinkedIn, Facebook, Instagram, Reddit, TikTok) using Playwright browser automation with human behavior emulation.
+Two systems in one repo: a **personal social media automation engine** that generates content via Claude CLI and posts to 6 platforms using Playwright, and a **two-sided marketplace server** where companies create campaigns and users earn money by posting campaign content.
 
-## Prerequisites
+## Architecture
 
-- **Windows 10/11**
-- **Python 3.11+**
-- **Claude Code CLI** (installed and authenticated)
-- **PowerShell 5.1+** (Windows default)
-
-## Installation
-
-```powershell
-# 1. Install Python dependencies
-pip install -r requirements.txt
-
-# 2. Install Playwright's Chromium browser
-playwright install chromium
+```
++------------------+       +------------------+       +------------------+
+|   Amplifier      |       |   Amplifier      |       |   Amplifier      |
+|   Server         |<----->|   User App       |------>|   Engine         |
+|                  |       |                  |       |                  |
+| FastAPI + SQLite |       | Flask dashboard  |       | Playwright       |
+| Company dashboard|       | Campaign runner  |       | Claude CLI       |
+| Admin dashboard  |       | Local SQLite     |       | Human emulation  |
+| Matching engine  |       | Metric scraper   |       | Image/video gen  |
++------------------+       +------------------+       +------------------+
+     Vercel                   User's desktop             User's desktop
 ```
 
-## Configuration
+**Key design principle:** User-side compute. All AI generation, browser automation, and credential handling happen on the user's device. The server never sees passwords or runs browsers.
 
-### `config/.env`
-Non-sensitive settings: timing, delays, browsing behavior. Adjust `AUTO_POSTER_ROOT` to your project path.
+## Tech Stack
 
-### `config/content-templates.md`
-Brand voice, content pillars, hooks, and platform-specific rules. Edit this to control what kind of content gets generated.
+| Component | Technology |
+|-----------|-----------|
+| Server | Python, FastAPI, SQLAlchemy, SQLite/PostgreSQL, ARQ, Jinja2 |
+| User App | Python, Flask, Playwright, Claude CLI, httpx, SQLite |
+| Distribution | PyInstaller, Inno Setup |
+| Deployment | Vercel (server), Windows installer (user app) |
 
-### `config/platforms.json`
-Platform URLs, timeouts, enable/disable flags, per-platform proxy config, and subreddit list for Reddit.
+## Quick Start
 
-## Usage
+### Prerequisites
 
-### 1. Login to Platforms (one-time)
+- Windows 10/11
+- Python 3.11+
+- Claude Code CLI (installed and authenticated)
+- PowerShell 5.1+ (Windows default)
 
-```powershell
-python scripts/login_setup.py x
+### Server
+
+```bash
+cd server
+pip install -r requirements.txt
+cp .env.example .env  # then configure
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+- Swagger docs: http://localhost:8000/docs
+- Company dashboard: http://localhost:8000/company/login
+- Admin dashboard: http://localhost:8000/admin/login (password: `admin`)
+
+### User App (Campaign Mode)
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+python scripts/onboarding.py               # first-time setup
+python scripts/campaign_dashboard.py        # dashboard at localhost:5222
+python scripts/campaign_runner.py           # start polling loop
+```
+
+### Personal Brand Engine
+
+```bash
+python scripts/login_setup.py x            # one-time login per platform
 python scripts/login_setup.py linkedin
 python scripts/login_setup.py facebook
 python scripts/login_setup.py instagram
 python scripts/login_setup.py reddit
 python scripts/login_setup.py tiktok
+
+powershell scripts/generate.ps1            # generate drafts via Claude CLI
+python scripts/review_dashboard.py         # review at localhost:5111
+python scripts/post.py                     # post oldest approved draft
+python scripts/post.py --slot 3            # post for specific time slot
+powershell scripts/setup_scheduler.ps1     # set up Windows Task Scheduler
 ```
-
-Each command opens a browser. Log in manually, complete 2FA, then close the browser. Sessions are saved in `profiles/`.
-
-### 2. Generate Content
-
-```powershell
-# Generate 2 drafts (default)
-powershell scripts/generate.ps1
-
-# Generate a specific number
-powershell scripts/generate.ps1 -count 3
-```
-
-Drafts are saved to `drafts/pending/` as JSON files.
-
-### 3. Post Content
-
-```powershell
-python scripts/post.py
-```
-
-Picks the oldest pending draft, posts to all enabled platforms with human behavior emulation (browsing, typing delays, mouse movements), then moves the draft to `drafts/posted/` or `drafts/failed/`.
-
-### 4. Set Up Scheduled Automation
-
-```powershell
-# Run as Administrator
-powershell scripts/setup_scheduler.ps1
-```
-
-Registers two Windows Task Scheduler tasks:
-- **AutoPoster-Generate**: Runs at 8 AM, 1 PM, 6 PM (2 drafts each = 6/day)
-- **AutoPoster-Post**: Runs every 2 hours starting at 9 AM
 
 ## Project Structure
 
 ```
-config/              Configuration files (.env, platforms.json, content-templates.md)
-drafts/pending/      Drafts awaiting posting
-drafts/posted/       Successfully posted drafts
-drafts/failed/       Failed drafts with error info
-profiles/            Persistent browser login sessions per platform (gitignored)
-scripts/             Main scripts (post.py, generate.ps1, login_setup.py)
-  utils/             Shared modules (draft_manager, human_behavior, image_generator)
-logs/                Log files (gitignored)
+config/                  Configuration (.env, platforms.json, content-templates.md)
+docs/                    Documentation (architecture, API ref, schema, flows, design)
+drafts/                  Draft lifecycle folders (review/, pending/, posted/, failed/)
+profiles/                Persistent browser sessions per platform (gitignored)
+scripts/                 Main scripts
+  post.py                  Posting engine (6 platforms, human emulation)
+  generate.ps1             Content generation (Claude CLI, pillar rotation)
+  review_dashboard.py      Draft review dashboard (Flask, port 5111)
+  campaign_runner.py       Campaign polling loop (poll → generate → post → report)
+  campaign_dashboard.py    User campaign dashboard (Flask, port 5222)
+  onboarding.py            First-time user setup
+  login_setup.py           One-time browser login helper
+  app_entry.py             Packaged app entry point
+  generate_campaign.ps1    Campaign content generation
+  setup_scheduler.ps1      Windows Task Scheduler setup
+  utils/                   Shared modules
+    draft_manager.py         Draft lifecycle management
+    human_behavior.py        Anti-detection (typing, scrolling, engagement)
+    image_generator.py       Branded image/video generation
+    server_client.py         Server API client with retry
+    local_db.py              Local SQLite database
+    metric_scraper.py        Post engagement scraping
+server/                  Amplifier Server (FastAPI)
+  app/
+    main.py                FastAPI entry point, route mounting
+    core/                  Config, database, security
+    models/                8 SQLAlchemy models
+    routers/               API routes + web dashboard routes
+    schemas/               Pydantic request/response schemas
+    services/              Business logic (matching, billing, trust, payments)
+    templates/             Jinja2 templates (admin + company dashboards)
+logs/                    Log files (gitignored)
+data/                    Local SQLite database (gitignored)
 ```
+
+## Supported Platforms
+
+| Platform | Engine | Campaign Mode | Notes |
+|----------|--------|---------------|-------|
+| X (Twitter) | Yes | Yes | `dispatch_event("click")` for overlay workaround |
+| LinkedIn | Yes | Yes | Shadow DOM — use `locator()` not `wait_for_selector()` |
+| Facebook | Yes | Yes | Image upload via "Photo/video" button |
+| Instagram | Yes | Yes | Multi-step dialog, `force=True` for overlays |
+| Reddit | Yes | Yes | Posts to random subreddit from configured list |
+| TikTok | Yes | Yes | VPN required in some regions, Draft.js caption clearing |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CLAUDE.md](CLAUDE.md) | Developer reference — commands, architecture, platform gotchas |
+| [API Reference](docs/API_REFERENCE.md) | All 52+ server endpoints with request/response examples |
+| [Database Schema](docs/DATABASE_SCHEMA.md) | All 13 tables with field-level detail + ERD |
+| [User Flows](docs/USER_FLOWS.md) | Step-by-step user journeys with Mermaid diagrams |
+| [System Design](docs/SYSTEM_DESIGN.md) | Architectural decisions with rationale |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Server deployment, user app distribution, env vars |
+| [Campaign Architecture](docs/campaign-platform-architecture.md) | Server architecture deep dive |
+| [Auto-Poster Workflow](docs/auto-poster-workflow.md) | Daily pipeline, scheduling, content strategy |
+| [Brand Strategy](docs/brand-strategy.md) | Brand positioning, voice, audience, content pillars |
 
 ## Troubleshooting
 
@@ -101,20 +152,16 @@ Platform UI changed. Update the selector constants at the top of each platform f
 Check `drafts/pending/` for files. Check `logs/poster.log` for errors.
 
 ### TikTok posting fails with proxy/network error
-TikTok is blocked in some regions. Connect a VPN (e.g. Surfshark) to a non-blocked server, or configure a SOCKS proxy in `config/platforms.json` under the `tiktok.proxy` key.
+TikTok is blocked in some regions. Connect a VPN or configure a SOCKS proxy in `config/platforms.json` under `tiktok.proxy`.
 
 ### Generator producing invalid JSON
 Check `logs/generator.log`. The generator strips markdown fences and validates JSON. If Claude's output format changes, check the prompt in `scripts/generate.ps1`.
 
-## Architecture
+### Server won't start
+Check `server/.env` exists and `DATABASE_URL` is valid. For SQLite, the DB file is auto-created on startup.
 
-- **Content Generation**: PowerShell calls Claude Code CLI with content guidelines. Claude acts as a social media marketer (not a coder) and writes draft JSON files directly to `drafts/pending/`. Each draft contains platform-specific content for all 6 platforms.
-- **Posting**: Python/Playwright with persistent browser profiles. Each platform gets 1-5 min of pre/post-post browsing to emulate human behavior. Platform order is randomized with 30-90s delays between platforms.
-- **Image/Video Generation**: TikTok requires video uploads — the system generates a branded 1080x1920 image and converts it to a 7s MP4 with a Ken Burns zoom effect (Pillow + moviepy). Instagram generates a 1080x1080 square branded image from the caption text.
-- **Anti-detection**: Character-by-character typing (30-120ms), random scrolling, mouse movements, profile clicking, randomized platform order.
+### Campaign runner can't connect to server
+Verify `CAMPAIGN_SERVER_URL` in `config/.env` points to a running server. Check `config/server_auth.json` has a valid token.
 
-## Platform Notes
-
-- **TikTok** is geo-blocked in some regions (e.g. India). Connect a VPN before running the poster. Per-platform proxy support is available in `platforms.json`.
-- **Reddit** posts to 1 random subreddit per run from the list configured in `platforms.json`.
-- **Instagram** uses a multi-step dialog flow (Create → Post submenu → Upload image → crop → filter → caption → Share).
+### Onboarding fails
+Ensure the server is running and accessible. Re-run `python scripts/onboarding.py` to restart setup.
