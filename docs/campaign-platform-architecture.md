@@ -236,17 +236,19 @@ Scraping uses the same Playwright browser profiles already logged in.
 | Component | Technology |
 |-----------|-----------|
 | Server API | Python + FastAPI |
-| Server DB | PostgreSQL |
-| Cache/Queue | Redis + ARQ |
-| Server Hosting | Railway (MVP) → AWS (scale) |
-| Company Dashboard | React or server-rendered (FastAPI + Jinja2 for MVP) |
+| Server DB | Supabase PostgreSQL (transaction pooler, port 6543) |
+| Cache/Queue | Redis + ARQ (production; manually triggered on Vercel) |
+| Server Hosting | Vercel (serverless, deployed) |
+| Company Dashboard | FastAPI + Jinja2, emerald green theme, DM Sans font |
+| Admin Dashboard | FastAPI + Jinja2, same theme |
 | User App | Python (evolved from current auto-poster) |
 | User Local DB | SQLite |
-| User Dashboard | Flask (evolved from current review_dashboard.py) |
+| User Dashboard | Flask, port 5222, 5 tabs, emerald green theme |
 | Browser Automation | Playwright (existing) |
-| AI Generation | Claude CLI (existing, user's own key) |
+| AI Generation (campaigns) | Free API fallback chain: Gemini → Mistral → Groq (text); Gemini → Pollinations → PIL (images) |
+| AI Generation (personal) | Claude CLI + PowerShell (`generate.ps1`) |
 | Installer | PyInstaller + Inno Setup |
-| Payments | Stripe Connect (for user payouts) |
+| Payments | Stripe Connect (for user payouts; manual for MVP) |
 
 ## API Endpoints (Server)
 
@@ -309,19 +311,28 @@ Scraping uses the same Playwright browser profiles already logged in.
 
 ## Implementation Status
 
-All phases complete and E2E tested:
+All MVP phases (1-8) complete and E2E tested on the deployed Vercel server.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| 1 | Server foundation (FastAPI, models, auth, APIs) | Done |
-| 2 | Campaign distribution (matching, assignments) | Done |
-| 3 | User app (client, local DB, generation, polling, dashboard) | Done |
-| 4 | Metrics & billing (scraping, billing engine, company analytics) | Done |
-| 5 | Trust & quality (trust scores, fraud detection, penalties) | Done |
-| 6 | Distribution (PyInstaller, Inno Setup, onboarding, auto-update) | Done |
-| 7 | Payments (Stripe Connect, payout cycles) | Done |
-| 8 | Web dashboards (17 pages: company 6, admin 6, user 5) | Done |
+| 1 | Critical fixes (deps, configurable server URL, disable TikTok/Instagram) | Done |
+| 2 | Supabase PostgreSQL support | Done |
+| 3 | Content generation via free AI APIs (Gemini → Mistral → Groq fallback) | Done |
+| 4 | Region + category matching | Done |
+| 5 | Hybrid metric collection (X/Reddit APIs + Browser Use) | Done |
+| 6 | Dashboard polish, post editing, influencer view | Done |
+| 7 | Installer fixes | Done |
+| 8 | Integration testing (full E2E on deployed server via Chrome DevTools) | Done |
 
-### Pending
-- Rename project to "Amplifier"
-- Deploy server to Vercel
+### Deployed URLs
+- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
+- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login
+- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
+
+### Post-MVP Backlog
+- Browser Use migration for posting (Task 31)
+- LinkedIn/Facebook official API migration
+- Campaign marketplace/browse view
+- Stripe payout automation (currently manual)
+- 50 pytest tests
+- Expanded free AI API fallback chain

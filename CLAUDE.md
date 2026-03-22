@@ -49,7 +49,7 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + SQLite (dev) / PostgreSQL (prod). 52 API routes total.
+FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). 52 API routes total.
 
 **API endpoints** (`/api/`):
 - Auth: user + company register/login (JWT)
@@ -58,7 +58,7 @@ FastAPI + SQLite (dev) / PostgreSQL (prod). 52 API routes total.
 - Admin: user management, system stats
 - Version: auto-update endpoint
 
-**Web dashboards:**
+**Web dashboards** (emerald green `#10b981` theme, DM Sans font, gradient cards, SVG Heroicons nav):
 - **Company** (`/company/`) — 6 pages: login, campaigns list, create campaign, campaign detail, billing, settings
 - **Admin** (`/admin/`) — 6 pages: overview, users, campaigns, fraud detection, payouts, login
 
@@ -78,8 +78,10 @@ Local Flask dashboard + campaign runner that connects to the server.
 - `scripts/campaign_runner.py` — Polls server for campaigns, generates content via Claude CLI, posts via existing Playwright engine, reports metrics
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
 - `scripts/utils/local_db.py` — Local SQLite database for offline campaign/post/metric tracking
+- `scripts/utils/content_generator.py` — Free AI API content generation (Gemini → Mistral → Groq fallback chain for text; Gemini → Pollinations → PIL for images). Replaces PowerShell + Claude CLI for campaign content.
+- `scripts/utils/metric_collector.py` — Hybrid metric collection: X and Reddit via official APIs, LinkedIn and Facebook via Browser Use + Gemini (falls back to Playwright selectors)
 - `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement
-- `scripts/generate_campaign.ps1` — Content generation from campaign briefs via Claude CLI
+- `scripts/generate_campaign.ps1` — Preserved but unused for campaigns (replaced by content_generator.py)
 
 ## Platform-Specific Selector Patterns
 
@@ -99,6 +101,29 @@ Each platform function in `post.py` has selector constants at the top. Key gotch
 - `config/content-templates.md` — Brand voice, content pillars, emotion-first + value-first principles, platform format rules
 - `server/.env.example` — Server config (database URL, JWT secret, Stripe keys, platform cut %)
 
+## Deployed Server
+
+- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
+- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login
+- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
+
+**Vercel environment variables:**
+
+| Variable | Status |
+|----------|--------|
+| `DATABASE_URL` | Set — Supabase transaction pooler (`aws-1-us-east-1.pooler.supabase.com:6543`) |
+| `JWT_SECRET_KEY` | Set — encrypted |
+| `ADMIN_PASSWORD` | Set — encrypted |
+
+**Vercel deploy command:**
+```bash
+vercel deploy --yes --prod --cwd "C:/Users/dassa/Work/Auto-Posting-System/server"
+# Use printf (not echo) when setting env vars to avoid trailing newline corruption:
+printf "value" | vercel env add VAR_NAME production --cwd server
+```
+
+**vercel.json** — `rootDirectory` is a Vercel project-level setting (set via dashboard / CLI). Do not include it in `vercel.json`; the CLI rejects it.
+
 ## Scheduling (US-aligned)
 
 Generation runs at 09:00 IST (user reviews during the day). Posting at 6 daily slots:
@@ -109,7 +134,7 @@ Generation runs at 09:00 IST (user reviews during the day). Posting at 6 daily s
 - Windows-only (Windows fonts in image generator, PowerShell for generation, Task Scheduler for automation)
 - Each platform needs a one-time manual login via `login_setup.py` to establish the persistent browser profile
 - Per-platform proxy support in `_launch_context()` for geo-restricted platforms (configured in `platforms.json`)
-- All 6 platforms enabled: X, LinkedIn, Facebook, Instagram, Reddit, TikTok
+- MVP platforms (enabled): X, LinkedIn, Facebook, Reddit. TikTok and Instagram disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped
 - Reddit posts to 1 random subreddit per run from the configured list
 - No test suite exists — verify changes by running against real platforms
-- Server uses SQLite for dev/testing, PostgreSQL for production
+- Server uses SQLite for local dev, Supabase PostgreSQL in production (Vercel). Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)

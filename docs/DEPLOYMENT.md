@@ -36,7 +36,6 @@ The server is configured for Vercel serverless deployment via `vercel.json` in t
 ```json
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rootDirectory": "server",
   "builds": [
     {
       "src": "api/index.py",
@@ -52,17 +51,30 @@ The server is configured for Vercel serverless deployment via `vercel.json` in t
 }
 ```
 
+**Note:** `rootDirectory` is a Vercel **project-level** setting configured via the Vercel dashboard or CLI (`vercel link`). Do not include it in `vercel.json` — the Vercel CLI rejects it and the deployment fails. The `rootDirectory` for this project is set to `server/` at the project level.
+
 **Entry point:** `server/api/index.py` imports the FastAPI `app` from `app.main` and adjusts `sys.path` so module imports resolve correctly in the serverless environment.
 
 **Environment variables to set in Vercel dashboard:**
 
 | Variable | Required | Value |
 |----------|----------|-------|
-| `DATABASE_URL` | Yes (for persistence) | `postgresql+asyncpg://user:pass@host:5432/amplifier` |
-| `JWT_SECRET_KEY` | Yes | A random secret string |
+| `DATABASE_URL` | Yes | Supabase transaction pooler: `postgresql+asyncpg://postgres.PROJECT:PASS@aws-1-us-east-1.pooler.supabase.com:6543/postgres` |
+| `JWT_SECRET_KEY` | Yes | A random 64-char secret string |
+| `ADMIN_PASSWORD` | Yes | Strong password (not "admin") |
 | `PLATFORM_CUT_PERCENT` | No | `20` (default) |
 | `MIN_PAYOUT_THRESHOLD` | No | `10.00` (default) |
 | `DEBUG` | No | `false` for production |
+
+**Important:** Use `printf` (not `echo`) when setting env vars via CLI to avoid trailing newline corruption:
+```bash
+printf "value" | vercel env add DATABASE_URL production --cwd server
+```
+
+**Supabase connection requirements:**
+- Use the **transaction pooler** at `aws-1-us-east-1.pooler.supabase.com:6543` (not direct connection — `db.*.supabase.co:5432` is unreachable from Vercel).
+- `database.py` automatically applies NullPool (required for serverless) and `prepared_statement_cache_size=0` (required for pgbouncer) when the URL is PostgreSQL.
+- SSL context is created automatically with `check_hostname=False` / `CERT_NONE` for Supabase compatibility.
 
 **SQLite `/tmp/` limitation:** When the `VERCEL` environment variable is detected and `DATABASE_URL` starts with `sqlite`, the database path is automatically redirected to `sqlite+aiosqlite:////tmp/amplifier.db`. The `/tmp/` directory on Vercel is ephemeral -- data is lost between cold starts. This means:
 - Tables are re-created on every cold start
@@ -240,7 +252,7 @@ pyinstaller amplifier.spec
 | `scripts/login_setup.py` | `scripts/` |
 
 **Hidden imports** (not auto-detected by PyInstaller):
-- `flask`, `playwright`, `playwright.async_api`, `dotenv`, `httpx`, `PIL`, `moviepy`
+- `flask`, `playwright`, `playwright.async_api`, `dotenv`, `httpx`, `PIL`, `google.genai`, `groq`, `mistralai`, `browser_use`, `praw`
 
 **Build output:** `dist/Amplifier/` directory containing the executable and all dependencies.
 
@@ -274,7 +286,7 @@ The installer script is `installer.iss` at the project root. Compile with Inno S
 - Uninstall
 
 **Post-install actions:**
-1. Runs `Amplifier.exe --install-browsers` to install Playwright Chromium
+1. Runs `playwright install chromium` as a post-install step (fixed in Phase 7 — previous `--install-browsers` flag was invalid)
 2. Optionally launches Amplifier
 
 **Uninstall cleanup:** Deletes `data/`, `logs/`, and `profiles/` directories.

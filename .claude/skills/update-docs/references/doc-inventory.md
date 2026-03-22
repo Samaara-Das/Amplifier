@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: March 2026
+Last updated: 2026-03-22
 
 ---
 
@@ -49,6 +49,12 @@ Last updated: March 2026
 | `.claude/output-styles/brand-strategist.md` | Brand strategist output style for Claude | Update when brand strategy changes |
 | `.claude/ralph-tasks.md` | Ralph task queue | Task management |
 
+## Tier 5: MVP Spec (audit when MVP scope changes)
+
+| File | Purpose | Notes |
+|------|---------|-------|
+| `mvp.md` | MVP feature spec and verification checklist | Source of truth for MVP scope; all 8 phases complete |
+
 ## Configuration Files (not audited for content, but tracked)
 
 | File | Purpose |
@@ -57,8 +63,9 @@ Last updated: March 2026
 | `.claude/skills/update-docs/SKILL.md` | Update-docs skill definition |
 | `.claude/skills/update-docs/references/doc-inventory.md` | This file |
 | `config/platforms.json` | Platform URLs, timeouts, enable flags, proxy, subreddits |
-| `config/.env` | Timing params, headless mode, behavior config |
+| `config/.env` | Timing params, headless mode, behavior config, API keys |
 | `server/.env.example` | Server config template (DB URL, JWT, Stripe, platform cut) |
+| `vercel.json` | Vercel deployment config (rootDirectory is a project-level setting, not here) |
 | `amplifier.spec` | PyInstaller build spec |
 | `installer.iss` | Inno Setup Windows installer |
 
@@ -69,7 +76,9 @@ These are the main code areas. When files here change, docs likely need updating
 | Area | Key Files | Docs Affected |
 |------|-----------|---------------|
 | Posting engine | `scripts/post.py` | CLAUDE.md, auto-poster-workflow.md, USER_FLOWS.md |
-| Content generation | `scripts/generate.ps1` | CLAUDE.md, auto-poster-workflow.md |
+| Content generation (personal) | `scripts/generate.ps1` | CLAUDE.md, auto-poster-workflow.md |
+| Content generation (campaigns) | `scripts/utils/content_generator.py` | CLAUDE.md, SYSTEM_DESIGN.md |
+| Metric collection | `scripts/utils/metric_collector.py` | CLAUDE.md, SYSTEM_DESIGN.md |
 | Review dashboard | `scripts/review_dashboard.py` | CLAUDE.md, USER_FLOWS.md |
 | Campaign runner | `scripts/campaign_runner.py` | CLAUDE.md, USER_FLOWS.md, SYSTEM_DESIGN.md |
 | User dashboard | `scripts/campaign_dashboard.py` | CLAUDE.md, USER_FLOWS.md |

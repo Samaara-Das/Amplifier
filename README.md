@@ -9,7 +9,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 |   Amplifier      |       |   Amplifier      |       |   Amplifier      |
 |   Server         |<----->|   User App       |------>|   Engine         |
 |                  |       |                  |       |                  |
-| FastAPI + SQLite |       | Flask dashboard  |       | Playwright       |
+| FastAPI + Supabase |       | Flask dashboard  |       | Playwright       |
 | Company dashboard|       | Campaign runner  |       | Claude CLI       |
 | Admin dashboard  |       | Local SQLite     |       | Human emulation  |
 | Matching engine  |       | Metric scraper   |       | Image/video gen  |
@@ -23,10 +23,10 @@ Two systems in one repo: a **personal social media automation engine** that gene
 
 | Component | Technology |
 |-----------|-----------|
-| Server | Python, FastAPI, SQLAlchemy, SQLite/PostgreSQL, ARQ, Jinja2 |
+| Server | Python, FastAPI, SQLAlchemy, Supabase PostgreSQL (prod) / SQLite (dev), ARQ, Jinja2 |
 | User App | Python, Flask, Playwright, Claude CLI, httpx, SQLite |
 | Distribution | PyInstaller, Inno Setup |
-| Deployment | Vercel (server), Windows installer (user app) |
+| Deployment | Vercel + Supabase (server), Windows installer (user app) |
 
 ## Quick Start
 
@@ -37,7 +37,15 @@ Two systems in one repo: a **personal social media automation engine** that gene
 - Claude Code CLI (installed and authenticated)
 - PowerShell 5.1+ (Windows default)
 
-### Server
+### Deployed Server
+
+The server is live on Vercel with Supabase PostgreSQL:
+
+- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
+- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login
+- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
+
+### Server (local development)
 
 ```bash
 cd server
@@ -101,7 +109,9 @@ scripts/                 Main scripts
     image_generator.py       Branded image/video generation
     server_client.py         Server API client with retry
     local_db.py              Local SQLite database
-    metric_scraper.py        Post engagement scraping
+    content_generator.py     Free AI API content gen (Gemini → Mistral → Groq fallback)
+    metric_collector.py      Hybrid metric collection (APIs for X/Reddit, Browser Use for LinkedIn/Facebook)
+    metric_scraper.py        Post engagement scraping (scheduling + local DB sync)
 server/                  Amplifier Server (FastAPI)
   app/
     main.py                FastAPI entry point, route mounting
@@ -157,8 +167,8 @@ TikTok is blocked in some regions. Connect a VPN or configure a SOCKS proxy in `
 ### Generator producing invalid JSON
 Check `logs/generator.log`. The generator strips markdown fences and validates JSON. If Claude's output format changes, check the prompt in `scripts/generate.ps1`.
 
-### Server won't start
-Check `server/.env` exists and `DATABASE_URL` is valid. For SQLite, the DB file is auto-created on startup.
+### Server won't start (local)
+Check `server/.env` exists and `DATABASE_URL` is valid. For local dev (SQLite), the DB file is auto-created on startup. For Vercel, ensure `DATABASE_URL` is set to the Supabase transaction pooler URL — missing this causes fallback to ephemeral `/tmp/` SQLite.
 
 ### Campaign runner can't connect to server
 Verify `CAMPAIGN_SERVER_URL` in `config/.env` points to a running server. Check `config/server_auth.json` has a valid token.
