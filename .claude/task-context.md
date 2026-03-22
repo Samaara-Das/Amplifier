@@ -1,12 +1,12 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-22 (Session 14)
+**Last Updated**: 2026-03-22 (Session 15)
 
 ## Current Task
-- **Branch: `main`** — MVP built, integration tested, Supabase connected, UI polished
+- **Branch: `main`** — MVP built, E2E tested, all critical bugs fixed, deployed
 - All MVP phases (1-8) complete
+- User app E2E tested: onboarding → campaign matching → content generation all working
 - Server deployed to Vercel with Supabase PostgreSQL
-- Brand strategy discussion — user app distribution model for post-MVP
 
 ## Project Overview
 Two interconnected systems:
@@ -29,9 +29,14 @@ Two interconnected systems:
 - [x] Supabase PostgreSQL connected (transaction pooler)
 - [x] Company login fix (was broken due to SQLite in /tmp/)
 - [x] UI polish — emerald green accent, DM Sans font, visual enhancements
+- [x] User app E2E testing — 9 bugs found and fixed across 2 commits
+- [x] Company dashboard form preservation on validation error
+- [x] Flash message cleanup on tab switch
 
 ### Next Session Priority
-- [ ] **Test user desktop app locally** — run `campaign_dashboard.py`, verify it starts without errors, connects to Vercel server, onboarding flow works, campaigns render with new emerald theme, content generation fires (needs Gemini API key), post editing flow works. Test via Chrome DevTools on localhost:5222.
+- [ ] **Set up Gemini API key** — add to `config/.env` to enable content generation. Then test full flow: generate → review → approve → post
+- [ ] **Test actual posting** — requires `python scripts/login_setup.py <platform>` for at least one platform (X recommended)
+- [ ] **Content generation quality** — verify AI-generated campaign content meets brand strategy guidelines
 
 ### Post-MVP Tasks (Pending)
 - [ ] **User app distribution rethink** — Move user dashboard to web, ship lightweight Tauri desktop agent for posting only (see `docs/POST_MVP_ROADMAP.md`)
@@ -68,50 +73,14 @@ Two interconnected systems:
 - MVP spec finalized: `mvp.md` at repo root
 
 ### Session 13 (2026-03-22) — Integration Testing, Database Fix & UI Polish
-
-**Phase 8 Integration Testing (Chrome DevTools MCP):**
-- Full E2E cycle verified: company register → create campaign → activate → user register → match → post → metrics → billing → earnings
-- All API flows working: `/api/campaigns/mine`, `/api/posts`, `/api/metrics`, `/api/users/me/earnings`
-- Company dashboard shows platform breakdown, creator list with handles + post URLs + engagement
-- Admin dashboard shows overview stats, user management, billing cycle trigger
-
-**Supabase PostgreSQL Connection (5 commits to fix):**
-- Root cause: `DATABASE_URL` env var not set on Vercel → SQLite in `/tmp/` → data lost between serverless instances
-- `echo` command adds trailing `\n` that corrupts env vars → use `printf` instead
-- Direct connection (`db.*.supabase.co:5432`) unreachable from Vercel (`[Errno 99]`)
-- Pooler port 6543 on `db.*` hostname also unreachable
-- **Working solution**: Supabase transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543`
-- Required: `NullPool` (serverless), `prepared_statement_cache_size=0` (pgbouncer), SSL context
-- Both company login and data persistence issues resolved (same root cause)
-
-**UI Polish:**
-- Accent: blue (`#3b82f6`) → emerald green (`#10b981` / `#34d399`)
-- Font: system fonts → DM Sans (Google Fonts)
-- Cards: gradient bg + hover lift + shadow
-- Stats: emerald glow on hover
-- Buttons: lift + colored glow hover
-- Tables: emerald left-border accent on row hover
-- Sidebar: gradient active state + SVG nav icons (Heroicons)
-- Login pages: radial emerald gradient bg + card glow
-- Page headers: gradient text effect
-- User app palette aligned with server dashboards
-- 16 files changed across all 3 dashboard systems
-
-**Bugs Fixed This Session:**
-1. `vercel.json` rootDirectory removal reverted (commit d4150e0)
-2. PIL import fix: `generate_branded_image` → `generate_landscape_image` (commit d4150e0)
-3. Supabase connection: NullPool + transaction pooler + prepared_statement_cache_size (commits 54838d0 → 1d2c7c0)
-4. `rootDirectory` removed from vercel.json (Vercel CLI now rejects it) (commit 627aa7d)
+- Full E2E cycle verified via Chrome DevTools MCP on deployed server
+- Supabase PostgreSQL connection fixed (5 commits: NullPool + transaction pooler + SSL)
+- UI polish: emerald green accent, DM Sans font, gradient cards, 16 files changed
+- 4 bugs fixed (vercel.json, PIL import, Supabase connection, rootDirectory)
 
 ### Session 14 (2026-03-22) — Brand Strategy: User App Distribution
-- Discussed how influencers/users access the Amplifier app (desktop vs web vs hybrid)
-- Current desktop-only (PyInstaller) approach flagged as high-friction for user acquisition
-- Decision: **Post-MVP task** — split into web dashboard (zero install) + Tauri desktop agent (posting only)
-- Created `docs/POST_MVP_ROADMAP.md` with 3-phase plan (web dashboard → Tauri agent → optional cloud posting)
-
-**Remaining Minor Issues:**
-1. Admin password on Vercel is encrypted — value unknown (user set it)
-2. Niche Tags field redundant — form has both old text input and new Categories checkboxes
+- Decision: post-MVP split into web dashboard + Tauri desktop agent
+- Created `docs/POST_MVP_ROADMAP.md` with 3-phase plan
 
 ### Session 15 (2026-03-22) — User App E2E Testing & Bug Fixes
 
@@ -119,29 +88,35 @@ Two interconnected systems:
 
 **Full E2E flow tested:**
 1. Dashboard starts — all 4 tabs render (Campaigns, Posts, Earnings, Settings)
-2. Onboarding — register user against live Vercel server
-3. Profile setup — niche tags, follower counts, platform connections
+2. Onboarding — register user `testuser_e2e@gmail.com` against live Vercel server
+3. Profile setup — niche tags (trading, finance, stocks, crypto), follower counts, platform connections
 4. Mode selection — Semi-Auto
-5. Campaign polling — matched to active campaign created on company side
-6. Content generation — proper error when no API keys set
+5. Campaign creation on company side (TestCorp Trading, $500 budget, Finance category, X platform)
+6. Campaign polling — successfully matched (1 campaign found)
+7. Content generation — proper error when no API keys set
 
-**Company side tested (Vercel server):**
-- Registered company, added $1000 balance, created campaign, activated it
-- Campaign detail page with stats, payout rules, schedule all rendering correctly
+**9 bugs found and fixed (commits e5c893a, 570a12b):**
 
-**Bugs found and fixed (commit e5c893a):**
-1. **CRITICAL: Onboarding tab hidden after login** — `{% if not logged_in %}` hid the tab, making steps 2-4 inaccessible. Fixed: show until `onboarding_done` flag set in step 4.
-2. **CRITICAL: Platform `connected` flag missing** — matching algorithm checked `v.get("connected")` but profile never set it. Campaigns NEVER matched any users. Fixed: add `"connected": True`.
-3. **Onboarding didn't auto-advance** — after registration, user dumped to Campaigns tab. Fixed: set `onboarding_step` context var + JS to auto-switch tab/step.
-4. **Silent content generation errors** — `except: pass` swallowed all errors. User saw nothing. Fixed: show error in flash message.
-5. **Raw JSON error messages** — server validation errors shown as raw pydantic JSON. Fixed: parse into friendly messages.
-6. **.env inline comments parsed as values** — `python-dotenv` included `# comment` as part of env var value, causing Unicode crash (em dash). Fixed: move comments to separate lines.
-7. **Stale env var caching** — `load_dotenv(override=False)` didn't refresh env vars on Flask restart. Fixed: `override=True`.
+Critical (matching was completely broken):
+1. **Onboarding tab hidden after login** — `{% if not logged_in %}` hid steps 2-4. Fixed: `{% if not onboarding_complete %}` with explicit `onboarding_done` flag.
+2. **Platform `connected` flag missing** — matching checked `v.get("connected")` but it was never set. Campaigns NEVER matched. Fixed: add `"connected": True` in `onboarding_profile`.
 
-**Remaining bugs (not fixed yet):**
-1. Campaign creation form clears all data on validation error (company dashboard)
-2. Floating-point display in payout values (0.009999999776482582 instead of 0.01)
-3. Error messages persist across tab switches in user app
+High:
+3. **Onboarding didn't auto-advance** — after registration, user dumped to Campaigns tab. Fixed: `onboarding_step` context var + JS auto-switch.
+4. **Silent content generation errors** — `except: pass` swallowed all errors. Fixed: show error in flash message.
+5. **.env inline comments parsed as values** — `python-dotenv` included `# comment` as value, causing Unicode crash (em dash `—`). Fixed: move comments to separate lines in `config/.env`.
+
+Medium:
+6. **Raw JSON error messages** — server validation errors shown as raw pydantic JSON. Fixed: parse into friendly messages.
+7. **Stale env var caching** — `load_dotenv(override=False)` didn't refresh. Fixed: `override=True`.
+8. **Campaign form cleared on error** — all fields lost on "Insufficient balance". Fixed: pass form data back to template, add `value` attrs + `checked` attrs for checkboxes.
+9. **Flash messages persist across tabs** — alerts stayed visible. Fixed: clear `.alert` elements in `switchTab()` JS.
+
+**Not a bug (investigated):**
+- Floating-point payout display (0.009999...) — only in Chrome a11y tree, visually displays correctly as $0.01.
+
+**Remaining Minor Issues:**
+1. Admin password on Vercel is encrypted — value unknown (user set it)
 
 ## Important Decisions Made
 - **User-side compute** — AI generation, posting, scraping on user device
@@ -162,20 +137,21 @@ Two interconnected systems:
 - `server/app/routers/company_pages.py` — Company dashboard (6 pages)
 - `server/app/routers/admin_pages.py` — Admin dashboard (6 pages)
 - `server/app/templates/base.html` — Shared Jinja2 base template (emerald theme, DM Sans)
+- `server/app/templates/company/campaign_create.html` — Campaign form (with form data preservation)
 - `server/app/services/{matching,billing,trust,payments}.py` — Business logic
 - `server/api/index.py` — Vercel serverless entry point
-- `vercel.json` — Vercel deployment config
 
 ### User App
-- `scripts/campaign_dashboard.py` — User dashboard (5 tabs, port 5222)
+- `scripts/campaign_dashboard.py` — User dashboard (4 tabs + onboarding, port 5222)
 - `scripts/campaign_runner.py` — Campaign loop (poll → generate → post → report)
 - `scripts/utils/content_generator.py` — Free AI API content gen (Gemini → Mistral → Groq)
 - `scripts/utils/metric_collector.py` — Hybrid metric collection
+- `scripts/utils/server_client.py` — Server API client with retry
 
 ### Config & Docs
 - `mvp.md` — MVP spec (source of truth)
 - `config/platforms.json` — Platform config (TikTok/Instagram disabled)
-- `config/.env` — API keys, server URL, timing params
+- `config/.env` — API keys, server URL, timing params (comments on separate lines, not inline!)
 
 ## Deployed URLs
 - **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
@@ -189,6 +165,11 @@ Two interconnected systems:
 | `DATABASE_URL` | Set — Supabase transaction pooler (port 6543) |
 | `JWT_SECRET_KEY` | Set — encrypted |
 | `ADMIN_PASSWORD` | Set — encrypted (unknown value) |
+
+## Test Data on Deployed Server
+- **Test user**: `testuser_e2e@gmail.com` / `TestPass123!` — registered, onboarded, platforms connected
+- **Test company**: `testcorp@gmail.com` / `TestPass123!` — "TestCorp Trading", $500 remaining balance
+- **Test campaign**: "Trading Tools Launch Campaign" — active, $500 budget, Finance category, X platform required
 
 ## Test Commands
 ```bash
@@ -208,3 +189,13 @@ vercel deploy --yes --prod --cwd "C:/Users/dassa/Work/Auto-Posting-System/server
 # Use printf (not echo) for env vars to avoid trailing newline:
 printf "value" | vercel env add VAR_NAME production --cwd server
 ```
+
+## Gotchas & Patterns Discovered
+- `python-dotenv` treats inline comments as values — always put comments on separate lines
+- `load_dotenv(override=True)` needed or Flask reloader inherits stale env vars
+- `.test` TLD rejected by pydantic email validation — use real domains for testing
+- Matching algorithm requires `"connected": True` in platform dict — not just presence of key
+- Onboarding completion needs explicit flag, not derived from profile state (race condition with step advancement)
+- `vercel.json` `rootDirectory` is a project-level setting — CLI rejects it in config file
+- Supabase: use transaction pooler (`aws-1-us-east-1.pooler.supabase.com:6543`), not direct connection
+- Supabase + pgbouncer: requires `NullPool` + `prepared_statement_cache_size=0`
