@@ -113,6 +113,36 @@ Two interconnected systems:
 1. Admin password on Vercel is encrypted — value unknown (user set it)
 2. Niche Tags field redundant — form has both old text input and new Categories checkboxes
 
+### Session 15 (2026-03-22) — User App E2E Testing & Bug Fixes
+
+**Testing method:** Chrome DevTools MCP on localhost:5222
+
+**Full E2E flow tested:**
+1. Dashboard starts — all 4 tabs render (Campaigns, Posts, Earnings, Settings)
+2. Onboarding — register user against live Vercel server
+3. Profile setup — niche tags, follower counts, platform connections
+4. Mode selection — Semi-Auto
+5. Campaign polling — matched to active campaign created on company side
+6. Content generation — proper error when no API keys set
+
+**Company side tested (Vercel server):**
+- Registered company, added $1000 balance, created campaign, activated it
+- Campaign detail page with stats, payout rules, schedule all rendering correctly
+
+**Bugs found and fixed (commit e5c893a):**
+1. **CRITICAL: Onboarding tab hidden after login** — `{% if not logged_in %}` hid the tab, making steps 2-4 inaccessible. Fixed: show until `onboarding_done` flag set in step 4.
+2. **CRITICAL: Platform `connected` flag missing** — matching algorithm checked `v.get("connected")` but profile never set it. Campaigns NEVER matched any users. Fixed: add `"connected": True`.
+3. **Onboarding didn't auto-advance** — after registration, user dumped to Campaigns tab. Fixed: set `onboarding_step` context var + JS to auto-switch tab/step.
+4. **Silent content generation errors** — `except: pass` swallowed all errors. User saw nothing. Fixed: show error in flash message.
+5. **Raw JSON error messages** — server validation errors shown as raw pydantic JSON. Fixed: parse into friendly messages.
+6. **.env inline comments parsed as values** — `python-dotenv` included `# comment` as part of env var value, causing Unicode crash (em dash). Fixed: move comments to separate lines.
+7. **Stale env var caching** — `load_dotenv(override=False)` didn't refresh env vars on Flask restart. Fixed: `override=True`.
+
+**Remaining bugs (not fixed yet):**
+1. Campaign creation form clears all data on validation error (company dashboard)
+2. Floating-point display in payout values (0.009999999776482582 instead of 0.01)
+3. Error messages persist across tab switches in user app
+
 ## Important Decisions Made
 - **User-side compute** — AI generation, posting, scraping on user device
 - **Pull-based polling** — every 5-15 min, no websockets
