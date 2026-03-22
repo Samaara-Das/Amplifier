@@ -288,7 +288,11 @@ def _should_scrape(posted_at_str: str) -> tuple[bool, bool]:
 
 
 async def scrape_all_posts():
-    """Scrape metrics for all posts that are due for a scrape cycle."""
+    """Scrape metrics for all posts that are due for a scrape cycle.
+
+    Uses MetricCollector (APIs for X/Reddit) when available, falls back to
+    Playwright scrapers for all platforms.
+    """
     posts = get_posts_for_scraping()
     if not posts:
         logger.info("No posts due for scraping")
@@ -306,9 +310,61 @@ async def scrape_all_posts():
 
     logger.info("Scraping metrics for %d post(s)...", len(posts_to_scrape))
 
-    # Group by platform
-    by_platform = {}
+    # Try to use MetricCollector (API-based for X/Reddit)
+    collector = None
+    try:
+        from utils.metric_collector import MetricCollector
+        collector = MetricCollector()
+    except Exception as e:
+        logger.info("MetricCollector not available, using Playwright scrapers: %s", e)
+
+    # Platforms that have API collection available
+    api_platforms = set()
+    if collector:
+        if collector._x_bearer:
+            api_platforms.add("x")
+        if collector._reddit:
+            api_platforms.add("reddit")
+
+    # Collect via API for supported platforms
     for post, is_final in posts_to_scrape:
+        platform = post["platform"]
+        if not post["post_url"]:
+            continue
+
+        if platform in api_platforms and collector:
+            logger.info("Collecting %s via API: %s", platform, post["post_url"])
+            try:
+                metrics = await collector.collect(post["post_url"], platform)
+                add_metric(
+                    post_id=post["id"],
+                    impressions=metrics.get("impressions", 0),
+                    likes=metrics.get("likes", 0),
+                    reposts=metrics.get("reposts", 0),
+                    comments=metrics.get("comments", 0),
+                    clicks=metrics.get("clicks", 0),
+                    is_final=is_final,
+                )
+                logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d%s",
+                            metrics.get("impressions", 0), metrics.get("likes", 0),
+                            metrics.get("reposts", 0), metrics.get("comments", 0),
+                            " [FINAL]" if is_final else "")
+                continue  # Skip Playwright scraping for this post
+            except Exception as e:
+                logger.warning("API collection failed for %s, falling back to Playwright: %s",
+                             platform, e)
+
+    # Collect remaining posts via Playwright
+    remaining = [(p, f) for p, f in posts_to_scrape
+                 if p["platform"] not in api_platforms and p["post_url"]]
+    # Also include API platform posts that failed (already handled above via fallback)
+
+    if not remaining:
+        return
+
+    # Group by platform for Playwright
+    by_platform = {}
+    for post, is_final in remaining:
         platform = post["platform"]
         if platform not in by_platform:
             by_platform[platform] = []
@@ -340,7 +396,7 @@ async def scrape_all_posts():
                         clicks=metrics.get("clicks", 0),
                         is_final=is_final,
                     )
-                    logger.info("  → imp=%d, likes=%d, reposts=%d, comments=%d%s",
+                    logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d%s",
                                 metrics.get("impressions", 0), metrics.get("likes", 0),
                                 metrics.get("reposts", 0), metrics.get("comments", 0),
                                 " [FINAL]" if is_final else "")
