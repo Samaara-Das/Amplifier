@@ -36,15 +36,12 @@ Name: "{group}\Uninstall"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Amplifier"; Filename: "{app}\Amplifier.exe"; Tasks: desktopicon
 
 [Run]
-; Install Playwright browsers on first run
-Filename: "{app}\Amplifier.exe"; Parameters: "--install-browsers"; Description: "Install browser components"; StatusMsg: "Installing browser components..."
+; Install Playwright Chromium browser on first run
+Filename: "cmd.exe"; Parameters: "/c ""{app}\Amplifier.exe"" -m playwright install chromium"; Description: "Install browser components"; StatusMsg: "Installing browser components (Chromium)..."; Flags: runhidden
 Filename: "{app}\Amplifier.exe"; Description: "Launch Amplifier"; Flags: nowait postinstall skipifsilent
 
 [Registry]
 ; Auto-start with Windows (optional)
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Amplifier"; ValueData: """{app}\Amplifier.exe"""; Flags: uninsdeletevalue; Tasks: startupicon
 
-[UninstallDelete]
-Type: filesandordirs; Name: "{app}\data"
-Type: filesandordirs; Name: "{app}\logs"
-Type: filesandordirs; Name: "{app}\profiles"
+; User data (data/, logs/, profiles/) is NOT deleted on uninstall to preserve credentials and history
