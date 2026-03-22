@@ -12,10 +12,8 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup (for SQLite dev/Vercel mode)
-    import os
-    if settings.database_url.startswith("sqlite") or os.environ.get("VERCEL"):
-        await init_tables()
+    # Create tables on startup (idempotent — safe for both SQLite and PostgreSQL)
+    await init_tables()
     yield
 
 

@@ -1,4 +1,5 @@
 import os
+import ssl
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -13,11 +14,21 @@ _db_url = settings.database_url
 if _db_url.startswith("sqlite") and os.environ.get("VERCEL"):
     _db_url = "sqlite+aiosqlite:////tmp/amplifier.db"
 
-# SQLite needs special args for async
+# Engine kwargs vary by backend
 _engine_kwargs = {"echo": settings.debug}
 if _db_url.startswith("sqlite"):
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
     _engine_kwargs["poolclass"] = StaticPool
+elif _db_url.startswith("postgresql"):
+    # Supabase (and most cloud PostgreSQL) requires SSL
+    _ssl_ctx = ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = ssl.CERT_NONE
+    _engine_kwargs["connect_args"] = {"ssl": _ssl_ctx}
+    # Connection pooling settings for serverless (Vercel)
+    _engine_kwargs["pool_size"] = 5
+    _engine_kwargs["max_overflow"] = 10
+    _engine_kwargs["pool_pre_ping"] = True
 
 engine = create_async_engine(_db_url, **_engine_kwargs)
 

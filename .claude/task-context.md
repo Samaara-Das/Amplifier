@@ -1,6 +1,6 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-21
+**Last Updated**: 2026-03-22
 
 ## Current Task
 - **Branch: `feat/campaign-architecture`** — Campaign platform fully built, renamed, and deployed
@@ -34,7 +34,13 @@ Two interconnected systems:
 - [x] **#23**: Renamed entire project to "Amplifier" (35 files, GitHub repo, all branding)
 - [x] **#25**: Deployed to Vercel — live at https://server-five-omega-23.vercel.app
 
-### Original System — Pending (from main branch)
+### Post-MVP Tasks
+- [ ] 31: Migrate social media posting from raw Playwright to AI-powered Browser Use + free Gemini API. Replace 500+ lines of hardcoded CSS selectors in post.py with self-healing AI agent-based posting. Migrate one platform at a time. Keep current Playwright as fallback during transition.
+- [ ] 32: Add website-to-API tool (Firecrawl/Apify) as insurance — if any free AI API gets shut down or goes paid, use web scraping to still access the service through its web interface. Keeps the content generation chain resilient.
+- [ ] 33: Expand free API fallback chain — add Cerebras, SambaNova, OpenRouter, GitHub Models, Cohere for text; AI Horde, Freepik Mystic, Leonardo AI for images.
+- [ ] 34: LinkedIn/Facebook official API migration for metric collection (when developer app approvals come through).
+- [ ] 35: Write tests — ~50 focused pytest tests covering: (1) billing calculation + earnings + platform cut, (2) API contract tests for all 47 routes (200/401/422), (3) matching algorithm (region + categories + followers), (4) content generation fallback chain logic. Use httpx.AsyncClient, SQLite in-memory fixtures, mock only external APIs. Do AFTER MVP ships, BEFORE scaling to >5 users.
+- [ ] 36: Consider adding a campaign marketplace/browse view — let users discover and opt into campaigns beyond what the matching algorithm pushes to them. Currently server-driven; this would add user-driven discovery.
 - [ ] 18: Test Run, 19: Account Warmup, 20: Profile Revamps, 21: LinkedIn "I'm Back" Post
 - [ ] 22-30: AI Video, Newsletters, Facebook Groups, TradingView, Analytics, A/B Testing, Email List, Competitor Analysis
 
@@ -147,3 +153,7 @@ python scripts/review_dashboard.py  # http://localhost:5111
 # Rename local folder (user pending):
 # ren "C:\Users\dassa\Work\Auto-Posting-System" "Amplifier"
 ```
+
+### Session 12 (2026-03-22) — MVP Build (Ralph autonomous agent)
+- **Phase 1**: Critical Fixes — added httpx, google-genai, mistralai, groq, praw, browser-use, langchain-google-genai to requirements.txt. Made server URL configurable in server_client.py (defaults to Vercel URL). Disabled TikTok + Instagram in platforms.json. Added API key fields to config/.env.
+- **Phase 2**: PostgreSQL Support — updated database.py with SSL support for Supabase/cloud PostgreSQL (ssl context, connection pooling, pool_pre_ping). Updated main.py to always init tables (idempotent for both SQLite and PostgreSQL). Updated server/.env.example with Supabase connection string format. JWT_SECRET_KEY and ADMIN_PASSWORD already set on Vercel. DATABASE_URL pending Supabase project creation (user action needed — code is ready).
