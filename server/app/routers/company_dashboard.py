@@ -21,14 +21,17 @@ DASHBOARD_HTML = """
 <head>
     <meta charset="utf-8">
     <title>Campaign Analytics — {company_name}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }}
+        body {{ font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }}
         h1 {{ font-size: 24px; margin-bottom: 20px; }}
         h2 {{ font-size: 18px; margin: 24px 0 12px; color: #94a3b8; }}
         .stats {{ display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }}
         .stat {{ background: #1e293b; padding: 16px 24px; border-radius: 10px; min-width: 140px; }}
-        .stat-val {{ font-size: 28px; font-weight: 700; color: #38bdf8; }}
+        .stat-val {{ font-size: 28px; font-weight: 700; color: #34d399; }}
         .stat-label {{ font-size: 12px; color: #64748b; margin-top: 4px; }}
         table {{ width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }}
         th, td {{ padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; }}
@@ -37,10 +40,10 @@ DASHBOARD_HTML = """
         .status {{ display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 12px; }}
         .status-active {{ background: #14532d; color: #86efac; }}
         .status-draft {{ background: #1e293b; color: #94a3b8; }}
-        .status-completed {{ background: #1e3a5f; color: #93c5fd; }}
+        .status-completed {{ background: #064e3b; color: #6ee7b7; }}
         .status-paused {{ background: #713f12; color: #fde68a; }}
         .status-cancelled {{ background: #7f1d1d; color: #fca5a5; }}
-        a {{ color: #38bdf8; text-decoration: none; }}
+        a {{ color: #34d399; text-decoration: none; }}
         a:hover {{ text-decoration: underline; }}
     </style>
 </head>

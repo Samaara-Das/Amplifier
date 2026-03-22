@@ -77,7 +77,7 @@ DASHBOARD_HTML = r"""
         .btn-approve { background: #22c55e; color: #fff; }
         .btn-reject { background: #ef4444; color: #fff; }
         .btn-approve-all { background: #16a34a; color: #fff; font-size: 15px; padding: 10px 24px; }
-        .btn-save { background: #3b82f6; color: #fff; }
+        .btn-save { background: #10b981; color: #fff; }
         .draft-card { background: #1a1a2e; border-radius: 10px; padding: 20px; margin-bottom: 20px; border: 1px solid #2a2a3a; }
         .draft-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .draft-title { font-size: 18px; font-weight: 600; color: #fff; }
@@ -92,14 +92,14 @@ DASHBOARD_HTML = r"""
         .image-preview-label { font-size: 11px; color: #666; margin-bottom: 4px; }
         .platform-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
         .platform-tab { padding: 6px 12px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 13px; background: #12121e; color: #888; border: 1px solid #2a2a3a; border-bottom: none; }
-        .platform-tab.active { background: #1a1a2e; color: #fff; border-color: #3b82f6; }
+        .platform-tab.active { background: #1a1a2e; color: #fff; border-color: #10b981; }
         .platform-content { display: none; }
         .platform-content.active { display: block; }
         .platform-section { background: #12121e; border-radius: 0 6px 6px 6px; padding: 12px; border: 1px solid #2a2a3a; }
         .char-count { font-size: 12px; color: #666; margin-bottom: 6px; }
         .char-count.over { color: #ef4444; }
         textarea { width: 100%; min-height: 100px; background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 4px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical; line-height: 1.5; }
-        textarea:focus { outline: none; border-color: #3b82f6; }
+        textarea:focus { outline: none; border-color: #10b981; }
         .draft-actions { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
         .draft-actions .spacer { flex: 1; }
         .empty-state { text-align: center; padding: 80px 20px; color: #555; }
