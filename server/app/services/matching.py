@@ -133,6 +133,13 @@ def _calculate_match_score(campaign: Campaign, user: User) -> int:
         if user_followers.get(platform, 0) < minimum:
             return 0
 
+    # Hard filter: target regions
+    target_regions = targeting.get("target_regions", [])
+    if target_regions:
+        user_region = getattr(user, "audience_region", "global") or "global"
+        if user_region != "global" and user_region not in target_regions:
+            return 0
+
     # Soft: niche overlap
     target_niches = set(targeting.get("niche_tags", []))
     user_niches = set(user.niche_tags or [])

@@ -88,9 +88,28 @@
             <div class="form-help">JSON object mapping platform to minimum follower count. e.g. {"x": 100, "linkedin": 50}</div>
         </div>
         <div class="form-group">
-            <label for="niche_tags">Niche Tags</label>
-            <input type="text" id="niche_tags" name="niche_tags" class="form-control" placeholder="finance, crypto, tech">
-            <div class="form-help">Comma-separated tags to match creator niches.</div>
+            <label>Target Regions</label>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
+                {% for region, label in [('us', 'US'), ('uk', 'UK'), ('india', 'India'), ('eu', 'EU'), ('latam', 'Latin America'), ('sea', 'Southeast Asia'), ('global', 'Global')] %}
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
+                    <input type="checkbox" name="target_regions" value="{{ region }}" style="accent-color: #3b82f6;">
+                    {{ label }}
+                </label>
+                {% endfor %}
+            </div>
+            <div class="form-help">Select where your target audience is located. Leave empty for all regions.</div>
+        </div>
+        <div class="form-group">
+            <label>Categories</label>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
+                {% for cat in ['beauty', 'fashion', 'tech', 'finance', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
+                    <input type="checkbox" name="niche_tags" value="{{ cat }}" style="accent-color: #3b82f6;">
+                    {{ cat|capitalize }}
+                </label>
+                {% endfor %}
+            </div>
+            <div class="form-help">Select categories to match with relevant creators.</div>
         </div>
         <div class="form-group">
             <label>Required Platforms</label>

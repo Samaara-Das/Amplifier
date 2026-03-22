@@ -116,7 +116,8 @@ def get_profile() -> dict:
 
 
 def update_profile(platforms: dict = None, follower_counts: dict = None,
-                   niche_tags: list = None, mode: str = None) -> dict:
+                   niche_tags: list = None, audience_region: str = None,
+                   mode: str = None) -> dict:
     payload = {}
     if platforms is not None:
         payload["platforms"] = platforms
@@ -124,6 +125,8 @@ def update_profile(platforms: dict = None, follower_counts: dict = None,
         payload["follower_counts"] = follower_counts
     if niche_tags is not None:
         payload["niche_tags"] = niche_tags
+    if audience_region is not None:
+        payload["audience_region"] = audience_region
     if mode is not None:
         payload["mode"] = mode
 

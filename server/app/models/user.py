@@ -23,6 +23,9 @@ class User(Base):
     niche_tags: Mapped[list] = mapped_column(JSON, default=list)
     # ["finance", "tech", "lifestyle"] — stored as JSON array
 
+    audience_region: Mapped[str] = mapped_column(String(50), default="global")
+    # Where the user's audience is: "us", "uk", "india", "eu", "global", etc.
+
     trust_score: Mapped[int] = mapped_column(Integer, default=50)
     mode: Mapped[str] = mapped_column(String(20), default="semi_auto")
     # full_auto | semi_auto | manual

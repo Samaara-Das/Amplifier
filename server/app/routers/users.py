@@ -26,6 +26,8 @@ async def update_profile(
         user.follower_counts = data.follower_counts
     if data.niche_tags is not None:
         user.niche_tags = data.niche_tags
+    if data.audience_region is not None:
+        user.audience_region = data.audience_region
     if data.mode is not None:
         if data.mode not in ("full_auto", "semi_auto", "manual"):
             from fastapi import HTTPException

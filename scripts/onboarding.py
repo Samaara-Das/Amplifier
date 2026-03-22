@@ -101,7 +101,7 @@ def step_platforms():
 
 
 def step_profile(platforms: dict):
-    """Step 3: Set follower counts and niche tags."""
+    """Step 3: Set follower counts, audience region, and categories."""
     print("\n=== Step 3: Profile Setup ===")
 
     # Follower counts
@@ -114,13 +114,20 @@ def step_profile(platforms: dict):
             except ValueError:
                 follower_counts[platform] = 0
 
-    # Niche tags
-    print("\n  Available niches: finance, tech, lifestyle, fitness, gaming, education,")
-    print("  business, marketing, crypto, health, food, travel, fashion, entertainment")
-    niche_input = _input("  Your niches (comma-separated)", "finance,tech")
+    # Audience region
+    print("\n  Where is most of your audience based?")
+    print("  Options: us, uk, india, eu, latam, sea, global")
+    audience_region = _input("  Audience region", "global").strip().lower()
+    if audience_region not in ("us", "uk", "india", "eu", "latam", "sea", "global"):
+        audience_region = "global"
+
+    # Categories (niche tags)
+    print("\n  Available categories: beauty, fashion, tech, finance, fitness, gaming,")
+    print("  food, travel, education, lifestyle, business, health, entertainment, crypto")
+    niche_input = _input("  Your categories (comma-separated)", "finance,tech")
     niche_tags = [n.strip().lower() for n in niche_input.split(",") if n.strip()]
 
-    return follower_counts, niche_tags
+    return follower_counts, niche_tags, audience_region
 
 
 def step_mode():
@@ -135,9 +142,46 @@ def step_mode():
     return mode
 
 
+def step_api_key():
+    """Step 5: Get a free Gemini API key for content generation."""
+    print("\n=== Step 5: API Key Setup ===")
+    print("  Content generation requires a free Gemini API key.")
+    print("  Get yours at: https://ai.google.dev")
+    print("  1. Sign in with Google")
+    print("  2. Click 'Get API key' → 'Create API key'")
+    print("  3. Copy the key and paste it below\n")
+
+    env_path = ROOT / "config" / ".env"
+    existing_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+    if existing_key:
+        print(f"  Gemini API key already set (ends with ...{existing_key[-4:]})")
+        change = _input("  Replace it? (y/n)", "n")
+        if change.lower() != "y":
+            return
+
+    key = _input("  Gemini API key (or press Enter to skip)")
+    if key:
+        # Update the .env file
+        if env_path.exists():
+            content = env_path.read_text(encoding="utf-8")
+            import re
+            if "GEMINI_API_KEY=" in content:
+                content = re.sub(r"GEMINI_API_KEY=.*", f"GEMINI_API_KEY={key}", content)
+            else:
+                content += f"\nGEMINI_API_KEY={key}\n"
+            env_path.write_text(content, encoding="utf-8")
+        else:
+            env_path.write_text(f"GEMINI_API_KEY={key}\n", encoding="utf-8")
+        os.environ["GEMINI_API_KEY"] = key
+        print("  API key saved.")
+    else:
+        print("  Skipped. You can add it later to config/.env")
+
+
 def step_verify():
-    """Step 5: Verify everything works."""
-    print("\n=== Step 5: Verification ===")
+    """Step 6: Verify everything works."""
+    print("\n=== Step 6: Verification ===")
     try:
         profile = get_profile()
         print(f"  Server connection: OK")
@@ -167,7 +211,7 @@ def run_onboarding():
     platforms = step_platforms()
 
     # Step 3: Profile
-    follower_counts, niche_tags = step_profile(platforms)
+    follower_counts, niche_tags, audience_region = step_profile(platforms)
 
     # Step 4: Mode
     mode = step_mode()
@@ -181,13 +225,17 @@ def run_onboarding():
             platforms=platforms,
             follower_counts=follower_counts,
             niche_tags=niche_tags,
+            audience_region=audience_region,
             mode=mode,
         )
         print("\n  Profile updated on server.")
     except Exception as e:
         print(f"\n  Warning: Could not update server profile: {e}")
 
-    # Step 5: Verify
+    # Step 5: API Key
+    step_api_key()
+
+    # Step 6: Verify
     step_verify()
 
     print("\n" + "=" * 50)

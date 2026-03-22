@@ -244,7 +244,8 @@ async def campaign_create_submit(
     rate_per_repost: float = Form(0.05),
     rate_per_click: float = Form(0.10),
     min_followers_json: str = Form("{}"),
-    niche_tags: str = Form(""),
+    niche_tags: list[str] = Form([]),
+    target_regions: list[str] = Form([]),
     required_platforms: list[str] = Form([]),
     content_guidance: str = Form(""),
     start_date: str = Form(...),
@@ -264,8 +265,8 @@ async def campaign_create_submit(
     except json.JSONDecodeError:
         min_followers = {}
 
-    # Parse niche tags
-    tags = [t.strip() for t in niche_tags.split(",") if t.strip()]
+    # niche_tags comes as a list from checkboxes
+    tags = [t.strip() for t in niche_tags if t.strip()]
 
     # Validate budget
     if float(company.balance) < budget:
@@ -295,6 +296,7 @@ async def campaign_create_submit(
         targeting={
             "min_followers": min_followers,
             "niche_tags": tags,
+            "target_regions": target_regions,
             "required_platforms": required_platforms,
         },
         content_guidance=content_guidance or None,
