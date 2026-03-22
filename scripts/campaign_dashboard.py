@@ -63,39 +63,41 @@ DASHBOARD_HTML = r"""
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Amplifier</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
     <style>
         /* ── Reset & base ─────────────────────────────────── */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f0f1a; color: #e0e0e0; padding: 0; min-height: 100vh;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a; color: #e2e8f0; padding: 0; min-height: 100vh;
         }
-        a { color: #3b82f6; text-decoration: none; }
+        a { color: #10b981; text-decoration: none; }
         a:hover { text-decoration: underline; }
 
         /* ── Top bar ──────────────────────────────────────── */
         .topbar {
-            background: #12121e; border-bottom: 1px solid #2a2a3a;
+            background: #0f172a; border-bottom: 1px solid #334155;
             padding: 16px 28px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 1px 20px rgba(16, 185, 129, 0.06);
         }
         .topbar h1 { font-size: 20px; color: #fff; font-weight: 700; letter-spacing: -0.3px; }
         .topbar-right { display: flex; gap: 14px; align-items: center; }
         .mini-stat { text-align: center; }
         .mini-stat-val { font-size: 16px; font-weight: 700; color: #22c55e; }
-        .mini-stat-lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mini-stat-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* ── Navigation tabs ──────────────────────────────── */
         .nav-bar {
-            background: #12121e; border-bottom: 1px solid #2a2a3a;
+            background: #0f172a; border-bottom: 1px solid #334155;
             display: flex; gap: 0; padding: 0 28px;
         }
         .nav-tab {
             padding: 12px 22px; cursor: pointer; font-size: 13px; font-weight: 500;
-            color: #666; border-bottom: 2px solid transparent; transition: all 0.15s;
+            color: #64748b; border-bottom: 2px solid transparent; transition: all 0.15s;
             user-select: none;
         }
         .nav-tab:hover { color: #aaa; }
-        .nav-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+        .nav-tab.active { color: #10b981; border-bottom-color: #10b981; }
 
         /* ── Content wrapper ──────────────────────────────── */
         .content { padding: 24px 28px; max-width: 1200px; }
@@ -104,8 +106,12 @@ DASHBOARD_HTML = r"""
 
         /* ── Cards ────────────────────────────────────────── */
         .card {
-            background: #1a1a2e; border-radius: 10px; padding: 20px;
-            margin-bottom: 16px; border: 1px solid #2a2a3a;
+            background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border-radius: 12px; padding: 20px;
+            margin-bottom: 16px; border: 1px solid #334155;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
         }
         .card-header {
             display: flex; justify-content: space-between; align-items: flex-start;
@@ -119,23 +125,27 @@ DASHBOARD_HTML = r"""
             display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
         }
         .summary-card {
-            background: #1a1a2e; border: 1px solid #2a2a3a; border-radius: 10px;
+            background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border: 1px solid #334155; border-radius: 12px;
             padding: 16px 22px; flex: 1; min-width: 150px; text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .summary-card:hover {
+            transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
         }
         .summary-val { font-size: 26px; font-weight: 700; }
         .summary-val.green { color: #22c55e; }
-        .summary-val.blue { color: #3b82f6; }
+        .summary-val.blue { color: #10b981; }
         .summary-val.yellow { color: #eab308; }
         .summary-val.purple { color: #a855f7; }
         .summary-val.white { color: #fff; }
-        .summary-lbl { font-size: 11px; color: #666; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-lbl { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* ── Status badges ────────────────────────────────── */
         .badge {
             display: inline-block; padding: 3px 10px; border-radius: 12px;
-            font-size: 12px; font-weight: 500;
+            font-size: 12px; font-weight: 500; border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .badge-assigned { background: #1e3a5f; color: #93c5fd; }
+        .badge-assigned { background: #064e3b; color: #6ee7b7; }
         .badge-content_generated { background: #713f12; color: #fde68a; }
         .badge-approved { background: #1a3a1a; color: #86efac; }
         .badge-posted { background: #14532d; color: #86efac; }
@@ -144,7 +154,7 @@ DASHBOARD_HTML = r"""
         .badge-paid { background: #14532d; color: #86efac; }
         .badge-connected { background: #14532d; color: #86efac; }
         .badge-disconnected { background: #3b1a1a; color: #fca5a5; }
-        .badge-enabled { background: #1e3a5f; color: #93c5fd; }
+        .badge-enabled { background: #064e3b; color: #6ee7b7; }
         .badge-disabled { background: #334155; color: #cbd5e1; }
 
         /* ── Brief / info rows ────────────────────────────── */
@@ -154,22 +164,22 @@ DASHBOARD_HTML = r"""
         }
         .chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
         .chip {
-            background: #12121e; padding: 4px 10px; border-radius: 6px;
-            font-size: 12px; color: #8888aa;
+            background: #0f172a; padding: 4px 10px; border-radius: 6px;
+            font-size: 12px; color: #94a3b8;
         }
         .multiplier { font-size: 11px; color: #a855f7; margin-left: 8px; }
 
         .platform-posts { display: flex; gap: 8px; flex-wrap: wrap; }
         .platform-pill {
-            background: #12121e; padding: 5px 12px; border-radius: 6px; font-size: 13px;
+            background: #0f172a; padding: 5px 12px; border-radius: 6px; font-size: 13px;
         }
-        .platform-pill a { color: #3b82f6; }
+        .platform-pill a { color: #10b981; }
 
         /* ── Content preview ──────────────────────────────── */
         .content-preview {
-            background: #12121e; border-radius: 6px; padding: 12px; margin-top: 8px;
+            background: #0f172a; border-radius: 6px; padding: 12px; margin-top: 8px;
         }
-        .content-preview h4 { font-size: 13px; color: #666; margin-bottom: 6px; }
+        .content-preview h4 { font-size: 13px; color: #64748b; margin-bottom: 6px; }
         .content-preview pre {
             white-space: pre-wrap; word-wrap: break-word;
             font-size: 13px; color: #ccc; font-family: inherit;
@@ -177,29 +187,31 @@ DASHBOARD_HTML = r"""
 
         /* ── Buttons ──────────────────────────────────────── */
         .btn {
-            padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
-            font-size: 13px; font-weight: 500; transition: opacity 0.15s;
+            padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 13px; font-weight: 500; transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
             display: inline-block;
         }
-        .btn:hover { opacity: 0.85; }
-        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { background: #10b981; color: #fff; }
+        .btn-primary:hover { background: #059669; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35); }
         .btn-success { background: #22c55e; color: #fff; }
         .btn-danger { background: #ef4444; color: #fff; }
-        .btn-secondary { background: #334155; color: #e0e0e0; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         .card-actions { display: flex; gap: 8px; margin-top: 14px; }
 
         /* ── Tables ───────────────────────────────────────── */
         .tbl { width: 100%; border-collapse: collapse; }
         .tbl th, .tbl td {
-            padding: 10px 14px; text-align: left; border-bottom: 1px solid #222;
+            padding: 10px 14px; text-align: left; border-bottom: 1px solid #334155;
         }
         .tbl th {
-            color: #666; font-size: 11px; font-weight: 600; text-transform: uppercase;
+            color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .tbl td { color: #ccc; font-size: 13px; }
-        .tbl tbody tr:hover { background: #16162a; }
+        .tbl tbody tr:hover { background: rgba(16, 185, 129, 0.04); }
+        .tbl tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 #10b981; }
         .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
         .tbl .truncate {
             max-width: 260px; white-space: nowrap; overflow: hidden;
@@ -207,60 +219,60 @@ DASHBOARD_HTML = r"""
         }
 
         /* ── Trust bar ────────────────────────────────────── */
-        .trust-bar { height: 6px; background: #2a2a3a; border-radius: 3px; margin-top: 4px; width: 80px; }
+        .trust-bar { height: 6px; background: #334155; border-radius: 3px; margin-top: 4px; width: 80px; }
         .trust-fill { height: 100%; border-radius: 3px; }
 
         /* ── Forms / inputs ───────────────────────────────── */
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
         .form-input {
-            background: #12121e; color: #e0e0e0; border: 1px solid #333;
-            border-radius: 6px; padding: 10px 14px; font-size: 14px; width: 100%;
+            background: #0f172a; color: #e2e8f0; border: 1px solid #333;
+            border-radius: 8px; padding: 10px 14px; font-size: 14px; width: 100%;
         }
-        .form-input:focus { outline: none; border-color: #3b82f6; }
+        .form-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
         select.form-input { cursor: pointer; }
         .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
         .form-row .form-group { flex: 1; min-width: 200px; }
 
         /* ── Filter bar ───────────────────────────────────── */
         .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
-        .filter-bar label { font-size: 13px; color: #888; }
-        .filter-bar select { background: #12121e; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+        .filter-bar label { font-size: 13px; color: #94a3b8; }
+        .filter-bar select { background: #0f172a; color: #e2e8f0; border: 1px solid #333; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
 
         /* ── Platform grid (settings) ─────────────────────── */
         .platform-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
         .platform-card {
-            background: #12121e; border: 1px solid #2a2a3a; border-radius: 8px; padding: 14px 16px;
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px 16px;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .platform-card .name { font-size: 14px; color: #e0e0e0; font-weight: 500; }
+        .platform-card .name { font-size: 14px; color: #e2e8f0; font-weight: 500; }
         .platform-card .badges { display: flex; gap: 6px; }
 
         /* ── Onboarding ───────────────────────────────────── */
         .onboard-container { max-width: 560px; margin: 0 auto; padding-top: 20px; }
         .step-indicator { display: flex; gap: 0; margin-bottom: 28px; }
         .step-dot {
-            flex: 1; height: 4px; background: #2a2a3a; border-radius: 2px;
+            flex: 1; height: 4px; background: #334155; border-radius: 2px;
             transition: background 0.2s;
         }
         .step-dot.done { background: #22c55e; }
-        .step-dot.current { background: #3b82f6; }
+        .step-dot.current { background: #10b981; }
         .step-section { display: none; }
         .step-section.active { display: block; }
         .step-title { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 6px; }
-        .step-desc { font-size: 14px; color: #888; margin-bottom: 20px; }
+        .step-desc { font-size: 14px; color: #94a3b8; margin-bottom: 20px; }
         .tag-input-wrap { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-        .tag { background: #3b82f6; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+        .tag { background: #10b981; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
         .tag .remove { cursor: pointer; opacity: 0.7; }
         .tag .remove:hover { opacity: 1; }
 
         /* ── Empty state ──────────────────────────────────── */
         .empty-state { text-align: center; padding: 60px 20px; color: #555; }
-        .empty-state h2 { font-size: 18px; color: #888; margin-bottom: 8px; }
+        .empty-state h2 { font-size: 18px; color: #94a3b8; margin-bottom: 8px; }
 
         /* ── Alert ────────────────────────────────────────── */
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-        .alert-info { background: #1e3a5f; color: #93c5fd; border: 1px solid #2a4a6f; }
+        .alert-info { background: #064e3b; color: #6ee7b7; border: 1px solid #065f46; }
         .alert-success { background: #14532d; color: #86efac; border: 1px solid #1a6a3a; }
         .alert-error { background: #3b1a1a; color: #fca5a5; border: 1px solid #5a2a2a; }
     </style>
@@ -384,7 +396,7 @@ DASHBOARD_HTML = r"""
                         {% for platform, text in content_parsed.items() %}
                         {% if platform != '_image_path' %}
                         <div style="margin-bottom: 12px;">
-                            <label style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">{{ platform }}</label>
+                            <label style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">{{ platform }}</label>
                             {% if text is mapping %}
                             <textarea name="content_{{ platform }}_title" class="form-input" rows="1" style="margin-bottom:4px;" placeholder="Title">{{ text.get('title', '') }}</textarea>
                             <textarea name="content_{{ platform }}_body" class="form-input" rows="4" placeholder="Body">{{ text.get('body', '') }}</textarea>
@@ -527,7 +539,7 @@ DASHBOARD_HTML = r"""
                     </tbody>
                 </table>
                 {% else %}
-                <p style="color:#666">No earnings yet. Complete campaigns to start earning.</p>
+                <p style="color:#64748b">No earnings yet. Complete campaigns to start earning.</p>
                 {% endif %}
             </div>
 
@@ -550,7 +562,7 @@ DASHBOARD_HTML = r"""
                     </tbody>
                 </table>
                 {% else %}
-                <p style="color:#666">Platform earnings will appear after posts earn revenue.</p>
+                <p style="color:#64748b">Platform earnings will appear after posts earn revenue.</p>
                 {% endif %}
             </div>
 
@@ -573,7 +585,7 @@ DASHBOARD_HTML = r"""
                     </tbody>
                 </table>
                 {% else %}
-                <p style="color:#666">No payouts yet.</p>
+                <p style="color:#64748b">No payouts yet.</p>
                 {% endif %}
             </div>
         </div>
@@ -612,7 +624,7 @@ DASHBOARD_HTML = r"""
                     <span class="chip">Mode: {{ profile.mode }}</span>
                     <span class="chip">Status: {{ profile.status }}</span>
                 </div>
-                <div style="margin-top:8px;color:#666;font-size:13px">
+                <div style="margin-top:8px;color:#64748b;font-size:13px">
                     Server platforms: {{ profile.platforms.keys() | list | join(', ') if profile.platforms else 'None connected' }}
                 </div>
             </div>
@@ -620,7 +632,7 @@ DASHBOARD_HTML = r"""
 
             <div class="card">
                 <div class="section-title">Platform Connection Status</div>
-                <p style="color:#666;font-size:13px;margin-bottom:14px">
+                <p style="color:#64748b;font-size:13px;margin-bottom:14px">
                     Shows which platforms have a browser profile set up locally.
                     Run <code style="color:#aaa">python scripts/login_setup.py &lt;platform&gt;</code> to connect a new platform.
                 </p>
@@ -723,10 +735,10 @@ DASHBOARD_HTML = r"""
                         {% endfor %}
                     </div>
 
-                    <div class="card" style="background:#12121e">
+                    <div class="card" style="background:#0f172a">
                         <p style="font-size:13px;color:#aaa;margin-bottom:8px">Run in a terminal for each platform:</p>
                         <code style="color:#22c55e;font-size:14px">python scripts/login_setup.py &lt;platform&gt;</code>
-                        <p style="font-size:12px;color:#666;margin-top:6px">Platforms: x, linkedin, facebook, instagram, reddit, tiktok</p>
+                        <p style="font-size:12px;color:#64748b;margin-top:6px">Platforms: x, linkedin, facebook, instagram, reddit, tiktok</p>
                     </div>
 
                     <div style="margin-top:16px;display:flex;gap:8px">
@@ -775,25 +787,25 @@ DASHBOARD_HTML = r"""
 
                     <form method="POST" action="{{ url_for('onboarding_mode') }}">
                         <div class="form-group">
-                            <label style="display:flex;align-items:center;gap:10px;padding:12px;background:#12121e;border-radius:8px;cursor:pointer;margin-bottom:8px">
+                            <label style="display:flex;align-items:center;gap:10px;padding:12px;background:#0f172a;border-radius:8px;cursor:pointer;margin-bottom:8px">
                                 <input type="radio" name="mode" value="full_auto" {{ 'checked' if mode == 'full_auto' }}>
                                 <div>
                                     <div style="color:#fff;font-weight:500">Full Auto</div>
-                                    <div style="color:#666;font-size:12px">Content is generated and posted automatically. No manual review needed.</div>
+                                    <div style="color:#64748b;font-size:12px">Content is generated and posted automatically. No manual review needed.</div>
                                 </div>
                             </label>
-                            <label style="display:flex;align-items:center;gap:10px;padding:12px;background:#12121e;border-radius:8px;cursor:pointer;margin-bottom:8px">
+                            <label style="display:flex;align-items:center;gap:10px;padding:12px;background:#0f172a;border-radius:8px;cursor:pointer;margin-bottom:8px">
                                 <input type="radio" name="mode" value="semi_auto" {{ 'checked' if mode == 'semi_auto' or not mode }}>
                                 <div>
                                     <div style="color:#fff;font-weight:500">Semi-Auto (Recommended)</div>
-                                    <div style="color:#666;font-size:12px">Content is generated automatically, but you review and approve before posting.</div>
+                                    <div style="color:#64748b;font-size:12px">Content is generated automatically, but you review and approve before posting.</div>
                                 </div>
                             </label>
-                            <label style="display:flex;align-items:center;gap:10px;padding:12px;background:#12121e;border-radius:8px;cursor:pointer">
+                            <label style="display:flex;align-items:center;gap:10px;padding:12px;background:#0f172a;border-radius:8px;cursor:pointer">
                                 <input type="radio" name="mode" value="manual" {{ 'checked' if mode == 'manual' }}>
                                 <div>
                                     <div style="color:#fff;font-weight:500">Manual</div>
-                                    <div style="color:#666;font-size:12px">You write all content yourself. Full control, more work.</div>
+                                    <div style="color:#64748b;font-size:12px">You write all content yourself. Full control, more work.</div>
                                 </div>
                             </label>
                         </div>
