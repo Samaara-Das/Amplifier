@@ -50,24 +50,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/debug/db")
-async def debug_db():
-    """Temporary debug endpoint — test database connection."""
-    import os
-    from app.core.database import engine
-    info = {"database_url_set": bool(os.environ.get("DATABASE_URL")), "engine_url": str(engine.url).split("@")[-1]}
-    try:
-        from sqlalchemy import text
-        async with engine.connect() as conn:
-            result = await conn.execute(text("SELECT 1"))
-            info["connection"] = "ok"
-            info["result"] = result.scalar()
-    except Exception as e:
-        info["connection"] = "failed"
-        info["error"] = f"{type(e).__name__}: {e}"
-    return info
-
-
 @app.get("/api/version")
 async def version():
     """Version endpoint for auto-update checks."""
