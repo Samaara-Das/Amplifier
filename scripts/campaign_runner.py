@@ -10,9 +10,7 @@ import hashlib
 import json
 import logging
 import os
-import subprocess
 import sys
-import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +29,7 @@ from utils.local_db import (
     init_db, upsert_campaign, get_campaigns, get_campaign, update_campaign_status,
     add_post, get_unsynced_posts, mark_posts_synced, get_setting, set_setting,
 )
+from utils.content_generator import ContentGenerator
 
 # Logging
 LOG_DIR = ROOT / "logs"
@@ -48,40 +47,42 @@ logger = logging.getLogger(__name__)
 POLL_INTERVAL = int(os.getenv("CAMPAIGN_POLL_INTERVAL_SEC", "600"))  # 10 min default
 
 
-def _generate_content(campaign: dict) -> dict | None:
-    """Generate platform content for a campaign using Claude CLI via PowerShell."""
-    # Write campaign to temp file
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    )
-    json.dump(campaign, tmp, indent=2)
-    tmp.close()
+_content_gen = None
 
-    script = ROOT / "scripts" / "generate_campaign.ps1"
+
+def _get_content_generator() -> ContentGenerator:
+    global _content_gen
+    if _content_gen is None:
+        _content_gen = ContentGenerator()
+    return _content_gen
+
+
+async def _generate_content(campaign: dict) -> dict | None:
+    """Generate platform content for a campaign using free AI APIs."""
     try:
-        result = subprocess.run(
-            ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script),
-             "-CampaignFile", tmp.name],
-            capture_output=True, text=True, timeout=300,
-        )
-        if result.returncode != 0:
-            logger.error("Content generation failed: %s", result.stderr)
-            return None
+        gen = _get_content_generator()
 
-        # Output is the path to the generated file
-        output_path = result.stdout.strip().split("\n")[-1].strip()
-        if not output_path or not Path(output_path).exists():
-            logger.error("Generated file not found: %s", output_path)
-            return None
+        # Determine which platforms are enabled
+        with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
+            platforms_config = json.load(f)
+        enabled = [p for p, cfg in platforms_config.items() if cfg.get("enabled")]
 
-        with open(output_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        # Generate text content
+        content = await gen.generate(campaign, enabled_platforms=enabled)
 
-    except subprocess.TimeoutExpired:
-        logger.error("Content generation timed out for campaign %s", campaign.get("campaign_id"))
+        # Generate image if we got an image prompt
+        image_prompt = content.pop("image_prompt", None)
+        if image_prompt:
+            image_path = await gen.generate_image(image_prompt)
+            if image_path:
+                content["_image_path"] = image_path
+
+        return {"content": content}
+
+    except Exception as e:
+        logger.error("Content generation failed for campaign %s: %s",
+                     campaign.get("campaign_id"), e)
         return None
-    finally:
-        os.unlink(tmp.name)
 
 
 async def _post_campaign_content(campaign_id: int, assignment_id: int, content: dict):
@@ -218,7 +219,7 @@ async def process_campaign(campaign: dict, mode: str = "full_auto"):
         return
 
     # Generate content
-    generated = _generate_content(campaign)
+    generated = await _generate_content(campaign)
     if not generated:
         logger.error("Failed to generate content for campaign %d", campaign_id)
         return
