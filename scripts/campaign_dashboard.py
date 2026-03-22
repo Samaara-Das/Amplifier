@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-load_dotenv(ROOT / "config" / ".env")
+load_dotenv(ROOT / "config" / ".env", override=True)
 os.environ.setdefault("AUTO_POSTER_ROOT", str(ROOT))
 
 from utils.local_db import (
@@ -307,7 +307,7 @@ DASHBOARD_HTML = r"""
         <div class="nav-tab" data-tab="posts" onclick="switchTab(this)">Posts</div>
         <div class="nav-tab" data-tab="earnings" onclick="switchTab(this)">Earnings</div>
         <div class="nav-tab" data-tab="settings" onclick="switchTab(this)">Settings</div>
-        {% if not logged_in %}
+        {% if not onboarding_complete %}
         <div class="nav-tab" data-tab="onboarding" onclick="switchTab(this)" style="margin-left:auto;color:#eab308">Get Started</div>
         {% endif %}
     </div>
@@ -834,6 +834,16 @@ DASHBOARD_HTML = r"""
         try { sessionStorage.setItem('activeTab', tab); } catch(e){}
     }
 
+    // Auto-navigate to onboarding step if set by server
+    {% if onboarding_step is defined and onboarding_step %}
+    (function(){
+        var tabEl = document.querySelector('.nav-tab[data-tab="onboarding"]');
+        if (tabEl) {
+            switchTab(tabEl);
+            goToStep({{ onboarding_step }});
+        }
+    })();
+    {% else %}
     // Restore last active tab
     (function(){
         try {
@@ -844,6 +854,7 @@ DASHBOARD_HTML = r"""
             }
         } catch(e){}
     })();
+    {% endif %}
 
     // Posts filter
     function filterPosts() {
@@ -992,6 +1003,9 @@ def _build_context(flash_msg: str = None, flash_type: str = None) -> dict:
             current_niche_tags = tags
         current_followers = profile.get("follower_counts", {}) or {}
 
+    # Onboarding is complete only after all 4 steps (explicit flag set in step 4)
+    onboarding_complete = logged_in and get_setting("onboarding_done") == "true"
+
     return {
         "campaigns": campaigns,
         "status_counts": status_counts,
@@ -1006,6 +1020,7 @@ def _build_context(flash_msg: str = None, flash_type: str = None) -> dict:
         "poll_interval": poll_interval,
         "profile": profile,
         "logged_in": logged_in,
+        "onboarding_complete": onboarding_complete,
         "platform_status": platform_status,
         "current_niche_tags": current_niche_tags,
         "current_followers": current_followers,
@@ -1095,10 +1110,17 @@ def generate_campaign(campaign_id):
         content.pop("image_prompt", None)  # Remove image prompt from stored content
         update_campaign_status(campaign_id, "content_generated", json.dumps(content))
     except Exception as e:
-        # Store error as flash message in redirect
-        pass
+        ctx = _build_context(
+            flash_msg=f"Content generation failed: {e}",
+            flash_type="error",
+        )
+        return render_template_string(DASHBOARD_HTML, **ctx)
 
-    return redirect(url_for("index"))
+    ctx = _build_context(
+        flash_msg="Content generated! Review and approve below.",
+        flash_type="success",
+    )
+    return render_template_string(DASHBOARD_HTML, **ctx)
 
 
 @app.route("/settings", methods=["POST"])
@@ -1161,9 +1183,19 @@ def onboarding_auth():
             login(email, password)
             msg = f"Logged in as {email}."
         ctx = _build_context(flash_msg=msg, flash_type="success")
+        ctx["onboarding_step"] = 2  # Auto-advance to step 2
         return render_template_string(DASHBOARD_HTML, **ctx)
     except Exception as e:
-        ctx = _build_context(flash_msg=str(e), flash_type="error")
+        error_msg = str(e)
+        # Parse server validation errors into friendly messages
+        if "value is not a valid email" in error_msg:
+            error_msg = "Please enter a valid email address."
+        elif "already registered" in error_msg.lower() or "already exists" in error_msg.lower():
+            error_msg = "An account with this email already exists. Try logging in."
+        elif "Invalid credentials" in error_msg or "401" in error_msg:
+            error_msg = "Invalid email or password."
+        ctx = _build_context(flash_msg=f"Registration failed: {error_msg}", flash_type="error")
+        ctx["onboarding_step"] = 1  # Stay on auth step
         return render_template_string(DASHBOARD_HTML, **ctx)
 
 
@@ -1190,6 +1222,7 @@ def onboarding_profile():
     for p in platform_status:
         if p["connected"]:
             platforms[p["key"]] = {
+                "connected": True,
                 "username": "",
                 "follower_count": follower_counts.get(p["key"], 0),
             }
@@ -1205,6 +1238,7 @@ def onboarding_profile():
             pass
 
     ctx = _build_context(flash_msg="Profile updated. Choose your mode to finish.", flash_type="success")
+    ctx["onboarding_step"] = 4  # Advance to mode selection
     return render_template_string(DASHBOARD_HTML, **ctx)
 
 
@@ -1213,6 +1247,7 @@ def onboarding_mode():
     """Save mode and complete onboarding."""
     mode = request.form.get("mode", "semi_auto")
     set_setting("mode", mode)
+    set_setting("onboarding_done", "true")
 
     if is_logged_in():
         try:
