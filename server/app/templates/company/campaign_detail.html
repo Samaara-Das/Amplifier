@@ -169,6 +169,64 @@
     {% endif %}
 </div>
 
+<!-- Influencers -->
+<div class="card">
+    <div class="card-title">Creators ({{ influencers|length }})</div>
+    {% if influencers %}
+    <table>
+        <thead>
+            <tr>
+                <th>Creator</th>
+                <th>Platforms</th>
+                <th>Status</th>
+                <th>Posts</th>
+                <th>Impressions</th>
+                <th>Engagement</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inf in influencers %}
+            <tr>
+                <td style="color: #f8fafc;">
+                    {{ inf.email }}
+                    {% if inf.handles %}
+                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                        {% for platform, handle in inf.handles.items() %}
+                        <span>{{ platform }}: {{ handle }}</span>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% for p in inf.platforms %}
+                    <span class="badge badge-blue" style="font-size: 11px; margin: 1px;">{{ p }}</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    <span class="badge badge-{% if inf.status == 'posted' %}green{% elif inf.status == 'content_generated' %}yellow{% else %}gray{% endif %}">
+                        {{ inf.status }}
+                    </span>
+                </td>
+                <td>
+                    {% for post in inf.posts %}
+                    <a href="{{ post.url }}" target="_blank" style="font-size: 12px; display: block;">{{ post.platform }}</a>
+                    {% endfor %}
+                    {% if not inf.posts %}-{% endif %}
+                </td>
+                <td>{{ "{:,}".format(inf.impressions) }}</td>
+                <td>{{ "{:,}".format(inf.engagement) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No creators assigned yet</h3>
+        <p>Creators will appear here when matched to this campaign.</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- Dates -->
 <div class="card">
     <div class="card-title">Schedule</div>

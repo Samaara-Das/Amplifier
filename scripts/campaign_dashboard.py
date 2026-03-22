@@ -2,9 +2,7 @@
 
 import json
 import os
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 from flask import Flask, jsonify, redirect, render_template_string, request, url_for
@@ -380,15 +378,26 @@ DASHBOARD_HTML = r"""
 
                 {% if c.content and c.status == 'content_generated' %}
                 <div class="content-preview">
-                    <h4>Generated Content (awaiting approval)</h4>
-                    <pre>{{ c.content[:500] }}{% if c.content|length > 500 %}...{% endif %}</pre>
-                </div>
-                <div class="card-actions">
+                    <h4>Generated Content — edit before approving</h4>
                     <form method="POST" action="{{ url_for('approve_campaign', campaign_id=c.server_id) }}">
-                        <button class="btn btn-success" type="submit">Approve &amp; Post</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('skip_campaign', campaign_id=c.server_id) }}">
-                        <button class="btn btn-secondary" type="submit">Skip</button>
+                        {% set content_parsed = c.content_json or {} %}
+                        {% for platform, text in content_parsed.items() %}
+                        {% if platform != '_image_path' %}
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">{{ platform }}</label>
+                            {% if text is mapping %}
+                            <textarea name="content_{{ platform }}_title" class="form-input" rows="1" style="margin-bottom:4px;" placeholder="Title">{{ text.get('title', '') }}</textarea>
+                            <textarea name="content_{{ platform }}_body" class="form-input" rows="4" placeholder="Body">{{ text.get('body', '') }}</textarea>
+                            {% else %}
+                            <textarea name="content_{{ platform }}" class="form-input" rows="3">{{ text }}</textarea>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                        <div class="card-actions">
+                            <button class="btn btn-success" type="submit">Approve &amp; Post</button>
+                            <a href="{{ url_for('skip_campaign', campaign_id=c.server_id) }}" class="btn btn-secondary" onclick="fetch('{{ url_for('skip_campaign', campaign_id=c.server_id) }}',{method:'POST'});location.reload();return false;">Skip</a>
+                        </div>
                     </form>
                 </div>
                 {% elif c.status == 'assigned' %}
@@ -884,6 +893,11 @@ def _build_context(flash_msg: str = None, flash_type: str = None) -> dict:
             except (json.JSONDecodeError, TypeError):
                 c["payout_rules"] = {}
         c["posts"] = get_posts_for_campaign(c["server_id"])
+        # Parse content JSON for editing UI
+        try:
+            c["content_json"] = json.loads(c["content"]) if isinstance(c.get("content"), str) else (c.get("content") or {})
+        except (json.JSONDecodeError, TypeError):
+            c["content_json"] = {}
 
     # Status counts
     status_counts = {"assigned": 0, "content_generated": 0, "posted": 0, "approved": 0, "skipped": 0}
@@ -1001,8 +1015,29 @@ def index():
 
 @app.route("/approve/<int:campaign_id>", methods=["POST"])
 def approve_campaign(campaign_id):
-    update_campaign_status(campaign_id, "approved")
-    # TODO: trigger posting for this campaign
+    # Save edited content from form
+    campaign = get_campaign(campaign_id)
+    if campaign and campaign.get("content"):
+        try:
+            content = json.loads(campaign["content"]) if isinstance(campaign["content"], str) else campaign["content"]
+        except (json.JSONDecodeError, TypeError):
+            content = {}
+
+        # Update content with edited values from form
+        for key in list(content.keys()):
+            if key.startswith("_"):
+                continue
+            form_val = request.form.get(f"content_{key}")
+            form_title = request.form.get(f"content_{key}_title")
+            form_body = request.form.get(f"content_{key}_body")
+            if form_title is not None and form_body is not None:
+                content[key] = {"title": form_title, "body": form_body}
+            elif form_val is not None:
+                content[key] = form_val
+
+        update_campaign_status(campaign_id, "approved", json.dumps(content))
+    else:
+        update_campaign_status(campaign_id, "approved")
     return redirect(url_for("index"))
 
 
@@ -1021,7 +1056,8 @@ def skip_campaign(campaign_id):
 
 @app.route("/generate/<int:campaign_id>", methods=["POST"])
 def generate_campaign(campaign_id):
-    """Trigger content generation for a campaign."""
+    """Trigger content generation for a campaign using AI APIs."""
+    import asyncio
     campaign = get_campaign(campaign_id)
     if not campaign:
         return redirect(url_for("index"))
@@ -1031,32 +1067,24 @@ def generate_campaign(campaign_id):
         "assignment_id": campaign["assignment_id"],
         "title": campaign["title"],
         "brief": campaign["brief"],
-        "content_guidance": campaign.get("content_guidance"),
+        "content_guidance": campaign.get("content_guidance", ""),
         "assets": json.loads(campaign["assets"]) if isinstance(campaign["assets"], str) else campaign.get("assets", {}),
     }
 
-    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8")
-    json.dump(brief, tmp, indent=2)
-    tmp.close()
-
-    script = ROOT / "scripts" / "generate_campaign.ps1"
     try:
-        result = subprocess.run(
-            ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script),
-             "-CampaignFile", tmp.name],
-            capture_output=True, text=True, timeout=300,
-        )
-        if result.returncode == 0:
-            output_path = result.stdout.strip().split("\n")[-1].strip()
-            if output_path and Path(output_path).exists():
-                with open(output_path, "r", encoding="utf-8") as f:
-                    generated = json.load(f)
-                content = json.dumps(generated.get("content", {}))
-                update_campaign_status(campaign_id, "content_generated", content)
-    except Exception:
+        from utils.content_generator import ContentGenerator
+        gen = ContentGenerator()
+
+        # Get enabled platforms
+        platforms_config = _load_platforms_config()
+        enabled = [p for p, cfg in platforms_config.items() if cfg.get("enabled")]
+
+        content = asyncio.run(gen.generate(brief, enabled_platforms=enabled))
+        content.pop("image_prompt", None)  # Remove image prompt from stored content
+        update_campaign_status(campaign_id, "content_generated", json.dumps(content))
+    except Exception as e:
+        # Store error as flash message in redirect
         pass
-    finally:
-        os.unlink(tmp.name)
 
     return redirect(url_for("index"))
 

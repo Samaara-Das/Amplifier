@@ -387,6 +387,59 @@ async def campaign_detail_page(
 
     spent = float(campaign.budget_total) - float(campaign.budget_remaining)
 
+    # Influencer list — users assigned to this campaign with their posts and metrics
+    from app.models.user import User
+    influencer_query = await db.execute(
+        select(
+            User.id, User.email, User.platforms,
+            CampaignAssignment.status.label("assignment_status"),
+            CampaignAssignment.id.label("assignment_id"),
+        )
+        .select_from(CampaignAssignment)
+        .join(User, CampaignAssignment.user_id == User.id)
+        .where(CampaignAssignment.campaign_id == campaign_id)
+    )
+    influencers = []
+    for row in influencer_query:
+        # Get this user's posts for this campaign
+        user_posts_q = await db.execute(
+            select(Post.platform, Post.post_url)
+            .where(Post.assignment_id == row.assignment_id)
+        )
+        user_posts = [{"platform": p.platform, "url": p.post_url} for p in user_posts_q if p.post_url]
+
+        # Get this user's metrics for this campaign
+        user_metrics_q = await db.execute(
+            select(
+                func.coalesce(func.sum(Metric.impressions), 0).label("impressions"),
+                func.coalesce(func.sum(Metric.likes + Metric.reposts + Metric.comments), 0).label("engagement"),
+            )
+            .select_from(Metric)
+            .join(Post, Metric.post_id == Post.id)
+            .where(and_(Post.assignment_id == row.assignment_id, Metric.is_final == True))
+        )
+        um = user_metrics_q.one()
+
+        # Extract handles from platforms JSON
+        handles = {}
+        user_platforms = row.platforms or {}
+        connected_platforms = []
+        for plat, info in user_platforms.items():
+            if isinstance(info, dict) and info.get("connected"):
+                connected_platforms.append(plat)
+                if info.get("username"):
+                    handles[plat] = info["username"]
+
+        influencers.append({
+            "email": row.email,
+            "handles": handles,
+            "platforms": connected_platforms,
+            "status": row.assignment_status,
+            "posts": user_posts,
+            "impressions": int(um.impressions),
+            "engagement": int(um.engagement),
+        })
+
     return templates.TemplateResponse(
         "company/campaign_detail.html",
         {
@@ -399,6 +452,7 @@ async def campaign_detail_page(
             "impressions": int(t.impressions),
             "engagement": int(t.engagement),
             "platforms": platforms,
+            "influencers": influencers,
             "active": "campaigns",
         },
     )
