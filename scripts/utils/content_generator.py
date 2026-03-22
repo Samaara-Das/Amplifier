@@ -2,7 +2,7 @@
 
 Replaces PowerShell + Claude CLI for campaign content generation.
 Providers (text): Gemini → Mistral → Groq
-Providers (image): Gemini → Pollinations → PIL templates
+Providers (image): Cloudflare Workers AI → Together AI → Pollinations → PIL templates
 """
 
 import json
@@ -68,7 +68,7 @@ def _parse_json_response(text: str) -> dict:
 
 
 class _GeminiProvider:
-    """Google Gemini — text + image generation."""
+    """Google Gemini — text generation."""
 
     def __init__(self, api_key: str):
         from google import genai
@@ -81,18 +81,6 @@ class _GeminiProvider:
             contents=prompt,
         )
         return _parse_json_response(response.text)
-
-    async def generate_image(self, prompt: str, output_path: str) -> str:
-        response = self.client.models.generate_images(
-            model="imagen-3.0-generate-002",
-            prompt=prompt,
-            config={"number_of_images": 1},
-        )
-        if response.generated_images:
-            image = response.generated_images[0]
-            image.image.save(output_path)
-            return output_path
-        raise RuntimeError("Gemini returned no images")
 
 
 class _MistralProvider:
@@ -127,16 +115,74 @@ class _GroqProvider:
         return _parse_json_response(response.choices[0].message.content)
 
 
-# ── Image fallbacks ──────────────────────────────────────────────
+# ── Image providers ──────────────────────────────────────────────
+
+
+async def _cloudflare_image(prompt: str, output_path: str) -> str:
+    """Generate image via Cloudflare Workers AI (free tier — 10k neurons/day)."""
+    import base64
+    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    api_token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+    if not account_id or not api_token:
+        raise RuntimeError("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN not set")
+    model = "@cf/black-forest-labs/flux-1-schnell"
+    url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}"
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            url,
+            headers={"Authorization": f"Bearer {api_token}"},
+            json={"prompt": prompt, "num_steps": 4},
+        )
+        if resp.status_code != 200:
+            error_detail = resp.text[:200]
+            raise RuntimeError(f"Cloudflare AI returned {resp.status_code}: {error_detail}")
+        # Response is JSON with base64-encoded JPEG in result.image
+        data = resp.json()
+        img_b64 = data["result"]["image"]
+        with open(output_path, "wb") as f:
+            f.write(base64.b64decode(img_b64))
+    return output_path
+
+
+async def _together_image(prompt: str, output_path: str) -> str:
+    """Generate image via Together AI FLUX.1 schnell (free tier)."""
+    api_key = os.getenv("TOGETHER_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("TOGETHER_API_KEY not set")
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            "https://api.together.xyz/v1/images/generations",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": "black-forest-labs/FLUX.1-schnell-Free",
+                "prompt": prompt,
+                "width": 1024,
+                "height": 1024,
+                "steps": 4,
+                "n": 1,
+                "response_format": "b64_json",
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        import base64
+        img_b64 = data["data"][0]["b64_json"]
+        with open(output_path, "wb") as f:
+            f.write(base64.b64decode(img_b64))
+    return output_path
 
 
 async def _pollinations_image(prompt: str, output_path: str) -> str:
-    """Generate image via Pollinations AI (free, no signup)."""
+    """Generate image via Pollinations AI (requires API key)."""
     import urllib.parse
+    api_key = os.getenv("POLLINATIONS_API_KEY", "").strip()
     encoded = urllib.parse.quote(prompt)
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width=1080&height=1080&nologo=true"
-    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-        resp = await client.get(url)
+    url = f"https://gen.pollinations.ai/image/{encoded}?width=1080&height=1080&nologo=true&model=turbo"
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    async with httpx.AsyncClient(timeout=90.0, follow_redirects=True) as client:
+        resp = await client.get(url, headers=headers)
         resp.raise_for_status()
         with open(output_path, "wb") as f:
             f.write(resp.content)
@@ -170,7 +216,6 @@ class ContentGenerator:
 
     def __init__(self):
         self.text_providers = []
-        self.gemini_provider = None
 
         # Build provider chain based on available API keys
         gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -179,9 +224,7 @@ class ContentGenerator:
 
         if gemini_key:
             try:
-                provider = _GeminiProvider(gemini_key)
-                self.text_providers.append(provider)
-                self.gemini_provider = provider
+                self.text_providers.append(_GeminiProvider(gemini_key))
                 logger.info("Gemini provider initialized")
             except Exception as e:
                 logger.warning("Failed to init Gemini: %s", e)
@@ -248,22 +291,28 @@ class ContentGenerator:
         img_dir.mkdir(parents=True, exist_ok=True)
         output_path = str(img_dir / f"campaign_{platform}_{id(prompt) % 100000}.png")
 
-        # 1. Try Gemini Imagen
-        if self.gemini_provider:
-            try:
-                logger.info("Generating image via Gemini Imagen...")
-                return await self.gemini_provider.generate_image(prompt, output_path)
-            except Exception as e:
-                logger.warning("Gemini image gen failed: %s", e)
+        # 1. Try Cloudflare Workers AI (free tier)
+        try:
+            logger.info("Generating image via Cloudflare Workers AI...")
+            return await _cloudflare_image(prompt, output_path)
+        except Exception as e:
+            logger.warning("Cloudflare AI image gen failed: %s", e)
 
-        # 2. Try Pollinations (free, no signup)
+        # 2. Try Together AI FLUX (free tier)
+        try:
+            logger.info("Generating image via Together AI FLUX...")
+            return await _together_image(prompt, output_path)
+        except Exception as e:
+            logger.warning("Together AI image gen failed: %s", e)
+
+        # 3. Try Pollinations
         try:
             logger.info("Generating image via Pollinations...")
             return await _pollinations_image(prompt, output_path)
         except Exception as e:
             logger.warning("Pollinations image gen failed: %s", e)
 
-        # 3. PIL branded template (last resort)
+        # 4. PIL branded template (last resort)
         try:
             logger.info("Falling back to PIL branded image...")
             return _pil_fallback_image(prompt[:60], output_path)

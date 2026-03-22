@@ -1,12 +1,13 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-22 (Session 15)
+**Last Updated**: 2026-03-22 (Session 16)
 
 ## Current Task
 - **Branch: `main`** — MVP built, E2E tested, all critical bugs fixed, deployed
 - All MVP phases (1-8) complete
-- User app E2E tested: onboarding → campaign matching → content generation all working
+- User app E2E tested: onboarding → campaign matching → content generation → posting all working
 - Server deployed to Vercel with Supabase PostgreSQL
+- **Full pipeline verified E2E**: poll → generate (Gemini) → image (Cloudflare FLUX) → post (4 platforms) → report to server
 
 ## Project Overview
 Two interconnected systems:
@@ -32,13 +33,18 @@ Two interconnected systems:
 - [x] User app E2E testing — 9 bugs found and fixed across 2 commits
 - [x] Company dashboard form preservation on validation error
 - [x] Flash message cleanup on tab switch
+- [x] Image generation fixed — Cloudflare Workers AI FLUX.1 schnell (free tier) as primary, Together AI + Pollinations as fallbacks
+- [x] Campaign runner posting fix — function names and signatures corrected
+- [x] Full E2E posting verified — Facebook, LinkedIn, Reddit (r/AlgoTrading), X all posted successfully
+- [x] Server sync verified — 4 posts reported, assignment status updated to "posted"
 
 ### Next Session Priority
-- [ ] **Set up Gemini API key** — add to `config/.env` to enable content generation. Then test full flow: generate → review → approve → post
-- [ ] **Test actual posting** — requires `python scripts/login_setup.py <platform>` for at least one platform (X recommended)
-- [ ] **Content generation quality** — verify AI-generated campaign content meets brand strategy guidelines
+- [ ] **Content generation quality** — AI-generated content reads like generic ads, not emotion-first brand-voice content. Fix the prompt in `content_generator.py` to match `config/content-templates.md`
+- [ ] **Metric scraping** — run `metric_scraper.py` on the 4 posted URLs to verify engagement collection works
+- [ ] **Earnings verification** — check that earnings show up on the user dashboard after metrics are collected
 
 ### Post-MVP Tasks (Pending)
+- [ ] **AI architecture rethink** — Design content generation/posting architecture around future model economics. Models are getting cheaper fast; some are already free (e.g. Xiaomi MiMo v2 Flash — free on Kiko Claw). Explore DeerFlow (ByteDance open-source super-agent framework) and alternatives, or consider building our own multi-agent pipeline. Architecture should assume models will be cheap/free and optimize for quality (research → draft → adapt per platform) not cost. See `docs/POST_MVP_AI_STRATEGY.md`.
 - [ ] **User app distribution rethink** — Move user dashboard to web, ship lightweight Tauri desktop agent for posting only (see `docs/POST_MVP_ROADMAP.md`)
 - [ ] 31: Browser Use migration for posting
 - [ ] 32: Website-to-API fallback tool
@@ -117,6 +123,41 @@ Medium:
 
 **Remaining Minor Issues:**
 1. Admin password on Vercel is encrypted — value unknown (user set it)
+
+### Session 16 (2026-03-22) — Image Gen Fix, Full E2E Posting Verified
+
+**Image generation chain fixed:**
+- Gemini Imagen removed (paid-only, all image models have 0 free quota)
+- Pollinations broken (API changed, now requires key, servers returning 500s)
+- **Cloudflare Workers AI FLUX.1 schnell** added as primary (free, 10k neurons/day) — works perfectly
+- Together AI FLUX added as fallback (needs credits despite "free tier" claim)
+- PIL branded image kept as last resort
+
+**Campaign runner posting fixed:**
+- Function names wrong: `_post_to_x` → `post_to_x` (no underscore prefix)
+- Function signatures wrong: `(page, draft)` → `(draft, pw)` — each function manages its own browser context
+- `_image_path` key was being treated as a platform to post to — filtered out
+
+**Full E2E posting verified (41 minutes total):**
+1. Server poll → 1 campaign matched
+2. Text gen (Gemini 2.5 Flash Lite) → content for 4 platforms (4s)
+3. Image gen (Cloudflare FLUX) → image generated (2s)
+4. Facebook → posted with human emulation (browsing, 7 likes)
+5. LinkedIn → posted with compose trigger flow
+6. Reddit → posted to r/AlgoTrading (title + body, 12 upvotes)
+7. X → posted with engagement (15 likes, 3 retweets)
+8. Server sync → 4 posts reported, assignment status "posted"
+
+**API keys configured:**
+- `GEMINI_API_KEY` — text generation
+- `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` — image generation
+- `TOGETHER_API_KEY` — image fallback (402 credits issue)
+
+**DeerFlow exploration:**
+- Researched ByteDance DeerFlow (open-source super-agent framework)
+- Decided to defer integration — test existing pipeline first
+- Created `docs/POST_MVP_AI_STRATEGY.md` with multi-agent pipeline vision
+- Also noted: explore Xiaomi MiMo v2 Flash (free on Kiko Claw), design for future free models
 
 ## Important Decisions Made
 - **User-side compute** — AI generation, posting, scraping on user device

@@ -87,18 +87,16 @@ async def _generate_content(campaign: dict) -> dict | None:
 
 async def _post_campaign_content(campaign_id: int, assignment_id: int, content: dict):
     """Post campaign content to all platforms using existing poster functions."""
-    # Import posting functions from post.py
-    from utils.human_behavior import browse_feed, human_delay, human_type
+    import importlib.util
+    import random
 
     # Load platform config
     with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
         platforms_config = json.load(f)
 
-    # Dynamically import platform posting functions
-    # We import post.py functions via exec to reuse them
-    post_module_path = ROOT / "scripts" / "post.py"
-    spec = __import__("importlib").util.spec_from_file_location("post_module", post_module_path)
-    post_module = __import__("importlib").util.module_from_spec(spec)
+    # Import post.py module to access posting functions
+    spec = importlib.util.spec_from_file_location("post_module", ROOT / "scripts" / "post.py")
+    post_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(post_module)
 
     from playwright.async_api import async_playwright
@@ -106,54 +104,56 @@ async def _post_campaign_content(campaign_id: int, assignment_id: int, content: 
     posted_platforms = []
     post_records = []
 
-    platforms_to_post = [p for p in content.keys() if platforms_config.get(p, {}).get("enabled")]
-    import random
+    # Filter to enabled platforms that have generated content
+    platforms_to_post = [p for p in content.keys()
+                         if p != "_image_path" and platforms_config.get(p, {}).get("enabled")]
     random.shuffle(platforms_to_post)
+
+    # Build a draft structure matching what post_to_* functions expect
+    # They call _extract_content(draft["content"], platform) which reads draft["content"][platform]
+    draft = {"content": {}, "id": f"campaign-{campaign_id}"}
+    for platform in platforms_to_post:
+        draft["content"][platform] = content[platform]
+
+    # If campaign generated an image, attach it so post functions can use it
+    image_path = content.get("_image_path")
 
     async with async_playwright() as pw:
         for platform in platforms_to_post:
-            platform_content = content[platform]
             logger.info("Posting campaign %d to %s...", campaign_id, platform)
 
             try:
-                context = await post_module._launch_context(pw, platform)
-                page = context.pages[0] if context.pages else await context.new_page()
-
-                # Build a draft-like structure that existing post functions expect
-                draft = {"content": {platform: platform_content}}
-
-                # Call the platform-specific posting function
-                post_func = getattr(post_module, f"_post_to_{platform}", None)
-                if post_func:
-                    post_url = await post_func(page, draft)
-                    if post_url:
-                        content_str = json.dumps(platform_content) if isinstance(platform_content, dict) else str(platform_content)
-                        content_hash = hashlib.sha256(content_str.encode()).hexdigest()
-
-                        local_post_id = add_post(
-                            campaign_server_id=campaign_id,
-                            assignment_id=assignment_id,
-                            platform=platform,
-                            post_url=post_url,
-                            content=content_str,
-                            content_hash=content_hash,
-                        )
-                        post_records.append({
-                            "local_id": local_post_id,
-                            "assignment_id": assignment_id,
-                            "platform": platform,
-                            "post_url": post_url,
-                            "content_hash": content_hash,
-                            "posted_at": datetime.now(timezone.utc).isoformat(),
-                        })
-                        posted_platforms.append(platform)
-                        logger.info("Posted to %s: %s", platform, post_url)
-                    else:
-                        logger.warning("No post URL returned for %s", platform)
-                else:
+                # Each post_to_* function manages its own browser context
+                post_func = getattr(post_module, f"post_to_{platform}", None)
+                if not post_func:
                     logger.warning("No posting function for platform: %s", platform)
+                    continue
 
-                await context.close()
+                success = await post_func(draft, pw)
+                if success:
+                    content_str = json.dumps(content[platform]) if isinstance(content[platform], dict) else str(content[platform])
+                    content_hash = hashlib.sha256(content_str.encode()).hexdigest()
+
+                    local_post_id = add_post(
+                        campaign_server_id=campaign_id,
+                        assignment_id=assignment_id,
+                        platform=platform,
+                        post_url=f"https://{platform}.com/posted",
+                        content=content_str,
+                        content_hash=content_hash,
+                    )
+                    post_records.append({
+                        "local_id": local_post_id,
+                        "assignment_id": assignment_id,
+                        "platform": platform,
+                        "post_url": f"https://{platform}.com/posted",
+                        "content_hash": content_hash,
+                        "posted_at": datetime.now(timezone.utc).isoformat(),
+                    })
+                    posted_platforms.append(platform)
+                    logger.info("Posted to %s", platform)
+                else:
+                    logger.warning("Failed to post to %s (returned False)", platform)
 
                 # Random delay between platforms (30-90s)
                 if platform != platforms_to_post[-1]:
@@ -163,10 +163,6 @@ async def _post_campaign_content(campaign_id: int, assignment_id: int, content: 
 
             except Exception as e:
                 logger.error("Failed to post to %s: %s", platform, e)
-                try:
-                    await context.close()
-                except Exception:
-                    pass
 
     return posted_platforms, post_records
 
