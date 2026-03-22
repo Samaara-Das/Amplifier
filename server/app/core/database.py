@@ -24,11 +24,7 @@ elif _db_url.startswith("postgresql"):
     _ssl_ctx = ssl.create_default_context()
     _ssl_ctx.check_hostname = False
     _ssl_ctx.verify_mode = ssl.CERT_NONE
-    _engine_kwargs["connect_args"] = {
-        "ssl": _ssl_ctx,
-        # Required when using pgbouncer (Supabase pooler on port 6543)
-        "prepared_statement_cache_size": 0,
-    }
+    _engine_kwargs["connect_args"] = {"ssl": _ssl_ctx}
     # NullPool is recommended for serverless — no persistent connections
     _engine_kwargs["poolclass"] = NullPool
 
