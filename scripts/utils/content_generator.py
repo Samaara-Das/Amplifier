@@ -146,8 +146,8 @@ async def _pollinations_image(prompt: str, output_path: str) -> str:
 def _pil_fallback_image(campaign_title: str, output_path: str) -> str:
     """Generate a branded image using PIL (last resort)."""
     try:
-        from utils.image_generator import generate_branded_image
-        return generate_branded_image(campaign_title, output_path)
+        from utils.image_generator import generate_landscape_image
+        return str(generate_landscape_image(campaign_title, output_path))
     except Exception:
         # Minimal PIL fallback if image_generator fails
         from PIL import Image, ImageDraw, ImageFont

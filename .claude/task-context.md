@@ -155,5 +155,18 @@ python scripts/review_dashboard.py  # http://localhost:5111
 ```
 
 ### Session 12 (2026-03-22) — MVP Build (Ralph autonomous agent)
-- **Phase 1**: Critical Fixes — added httpx, google-genai, mistralai, groq, praw, browser-use, langchain-google-genai to requirements.txt. Made server URL configurable in server_client.py (defaults to Vercel URL). Disabled TikTok + Instagram in platforms.json. Added API key fields to config/.env.
-- **Phase 2**: PostgreSQL Support — updated database.py with SSL support for Supabase/cloud PostgreSQL (ssl context, connection pooling, pool_pre_ping). Updated main.py to always init tables (idempotent for both SQLite and PostgreSQL). Updated server/.env.example with Supabase connection string format. JWT_SECRET_KEY and ADMIN_PASSWORD already set on Vercel. DATABASE_URL pending Supabase project creation (user action needed — code is ready).
+Ralph script executed 6 iterations, completing Phases 1-7 of the MVP spec. Phase 8 (Integration Testing) not completed.
+
+- **Phase 1** (commit 7200492): Critical Fixes — added httpx, google-genai, mistralai, groq, praw, browser-use, langchain-google-genai to requirements.txt. Made server URL configurable in server_client.py (defaults to Vercel URL). Disabled TikTok + Instagram in platforms.json. Added API key fields to config/.env.
+- **Phase 2** (commit 81e3043): PostgreSQL Support — updated database.py with SSL support for Supabase/cloud PostgreSQL (ssl context, connection pooling, pool_pre_ping). Updated main.py to always init tables (idempotent for both SQLite and PostgreSQL). Updated server/.env.example with Supabase connection string format.
+- **Phase 3** (commit 5fbc51d): Content Generation via Free AI APIs — new `scripts/utils/content_generator.py` with fallback chain (Gemini → Mistral → Groq). Updated campaign_runner.py to use ContentGenerator instead of PowerShell.
+- **Phase 4** (commit c54cdee): Region + Category Matching — added audience_region to User model, updated matching algorithm with region filter, updated company dashboard campaign creation form with targeting fields, updated onboarding + user profile endpoint.
+- **Phase 5** (commit 11cfa34): Hybrid Metric Collection — new `scripts/utils/metric_collector.py` with X API + Reddit API + Browser Use for LinkedIn/Facebook. Updated metric_scraper.py to use MetricCollector.
+- **Phase 6** (commit b38e180): Dashboard Polish — user dashboard UI improvements (cards, spacing, typography, status badges), post editing flow (edit text/hashtags/image per platform before approving), company dashboard influencer visibility (assigned users, handles, engagement stats per user).
+- **Phase 7** (commit f23293b): Installer Fixes — fixed Playwright install command in installer.iss, updated PyInstaller spec with new hidden imports, improved installer (icon, don't delete user data on uninstall).
+
+**Not completed**: Phase 8 (Integration Testing) — requires Supabase setup, test campaign creation, and E2E user flow testing on deployed server.
+
+**MVP spec finalized**: `mvp.md` at repo root is the source of truth for MVP scope and implementation plan.
+
+**Unstaged changes**: `scripts/utils/content_generator.py` and `vercel.json` show as modified in git status.
