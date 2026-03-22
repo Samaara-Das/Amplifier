@@ -24,10 +24,14 @@ elif _db_url.startswith("postgresql"):
     _ssl_ctx = ssl.create_default_context()
     _ssl_ctx.check_hostname = False
     _ssl_ctx.verify_mode = ssl.CERT_NONE
-    _engine_kwargs["connect_args"] = {"ssl": _ssl_ctx}
-    # Connection pooling settings for serverless (Vercel)
-    _engine_kwargs["pool_size"] = 5
-    _engine_kwargs["max_overflow"] = 10
+    _engine_kwargs["connect_args"] = {
+        "ssl": _ssl_ctx,
+        # Required for pgbouncer (Supabase transaction pooler on port 6543)
+        "prepared_statement_cache_size": 0,
+    }
+    # Serverless: keep pool small, pre-ping to detect stale connections
+    _engine_kwargs["pool_size"] = 2
+    _engine_kwargs["max_overflow"] = 3
     _engine_kwargs["pool_pre_ping"] = True
 
 engine = create_async_engine(_db_url, **_engine_kwargs)
