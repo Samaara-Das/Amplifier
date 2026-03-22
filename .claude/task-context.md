@@ -165,8 +165,37 @@ Ralph script executed 6 iterations, completing Phases 1-7 of the MVP spec. Phase
 - **Phase 6** (commit b38e180): Dashboard Polish — user dashboard UI improvements (cards, spacing, typography, status badges), post editing flow (edit text/hashtags/image per platform before approving), company dashboard influencer visibility (assigned users, handles, engagement stats per user).
 - **Phase 7** (commit f23293b): Installer Fixes — fixed Playwright install command in installer.iss, updated PyInstaller spec with new hidden imports, improved installer (icon, don't delete user data on uninstall).
 
-**Not completed**: Phase 8 (Integration Testing) — requires Supabase setup, test campaign creation, and E2E user flow testing on deployed server.
+- **Phase 8** (session 13): Integration Testing via Chrome DevTools — full E2E flow verified on deployed server.
 
 **MVP spec finalized**: `mvp.md` at repo root is the source of truth for MVP scope and implementation plan.
 
-**Unstaged changes**: `scripts/utils/content_generator.py` and `vercel.json` show as modified in git status.
+### Session 13 (2026-03-22) — Integration Testing (Phase 8)
+Tested the full MVP cycle on the deployed Vercel server via Chrome DevTools MCP.
+
+**What was tested (all PASSED):**
+- Company registration + login (web dashboard)
+- Company billing top-up ($500 added)
+- Campaign creation with title, brief, content guidance, budget, dates, payout rules, targeting (US region, finance+tech categories, X platform required)
+- Campaign activation (draft → active)
+- User registration via API
+- User profile update (platforms with `connected: true`, follower_counts, niche_tags, audience_region)
+- Campaign matching — user polled `/api/campaigns/mine`, got matched with 2.0x multiplier
+- Post registration — 2 posts (X + LinkedIn) registered via `/api/posts`
+- Metric submission — impressions, likes, reposts, comments, clicks via `/api/metrics`
+- Billing cycle — triggered via admin, calculated $49.76 user earnings from 12,700 impressions + 249 engagement
+- User earnings API — confirmed $49.76 total_earned
+- Company campaign detail — shows 12,700 impressions, 249 engagement, $62.20 spent, 62.2% budget used
+- Platform breakdown table — per-platform posts, impressions, likes, reposts, comments, clicks
+- Creators section — shows creator email, platform handles, connected platforms, assignment status, clickable post URLs, per-user impressions + engagement
+- Admin dashboard — overview (1 user, 1 campaign, 2 posts), users page (trust score, mode, platforms, earnings), payouts page (billing cycle results)
+
+**Bugs found and fixed:**
+1. **vercel.json rootDirectory removed** — Ralph agent accidentally deleted `rootDirectory: "server"` which would break deployment. Reverted. (commit d4150e0)
+2. **content_generator.py PIL import** — `generate_branded_image` → `generate_landscape_image` fix. (commit d4150e0)
+3. **Stale Vercel deployment** — Phase 4-7 template changes (Target Regions, Categories, Creators section) weren't deployed. Redeployed.
+
+**Issues found (not fixed — need user action):**
+1. **Company login fails after registration** — registering works and redirects to dashboard, but logging in with the same credentials fails ("Invalid email or password"). Password hashing or verification issue. Needs investigation.
+2. **Database still using SQLite in /tmp/** — data is lost on every Vercel redeploy/cold start. The `DATABASE_URL` env var may not be set on Vercel, or the Supabase connection isn't working. User said Supabase is set up but data doesn't persist.
+3. **Admin password changed** — `ADMIN_PASSWORD` env var is set on Vercel (encrypted) but the value is unknown. Default "admin" no longer works.
+4. **Niche Tags field redundant** — campaign form has both "Niche Tags" (free text, old) and "Categories" (checkboxes, new from Phase 4). Should remove the old Niche Tags field to avoid confusion.
