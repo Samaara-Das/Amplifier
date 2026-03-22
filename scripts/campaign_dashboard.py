@@ -830,6 +830,8 @@ DASHBOARD_HTML = r"""
         document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
         document.getElementById('tab-' + tab).classList.add('active');
         el.classList.add('active');
+        // Clear flash messages on tab switch
+        document.querySelectorAll('.alert').forEach(function(a){ a.remove(); });
         // remember last tab
         try { sessionStorage.setItem('activeTab', tab); } catch(e){}
     }

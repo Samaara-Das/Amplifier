@@ -27,30 +27,30 @@
         <div class="card-title">Campaign Details</div>
         <div class="form-group">
             <label for="title">Title</label>
-            <input type="text" id="title" name="title" class="form-control" placeholder="e.g. Spring Product Launch" required>
+            <input type="text" id="title" name="title" class="form-control" placeholder="e.g. Spring Product Launch" required value="{{ form.title if form else '' }}">
         </div>
         <div class="form-group">
             <label for="brief">Brief</label>
-            <textarea id="brief" name="brief" class="form-control" placeholder="Describe what you want creators to post about..." required></textarea>
+            <textarea id="brief" name="brief" class="form-control" placeholder="Describe what you want creators to post about..." required>{{ form.brief if form else '' }}</textarea>
         </div>
         <div class="form-group">
             <label for="content_guidance">Content Guidance</label>
-            <textarea id="content_guidance" name="content_guidance" class="form-control" placeholder="Tone, must-include phrases, forbidden phrases..."></textarea>
+            <textarea id="content_guidance" name="content_guidance" class="form-control" placeholder="Tone, must-include phrases, forbidden phrases...">{{ form.content_guidance if form else '' }}</textarea>
             <div class="form-help">Optional. Provide tone, must-include phrases, or content restrictions.</div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="budget">Budget ($)</label>
-                <input type="number" id="budget" name="budget" class="form-control" min="1" step="0.01" placeholder="500.00" required>
+                <input type="number" id="budget" name="budget" class="form-control" min="1" step="0.01" placeholder="500.00" required value="{{ form.budget if form else '' }}">
                 <div class="form-help">Current balance: ${{ "%.2f"|format(company.balance|float) }}</div>
             </div>
             <div class="form-group">
                 <label for="start_date">Start Date</label>
-                <input type="datetime-local" id="start_date" name="start_date" class="form-control" required>
+                <input type="datetime-local" id="start_date" name="start_date" class="form-control" required value="{{ form.start_date if form else '' }}">
             </div>
             <div class="form-group">
                 <label for="end_date">End Date</label>
-                <input type="datetime-local" id="end_date" name="end_date" class="form-control" required>
+                <input type="datetime-local" id="end_date" name="end_date" class="form-control" required value="{{ form.end_date if form else '' }}">
             </div>
         </div>
     </div>
@@ -61,21 +61,21 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="rate_per_1k_impressions">Per 1K Impressions ($)</label>
-                <input type="number" id="rate_per_1k_impressions" name="rate_per_1k_impressions" class="form-control" min="0" step="0.01" value="0.50">
+                <input type="number" id="rate_per_1k_impressions" name="rate_per_1k_impressions" class="form-control" min="0" step="0.01" value="{{ form.rate_per_1k_impressions if form else '0.50' }}">
             </div>
             <div class="form-group">
                 <label for="rate_per_like">Per Like ($)</label>
-                <input type="number" id="rate_per_like" name="rate_per_like" class="form-control" min="0" step="0.01" value="0.01">
+                <input type="number" id="rate_per_like" name="rate_per_like" class="form-control" min="0" step="0.01" value="{{ form.rate_per_like if form else '0.01' }}">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="rate_per_repost">Per Repost ($)</label>
-                <input type="number" id="rate_per_repost" name="rate_per_repost" class="form-control" min="0" step="0.01" value="0.05">
+                <input type="number" id="rate_per_repost" name="rate_per_repost" class="form-control" min="0" step="0.01" value="{{ form.rate_per_repost if form else '0.05' }}">
             </div>
             <div class="form-group">
                 <label for="rate_per_click">Per Click ($)</label>
-                <input type="number" id="rate_per_click" name="rate_per_click" class="form-control" min="0" step="0.01" value="0.10">
+                <input type="number" id="rate_per_click" name="rate_per_click" class="form-control" min="0" step="0.01" value="{{ form.rate_per_click if form else '0.10' }}">
             </div>
         </div>
     </div>
@@ -84,7 +84,7 @@
         <div class="card-title">Targeting</div>
         <div class="form-group">
             <label for="min_followers_json">Minimum Followers (JSON)</label>
-            <input type="text" id="min_followers_json" name="min_followers_json" class="form-control" placeholder='{"x": 100, "linkedin": 50}' value="{}">
+            <input type="text" id="min_followers_json" name="min_followers_json" class="form-control" placeholder='{"x": 100, "linkedin": 50}' value="{{ form.min_followers_json if form else '{}' }}">
             <div class="form-help">JSON object mapping platform to minimum follower count. e.g. {"x": 100, "linkedin": 50}</div>
         </div>
         <div class="form-group">
@@ -92,7 +92,7 @@
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
                 {% for region, label in [('us', 'US'), ('uk', 'UK'), ('india', 'India'), ('eu', 'EU'), ('latam', 'Latin America'), ('sea', 'Southeast Asia'), ('global', 'Global')] %}
                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
-                    <input type="checkbox" name="target_regions" value="{{ region }}" style="accent-color: #10b981;">
+                    <input type="checkbox" name="target_regions" value="{{ region }}" style="accent-color: #10b981;" {{ 'checked' if form and region in form.target_regions }}>
                     {{ label }}
                 </label>
                 {% endfor %}
@@ -104,7 +104,7 @@
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
                 {% for cat in ['beauty', 'fashion', 'tech', 'finance', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
-                    <input type="checkbox" name="niche_tags" value="{{ cat }}" style="accent-color: #10b981;">
+                    <input type="checkbox" name="niche_tags" value="{{ cat }}" style="accent-color: #10b981;" {{ 'checked' if form and cat in form.niche_tags }}>
                     {{ cat|capitalize }}
                 </label>
                 {% endfor %}
@@ -116,7 +116,7 @@
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
                 {% for platform in ['x', 'linkedin', 'facebook', 'reddit', 'tiktok', 'instagram'] %}
                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
-                    <input type="checkbox" name="required_platforms" value="{{ platform }}" style="accent-color: #10b981;">
+                    <input type="checkbox" name="required_platforms" value="{{ platform }}" style="accent-color: #10b981;" {{ 'checked' if form and platform in form.required_platforms }}>
                     {{ platform|capitalize }}
                 </label>
                 {% endfor %}
