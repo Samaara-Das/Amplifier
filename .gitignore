@@ -39,3 +39,4 @@ data/
 # Task files
 # tasks.json
 # tasks/ 
+.vercel

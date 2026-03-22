@@ -17,7 +17,7 @@ AUTH_FILE = CONFIG_DIR / "server_auth.json"
 
 
 def _get_server_url() -> str:
-    return os.getenv("CAMPAIGN_SERVER_URL", "http://localhost:8000")
+    return os.getenv("CAMPAIGN_SERVER_URL", "https://server-five-omega-23.vercel.app")
 
 
 def _load_auth() -> dict:

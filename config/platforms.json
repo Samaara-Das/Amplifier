@@ -22,7 +22,7 @@
     "name": "Instagram",
     "home_url": "https://www.instagram.com/",
     "timeout_seconds": 30,
-    "enabled": true
+    "enabled": false
   },
   "reddit": {
     "name": "Reddit",
@@ -36,7 +36,7 @@
     "home_url": "https://www.tiktok.com/",
     "upload_url": "https://www.tiktok.com/creator#/upload?scene=creator_center",
     "timeout_seconds": 30,
-    "enabled": true,
+    "enabled": false,
     "note": "TikTok is blocked in India. Connect Surfshark VPN to a non-India server before running poster."
   }
 }

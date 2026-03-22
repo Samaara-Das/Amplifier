@@ -2,3 +2,16 @@ playwright>=1.40.0
 python-dotenv>=1.0.0
 Pillow>=10.0.0
 flask>=3.0.0
+
+# Server communication
+httpx>=0.28.0
+
+# Content generation (free AI API fallback chain)
+google-genai>=1.0.0
+mistralai>=1.0.0
+groq>=0.4.0
+
+# Metric collection
+praw>=7.7.0
+browser-use>=0.1.0
+langchain-google-genai>=2.0.0
