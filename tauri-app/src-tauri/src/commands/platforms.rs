@@ -13,6 +13,16 @@ pub async fn connect_platform(
     sidecar.call("connect_platform", json!({"platform": platform}))
 }
 
+/// Disconnect a platform (remove profile)
+#[tauri::command]
+pub async fn disconnect_platform(
+    state: State<'_, AppState>,
+    platform: String,
+) -> Result<Value, String> {
+    let mut sidecar = state.sidecar.lock().await;
+    sidecar.call("disconnect_platform", json!({"platform": platform}))
+}
+
 /// Trigger a profile re-scrape for a platform
 #[tauri::command]
 pub async fn refresh_profile(

@@ -14,11 +14,25 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            // Determine project root (parent of tauri-app/)
-            let project_root = std::env::current_dir()
-                .ok()
-                .and_then(|p| p.parent().map(|pp| pp.to_path_buf()))
-                .unwrap_or_else(|| std::env::current_dir().unwrap());
+            // Determine project root by walking up from cwd until we find scripts/sidecar_main.py.
+            // During `tauri dev`, cwd could be tauri-app/ or tauri-app/src-tauri/.
+            let project_root = {
+                let cwd = std::env::current_dir().unwrap();
+                let mut candidate = cwd.as_path();
+                loop {
+                    if candidate.join("scripts").join("sidecar_main.py").exists() {
+                        break candidate.to_path_buf();
+                    }
+                    match candidate.parent() {
+                        Some(parent) => candidate = parent,
+                        None => {
+                            // Fallback: hardcoded project root for development
+                            log::warn!("Could not find project root by walking up from {:?}, using fallback", cwd);
+                            break std::path::PathBuf::from("C:\\Users\\dassa\\Work\\Auto-Posting-System");
+                        }
+                    }
+                }
+            };
 
             let project_root_str = project_root.to_string_lossy().to_string();
             info!("Project root: {}", project_root_str);
@@ -59,19 +73,39 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Dashboard
             commands::dashboard::get_status,
             commands::dashboard::poll_campaigns,
             commands::dashboard::ping_sidecar,
+            // Auth & onboarding
+            commands::auth::register,
+            commands::auth::login,
+            commands::auth::scrape_platform,
+            commands::auth::classify_niches,
+            commands::auth::save_onboarding,
+            // Campaigns
             commands::campaigns::get_invitations,
             commands::campaigns::accept_invitation,
             commands::campaigns::reject_invitation,
             commands::campaigns::get_campaigns,
             commands::campaigns::get_completed_campaigns,
+            // Posts
+            commands::posts::get_posts,
+            commands::posts::edit_content,
+            commands::posts::regenerate_content,
+            commands::posts::approve_content,
+            commands::posts::skip_content,
+            commands::posts::cancel_scheduled,
+            commands::posts::retry_failed,
+            // Earnings
             commands::earnings::get_earnings,
             commands::earnings::request_payout,
+            // Settings
             commands::settings::get_settings,
             commands::settings::update_settings,
+            // Platforms
             commands::platforms::connect_platform,
+            commands::platforms::disconnect_platform,
             commands::platforms::refresh_profile,
         ])
         .run(tauri::generate_context!())

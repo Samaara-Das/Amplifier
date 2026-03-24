@@ -133,8 +133,6 @@ def handle_get_status(params):
         # Get recent activity (last 10 events)
         recent_activity = _get_recent_activity(conn)
 
-        conn.close()
-
         logged_in = False
         try:
             logged_in = is_logged_in()
@@ -157,6 +155,8 @@ def handle_get_status(params):
                 onboarding_done = False
         except Exception:
             pass
+
+        conn.close()
 
         try:
             from utils.server_client import _load_auth
