@@ -3,6 +3,7 @@ logs/
 drafts/posted/
 drafts/failed/
 config/.env
+config/server_auth.json
 __pycache__/
 *.pyc
 .venv/
