@@ -50,20 +50,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/migrate/payout-nullable")
-async def migrate_payout_nullable():
-    """One-time: make payouts.campaign_id nullable for aggregate payouts."""
-    from app.core.database import engine
-    from sqlalchemy import text
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text(
-                "ALTER TABLE payouts ALTER COLUMN campaign_id DROP NOT NULL"
-            ))
-        return {"status": "ok", "message": "payouts.campaign_id is now nullable"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
 
 
 
