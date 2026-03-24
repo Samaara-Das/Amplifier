@@ -27,6 +27,7 @@ elif _db_url.startswith("postgresql"):
     _engine_kwargs["connect_args"] = {
         "ssl": _ssl_ctx,
         # Required for Supabase transaction pooler (pgbouncer on port 6543)
+        "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
     }
     # NullPool is recommended for serverless — no persistent connections

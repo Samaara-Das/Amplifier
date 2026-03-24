@@ -50,31 +50,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/debug/db")
-async def debug_db():
-    """Temporary: test DB connectivity and run admin overview queries."""
-    from app.core.database import async_session
-    from sqlalchemy import text
-    import traceback
-    results = {}
-    async with async_session() as db:
-        queries = {
-            "tables": "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
-            "user_count": "SELECT count(*) FROM users",
-            "campaign_count": "SELECT count(*) FROM campaigns",
-            "post_count": "SELECT count(*) FROM posts",
-            "payout_sum": "SELECT coalesce(sum(amount), 0) FROM payouts",
-            "budget_spent": "SELECT coalesce(sum(budget_total - budget_remaining), 0) FROM campaigns",
-            "recent_assignments": "SELECT ca.id, u.email, c.title, ca.status, ca.assigned_at FROM campaign_assignments ca JOIN users u ON ca.user_id = u.id JOIN campaigns c ON ca.campaign_id = c.id ORDER BY ca.assigned_at DESC LIMIT 5",
-        }
-        for name, sql in queries.items():
-            try:
-                r = await db.execute(text(sql))
-                rows = r.fetchall()
-                results[name] = [list(row) for row in rows]
-            except Exception as e:
-                results[name] = f"ERROR: {e}\n{traceback.format_exc()}"
-    return results
 
 
 @app.get("/api/version")
