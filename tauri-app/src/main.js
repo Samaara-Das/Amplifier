@@ -2533,7 +2533,7 @@ const OB_PLATFORM_NAMES = {
 };
 
 const OB_ALL_NICHES = [
-  'finance', 'tech', 'beauty', 'fashion', 'fitness', 'gaming',
+  'finance', 'tech', 'ai', 'beauty', 'fashion', 'fitness', 'gaming',
   'food', 'travel', 'education', 'lifestyle', 'business',
   'health', 'entertainment', 'crypto',
 ];

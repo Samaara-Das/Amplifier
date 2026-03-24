@@ -103,7 +103,7 @@
         <div class="form-group">
             <label>Categories</label>
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
-                {% for cat in ['beauty', 'fashion', 'tech', 'finance', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
+                {% for cat in ['finance', 'tech', 'ai', 'beauty', 'fashion', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
                     <input type="checkbox" name="niche_tags" value="{{ cat }}" style="accent-color: #2563eb;" {{ 'checked' if form and cat in form.niche_tags }}>
                     {{ cat|capitalize }}

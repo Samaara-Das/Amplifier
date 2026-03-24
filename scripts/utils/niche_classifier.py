@@ -27,7 +27,7 @@ from utils.server_client import update_profile
 logger = logging.getLogger(__name__)
 
 VALID_NICHES = [
-    "finance", "tech", "beauty", "fashion", "fitness", "gaming",
+    "finance", "tech", "ai", "beauty", "fashion", "fitness", "gaming",
     "food", "travel", "education", "lifestyle", "business",
     "health", "entertainment", "crypto",
 ]

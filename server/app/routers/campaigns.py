@@ -44,9 +44,7 @@ async def create_campaign(
             status_code=400,
             detail=f"Minimum campaign budget is ${MINIMUM_CAMPAIGN_BUDGET:.2f}",
         )
-    if float(company.balance) < data.budget_total:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
-
+    # Drafts don't require balance — only deduct on activation
     campaign = Campaign(
         company_id=company.id,
         title=data.title,
@@ -63,9 +61,6 @@ async def create_campaign(
         status="draft",
     )
     db.add(campaign)
-
-    # Deduct budget from company balance
-    company.balance = float(company.balance) - data.budget_total
     await db.flush()
 
     # ── Content screening ─────────────────────────────────────────
@@ -323,6 +318,14 @@ async def update_campaign(
                 status_code=400,
                 detail="Campaign was rejected during content review and cannot be activated.",
             )
+        # Deduct budget on activation (not on draft creation)
+        if data.status == "active" and campaign.status == "draft":
+            if float(company.balance) < float(campaign.budget_total):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient balance (${float(company.balance):.2f}) to activate campaign (${float(campaign.budget_total):.2f} required). Add funds first.",
+                )
+            company.balance = float(company.balance) - float(campaign.budget_total)
 
         campaign.status = data.status
 
