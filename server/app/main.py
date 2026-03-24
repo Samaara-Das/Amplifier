@@ -50,6 +50,24 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/debug/db")
+async def debug_db():
+    """Temporary: test DB connectivity and table existence."""
+    from app.core.database import get_db, engine
+    from sqlalchemy import text
+    results = {}
+    try:
+        async with engine.connect() as conn:
+            # Check which tables exist
+            r = await conn.execute(text(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+            ))
+            results["tables"] = [row[0] for row in r.fetchall()]
+    except Exception as e:
+        results["error"] = str(e)
+    return results
+
+
 @app.get("/api/version")
 async def version():
     """Version endpoint for auto-update checks."""
