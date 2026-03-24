@@ -320,14 +320,14 @@ async def campaign_create_submit(
             error="Minimum campaign budget is $50.00",
         )
 
-    # Validate budget against balance
-    if float(company.balance) < budget:
+    # Validate budget against balance — only for active campaigns, not drafts
+    if campaign_status == "active" and float(company.balance) < budget:
         return _render(
             "company/campaign_wizard.html",
             status_code=400,
             company=company,
             active="create",
-            error=f"Insufficient balance. Current balance: ${float(company.balance):.2f}",
+            error=f"Insufficient balance to activate. Current balance: ${float(company.balance):.2f}. Save as draft instead, then add funds.",
         )
 
     campaign = Campaign(
@@ -357,8 +357,9 @@ async def campaign_create_submit(
     )
     db.add(campaign)
 
-    # Deduct budget from company balance
-    company.balance = float(company.balance) - budget
+    # Deduct budget from company balance — only when activating, not for drafts
+    if campaign_status == "active":
+        company.balance = float(company.balance) - budget
     await db.flush()
 
     return RedirectResponse(url="/company/", status_code=302)
