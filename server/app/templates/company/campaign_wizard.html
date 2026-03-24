@@ -1,0 +1,1039 @@
+{% extends "base.html" %}
+
+{% block title %}Create Campaign — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Amplifier for Business{% endblock %}
+
+{% block nav %}
+<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></svg> Campaigns</a></li>
+<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg> Create Campaign</a></li>
+<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg> Billing</a></li>
+<li><a href="/company/stats" class="{% if active == 'stats' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg> Statistics</a></li>
+<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg> Settings</a></li>
+<div class="sidebar-section" style="margin-top: 24px;"></div>
+<li><a href="/company/logout"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg> Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create Campaign</h1>
+</div>
+
+<!-- Step indicator -->
+<div class="wizard-steps" id="wizardSteps">
+    <div class="wizard-step active" data-step="1">
+        <div class="step-number">1</div>
+        <div class="step-label">Basics</div>
+    </div>
+    <div class="wizard-connector"></div>
+    <div class="wizard-step" data-step="2">
+        <div class="step-number">2</div>
+        <div class="step-label">Audience</div>
+    </div>
+    <div class="wizard-connector"></div>
+    <div class="wizard-step" data-step="3">
+        <div class="step-number">3</div>
+        <div class="step-label">Content</div>
+    </div>
+    <div class="wizard-connector"></div>
+    <div class="wizard-step" data-step="4">
+        <div class="step-number">4</div>
+        <div class="step-label">Review</div>
+    </div>
+</div>
+
+<!-- Error alert (shared) -->
+<div class="alert alert-error" id="wizardError" style="display:none;"></div>
+
+<!-- ═══════════ Step 1: Campaign Basics ═══════════ -->
+<div class="wizard-panel" id="step1">
+    <div class="card">
+        <div class="card-title">What are you promoting?</div>
+        <div class="form-group">
+            <label for="productDescription">Describe your product or service</label>
+            <textarea id="productDescription" class="form-control" placeholder="e.g. We're launching a new AI-powered budgeting app for freelancers. It connects to bank accounts, categorizes expenses, and forecasts cash flow..." rows="4"></textarea>
+            <div class="form-help">Be specific. The more detail you give, the better the AI-generated campaign will be.</div>
+        </div>
+        <div class="form-group">
+            <label>What's the main goal?</label>
+            <div class="radio-group">
+                <label class="radio-card">
+                    <input type="radio" name="campaignGoal" value="brand_awareness">
+                    <div class="radio-card-inner">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                        <span>Brand Awareness</span>
+                        <small>Get your brand in front of new audiences</small>
+                    </div>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="campaignGoal" value="product_launch">
+                    <div class="radio-card-inner">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/></svg>
+                        <span>Product Launch</span>
+                        <small>Generate buzz for a new product or feature</small>
+                    </div>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="campaignGoal" value="event_promotion">
+                    <div class="radio-card-inner">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                        <span>Event Promotion</span>
+                        <small>Drive attendance or registrations</small>
+                    </div>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="campaignGoal" value="lead_generation">
+                    <div class="radio-card-inner">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg>
+                        <span>Lead Generation</span>
+                        <small>Collect signups, downloads, or inquiries</small>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Company / product page URLs <span style="color:#64748b; font-weight:400;">(optional)</span></label>
+            <div class="form-help" style="margin-bottom:8px;">We'll scan these pages to enrich your campaign brief automatically.</div>
+            <div id="urlContainer">
+                <div class="url-row">
+                    <input type="url" class="form-control url-input" placeholder="https://example.com">
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="addUrlBtn" style="margin-top:8px;">+ Add another URL</button>
+        </div>
+    </div>
+    <div class="wizard-actions">
+        <div></div>
+        <button type="button" class="btn btn-primary" onclick="goToStep(2)">Next <span style="margin-left:4px;">&rarr;</span></button>
+    </div>
+</div>
+
+<!-- ═══════════ Step 2: Target Audience ═══════════ -->
+<div class="wizard-panel" id="step2" style="display:none;">
+    <div class="card">
+        <div class="card-title">Who should post about this?</div>
+        <div class="form-group">
+            <label>Select relevant categories</label>
+            <div class="checkbox-grid">
+                {% for cat in ['finance', 'tech', 'beauty', 'fashion', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
+                <label class="chip-checkbox">
+                    <input type="checkbox" name="nicheTag" value="{{ cat }}">
+                    <span class="chip">{{ cat|capitalize }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Target regions</label>
+            <div class="checkbox-grid">
+                {% for val, label in [('us', 'US'), ('uk', 'UK'), ('india', 'India'), ('eu', 'EU'), ('latam', 'Latin America'), ('sea', 'Southeast Asia'), ('global', 'Global')] %}
+                <label class="chip-checkbox">
+                    <input type="checkbox" name="targetRegion" value="{{ val }}">
+                    <span class="chip">{{ label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Required platforms</label>
+            <div class="checkbox-grid">
+                {% for plat in ['x', 'linkedin', 'facebook', 'reddit'] %}
+                <label class="chip-checkbox">
+                    <input type="checkbox" name="requiredPlatform" value="{{ plat }}" onchange="updateFollowerInputs()">
+                    <span class="chip">{{ plat|capitalize }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-group" id="followerInputsContainer" style="display:none;">
+            <label>Minimum followers per platform</label>
+            <div class="form-help" style="margin-bottom:8px;">Set the minimum follower count required for each platform.</div>
+            <div id="followerInputs" class="form-row" style="flex-wrap:wrap;"></div>
+        </div>
+    </div>
+    <div class="wizard-actions">
+        <button type="button" class="btn btn-secondary" onclick="goToStep(1)">&larr; Back</button>
+        <button type="button" class="btn btn-primary" onclick="goToStep(3)">Next <span style="margin-left:4px;">&rarr;</span></button>
+    </div>
+</div>
+
+<!-- ═══════════ Step 3: Content Direction ═══════════ -->
+<div class="wizard-panel" id="step3" style="display:none;">
+    <div class="card">
+        <div class="card-title">Content direction</div>
+        <div class="form-group">
+            <label>What tone should the posts have?</label>
+            <div class="radio-group radio-group-horizontal">
+                {% for val, label in [('professional', 'Professional'), ('casual', 'Casual'), ('funny', 'Funny'), ('educational', 'Educational'), ('inspirational', 'Inspirational')] %}
+                <label class="chip-radio">
+                    <input type="radio" name="tone" value="{{ val }}">
+                    <span class="chip">{{ label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="mustInclude">Must-include phrases, links, or hashtags</label>
+            <textarea id="mustInclude" class="form-control" placeholder="e.g. #FinanceFriday, https://app.example.com/signup, mention free trial..." rows="3"></textarea>
+            <div class="form-help">One per line or comma-separated. These will appear in every post.</div>
+        </div>
+        <div class="form-group">
+            <label for="mustAvoid">Anything to avoid?</label>
+            <textarea id="mustAvoid" class="form-control" placeholder="e.g. Don't mention competitors by name, avoid medical claims..." rows="3"></textarea>
+            <div class="form-help">Topics, phrases, or claims creators should stay away from.</div>
+        </div>
+    </div>
+    <div class="wizard-actions">
+        <button type="button" class="btn btn-secondary" onclick="goToStep(2)">&larr; Back</button>
+        <button type="button" class="btn btn-primary" id="generateBtn" onclick="generateCampaign()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"/></svg>
+            Generate with AI
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════ Step 4: Review & Edit ═══════════ -->
+<div class="wizard-panel" id="step4" style="display:none;">
+    <!-- Loading state -->
+    <div id="generatingSpinner" class="card" style="text-align:center; padding:48px 20px;">
+        <div class="spinner"></div>
+        <h3 style="color:#94a3b8; margin-top:16px;">Generating your campaign...</h3>
+        <p style="color:#64748b; font-size:14px; margin-top:8px;">AI is analyzing your inputs and crafting the perfect campaign brief.</p>
+    </div>
+
+    <!-- Generated results (hidden until AI responds) -->
+    <div id="generatedResults" style="display:none;">
+        <!-- Reach estimate banner -->
+        <div class="reach-banner" id="reachBanner">
+            <div class="reach-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg>
+            </div>
+            <div class="reach-text">
+                <span id="reachMatchCount">--</span> users match your targeting.
+                Estimated reach: <strong><span id="reachImpressions">--</span></strong>
+            </div>
+        </div>
+
+        <form method="post" action="/company/campaigns/new" id="campaignForm">
+            <div class="card">
+                <div class="card-title">Campaign Details</div>
+                <div class="form-group">
+                    <label for="genTitle">Title</label>
+                    <input type="text" id="genTitle" name="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="genBrief">Brief / Description</label>
+                    <textarea id="genBrief" name="brief" class="form-control" rows="4" required></textarea>
+                    <div class="form-help">This is what creators see when deciding whether to accept your campaign.</div>
+                </div>
+                <div class="form-group">
+                    <label for="genGuidance">Content Guidance</label>
+                    <textarea id="genGuidance" name="content_guidance" class="form-control" rows="4"></textarea>
+                    <div class="form-help">Specific instructions for creators: tone, must-include elements, restrictions.</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Payout Rates</div>
+                <div class="form-help" style="margin-bottom:16px;">How much you pay creators per engagement metric. AI-suggested based on your target niches.</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="genRateCpm">Per 1K Impressions ($)</label>
+                        <input type="number" id="genRateCpm" name="rate_per_1k_impressions" class="form-control" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="genRateLike">Per Like ($)</label>
+                        <input type="number" id="genRateLike" name="rate_per_like" class="form-control" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="genRateRepost">Per Repost ($)</label>
+                        <input type="number" id="genRateRepost" name="rate_per_repost" class="form-control" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="genRateClick">Per Click ($)</label>
+                        <input type="number" id="genRateClick" name="rate_per_click" class="form-control" min="0" step="0.01">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Budget & Schedule</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="genBudget">Budget ($)</label>
+                        <input type="number" id="genBudget" name="budget" class="form-control" min="50" step="0.01" required>
+                        <div class="form-help">Minimum $50. Your balance: ${{ "%.2f"|format(company.balance|float) }}</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="genStartDate">Start Date</label>
+                        <input type="datetime-local" id="genStartDate" name="start_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="genEndDate">End Date</label>
+                        <input type="datetime-local" id="genEndDate" name="end_date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 8px;">
+                    <label for="genExhaustionAction">When budget runs out</label>
+                    <select id="genExhaustionAction" name="budget_exhaustion_action" class="form-control">
+                        <option value="auto_pause">Pause campaign (you can top up and resume)</option>
+                        <option value="auto_complete">End campaign (campaign completes when budget is exhausted)</option>
+                    </select>
+                    <div class="form-help">Choose what happens when your campaign budget is fully spent.</div>
+                </div>
+            </div>
+
+            <!-- Hidden fields for targeting data (populated by JS) -->
+            <input type="hidden" name="min_followers_json" id="hiddenMinFollowers" value="{}">
+            <input type="hidden" name="niche_tags" id="hiddenNicheTags" value="">
+            <input type="hidden" name="target_regions" id="hiddenTargetRegions" value="">
+            <input type="hidden" name="required_platforms" id="hiddenRequiredPlatforms" value="">
+
+            <div class="wizard-actions">
+                <button type="button" class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
+                <div style="display:flex; gap:12px;">
+                    <button type="button" class="btn btn-secondary" onclick="regenerateCampaign()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
+                        Regenerate
+                    </button>
+                    <button type="submit" name="campaign_status" value="draft" class="btn btn-secondary">Save as Draft</button>
+                    <button type="submit" name="campaign_status" value="active" class="btn btn-primary">Activate Campaign</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Wizard step indicator */
+    .wizard-steps {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 28px;
+        gap: 0;
+    }
+    .wizard-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        cursor: default;
+    }
+    .step-number {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        background: #1e293b;
+        color: #64748b;
+        border: 2px solid #334155;
+        transition: all 0.3s;
+    }
+    .step-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+        transition: color 0.3s;
+    }
+    .wizard-step.active .step-number {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+        box-shadow: 0 0 12px rgba(37, 99, 235, 0.35);
+    }
+    .wizard-step.active .step-label {
+        color: #e2e8f0;
+    }
+    .wizard-step.completed .step-number {
+        background: #16a34a;
+        color: #fff;
+        border-color: #16a34a;
+    }
+    .wizard-step.completed .step-label {
+        color: #94a3b8;
+    }
+    .wizard-connector {
+        flex: 1;
+        max-width: 80px;
+        height: 2px;
+        background: #334155;
+        margin: 0 8px;
+        margin-bottom: 20px;
+        transition: background 0.3s;
+    }
+    .wizard-connector.completed {
+        background: #16a34a;
+    }
+
+    /* Wizard actions */
+    .wizard-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+    }
+
+    /* Radio card group (goals) */
+    .radio-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 8px;
+    }
+    .radio-card {
+        cursor: pointer;
+    }
+    .radio-card input { display: none; }
+    .radio-card-inner {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 16px;
+        border-radius: 10px;
+        border: 2px solid #334155;
+        background: #0f172a;
+        transition: all 0.2s;
+    }
+    .radio-card-inner svg {
+        color: #64748b;
+        margin-bottom: 4px;
+        transition: color 0.2s;
+    }
+    .radio-card-inner span {
+        font-size: 14px;
+        font-weight: 600;
+        color: #cbd5e1;
+    }
+    .radio-card-inner small {
+        font-size: 12px;
+        color: #64748b;
+    }
+    .radio-card input:checked + .radio-card-inner {
+        border-color: #2563eb;
+        background: rgba(37, 99, 235, 0.08);
+    }
+    .radio-card input:checked + .radio-card-inner svg {
+        color: #3b82f6;
+    }
+    .radio-card input:checked + .radio-card-inner span {
+        color: #f8fafc;
+    }
+    .radio-card:hover .radio-card-inner {
+        border-color: #475569;
+    }
+
+    /* Chip checkboxes & radios */
+    .checkbox-grid, .radio-group-horizontal {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .chip-checkbox input, .chip-radio input { display: none; }
+    .chip {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #94a3b8;
+        background: #1e293b;
+        border: 1px solid #334155;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+    }
+    .chip:hover {
+        border-color: #475569;
+        color: #cbd5e1;
+    }
+    .chip-checkbox input:checked + .chip,
+    .chip-radio input:checked + .chip {
+        background: rgba(37, 99, 235, 0.15);
+        border-color: #2563eb;
+        color: #93c5fd;
+    }
+
+    /* URL rows */
+    .url-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .url-row .form-control { flex: 1; }
+    .url-remove-btn {
+        background: none;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 6px;
+        transition: color 0.2s;
+    }
+    .url-remove-btn:hover { color: #f87171; }
+
+    /* Spinner */
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #334155;
+        border-top: 4px solid #2563eb;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Reach banner */
+    .reach-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 20px;
+        background: rgba(37, 99, 235, 0.08);
+        border: 1px solid rgba(37, 99, 235, 0.25);
+        border-radius: 10px;
+        margin-bottom: 16px;
+    }
+    .reach-icon {
+        color: #3b82f6;
+        flex-shrink: 0;
+    }
+    .reach-text {
+        font-size: 14px;
+        color: #94a3b8;
+    }
+    .reach-text strong {
+        color: #e2e8f0;
+    }
+
+    /* Wizard-specific button overrides */
+    .wizard-panel .btn-primary {
+        background: #2563eb;
+    }
+    .wizard-panel .btn-primary:hover {
+        background: #1d4ed8;
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+    }
+
+    /* Override date input color scheme */
+    input[type="datetime-local"].form-control {
+        color-scheme: dark;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .radio-group { grid-template-columns: 1fr; }
+        .wizard-actions { flex-direction: column; gap: 12px; }
+        .wizard-actions > div { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    "use strict";
+
+    let currentStep = 1;
+    let generatedData = null;
+    let reachDebounceTimer = null;
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function $(sel) { return document.querySelector(sel); }
+    function $$(sel) { return document.querySelectorAll(sel); }
+    function show(el) { if (el) el.style.display = ''; }
+    function hide(el) { if (el) el.style.display = 'none'; }
+
+    function getToken() {
+        // Read JWT from cookie
+        var match = document.cookie.match(/(?:^|;\s*)company_token=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    function showError(msg) {
+        var el = $('#wizardError');
+        el.textContent = msg;
+        show(el);
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideError() {
+        hide($('#wizardError'));
+    }
+
+    function formatNumber(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toString();
+    }
+
+    // ── URL inputs ──────────────────────────────────────────────
+    var addUrlBtn = $('#addUrlBtn');
+    if (addUrlBtn) {
+        addUrlBtn.addEventListener('click', function() {
+            var container = $('#urlContainer');
+            var count = container.querySelectorAll('.url-row').length;
+            if (count >= 3) return;
+            var row = document.createElement('div');
+            row.className = 'url-row';
+            row.innerHTML = '<input type="url" class="form-control url-input" placeholder="https://example.com">' +
+                '<button type="button" class="url-remove-btn" onclick="this.parentElement.remove()" title="Remove">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>';
+            container.appendChild(row);
+            if (container.querySelectorAll('.url-row').length >= 3) {
+                hide(addUrlBtn);
+            }
+        });
+    }
+
+    // ── Follower inputs ─────────────────────────────────────────
+    window.updateFollowerInputs = function() {
+        var container = $('#followerInputs');
+        var wrapper = $('#followerInputsContainer');
+        var checked = $$('input[name="requiredPlatform"]:checked');
+        container.innerHTML = '';
+
+        if (checked.length === 0) {
+            hide(wrapper);
+            return;
+        }
+        show(wrapper);
+
+        checked.forEach(function(cb) {
+            var plat = cb.value;
+            var div = document.createElement('div');
+            div.className = 'form-group';
+            div.style.minWidth = '140px';
+            div.innerHTML = '<label for="minFollowers_' + plat + '">' + plat.charAt(0).toUpperCase() + plat.slice(1) + '</label>' +
+                '<input type="number" id="minFollowers_' + plat + '" class="form-control follower-input" data-platform="' + plat + '" min="0" value="0" placeholder="0">';
+            container.appendChild(div);
+        });
+    };
+
+    // ── Step navigation ─────────────────────────────────────────
+    window.goToStep = function(step) {
+        hideError();
+
+        // Validate current step before advancing
+        if (step > currentStep) {
+            var error = validateStep(currentStep);
+            if (error) {
+                showError(error);
+                return;
+            }
+        }
+
+        // Hide all panels
+        $$('.wizard-panel').forEach(function(p) { hide(p); });
+        // Show target panel
+        show($('#step' + step));
+
+        // Update step indicators
+        var steps = $$('.wizard-step');
+        var connectors = $$('.wizard-connector');
+        steps.forEach(function(s, i) {
+            var sNum = i + 1;
+            s.classList.remove('active', 'completed');
+            if (sNum === step) s.classList.add('active');
+            else if (sNum < step) s.classList.add('completed');
+        });
+        connectors.forEach(function(c, i) {
+            if (i + 1 < step) c.classList.add('completed');
+            else c.classList.remove('completed');
+        });
+
+        currentStep = step;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function validateStep(step) {
+        if (step === 1) {
+            var desc = $('#productDescription').value.trim();
+            if (!desc) return 'Please describe what you are promoting.';
+            if (desc.length < 20) return 'Please provide a more detailed description (at least 20 characters).';
+            var goal = document.querySelector('input[name="campaignGoal"]:checked');
+            if (!goal) return 'Please select a campaign goal.';
+        }
+        if (step === 2) {
+            var niches = $$('input[name="nicheTag"]:checked');
+            if (niches.length === 0) return 'Please select at least one category.';
+            var platforms = $$('input[name="requiredPlatform"]:checked');
+            if (platforms.length === 0) return 'Please select at least one platform.';
+        }
+        if (step === 3) {
+            var tone = document.querySelector('input[name="tone"]:checked');
+            if (!tone) return 'Please select a content tone.';
+        }
+        return null;
+    }
+
+    // ── Collect wizard data ─────────────────────────────────────
+    function collectWizardData() {
+        var urls = [];
+        $$('.url-input').forEach(function(inp) {
+            var v = inp.value.trim();
+            if (v) urls.push(v);
+        });
+
+        var niches = [];
+        $$('input[name="nicheTag"]:checked').forEach(function(cb) {
+            niches.push(cb.value);
+        });
+
+        var regions = [];
+        $$('input[name="targetRegion"]:checked').forEach(function(cb) {
+            regions.push(cb.value);
+        });
+
+        var platforms = [];
+        $$('input[name="requiredPlatform"]:checked').forEach(function(cb) {
+            platforms.push(cb.value);
+        });
+
+        var minFollowers = {};
+        $$('.follower-input').forEach(function(inp) {
+            var plat = inp.dataset.platform;
+            var val = parseInt(inp.value) || 0;
+            if (val > 0) minFollowers[plat] = val;
+        });
+
+        var mustIncludeRaw = $('#mustInclude').value.trim();
+        var mustInclude = mustIncludeRaw ? mustIncludeRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+        var mustAvoidRaw = $('#mustAvoid').value.trim();
+        var mustAvoid = mustAvoidRaw ? mustAvoidRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+        var toneEl = document.querySelector('input[name="tone"]:checked');
+        var goalEl = document.querySelector('input[name="campaignGoal"]:checked');
+
+        return {
+            product_description: $('#productDescription').value.trim(),
+            campaign_goal: goalEl ? goalEl.value : '',
+            company_urls: urls,
+            target_niches: niches,
+            target_regions: regions,
+            required_platforms: platforms,
+            min_followers: minFollowers,
+            tone: toneEl ? toneEl.value : 'professional',
+            must_include: mustInclude,
+            must_avoid: mustAvoid
+        };
+    }
+
+    // ── Generate campaign via AI ────────────────────────────────
+    window.generateCampaign = function() {
+        var error = validateStep(3);
+        if (error) {
+            showError(error);
+            return;
+        }
+        hideError();
+
+        // Move to step 4, show spinner
+        goToStep(4);
+        show($('#generatingSpinner'));
+        hide($('#generatedResults'));
+
+        var token = getToken();
+        if (!token) {
+            showError('Session expired. Please log in again.');
+            return;
+        }
+
+        var data = collectWizardData();
+
+        fetch('/api/company/campaigns/ai-wizard', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(data)
+        })
+        .then(function(resp) {
+            if (!resp.ok) {
+                return resp.json().then(function(err) {
+                    throw new Error(err.detail || 'AI generation failed');
+                });
+            }
+            return resp.json();
+        })
+        .then(function(result) {
+            generatedData = result;
+            populateStep4(result);
+            hide($('#generatingSpinner'));
+            show($('#generatedResults'));
+        })
+        .catch(function(err) {
+            hide($('#generatingSpinner'));
+            show($('#generatedResults'));
+            showError('Generation failed: ' + err.message + '. Default values have been filled in -- you can edit them manually.');
+            populateStep4Defaults(data);
+        });
+    };
+
+    window.regenerateCampaign = function() {
+        show($('#generatingSpinner'));
+        hide($('#generatedResults'));
+        hideError();
+
+        var token = getToken();
+        if (!token) {
+            showError('Session expired. Please log in again.');
+            return;
+        }
+
+        var data = collectWizardData();
+
+        fetch('/api/company/campaigns/ai-wizard', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(data)
+        })
+        .then(function(resp) {
+            if (!resp.ok) {
+                return resp.json().then(function(err) {
+                    throw new Error(err.detail || 'AI generation failed');
+                });
+            }
+            return resp.json();
+        })
+        .then(function(result) {
+            generatedData = result;
+            populateStep4(result);
+            hide($('#generatingSpinner'));
+            show($('#generatedResults'));
+        })
+        .catch(function(err) {
+            hide($('#generatingSpinner'));
+            show($('#generatedResults'));
+            showError('Regeneration failed: ' + err.message);
+        });
+    };
+
+    // ── Populate step 4 with AI result ──────────────────────────
+    function populateStep4(result) {
+        var c = result.generated_campaign || {};
+        var reach = result.reach_estimate || {};
+        var payout = c.payout_rules || {};
+        var targeting = c.targeting || {};
+
+        // Campaign details
+        $('#genTitle').value = c.title || '';
+        $('#genBrief').value = c.brief || '';
+        $('#genGuidance').value = c.content_guidance || '';
+
+        // Payout rates
+        $('#genRateCpm').value = payout.rate_per_1k_impressions || 0.50;
+        $('#genRateLike').value = payout.rate_per_like || 0.01;
+        $('#genRateRepost').value = payout.rate_per_repost || 0.05;
+        $('#genRateClick').value = payout.rate_per_click || 0.10;
+
+        // Budget
+        $('#genBudget').value = c.budget_total || 50;
+
+        // Dates: default to tomorrow -> 30 days from now if not provided
+        var now = new Date();
+        var tomorrow = new Date(now.getTime() + 86400000);
+        var in30 = new Date(now.getTime() + 30 * 86400000);
+
+        function toLocalDatetime(d) {
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            var hh = String(d.getHours()).padStart(2, '0');
+            var mm = String(d.getMinutes()).padStart(2, '0');
+            return y + '-' + m + '-' + dd + 'T' + hh + ':' + mm;
+        }
+
+        if (c.start_date) {
+            // Try to use provided date
+            try {
+                var sd = new Date(c.start_date);
+                $('#genStartDate').value = toLocalDatetime(sd);
+            } catch(e) {
+                $('#genStartDate').value = toLocalDatetime(tomorrow);
+            }
+        } else {
+            $('#genStartDate').value = toLocalDatetime(tomorrow);
+        }
+
+        if (c.end_date) {
+            try {
+                var ed = new Date(c.end_date);
+                $('#genEndDate').value = toLocalDatetime(ed);
+            } catch(e) {
+                $('#genEndDate').value = toLocalDatetime(in30);
+            }
+        } else {
+            $('#genEndDate').value = toLocalDatetime(in30);
+        }
+
+        // Reach
+        updateReachDisplay(reach);
+
+        // Populate hidden fields for targeting
+        $('#hiddenMinFollowers').value = JSON.stringify(targeting.min_followers || {});
+
+        // For multi-value hidden fields, create multiple hidden inputs
+        setHiddenMulti('niche_tags', targeting.niche_tags || []);
+        setHiddenMulti('target_regions', targeting.target_regions || []);
+        setHiddenMulti('required_platforms', targeting.required_platforms || []);
+    }
+
+    function populateStep4Defaults(data) {
+        $('#genTitle').value = data.product_description.substring(0, 80);
+        $('#genBrief').value = 'Promote: ' + data.product_description + '. Goal: ' + data.campaign_goal.replace(/_/g, ' ') + '.';
+        $('#genGuidance').value = 'Tone: ' + (data.tone || 'professional') + '. Create genuine, engaging content that resonates with your audience.';
+        $('#genRateCpm').value = 0.50;
+        $('#genRateLike').value = 0.01;
+        $('#genRateRepost').value = 0.05;
+        $('#genRateClick').value = 0.10;
+        $('#genBudget').value = 100;
+
+        var now = new Date();
+        var tomorrow = new Date(now.getTime() + 86400000);
+        var in30 = new Date(now.getTime() + 30 * 86400000);
+
+        function toLocalDatetime(d) {
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            var hh = String(d.getHours()).padStart(2, '0');
+            var mm = String(d.getMinutes()).padStart(2, '0');
+            return y + '-' + m + '-' + dd + 'T' + hh + ':' + mm;
+        }
+
+        $('#genStartDate').value = toLocalDatetime(tomorrow);
+        $('#genEndDate').value = toLocalDatetime(in30);
+
+        $('#hiddenMinFollowers').value = JSON.stringify(data.min_followers || {});
+        setHiddenMulti('niche_tags', data.target_niches || []);
+        setHiddenMulti('target_regions', data.target_regions || []);
+        setHiddenMulti('required_platforms', data.required_platforms || []);
+
+        // Show default reach text
+        $('#reachMatchCount').textContent = '--';
+        $('#reachImpressions').textContent = 'estimating...';
+        fetchReachEstimate(data);
+    }
+
+    // ── Hidden multi-value fields ───────────────────────────────
+    function setHiddenMulti(name, values) {
+        // Remove existing hidden inputs for this name (except the placeholder)
+        var existing = document.querySelectorAll('input[name="' + name + '"][type="hidden"]:not([id])');
+        existing.forEach(function(el) { el.remove(); });
+
+        // Remove the placeholder too if it exists
+        var placeholder = document.getElementById('hidden' + name.split('_').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(''));
+        if (placeholder) placeholder.remove();
+
+        var form = $('#campaignForm');
+        values.forEach(function(v) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = name;
+            inp.value = v;
+            form.appendChild(inp);
+        });
+    }
+
+    // ── Reach estimate ──────────────────────────────────────────
+    function updateReachDisplay(reach) {
+        var users = reach.matching_users || 0;
+        var low = reach.estimated_reach ? reach.estimated_reach.low : 0;
+        var high = reach.estimated_reach ? reach.estimated_reach.high : 0;
+
+        $('#reachMatchCount').textContent = '~' + users;
+        if (low === 0 && high === 0) {
+            $('#reachImpressions').textContent = 'no estimate available';
+        } else {
+            $('#reachImpressions').textContent = formatNumber(low) + ' - ' + formatNumber(high) + ' impressions';
+        }
+    }
+
+    function fetchReachEstimate(data) {
+        var token = getToken();
+        if (!token) return;
+
+        fetch('/api/company/campaigns/reach-estimate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                target_niches: data.target_niches || [],
+                target_regions: data.target_regions || [],
+                required_platforms: data.required_platforms || [],
+                min_followers: data.min_followers || {}
+            })
+        })
+        .then(function(resp) { return resp.ok ? resp.json() : null; })
+        .then(function(result) {
+            if (result) updateReachDisplay(result);
+        })
+        .catch(function() { /* silent */ });
+    }
+
+    // Debounced reach re-estimation when step 4 targeting-affecting fields change
+    // (We watch the hidden fields, which are set when step 4 is populated)
+
+    // ── Form submission handling ────────────────────────────────
+    var campaignForm = $('#campaignForm');
+    if (campaignForm) {
+        campaignForm.addEventListener('submit', function(e) {
+            // Determine which button was clicked
+            var status = 'draft';
+            var activeEl = document.activeElement;
+            if (activeEl && activeEl.name === 'campaign_status') {
+                status = activeEl.value;
+            }
+
+            // Validate budget
+            var budget = parseFloat($('#genBudget').value);
+            if (budget < 50) {
+                e.preventDefault();
+                showError('Minimum campaign budget is $50.00');
+                return;
+            }
+            var balance = {{ company.balance|float }};
+            if (budget > balance) {
+                e.preventDefault();
+                showError('Insufficient balance. Your current balance is $' + balance.toFixed(2));
+                return;
+            }
+
+            // Ensure start < end
+            var start = new Date($('#genStartDate').value);
+            var end = new Date($('#genEndDate').value);
+            if (end <= start) {
+                e.preventDefault();
+                showError('End date must be after start date.');
+                return;
+            }
+
+            // The form submits naturally to POST /company/campaigns/new
+            // which handles creation on the server side
+        });
+    }
+})();
+</script>
+{% endblock %}

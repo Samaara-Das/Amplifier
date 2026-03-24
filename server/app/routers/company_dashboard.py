@@ -31,7 +31,7 @@ DASHBOARD_HTML = """
         h2 {{ font-size: 18px; margin: 24px 0 12px; color: #94a3b8; }}
         .stats {{ display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }}
         .stat {{ background: #1e293b; padding: 16px 24px; border-radius: 10px; min-width: 140px; }}
-        .stat-val {{ font-size: 28px; font-weight: 700; color: #34d399; }}
+        .stat-val {{ font-size: 28px; font-weight: 700; color: #3b82f6; }}
         .stat-label {{ font-size: 12px; color: #64748b; margin-top: 4px; }}
         table {{ width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }}
         th, td {{ padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; }}
@@ -43,7 +43,7 @@ DASHBOARD_HTML = """
         .status-completed {{ background: #064e3b; color: #6ee7b7; }}
         .status-paused {{ background: #713f12; color: #fde68a; }}
         .status-cancelled {{ background: #7f1d1d; color: #fca5a5; }}
-        a {{ color: #34d399; text-decoration: none; }}
+        a {{ color: #60a5fa; text-decoration: none; }}
         a:hover {{ text-decoration: underline; }}
     </style>
 </head>

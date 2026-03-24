@@ -58,7 +58,7 @@ FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). 52 API routes tot
 - Admin: user management, system stats
 - Version: auto-update endpoint
 
-**Web dashboards** (emerald green `#10b981` theme, DM Sans font, gradient cards, SVG Heroicons nav):
+**Web dashboards** (blue `#2563eb` theme, DM Sans font, gradient cards, SVG Heroicons nav):
 - **Company** (`/company/`) — 6 pages: login, campaigns list, create campaign, campaign detail, billing, settings
 - **Admin** (`/admin/`) — 6 pages: overview, users, campaigns, fraud detection, payouts, login
 
