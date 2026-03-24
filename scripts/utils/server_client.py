@@ -143,6 +143,38 @@ def update_profile(platforms: dict = None, follower_counts: dict = None,
 # ── Campaigns ──────────────────────────────────────────────────────
 
 
+def get_invitations() -> list[dict]:
+    """Get pending campaign invitations for this user."""
+    resp = _request_with_retry("GET", "/api/campaigns/invitations")
+    if resp.status_code == 200:
+        return resp.json()
+    logger.warning("Failed to get invitations: %s", resp.status_code)
+    return []
+
+
+def accept_invitation(assignment_id: int) -> dict:
+    """Accept a campaign invitation."""
+    resp = _request_with_retry("POST", f"/api/campaigns/invitations/{assignment_id}/accept")
+    resp.raise_for_status()
+    return resp.json()
+
+
+def reject_invitation(assignment_id: int) -> dict:
+    """Reject a campaign invitation."""
+    resp = _request_with_retry("POST", f"/api/campaigns/invitations/{assignment_id}/reject")
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_active_campaigns() -> list[dict]:
+    """Get user's active (accepted) campaigns."""
+    resp = _request_with_retry("GET", "/api/campaigns/active")
+    if resp.status_code == 200:
+        return resp.json()
+    logger.warning("Failed to get active campaigns: %s", resp.status_code)
+    return []
+
+
 def poll_campaigns() -> list[dict]:
     """Poll server for campaigns matched to this user."""
     resp = _request_with_retry("GET", "/api/campaigns/mine")
