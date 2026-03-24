@@ -491,8 +491,8 @@
       {
         "id": "32",
         "title": "Integrate DeerFlow into Amplifier content pipeline",
-        "description": "Integrate ByteDance DeerFlow multi-agent framework into the user app content generation pipeline for research-backed content creation. Replace or augment content_generator.py with DeerFlow-powered research → draft → adapt workflow.",
-        "status": "pending",
+        "description": "CANCELLED — DeerFlow evaluated but skipped (Windows issues, ~30 heavy deps, HTTP stack assumptions). Using LangGraph standalone instead. See docs/AGENT_PIPELINE_PLAN.md.",
+        "status": "cancelled",
         "priority": "high",
         "dependencies": [],
         "subtasks": [],
@@ -512,7 +512,7 @@
         "id": "34",
         "title": "Verify metric scraping and earnings pipeline",
         "description": "Run metric_scraper.py on posted URLs, verify engagement data is collected, confirm earnings appear on user dashboard. Full loop: post → scrape → earnings.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [],
         "subtasks": [],
@@ -528,11 +528,61 @@
         "subtasks": [],
         "updatedAt": "2026-03-24T00:00:00.000Z"
       }
+      {
+        "id": "36",
+        "title": "Phase 1: LangGraph skeleton — core agent pipeline",
+        "description": "Build the LangGraph content pipeline that replaces single-API-call content generation. Install langgraph + langchain-google-genai. Create scripts/agents/ package with pipeline.py (graph definition), profile_node.py (scrape user profiles weekly via Playwright), research_node.py (webcrawler search + company links + past performance), draft_node.py (per-platform Gemini generation with research + profile + brand voice), quality_node.py (validate against content-templates.md, score 0-100), decision_node.py (route to post or review queue), post node (reuse existing post_to_* functions). Wire into campaign_runner.py behind feature flag. Extend local_db.py with 4 agent tables (agent_user_profile, agent_research, agent_draft, agent_content_insights). All nodes are independent stateless functions — split-ready for server deployment later. See docs/AGENT_PIPELINE_PLAN.md.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "37",
+        "title": "Phase 2: Content variety + audience-aware scheduling",
+        "description": "Add content types to draft node: educational, funny, ragebait, text+image, story/narrative. Reuse hooks and format rules from config/content-templates.md. Build audience-aware scheduling — analyze user's follower activity patterns to propose optimal posting times per platform, store as editable schedule in local DB. Add CTA rotation — more aggressive than personal brand (50/30/20 value/soft/direct). Post-post engagement: browse feed + click profiles only (no liking/retweeting). See docs/AGENT_PIPELINE_PLAN.md Phase 2.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": ["36"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "38",
+        "title": "Phase 3: Learning loop — metrics feed back into content",
+        "description": "Close the feedback loop. Learn node analyzes metrics (T+24h+) — which content types, hooks, posting times drove highest engagement per platform. Update agent_content_insights table. Research node reads insights for future campaigns. Draft node uses insights to weight content type selection. See docs/AGENT_PIPELINE_PLAN.md Phase 3.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": ["36"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "39",
+        "title": "Phase 4: Dashboard — research, drafts, schedule views",
+        "description": "Surface agent artifacts in user dashboard (campaign_dashboard.py). Add Research view (what research node found per campaign), Drafts view (all draft versions with quality scores and content type labels), Schedule view (proposed posting times, user can edit). Semi-auto mode: ranked drafts with quality scores → user picks best → confirms schedule → post. See docs/AGENT_PIPELINE_PLAN.md Phase 4.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": ["36"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "40",
+        "title": "Phase 5: Personal brand pipeline (separate from campaigns)",
+        "description": "Build personal posting workflow as separate LangGraph graph reusing same nodes. Content source: 5 pillars from content-templates.md + market research + backtest results. Daily cadence: 6 posts/day across US time slots (reuse scheduling node). Pillar rotation: 2x education, 1x automation, 1x proof, 1x AI, 1x wildcard. CTA rotation: month 1 = 100% value, month 2+ = graduated. Legal disclaimers on all content. Same draft/quality/post/learn nodes shared with campaign pipeline. See docs/AGENT_PIPELINE_PLAN.md Phase 5.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": ["36", "37", "38"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      }
     ],
     "metadata": {
       "version": "1.0.0",
       "lastModified": "2026-03-24T00:00:00.000Z",
-      "taskCount": 34,
+      "taskCount": 39,
       "completedCount": 17,
       "tags": [
         "master"
