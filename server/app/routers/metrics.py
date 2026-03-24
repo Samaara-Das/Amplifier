@@ -86,4 +86,18 @@ async def submit_metrics(
         db.add(metric)
         accepted += 1
 
-    return {"accepted": accepted, "total_submitted": len(data.metrics)}
+    # Trigger billing for any final metrics just submitted
+    billing_result = None
+    has_final = any(m.is_final for m in data.metrics)
+    if has_final and accepted > 0:
+        try:
+            from app.services.billing import run_billing_cycle
+            billing_result = await run_billing_cycle(db)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Billing trigger failed: %s", e)
+
+    result = {"accepted": accepted, "total_submitted": len(data.metrics)}
+    if billing_result:
+        result["billing"] = billing_result
+    return result

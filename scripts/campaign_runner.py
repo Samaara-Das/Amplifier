@@ -129,8 +129,8 @@ async def _post_campaign_content(campaign_id: int, assignment_id: int, content: 
                     logger.warning("No posting function for platform: %s", platform)
                     continue
 
-                success = await post_func(draft, pw)
-                if success:
+                result_url = await post_func(draft, pw)
+                if result_url:
                     content_str = json.dumps(content[platform]) if isinstance(content[platform], dict) else str(content[platform])
                     content_hash = hashlib.sha256(content_str.encode()).hexdigest()
 
@@ -138,7 +138,7 @@ async def _post_campaign_content(campaign_id: int, assignment_id: int, content: 
                         campaign_server_id=campaign_id,
                         assignment_id=assignment_id,
                         platform=platform,
-                        post_url=f"https://{platform}.com/posted",
+                        post_url=result_url,
                         content=content_str,
                         content_hash=content_hash,
                     )
@@ -146,7 +146,7 @@ async def _post_campaign_content(campaign_id: int, assignment_id: int, content: 
                         "local_id": local_post_id,
                         "assignment_id": assignment_id,
                         "platform": platform,
-                        "post_url": f"https://{platform}.com/posted",
+                        "post_url": result_url,
                         "content_hash": content_hash,
                         "posted_at": datetime.now(timezone.utc).isoformat(),
                     })

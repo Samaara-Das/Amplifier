@@ -257,8 +257,14 @@ SCRAPER_MAP = {
 }
 
 
-def _should_scrape(posted_at_str: str) -> tuple[bool, bool]:
+def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[bool, bool]:
     """Check if a post should be scraped based on time since posting.
+
+    Uses cumulative tiers — scrapes the next due tier regardless of when
+    the scraper runs. No rigid time windows that can be missed.
+
+    Tiers: T+1h, T+6h, T+24h, T+72h
+    existing_scrape_count tells us which tiers have been completed.
 
     Returns (should_scrape, is_final).
     """
@@ -273,16 +279,23 @@ def _should_scrape(posted_at_str: str) -> tuple[bool, bool]:
 
     hours_since = (now - posted_at).total_seconds() / 3600
 
-    # Scrape windows: 1h, 6h, 24h, 72h (with 30min tolerance)
-    scrape_at = [1, 6, 24, 72]
-    for target in scrape_at:
-        if abs(hours_since - target) < 0.5:
-            is_final = (target == 72)
-            return True, is_final
+    # Scrape tiers in order — each tier unlocks after enough time has passed
+    tiers = [1, 6, 24, 72]
 
-    # Also scrape if it's been more than 72h and we haven't done a final scrape
-    if hours_since > 72:
-        return True, True
+    # Which tier should we be at based on time elapsed?
+    due_tier_index = -1
+    for i, threshold in enumerate(tiers):
+        if hours_since >= threshold:
+            due_tier_index = i
+
+    # How many tiers have been completed?
+    # existing_scrape_count = number of metric records for this post
+    completed_tiers = min(existing_scrape_count, len(tiers))
+
+    # If there are uncompleted tiers that are due, scrape
+    if due_tier_index >= completed_tiers:
+        is_final = (due_tier_index >= len(tiers) - 1)  # T+72h tier
+        return True, is_final
 
     return False, False
 
@@ -298,9 +311,18 @@ async def scrape_all_posts():
         logger.info("No posts due for scraping")
         return
 
+    # Get existing metric counts per post to determine completed tiers
+    from utils.local_db import _get_db
+    db_conn = _get_db()
+    metric_counts = {}
+    for row in db_conn.execute("SELECT post_id, COUNT(*) as cnt FROM local_metric GROUP BY post_id").fetchall():
+        metric_counts[row["post_id"]] = row["cnt"]
+    db_conn.close()
+
     posts_to_scrape = []
     for p in posts:
-        should, is_final = _should_scrape(p["posted_at"])
+        scrape_count = metric_counts.get(p["id"], 0)
+        should, is_final = _should_scrape(p["posted_at"], scrape_count)
         if should:
             posts_to_scrape.append((p, is_final))
 

@@ -103,8 +103,8 @@ X_TEXTBOX = '[role="textbox"]'
 X_POST_BUTTON = '[data-testid="tweetButton"]'
 
 
-async def post_to_x(draft: dict, pw) -> bool:
-    """Post content to X (Twitter). Supports text-only and text+image."""
+async def post_to_x(draft: dict, pw) -> str | None:
+    """Post content to X (Twitter). Returns post URL on success, None on failure."""
     context = None
     image_path = None
     try:
@@ -171,16 +171,30 @@ async def post_to_x(draft: dict, pw) -> bool:
         await post_btn.dispatch_event("click")
         await human_delay(3, 5)
 
-        # Post-post browsing
+        # Extract post URL — go to home and grab the first tweet's permalink
         await page.goto(PLATFORMS["x"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
+        await page.wait_for_load_state("domcontentloaded")
+        await human_delay(2, 3)
+        post_url = None
+        try:
+            link = page.locator('a[href*="/status/"]').first
+            if await link.count() > 0:
+                href = await link.get_attribute("href")
+                if href:
+                    post_url = f"https://x.com{href}" if href.startswith("/") else href
+                    logger.info("X: captured post URL: %s", post_url)
+        except Exception as e:
+            logger.warning("X: could not extract post URL: %s", e)
+
+        # Post-post browsing
         await browse_feed(page, "x")
 
         logger.info("Successfully posted to X")
-        return True
+        return post_url or "https://x.com/posted"
 
     except Exception as e:
         logger.error("Failed to post to X: %s", e, exc_info=True)
-        return False
+        return None
     finally:
         if image_path:
             try:
@@ -201,8 +215,8 @@ LI_COMPOSE_TRIGGER = '[role="button"]:has-text("Start a post")'
 LI_TEXTBOX = '[role="textbox"]'
 
 
-async def post_to_linkedin(draft: dict, pw) -> bool:
-    """Post content to LinkedIn. Supports text-only and text+image."""
+async def post_to_linkedin(draft: dict, pw) -> str | None:
+    """Post content to LinkedIn. Returns post URL on success, None on failure."""
     context = None
     image_path = None
     try:
@@ -285,16 +299,30 @@ async def post_to_linkedin(draft: dict, pw) -> bool:
         await post_btn.click()
         await human_delay(3, 5)
 
-        # Post-post browsing
+        # Extract post URL — go to home and grab the latest activity link
         await page.goto(PLATFORMS["linkedin"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
+        await page.wait_for_load_state("domcontentloaded")
+        await human_delay(2, 3)
+        post_url = None
+        try:
+            link = page.locator('a[href*="/feed/update/"]').first
+            if await link.count() > 0:
+                href = await link.get_attribute("href")
+                if href:
+                    post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
+                    logger.info("LinkedIn: captured post URL: %s", post_url)
+        except Exception as e:
+            logger.warning("LinkedIn: could not extract post URL: %s", e)
+
+        # Post-post browsing
         await browse_feed(page, "linkedin")
 
         logger.info("Successfully posted to LinkedIn")
-        return True
+        return post_url or "https://linkedin.com/posted"
 
     except Exception as e:
         logger.error("Failed to post to LinkedIn: %s", e, exc_info=True)
-        return False
+        return None
     finally:
         if image_path:
             try:
@@ -315,8 +343,8 @@ FB_TEXTBOX = '[role="textbox"]'
 FB_POST_BUTTON = '[aria-label="Post"]'
 
 
-async def post_to_facebook(draft: dict, pw) -> bool:
-    """Post content to Facebook. Supports text-only and text+image."""
+async def post_to_facebook(draft: dict, pw) -> str | None:
+    """Post content to Facebook. Returns post URL on success, None on failure."""
     context = None
     image_path = None
     try:
@@ -403,16 +431,31 @@ async def post_to_facebook(draft: dict, pw) -> bool:
         await page.click(FB_POST_BUTTON, timeout=COMPOSE_TIMEOUT)
         await human_delay(3, 5)
 
-        # Post-post browsing
+        # Extract post URL — go to home and grab the latest post link
         await page.goto(PLATFORMS["facebook"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
+        await page.wait_for_load_state("domcontentloaded")
+        await human_delay(2, 3)
+        post_url = None
+        try:
+            # Facebook post permalinks contain /posts/ or story_fbid
+            link = page.locator('a[href*="/posts/"], a[href*="story_fbid"]').first
+            if await link.count() > 0:
+                href = await link.get_attribute("href")
+                if href:
+                    post_url = href if href.startswith("http") else f"https://www.facebook.com{href}"
+                    logger.info("Facebook: captured post URL: %s", post_url)
+        except Exception as e:
+            logger.warning("Facebook: could not extract post URL: %s", e)
+
+        # Post-post browsing
         await browse_feed(page, "facebook")
 
         logger.info("Successfully posted to Facebook")
-        return True
+        return post_url or "https://facebook.com/posted"
 
     except Exception as e:
         logger.error("Failed to post to Facebook: %s", e, exc_info=True)
-        return False
+        return None
     finally:
         if image_path:
             try:
@@ -431,8 +474,8 @@ async def post_to_facebook(draft: dict, pw) -> bool:
 REDDIT_SUBMIT_URL = "https://www.reddit.com/r/{subreddit}/submit"
 
 
-async def post_to_reddit(draft: dict, pw) -> bool:
-    """Post content to Reddit (text post to configured subreddits)."""
+async def post_to_reddit(draft: dict, pw) -> str | None:
+    """Post content to Reddit. Returns post URL on success, None on failure."""
     context = None
     try:
         reddit_content = draft["content"]["reddit"]
@@ -488,16 +531,23 @@ async def post_to_reddit(draft: dict, pw) -> bool:
 
         await human_delay(3, 6)
 
+        # Extract post URL — Reddit redirects to the new post after submission
+        post_url = page.url
+        if "/comments/" not in post_url:
+            post_url = None  # Didn't redirect, extraction failed
+        else:
+            logger.info("Reddit: captured post URL: %s", post_url)
+
         # Post-post browsing
         await page.goto(PLATFORMS["reddit"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
         await browse_feed(page, "reddit")
 
         logger.info("Successfully posted to Reddit (r/%s)", subreddit)
-        return True
+        return post_url or f"https://reddit.com/r/{subreddit}/posted"
 
     except Exception as e:
         logger.error("Failed to post to Reddit: %s", e, exc_info=True)
-        return False
+        return None
     finally:
         if context:
             try:

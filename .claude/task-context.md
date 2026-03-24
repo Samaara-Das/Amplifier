@@ -43,15 +43,22 @@ Two interconnected systems:
 - [ ] **Metric scraping** — run `metric_scraper.py` on the 4 posted URLs to verify engagement collection works
 - [ ] **Earnings verification** — check that earnings show up on the user dashboard after metrics are collected
 
+### Session 17 Tasks (2026-03-24)
+- [x] **Task 31: Fix content generation prompt** — Rewrote CONTENT_PROMPT in content_generator.py with emotion-first hooks, value-first body, platform-specific format rules, hard rules from content-templates.md
+- [ ] **Task 32: Integrate DeerFlow** — ByteDance multi-agent framework for research-backed content generation
+- [x] **Task 33: Set up webcrawler globally** — Installed at `C:\Users\dassa\Work\webcrawler\`, added to global CLAUDE.md for all sessions
+- [ ] **Task 34: Verify metric scraping + earnings** — Run metric_scraper.py, confirm earnings on dashboard
+- [x] **Task 35: Explore free/cheap LLMs (deferred)** — Saved note: Qwen, Llama, Nvidia, local LLMs. Current Gemini works. Revisit when free tier gets restricted or video gen needed.
+
 ### Post-MVP Tasks (Pending)
-- [ ] **AI architecture rethink** — Design content generation/posting architecture around future model economics. Models are getting cheaper fast; some are already free (e.g. Xiaomi MiMo v2 Flash — free on Kiko Claw). Explore DeerFlow (ByteDance open-source super-agent framework) and alternatives, or consider building our own multi-agent pipeline. Architecture should assume models will be cheap/free and optimize for quality (research → draft → adapt per platform) not cost. See `docs/POST_MVP_AI_STRATEGY.md`.
+- [ ] **AI architecture rethink** — Design content generation/posting architecture around future model economics. Models are getting cheaper fast; some are already free (e.g. Xiaomi MiMo v2 Flash — free on Kiko Claw). See `docs/POST_MVP_AI_STRATEGY.md`.
 - [ ] **User app distribution rethink** — Move user dashboard to web, ship lightweight Tauri desktop agent for posting only (see `docs/POST_MVP_ROADMAP.md`)
-- [ ] 31: Browser Use migration for posting
-- [ ] 32: Website-to-API fallback tool
-- [ ] 33: Expand free API fallback chain
-- [ ] 34: LinkedIn/Facebook official API migration
-- [ ] 35: Write tests (~50 pytest tests)
-- [ ] 36: Campaign marketplace/browse view
+- [ ] Browser Use migration for posting
+- [ ] Website-to-API fallback tool
+- [ ] Expand free API fallback chain
+- [ ] LinkedIn/Facebook official API migration
+- [ ] Write tests (~50 pytest tests)
+- [ ] Campaign marketplace/browse view
 - [ ] 18-21: Test Run, Account Warmup, Profile Revamps, LinkedIn "I'm Back"
 - [ ] 22-30: AI Video, Newsletters, Facebook Groups, TradingView, Analytics, etc.
 
@@ -185,14 +192,16 @@ Medium:
 ### User App
 - `scripts/campaign_dashboard.py` — User dashboard (4 tabs + onboarding, port 5222)
 - `scripts/campaign_runner.py` — Campaign loop (poll → generate → post → report)
-- `scripts/utils/content_generator.py` — Free AI API content gen (Gemini → Mistral → Groq)
+- `scripts/utils/content_generator.py` — Text: Gemini → Mistral → Groq. Image: Cloudflare FLUX → Together AI → Pollinations → PIL
 - `scripts/utils/metric_collector.py` — Hybrid metric collection
 - `scripts/utils/server_client.py` — Server API client with retry
 
 ### Config & Docs
 - `mvp.md` — MVP spec (source of truth)
 - `config/platforms.json` — Platform config (TikTok/Instagram disabled)
-- `config/.env` — API keys, server URL, timing params (comments on separate lines, not inline!)
+- `config/.env` — API keys (Gemini, Cloudflare, Together), server URL, timing params (comments on separate lines, not inline!)
+- `docs/POST_MVP_AI_STRATEGY.md` — Future AI architecture: multi-agent pipeline, DeerFlow, MiMo v2 Flash, model economics
+- `docs/POST_MVP_ROADMAP.md` — User app distribution: web dashboard + Tauri desktop agent
 
 ## Deployed URLs
 - **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
@@ -240,3 +249,11 @@ printf "value" | vercel env add VAR_NAME production --cwd server
 - `vercel.json` `rootDirectory` is a project-level setting — CLI rejects it in config file
 - Supabase: use transaction pooler (`aws-1-us-east-1.pooler.supabase.com:6543`), not direct connection
 - Supabase + pgbouncer: requires `NullPool` + `prepared_statement_cache_size=0`
+- Gemini image gen (Imagen, flash-image, 3.x preview) all have 0 free quota — paid only
+- Pollinations.ai changed API: now requires API key, endpoint moved to `gen.pollinations.ai`, servers frequently 500
+- Together AI "free tier" for images returns 402 — actually needs credits
+- Cloudflare Workers AI FLUX.1 schnell works reliably on free tier (account ID + API token from Workers AI template)
+- `post_to_x()` functions in `post.py` have no underscore prefix and take `(draft, pw)` not `(page, draft)`
+- Old browser profile from locked X account causes blank page — delete `profiles/x-profile/` and re-run `login_setup.py`
+- Campaign runner in `semi_auto` mode generates content but skips posting (good for testing generation only)
+- Full E2E posting run takes ~41 min due to human emulation (browsing + engagement on each platform)
