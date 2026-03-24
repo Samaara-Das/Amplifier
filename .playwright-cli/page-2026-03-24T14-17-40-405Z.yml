@@ -1,0 +1,50 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]:
+        - generic [ref=e8]: A
+      - generic [ref=e9]: Amplifier
+    - generic [ref=e10]:
+      - generic [ref=e11]: "1"
+      - generic [ref=e13]: "2"
+      - generic [ref=e15]: "3"
+      - generic [ref=e17]: "4"
+      - generic [ref=e19]: "5"
+      - generic [ref=e21]: "6"
+      - generic [ref=e23]: "7"
+  - generic [ref=e48]:
+    - heading "Connect Your Platforms" [level=2] [ref=e49]
+    - paragraph [ref=e50]: Amplifier opens a browser for each platform. You log in directly on the platform -- your credentials never touch Amplifier.
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - img [ref=e54]
+        - generic [ref=e56]:
+          - generic [ref=e57]: X (Twitter)
+          - generic [ref=e58]: Not connected
+        - button "Connect" [ref=e59] [cursor=pointer]
+      - generic [ref=e60]:
+        - img [ref=e62]
+        - generic [ref=e64]:
+          - generic [ref=e65]: LinkedIn
+          - generic [ref=e66]: Not connected
+        - button "Connect" [ref=e67] [cursor=pointer]
+      - generic [ref=e68]:
+        - img [ref=e70]
+        - generic [ref=e72]:
+          - generic [ref=e73]: Facebook
+          - generic [ref=e74]: Not connected
+        - button "Connect" [ref=e75] [cursor=pointer]
+      - generic [ref=e76]:
+        - img [ref=e78]
+        - generic [ref=e80]:
+          - generic [ref=e81]: Reddit
+          - generic [ref=e82]: Not connected
+        - button "Connect" [ref=e83] [cursor=pointer]
+    - paragraph [ref=e84]: Connect at least 1 platform to continue.
+  - generic [ref=e46]:
+    - button "Back" [ref=e85] [cursor=pointer]:
+      - img [ref=e86]
+      - text: Back
+    - button "Next" [disabled] [ref=e88]:
+      - text: Next
+      - img [ref=e89]

@@ -1,0 +1,21 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Amplifier for Business" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Company Dashboard
+  - generic [ref=e7]:
+    - button "Sign In" [ref=e8] [cursor=pointer]
+    - button "Register" [active] [ref=e9] [cursor=pointer]
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]: Company Name
+      - textbox "Company Name" [ref=e23]:
+        - /placeholder: Acme Corp
+    - generic [ref=e24]:
+      - generic [ref=e25]: Email
+      - textbox "Email" [ref=e26]:
+        - /placeholder: company@example.com
+    - generic [ref=e27]:
+      - generic [ref=e28]: Password
+      - textbox "Password" [ref=e29]:
+        - /placeholder: Choose a password
+    - button "Create Account" [ref=e30] [cursor=pointer]

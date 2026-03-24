@@ -83,6 +83,7 @@ pub fn run() {
             commands::auth::scrape_platform,
             commands::auth::classify_niches,
             commands::auth::save_onboarding,
+            commands::auth::logout,
             // Campaigns
             commands::campaigns::get_invitations,
             commands::campaigns::accept_invitation,

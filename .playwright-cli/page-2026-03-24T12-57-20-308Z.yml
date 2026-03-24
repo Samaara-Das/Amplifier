@@ -1,0 +1,9 @@
+- generic [ref=e2]:
+  - heading "Admin Dashboard" [level=1] [ref=e3]
+  - paragraph [ref=e4]: Amplifier Administration
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: Admin Password
+      - textbox "Admin Password" [active] [ref=e8]:
+        - /placeholder: Enter admin password
+    - button "Sign In" [ref=e9] [cursor=pointer]

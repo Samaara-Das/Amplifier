@@ -1,0 +1,156 @@
+- generic [ref=e102]:
+  - navigation [ref=e103]:
+    - generic [ref=e105]:
+      - img [ref=e106]:
+        - generic [ref=e108]: A
+      - generic [ref=e109]: Amplifier
+    - generic [ref=e110]:
+      - link "Dashboard" [ref=e111] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e112]
+        - generic [ref=e117]: Dashboard
+      - link "Campaigns 2" [ref=e229] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e119]
+        - generic [ref=e122]: Campaigns
+        - generic [ref=e230]: "2"
+      - link "Posts 2" [ref=e484] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e124]
+        - generic [ref=e127]: Posts
+        - generic [ref=e485]: "2"
+      - link "Earnings" [active] [ref=e128] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e129]
+        - generic [ref=e131]: Earnings
+      - link "Settings" [ref=e132] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e133]
+        - generic [ref=e136]: Settings
+    - generic [ref=e138]:
+      - generic [ref=e139]: U
+      - generic [ref=e140]:
+        - generic [ref=e141]: User
+        - generic [ref=e142]: Connecting...
+  - main [ref=e143]:
+    - generic [ref=e713]:
+      - generic [ref=e714]:
+        - heading "Earnings" [level=1] [ref=e715]
+        - button "Refresh" [ref=e716] [cursor=pointer]:
+          - img [ref=e717]
+          - text: Refresh
+      - generic [ref=e720]:
+        - generic [ref=e721]:
+          - img [ref=e723]
+          - generic [ref=e725]:
+            - generic [ref=e726]: $45.00
+            - generic [ref=e727]: Available Balance
+        - generic [ref=e728]:
+          - img [ref=e730]
+          - generic [ref=e733]:
+            - generic [ref=e734]: $175.98
+            - generic [ref=e735]: Total Earned
+        - generic [ref=e736]:
+          - img [ref=e738]
+          - generic [ref=e741]:
+            - generic [ref=e742]: $12.50
+            - generic [ref=e743]: Pending
+      - generic [ref=e744]:
+        - button "Withdraw" [ref=e745] [cursor=pointer]:
+          - img [ref=e746]
+          - text: Withdraw
+        - generic [ref=e749]: $45.00 available for withdrawal
+      - generic [ref=e750]:
+        - heading "Per-Campaign Breakdown" [level=2] [ref=e752]
+        - table [ref=e754]:
+          - rowgroup [ref=e755]:
+            - row "Campaign Posts Impressions Engagement Earned Status" [ref=e756]:
+              - columnheader "Campaign" [ref=e757]
+              - columnheader "Posts" [ref=e758]
+              - columnheader "Impressions" [ref=e759]
+              - columnheader "Engagement" [ref=e760]
+              - columnheader "Earned" [ref=e761]
+              - columnheader "Status" [ref=e762]
+          - rowgroup [ref=e763]:
+            - row "Trading Tools Launch 4 5.2K 250 $35.00 calculated" [ref=e764]:
+              - cell "Trading Tools Launch" [ref=e765]
+              - cell "4" [ref=e766]
+              - cell "5.2K" [ref=e767]
+              - cell "250" [ref=e768]
+              - cell "$35.00" [ref=e769]
+              - cell "calculated" [ref=e770]:
+                - generic [ref=e771]: calculated
+            - row "Smart Money Signals Pro 2 2.1K 120 $15.00 paid" [ref=e773]:
+              - cell "Smart Money Signals Pro" [ref=e774]
+              - cell "2" [ref=e775]
+              - cell "2.1K" [ref=e776]
+              - cell "120" [ref=e777]
+              - cell "$15.00" [ref=e778]
+              - cell "paid" [ref=e779]:
+                - generic [ref=e780]: paid
+            - row "Crypto Tracker Campaign 6 8.4K 410 $55.98 paid" [ref=e782]:
+              - cell "Crypto Tracker Campaign" [ref=e783]
+              - cell "6" [ref=e784]
+              - cell "8.4K" [ref=e785]
+              - cell "410" [ref=e786]
+              - cell "$55.98" [ref=e787]
+              - cell "paid" [ref=e788]:
+                - generic [ref=e789]: paid
+            - row "SaaS Analytics Pro 3 3.6K 180 $28.50 pending" [ref=e791]:
+              - cell "SaaS Analytics Pro" [ref=e792]
+              - cell "3" [ref=e793]
+              - cell "3.6K" [ref=e794]
+              - cell "180" [ref=e795]
+              - cell "$28.50" [ref=e796]
+              - cell "pending" [ref=e797]:
+                - generic [ref=e798]: pending
+            - row "AI Writing Assistant 5 6K 340 $41.50 paid" [ref=e800]:
+              - cell "AI Writing Assistant" [ref=e801]
+              - cell "5" [ref=e802]
+              - cell "6K" [ref=e803]
+              - cell "340" [ref=e804]
+              - cell "$41.50" [ref=e805]
+              - cell "paid" [ref=e806]:
+                - generic [ref=e807]: paid
+      - generic [ref=e809]:
+        - heading "Per-Platform Breakdown" [level=2] [ref=e811]
+        - generic [ref=e812]:
+          - generic [ref=e813]:
+            - generic [ref=e814]: X
+            - generic [ref=e817]: $65.00
+          - generic [ref=e818]:
+            - generic [ref=e819]: LinkedIn
+            - generic [ref=e822]: $48.50
+          - generic [ref=e823]:
+            - generic [ref=e824]: Facebook
+            - generic [ref=e827]: $35.98
+          - generic [ref=e828]:
+            - generic [ref=e829]: Reddit
+            - generic [ref=e832]: $26.50
+      - generic [ref=e833]:
+        - heading "Payout History" [level=2] [ref=e835]
+        - table [ref=e837]:
+          - rowgroup [ref=e838]:
+            - row "Date Amount Status" [ref=e839]:
+              - columnheader "Date" [ref=e840]
+              - columnheader "Amount" [ref=e841]
+              - columnheader "Status" [ref=e842]
+          - rowgroup [ref=e843]:
+            - row "Mar 20, 2026 $50.00 paid" [ref=e844]:
+              - cell "Mar 20, 2026" [ref=e845]
+              - cell "$50.00" [ref=e846]
+              - cell "paid" [ref=e847]:
+                - generic [ref=e848]: paid
+            - row "Mar 15, 2026 $30.00 paid" [ref=e850]:
+              - cell "Mar 15, 2026" [ref=e851]
+              - cell "$30.00" [ref=e852]
+              - cell "paid" [ref=e853]:
+                - generic [ref=e854]: paid
+            - row "Mar 22, 2026 $50.98 pending" [ref=e856]:
+              - cell "Mar 22, 2026" [ref=e857]
+              - cell "$50.98" [ref=e858]
+              - cell "pending" [ref=e859]:
+                - generic [ref=e860]: pending
+  - contentinfo [ref=e222]:
+    - generic [ref=e226]: Connected
+    - generic [ref=e228]: Amplifier v2.0.0

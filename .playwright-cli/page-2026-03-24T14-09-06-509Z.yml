@@ -1,0 +1,138 @@
+- generic [ref=e102]:
+  - navigation [ref=e103]:
+    - generic [ref=e105]:
+      - img [ref=e106]:
+        - generic [ref=e108]: A
+      - generic [ref=e109]: Amplifier
+    - generic [ref=e110]:
+      - link "Dashboard" [ref=e111] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e112]
+        - generic [ref=e117]: Dashboard
+      - link "Campaigns 2" [ref=e229] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e119]
+        - generic [ref=e122]: Campaigns
+        - generic [ref=e230]: "2"
+      - link "Posts" [ref=e123] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e124]
+        - generic [ref=e127]: Posts
+      - link "Earnings" [ref=e128] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e129]
+        - generic [ref=e131]: Earnings
+      - link "Settings" [ref=e132] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e133]
+        - generic [ref=e136]: Settings
+    - generic [ref=e138]:
+      - generic [ref=e139]: U
+      - generic [ref=e140]:
+        - generic [ref=e141]: User
+        - generic [ref=e142]: Connecting...
+  - main [ref=e143]:
+    - generic [ref=e231]:
+      - generic [ref=e232]:
+        - heading "Campaigns" [level=1] [ref=e233]
+        - button "Refresh" [ref=e234] [cursor=pointer]:
+          - img [ref=e235]
+          - text: Refresh
+      - generic [ref=e238]:
+        - button "Invitations 2" [ref=e239] [cursor=pointer]:
+          - generic [ref=e240]: Invitations
+          - generic [ref=e241]: "2"
+        - button "Active 3" [active] [ref=e242] [cursor=pointer]:
+          - generic [ref=e243]: Active
+          - generic [ref=e244]: "3"
+        - button "Completed 2" [ref=e245] [cursor=pointer]:
+          - generic [ref=e246]: Completed
+          - generic [ref=e247]: "2"
+      - generic [ref=e314]:
+        - generic [ref=e315]:
+          - generic [ref=e316] [cursor=pointer]:
+            - generic [ref=e317]:
+              - generic [ref=e318]: Crypto Tracker Campaign
+              - img [ref=e320]
+            - generic [ref=e322]: Promote real-time crypto portfolio tracking with AI-powered alerts and market sentiment analysis.
+            - generic [ref=e324]:
+              - generic [ref=e325]:
+                - img [ref=e327]
+                - generic [ref=e329]: Generating
+              - generic [ref=e331]:
+                - generic [ref=e333]: "2"
+                - generic [ref=e334]: Review
+              - generic [ref=e336]:
+                - generic [ref=e338]: "3"
+                - generic [ref=e339]: Approved
+              - generic [ref=e341]:
+                - generic [ref=e343]: "4"
+                - generic [ref=e344]: Scheduled
+              - generic [ref=e346]:
+                - generic [ref=e348]: "5"
+                - generic [ref=e349]: Posted
+              - generic [ref=e351]:
+                - generic [ref=e353]: "6"
+                - generic [ref=e354]: Paid
+          - button "View Posts" [ref=e356] [cursor=pointer]:
+            - img [ref=e357]
+            - text: View Posts
+        - generic [ref=e360]:
+          - generic [ref=e361] [cursor=pointer]:
+            - generic [ref=e362]:
+              - generic [ref=e363]: AI Writing Assistant Beta
+              - img [ref=e365]
+            - generic [ref=e367]: Drive signups for AI writing tool that helps content creators write better, faster.
+            - generic [ref=e369]:
+              - generic [ref=e370]:
+                - img [ref=e372]
+                - generic [ref=e374]: Generating
+              - generic [ref=e376]:
+                - img [ref=e378]
+                - generic [ref=e380]: Review
+              - generic [ref=e382]:
+                - img [ref=e384]
+                - generic [ref=e386]: Approved
+              - generic [ref=e388]:
+                - img [ref=e390]
+                - generic [ref=e392]: Scheduled
+              - generic [ref=e394]:
+                - generic [ref=e396]: "5"
+                - generic [ref=e397]: Posted
+              - generic [ref=e399]:
+                - generic [ref=e401]: "6"
+                - generic [ref=e402]: Paid
+          - button "View Posts" [ref=e404] [cursor=pointer]:
+            - img [ref=e405]
+            - text: View Posts
+        - generic [ref=e408]:
+          - generic [ref=e409] [cursor=pointer]:
+            - generic [ref=e410]:
+              - generic [ref=e411]: Smart Money Signals Pro
+              - img [ref=e413]
+            - generic [ref=e415]: Market intelligence platform for retail traders with institutional-grade data.
+            - generic [ref=e417]:
+              - generic [ref=e418]:
+                - img [ref=e420]
+                - generic [ref=e422]: Generating
+              - generic [ref=e424]:
+                - img [ref=e426]
+                - generic [ref=e428]: Review
+              - generic [ref=e430]:
+                - generic [ref=e432]: "3"
+                - generic [ref=e433]: Approved
+              - generic [ref=e435]:
+                - generic [ref=e437]: "4"
+                - generic [ref=e438]: Scheduled
+              - generic [ref=e440]:
+                - generic [ref=e442]: "5"
+                - generic [ref=e443]: Posted
+              - generic [ref=e445]:
+                - generic [ref=e447]: "6"
+                - generic [ref=e448]: Paid
+          - button "View Posts" [ref=e450] [cursor=pointer]:
+            - img [ref=e451]
+            - text: View Posts
+  - contentinfo [ref=e222]:
+    - generic [ref=e226]: Connected
+    - generic [ref=e228]: Amplifier v2.0.0

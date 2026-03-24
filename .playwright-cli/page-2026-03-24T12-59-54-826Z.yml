@@ -1,0 +1,95 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Admin Dashboard" [level=2] [ref=e5]
+      - text: Amplifier
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Overview" [ref=e8] [cursor=pointer]:
+          - /url: /admin/
+          - img [ref=e9]
+          - text: Overview
+      - listitem [ref=e11]:
+        - link "Users" [ref=e12] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e13]
+          - text: Users
+      - listitem [ref=e15]:
+        - link "Campaigns" [ref=e16] [cursor=pointer]:
+          - /url: /admin/campaigns
+          - img [ref=e17]
+          - text: Campaigns
+      - listitem [ref=e19]:
+        - link "Review Queue" [ref=e20] [cursor=pointer]:
+          - /url: /admin/review-queue
+          - img [ref=e21]
+          - text: Review Queue
+      - listitem [ref=e23]:
+        - link "Platform Stats" [ref=e24] [cursor=pointer]:
+          - /url: /admin/platform-stats
+          - img [ref=e25]
+          - text: Platform Stats
+      - listitem [ref=e27]:
+        - link "Fraud Detection" [ref=e28] [cursor=pointer]:
+          - /url: /admin/fraud
+          - img [ref=e29]
+          - text: Fraud Detection
+      - listitem [ref=e31]:
+        - link "Payouts" [ref=e32] [cursor=pointer]:
+          - /url: /admin/payouts
+          - img [ref=e33]
+          - text: Payouts
+      - generic [ref=e35]: Account
+      - listitem [ref=e36]:
+        - link "Logout" [ref=e37] [cursor=pointer]:
+          - /url: /admin/logout
+          - img [ref=e38]
+          - text: Logout
+  - main [ref=e40]:
+    - generic [ref=e41]:
+      - heading "Fraud Detection" [level=1] [ref=e42]
+      - button "Run Check" [ref=e44] [cursor=pointer]
+    - generic [ref=e45]: "Trust check complete: 0 anomaly flag(s), 4 deletion check(s)."
+    - generic [ref=e46]:
+      - generic [ref=e47]: Metrics Anomalies
+      - generic [ref=e48]:
+        - heading "No anomalies detected" [level=3] [ref=e49]
+        - paragraph [ref=e50]: Click "Run Check" to scan for users with engagement >3x the average.
+    - generic [ref=e51]:
+      - generic [ref=e52]: Deletion Checks
+      - table [ref=e53]:
+        - rowgroup [ref=e54]:
+          - row "Post ID Assignment ID Post URL" [ref=e55]:
+            - columnheader "Post ID" [ref=e56]
+            - columnheader "Assignment ID" [ref=e57]
+            - columnheader "Post URL" [ref=e58]
+        - rowgroup [ref=e59]:
+          - row "1 1 https://facebook.com/posted" [ref=e60]:
+            - cell "1" [ref=e61]
+            - cell "1" [ref=e62]
+            - cell "https://facebook.com/posted" [ref=e63]:
+              - link "https://facebook.com/posted" [ref=e64] [cursor=pointer]:
+                - /url: https://facebook.com/posted
+          - row "2 1 https://linkedin.com/posted" [ref=e65]:
+            - cell "2" [ref=e66]
+            - cell "1" [ref=e67]
+            - cell "https://linkedin.com/posted" [ref=e68]:
+              - link "https://linkedin.com/posted" [ref=e69] [cursor=pointer]:
+                - /url: https://linkedin.com/posted
+          - row "3 1 https://reddit.com/posted" [ref=e70]:
+            - cell "3" [ref=e71]
+            - cell "1" [ref=e72]
+            - cell "https://reddit.com/posted" [ref=e73]:
+              - link "https://reddit.com/posted" [ref=e74] [cursor=pointer]:
+                - /url: https://reddit.com/posted
+          - row "4 1 https://x.com/posted" [ref=e75]:
+            - cell "4" [ref=e76]
+            - cell "1" [ref=e77]
+            - cell "https://x.com/posted" [ref=e78]:
+              - link "https://x.com/posted" [ref=e79] [cursor=pointer]:
+                - /url: https://x.com/posted
+    - generic [ref=e80]:
+      - generic [ref=e81]: Recent Penalties
+      - generic [ref=e82]:
+        - heading "No penalties recorded" [level=3] [ref=e83]
+        - paragraph [ref=e84]: Penalties from trust score adjustments will appear here.

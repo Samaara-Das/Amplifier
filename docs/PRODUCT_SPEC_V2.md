@@ -436,6 +436,9 @@ Earnings depend purely on engagement metrics. Operating mode (full_auto/semi_aut
 - TikTok and Instagram posting (code preserved, disabled)
 - Dispute resolution / appeal process improvements
 - Auto-update mechanism for desktop app
+- **Influencer/company search & discovery** — Companies should be able to browse and search for specific influencers (by niche, platform, follower count, engagement rate) AND get auto-matched. Users should be able to browse available campaigns and companies, not just receive invitations. Both sides should be able to find each other — Amplifier should be a seamless marketplace, not just a matching engine.
+- **Dynamic niche evolution tracking** — Creators grow into new areas (a baker becomes a seafood influencer, a beauty creator pivots to tech). AI should continuously monitor creator content to detect niche shifts — not just classify once during onboarding. Weekly re-classification already exists but needs to be smarter: detect gradual shifts, update matching accordingly, and notify companies if a creator they're working with is drifting out of their target niche.
+- **Influencer profiles visible to companies** — Companies should see rich influencer profiles (engagement rate, niches, platforms, recent content samples) when browsing or reviewing campaign candidates, not just anonymized stats after posting.
 
 ---
 

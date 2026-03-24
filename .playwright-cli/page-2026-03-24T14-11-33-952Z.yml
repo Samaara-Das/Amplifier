@@ -1,0 +1,126 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "UAT Test Corp" [level=2] [ref=e5]
+      - text: Amplifier for Business
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Campaigns" [ref=e8] [cursor=pointer]:
+          - /url: /company/
+          - img [ref=e9]
+          - text: Campaigns
+      - listitem [ref=e11]:
+        - link "Create Campaign" [ref=e12] [cursor=pointer]:
+          - /url: /company/campaigns/new
+          - img [ref=e13]
+          - text: Create Campaign
+      - listitem [ref=e15]:
+        - link "Billing" [ref=e16] [cursor=pointer]:
+          - /url: /company/billing
+          - img [ref=e17]
+          - text: Billing
+      - listitem [ref=e19]:
+        - link "Statistics" [ref=e20] [cursor=pointer]:
+          - /url: /company/stats
+          - img [ref=e21]
+          - text: Statistics
+      - listitem [ref=e23]:
+        - link "Settings" [ref=e24] [cursor=pointer]:
+          - /url: /company/settings
+          - img [ref=e25]
+          - text: Settings
+      - listitem [ref=e29]:
+        - link "Logout" [ref=e30] [cursor=pointer]:
+          - /url: /company/logout
+          - img [ref=e31]
+          - text: Logout
+  - main [ref=e33]:
+    - generic [ref=e34]: Campaign updated successfully
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - heading "Smart Trading Bot Launch" [level=1] [ref=e37]
+        - generic [ref=e38]:
+          - generic [ref=e39]: active
+          - generic [ref=e40]: v2
+      - generic [ref=e41]:
+        - button "Pause" [ref=e43] [cursor=pointer]
+        - button "Cancel" [ref=e45] [cursor=pointer]
+        - button "Clone" [ref=e47] [cursor=pointer]
+        - link "Export CSV" [ref=e48] [cursor=pointer]:
+          - /url: /company/campaigns/4/export
+        - button "Top Up Budget" [ref=e49] [cursor=pointer]
+        - button "Edit Campaign" [ref=e50] [cursor=pointer]
+        - link "Back" [ref=e51] [cursor=pointer]:
+          - /url: /company/
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - generic [ref=e54]: "0"
+        - generic [ref=e55]: Impressions
+      - generic [ref=e56]:
+        - generic [ref=e57]: "0"
+        - generic [ref=e58]: Engagement
+      - generic [ref=e59]:
+        - generic [ref=e60]: $0.00
+        - generic [ref=e61]: Spent
+      - generic [ref=e62]:
+        - generic [ref=e63]: "0"
+        - generic [ref=e64]: Creators
+      - generic [ref=e65]:
+        - generic [ref=e66]: "0"
+        - generic [ref=e67]: Posts
+      - generic [ref=e68]:
+        - generic [ref=e69]: $0.00
+        - generic [ref=e70]: Cost / 1K Imp
+      - generic [ref=e71]:
+        - generic [ref=e72]: $0.00
+        - generic [ref=e73]: Cost / Engagement
+    - generic [ref=e74]:
+      - generic [ref=e75]: Budget
+      - generic [ref=e78]:
+        - generic [ref=e79]: "Total: $100.00"
+        - generic [ref=e80]: 0.0% used
+        - generic [ref=e81]: "Remaining: $100.00"
+      - generic [ref=e82]:
+        - generic [ref=e83]:
+          - text: "Exhaustion action:"
+          - strong [ref=e84]: Auto Pause
+        - generic [ref=e85]:
+          - text: "Company balance:"
+          - strong [ref=e86]: $400.00
+    - generic [ref=e87]:
+      - generic [ref=e88]: Invitation Status
+      - generic [ref=e89]:
+        - heading "No invitations sent yet" [level=3] [ref=e90]
+        - paragraph [ref=e91]: Invitations will be sent when the campaign is active and matched to users.
+    - generic [ref=e92]:
+      - generic [ref=e93]: Platform ROI Breakdown
+      - generic [ref=e94]:
+        - heading "No posts yet" [level=3] [ref=e95]
+        - paragraph [ref=e96]: Platform metrics will appear here once creators start posting.
+    - generic [ref=e97]:
+      - generic [ref=e98]: Creator Performance (0)
+      - generic [ref=e99]:
+        - heading "No creators assigned yet" [level=3] [ref=e100]
+        - paragraph [ref=e101]: Creators will appear here when matched to this campaign.
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - generic [ref=e104]: Campaign Brief
+        - paragraph [ref=e105]: Promote our AI trading bot to retail investors — automate your trades with AI precision
+        - generic [ref=e106]:
+          - generic [ref=e107]: Content Guidance
+          - paragraph [ref=e108]: Professional tone, focus on automation benefits
+      - generic [ref=e109]:
+        - generic [ref=e110]:
+          - generic [ref=e111]: Payout Rules
+          - generic [ref=e112]:
+            - generic [ref=e113]: "Per 1K imp: $0.50"
+            - generic [ref=e114]: "Per like: $0.01"
+            - generic [ref=e115]: "Per repost: $0.05"
+            - generic [ref=e116]: "Per click: $0.10"
+        - generic [ref=e117]:
+          - generic [ref=e118]: Schedule
+          - generic [ref=e119]:
+            - generic [ref=e120]: "Start: Mar 24, 2026"
+            - generic [ref=e121]: "End: Apr 23, 2026"
+            - generic [ref=e122]: "Created: Mar 24, 2026"
+            - generic [ref=e123]: "Version: 2"

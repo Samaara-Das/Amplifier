@@ -1,0 +1,67 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "UAT Test Corp" [level=2] [ref=e5]
+      - text: Amplifier for Business
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Campaigns" [ref=e8] [cursor=pointer]:
+          - /url: /company/
+          - img [ref=e9]
+          - text: Campaigns
+      - listitem [ref=e11]:
+        - link "Create Campaign" [ref=e12] [cursor=pointer]:
+          - /url: /company/campaigns/new
+          - img [ref=e13]
+          - text: Create Campaign
+      - listitem [ref=e15]:
+        - link "Billing" [ref=e16] [cursor=pointer]:
+          - /url: /company/billing
+          - img [ref=e17]
+          - text: Billing
+      - listitem [ref=e19]:
+        - link "Statistics" [ref=e20] [cursor=pointer]:
+          - /url: /company/stats
+          - img [ref=e21]
+          - text: Statistics
+      - listitem [ref=e23]:
+        - link "Settings" [ref=e24] [cursor=pointer]:
+          - /url: /company/settings
+          - img [ref=e25]
+          - text: Settings
+      - listitem [ref=e29]:
+        - link "Logout" [ref=e30] [cursor=pointer]:
+          - /url: /company/logout
+          - img [ref=e31]
+          - text: Logout
+  - main [ref=e33]:
+    - generic [ref=e34]:
+      - heading "Campaigns" [level=1] [ref=e35]
+      - link "+ Create Campaign" [ref=e36] [cursor=pointer]:
+        - /url: /company/campaigns/new
+    - table [ref=e38]:
+      - rowgroup [ref=e39]:
+        - row "Title Status Budget Remaining Users Posts Impressions Engagement Actions" [ref=e40]:
+          - columnheader "Title" [ref=e41]
+          - columnheader "Status" [ref=e42]
+          - columnheader "Budget" [ref=e43]
+          - columnheader "Remaining" [ref=e44]
+          - columnheader "Users" [ref=e45]
+          - columnheader "Posts" [ref=e46]
+          - columnheader "Impressions" [ref=e47]
+          - columnheader "Engagement" [ref=e48]
+          - columnheader "Actions" [ref=e49]
+      - rowgroup [ref=e50]:
+        - row "Smart Trading Bot Launch active $100.00 $100.00 0 0 0 0 View" [ref=e51]:
+          - cell "Smart Trading Bot Launch" [ref=e52]
+          - cell "active" [ref=e53]:
+            - generic [ref=e54]: active
+          - cell "$100.00" [ref=e55]
+          - cell "$100.00" [ref=e56]
+          - cell "0" [ref=e57]
+          - cell "0" [ref=e58]
+          - cell "0" [ref=e59]
+          - cell "0" [ref=e60]
+          - cell "View" [ref=e61]:
+            - link "View" [ref=e62] [cursor=pointer]:
+              - /url: /company/campaigns/4

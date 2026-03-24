@@ -1422,6 +1422,22 @@ def handle_classify_niches(params):
         return {"niches": [], "error": str(e)}
 
 
+def handle_logout(params):
+    """Clear auth token and reset onboarding state."""
+    try:
+        import os
+        auth_file = os.path.join(ROOT, "config", "server_auth.json")
+        if os.path.exists(auth_file):
+            os.remove(auth_file)
+        from utils.local_db import init_db, set_setting
+        init_db()
+        set_setting("onboarding_done", "false")
+        return {"success": True}
+    except Exception as e:
+        logger.error("logout failed: %s", e)
+        return {"success": False, "error": str(e)}
+
+
 def handle_save_onboarding(params):
     """Save onboarding selections (niches, region, mode) to server + local DB."""
     niches = params.get("niches", [])
@@ -1658,6 +1674,7 @@ HANDLERS = {
     "scrape_platform": handle_scrape_platform,
     "classify_niches": handle_classify_niches,
     "save_onboarding": handle_save_onboarding,
+    "logout": handle_logout,
     "poll_campaigns": handle_poll_campaigns,
     "get_invitations": handle_get_invitations,
     "accept_invitation": handle_accept_invitation,

@@ -1,0 +1,77 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "UAT Test Corp" [level=2] [ref=e5]
+      - text: Amplifier for Business
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Campaigns" [ref=e8] [cursor=pointer]:
+          - /url: /company/
+          - img [ref=e9]
+          - text: Campaigns
+      - listitem [ref=e11]:
+        - link "Create Campaign" [ref=e12] [cursor=pointer]:
+          - /url: /company/campaigns/new
+          - img [ref=e13]
+          - text: Create Campaign
+      - listitem [ref=e15]:
+        - link "Billing" [ref=e16] [cursor=pointer]:
+          - /url: /company/billing
+          - img [ref=e17]
+          - text: Billing
+      - listitem [ref=e19]:
+        - link "Statistics" [ref=e20] [cursor=pointer]:
+          - /url: /company/stats
+          - img [ref=e21]
+          - text: Statistics
+      - listitem [ref=e23]:
+        - link "Settings" [ref=e24] [cursor=pointer]:
+          - /url: /company/settings
+          - img [ref=e25]
+          - text: Settings
+      - listitem [ref=e29]:
+        - link "Logout" [ref=e30] [cursor=pointer]:
+          - /url: /company/logout
+          - img [ref=e31]
+          - text: Logout
+  - main [ref=e33]:
+    - heading "Create Campaign" [level=1] [ref=e35]
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: "1"
+        - generic [ref=e39]: Basics
+      - generic [ref=e41]:
+        - generic [ref=e42]: "2"
+        - generic [ref=e43]: Audience
+      - generic [ref=e45]:
+        - generic [ref=e46]: "3"
+        - generic [ref=e47]: Content
+      - generic [ref=e49]:
+        - generic [ref=e50]: "4"
+        - generic [ref=e51]: Review
+    - generic [ref=e176]:
+      - generic [ref=e177]:
+        - generic [ref=e178]: Content direction
+        - generic [ref=e179]:
+          - generic [ref=e180]: What tone should the posts have? (select all that apply)
+          - generic [ref=e181]:
+            - generic [ref=e183] [cursor=pointer]: Professional
+            - generic [ref=e185] [cursor=pointer]: Casual
+            - generic [ref=e187] [cursor=pointer]: Funny
+            - generic [ref=e189] [cursor=pointer]: Educational
+            - generic [ref=e191] [cursor=pointer]: Inspirational
+        - generic [ref=e192]:
+          - generic [ref=e193]: Must-include phrases, links, or hashtags
+          - textbox "Must-include phrases, links, or hashtags" [ref=e194]:
+            - /placeholder: "e.g. #FinanceFriday, https://app.example.com/signup, mention free trial..."
+          - generic [ref=e195]: One per line or comma-separated. These will appear in every post.
+        - generic [ref=e196]:
+          - generic [ref=e197]: Anything to avoid?
+          - textbox "Anything to avoid?" [ref=e198]:
+            - /placeholder: e.g. Don't mention competitors by name, avoid medical claims...
+          - generic [ref=e199]: Topics, phrases, or claims creators should stay away from.
+      - generic [ref=e200]:
+        - button "← Back" [ref=e201] [cursor=pointer]
+        - button "Generate with AI" [ref=e202] [cursor=pointer]:
+          - img [ref=e203]
+          - text: Generate with AI

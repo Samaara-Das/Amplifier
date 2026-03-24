@@ -1,0 +1,75 @@
+- generic [ref=e102]:
+  - navigation [ref=e103]:
+    - generic [ref=e105]:
+      - img [ref=e106]:
+        - generic [ref=e108]: A
+      - generic [ref=e109]: Amplifier
+    - generic [ref=e110]:
+      - link "Dashboard" [ref=e111] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e112]
+        - generic [ref=e117]: Dashboard
+      - link "Campaigns 2" [ref=e229] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e119]
+        - generic [ref=e122]: Campaigns
+        - generic [ref=e230]: "2"
+      - link "Posts 2" [ref=e484] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e124]
+        - generic [ref=e127]: Posts
+        - generic [ref=e485]: "2"
+      - link "Earnings" [ref=e128] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e129]
+        - generic [ref=e131]: Earnings
+      - link "Settings" [ref=e132] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e133]
+        - generic [ref=e136]: Settings
+    - generic [ref=e138]:
+      - generic [ref=e139]: U
+      - generic [ref=e140]:
+        - generic [ref=e141]: User
+        - generic [ref=e142]: Connecting...
+  - main [ref=e143]:
+    - generic [ref=e486]:
+      - generic [ref=e487]:
+        - heading "Posts" [level=1] [ref=e488]
+        - button "Refresh" [ref=e489] [cursor=pointer]:
+          - img [ref=e490]
+          - text: Refresh
+      - generic [ref=e493]:
+        - button "Pending Review 2" [ref=e494] [cursor=pointer]:
+          - generic [ref=e495]: Pending Review
+          - generic [ref=e496]: "2"
+        - button "Scheduled 2" [ref=e497] [cursor=pointer]:
+          - generic [ref=e498]: Scheduled
+          - generic [ref=e499]: "2"
+        - button "Posted 3" [ref=e500] [cursor=pointer]:
+          - generic [ref=e501]: Posted
+          - generic [ref=e502]: "3"
+        - button "Failed 1" [active] [ref=e503] [cursor=pointer]:
+          - generic [ref=e504]: Failed
+          - generic [ref=e505]: "1"
+      - generic [ref=e691]:
+        - generic [ref=e693]:
+          - generic [ref=e694]: Crypto Tracker Campaign
+          - generic [ref=e695]:
+            - img [ref=e696]
+            - text: Facebook
+        - generic [ref=e698]:
+          - img [ref=e699]
+          - generic [ref=e701]: Session expired — Facebook login required. Please re-authenticate in Settings.
+        - generic [ref=e702]:
+          - generic [ref=e703]: Mar 24, 2026
+          - generic [ref=e704]:
+            - button "Session Health" [ref=e705] [cursor=pointer]:
+              - img [ref=e706]
+              - text: Session Health
+            - button "Retry" [ref=e709] [cursor=pointer]:
+              - img [ref=e710]
+              - text: Retry
+  - contentinfo [ref=e222]:
+    - generic [ref=e226]: Connected
+    - generic [ref=e228]: Amplifier v2.0.0

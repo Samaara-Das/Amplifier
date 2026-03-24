@@ -1,0 +1,33 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]:
+        - generic [ref=e8]: A
+      - generic [ref=e9]: Amplifier
+    - generic [ref=e10]:
+      - generic [ref=e11]: "1"
+      - generic [ref=e13]: "2"
+      - generic [ref=e15]: "3"
+      - generic [ref=e17]: "4"
+      - generic [ref=e19]: "5"
+      - generic [ref=e21]: "6"
+      - generic [ref=e23]: "7"
+  - generic [ref=e92]:
+    - heading "Analyzing Your Profiles" [level=2] [ref=e93]
+    - paragraph [ref=e94]: Amplifier is scraping your connected profiles to understand your reach and content style. This takes about a minute per platform.
+    - generic [ref=e96]:
+      - img [ref=e98]
+      - generic [ref=e100]:
+        - generic [ref=e101]: X (Twitter) -- Done
+        - generic [ref=e102]:
+          - generic [ref=e103]: 1.5K followers
+          - generic [ref=e104]: 12 posts scraped
+          - generic [ref=e105]: 3.5% engagement
+          - text: "\"Building tools for traders. Data-driven insights on markets ...\""
+  - generic [ref=e46]:
+    - button "Back" [ref=e85] [cursor=pointer]:
+      - img [ref=e86]
+      - text: Back
+    - button "Next" [active] [ref=e88] [cursor=pointer]:
+      - text: Next
+      - img [ref=e89]

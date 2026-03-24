@@ -48,6 +48,13 @@ pub async fn classify_niches(state: State<'_, AppState>) -> Result<Value, String
     sidecar.call("classify_niches", json!({}))
 }
 
+/// Logout — clear auth token and reset onboarding
+#[tauri::command]
+pub async fn logout(state: State<'_, AppState>) -> Result<Value, String> {
+    let mut sidecar = state.sidecar.lock().await;
+    sidecar.call("logout", json!({}))
+}
+
 /// Save onboarding settings (mode, niches, platforms)
 #[tauri::command]
 pub async fn save_onboarding(

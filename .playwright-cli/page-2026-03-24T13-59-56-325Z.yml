@@ -1,0 +1,46 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "UAT Test Corp" [level=2] [ref=e5]
+      - text: Amplifier for Business
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Campaigns" [ref=e8] [cursor=pointer]:
+          - /url: /company/
+          - img [ref=e9]
+          - text: Campaigns
+      - listitem [ref=e11]:
+        - link "Create Campaign" [ref=e12] [cursor=pointer]:
+          - /url: /company/campaigns/new
+          - img [ref=e13]
+          - text: Create Campaign
+      - listitem [ref=e15]:
+        - link "Billing" [ref=e16] [cursor=pointer]:
+          - /url: /company/billing
+          - img [ref=e17]
+          - text: Billing
+      - listitem [ref=e19]:
+        - link "Statistics" [ref=e20] [cursor=pointer]:
+          - /url: /company/stats
+          - img [ref=e21]
+          - text: Statistics
+      - listitem [ref=e23]:
+        - link "Settings" [ref=e24] [cursor=pointer]:
+          - /url: /company/settings
+          - img [ref=e25]
+          - text: Settings
+      - listitem [ref=e29]:
+        - link "Logout" [ref=e30] [cursor=pointer]:
+          - /url: /company/logout
+          - img [ref=e31]
+          - text: Logout
+  - main [ref=e33]:
+    - generic [ref=e34]:
+      - heading "Campaigns" [level=1] [ref=e35]
+      - link "+ Create Campaign" [ref=e36] [cursor=pointer]:
+        - /url: /company/campaigns/new
+    - generic [ref=e37]:
+      - heading "No campaigns yet" [level=3] [ref=e38]
+      - paragraph [ref=e39]: Create your first campaign to start reaching users.
+      - link "Create Campaign" [ref=e40] [cursor=pointer]:
+        - /url: /company/campaigns/new

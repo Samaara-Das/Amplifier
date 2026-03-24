@@ -3091,6 +3091,24 @@ window.obGoNext = obGoNext;
 window.obGoBack = obGoBack;
 window.obFinish = obFinish;
 
+async function logoutUser() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  try {
+    if (isTauri) {
+      await invoke('save_onboarding', { niches: [], region: '', mode: '' });
+    }
+  } catch (e) { /* ignore */ }
+  // Clear local auth file by writing empty state
+  try {
+    if (isTauri) {
+      await invoke('logout');
+    }
+  } catch (e) { /* ignore */ }
+  // Show onboarding
+  showOnboarding();
+}
+window.logoutUser = logoutUser;
+
 // ── Dashboard Timer Setup (extracted for reuse) ─────
 
 function startDashboardTimers() {

@@ -1,0 +1,66 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Admin Dashboard" [level=2] [ref=e5]
+      - text: Amplifier
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Overview" [ref=e8] [cursor=pointer]:
+          - /url: /admin/
+          - img [ref=e9]
+          - text: Overview
+      - listitem [ref=e11]:
+        - link "Users" [ref=e12] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e13]
+          - text: Users
+      - listitem [ref=e15]:
+        - link "Campaigns" [ref=e16] [cursor=pointer]:
+          - /url: /admin/campaigns
+          - img [ref=e17]
+          - text: Campaigns
+      - listitem [ref=e19]:
+        - link "Review Queue" [ref=e20] [cursor=pointer]:
+          - /url: /admin/review-queue
+          - img [ref=e21]
+          - text: Review Queue
+      - listitem [ref=e23]:
+        - link "Platform Stats" [ref=e24] [cursor=pointer]:
+          - /url: /admin/platform-stats
+          - img [ref=e25]
+          - text: Platform Stats
+      - listitem [ref=e27]:
+        - link "Fraud Detection" [ref=e28] [cursor=pointer]:
+          - /url: /admin/fraud
+          - img [ref=e29]
+          - text: Fraud Detection
+      - listitem [ref=e31]:
+        - link "Payouts" [ref=e32] [cursor=pointer]:
+          - /url: /admin/payouts
+          - img [ref=e33]
+          - text: Payouts
+      - generic [ref=e35]: Account
+      - listitem [ref=e36]:
+        - link "Logout" [ref=e37] [cursor=pointer]:
+          - /url: /admin/logout
+          - img [ref=e38]
+          - text: Logout
+  - main [ref=e40]:
+    - generic [ref=e41]:
+      - heading "Fraud Detection" [level=1] [ref=e42]
+      - button "Run Check" [ref=e44] [cursor=pointer]
+    - generic [ref=e45]:
+      - generic [ref=e46]: Metrics Anomalies
+      - generic [ref=e47]:
+        - heading "No anomalies detected" [level=3] [ref=e48]
+        - paragraph [ref=e49]: Click "Run Check" to scan for users with engagement >3x the average.
+    - generic [ref=e50]:
+      - generic [ref=e51]: Deletion Checks
+      - generic [ref=e52]:
+        - heading "No deletion flags" [level=3] [ref=e53]
+        - paragraph [ref=e54]: Posts marked "live" and older than 24h that should be spot-checked will appear here.
+    - generic [ref=e55]:
+      - generic [ref=e56]: Recent Penalties
+      - generic [ref=e57]:
+        - heading "No penalties recorded" [level=3] [ref=e58]
+        - paragraph [ref=e59]: Penalties from trust score adjustments will appear here.

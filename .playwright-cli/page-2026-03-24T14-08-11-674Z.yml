@@ -1,0 +1,115 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - heading "UAT Test Corp" [level=2] [ref=e5]
+      - text: Amplifier for Business
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Campaigns" [ref=e8] [cursor=pointer]:
+          - /url: /company/
+          - img [ref=e9]
+          - text: Campaigns
+      - listitem [ref=e11]:
+        - link "Create Campaign" [ref=e12] [cursor=pointer]:
+          - /url: /company/campaigns/new
+          - img [ref=e13]
+          - text: Create Campaign
+      - listitem [ref=e15]:
+        - link "Billing" [ref=e16] [cursor=pointer]:
+          - /url: /company/billing
+          - img [ref=e17]
+          - text: Billing
+      - listitem [ref=e19]:
+        - link "Statistics" [ref=e20] [cursor=pointer]:
+          - /url: /company/stats
+          - img [ref=e21]
+          - text: Statistics
+      - listitem [ref=e23]:
+        - link "Settings" [ref=e24] [cursor=pointer]:
+          - /url: /company/settings
+          - img [ref=e25]
+          - text: Settings
+      - listitem [ref=e29]:
+        - link "Logout" [ref=e30] [cursor=pointer]:
+          - /url: /company/logout
+          - img [ref=e31]
+          - text: Logout
+  - main [ref=e33]:
+    - heading "Create Campaign" [level=1] [ref=e35]
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: "1"
+        - generic [ref=e39]: Basics
+      - generic [ref=e41]:
+        - generic [ref=e42]: "2"
+        - generic [ref=e43]: Audience
+      - generic [ref=e45]:
+        - generic [ref=e46]: "3"
+        - generic [ref=e47]: Content
+      - generic [ref=e49]:
+        - generic [ref=e50]: "4"
+        - generic [ref=e51]: Review
+    - generic [ref=e206]:
+      - generic [ref=e207]:
+        - img [ref=e209]
+        - generic [ref=e211]:
+          - text: "~2 users match your targeting. Estimated reach:"
+          - strong [ref=e212]: 5.8K - 11.6K impressions
+      - generic [ref=e213]:
+        - generic [ref=e214]:
+          - generic [ref=e215]: Campaign Details
+          - generic [ref=e216]:
+            - generic [ref=e217]: Title
+            - textbox "Title" [ref=e218]: Smart Trading Bot — AI-powered automated trading for retail investors
+          - generic [ref=e219]:
+            - generic [ref=e220]: Brief / Description
+            - textbox "Brief / Description" [ref=e221]: "Promote: Smart Trading Bot — AI-powered automated trading for retail investors. Goal: product launch. Share authentic content highlighting the key benefits of this product/service."
+            - generic [ref=e222]: This is what creators see when deciding whether to accept your campaign.
+          - generic [ref=e223]:
+            - generic [ref=e224]: Content Guidance
+            - textbox "Content Guidance" [ref=e225]: "Tone: professional, educational. Create genuine, engaging content that resonates with your audience. Include relevant hashtags and a clear call to action."
+            - generic [ref=e226]: "Specific instructions for creators: tone, must-include elements, restrictions."
+        - generic [ref=e227]:
+          - generic [ref=e228]: Payout Rates
+          - generic [ref=e229]: How much you pay creators per engagement metric. AI-suggested based on your target niches.
+          - generic [ref=e230]:
+            - generic [ref=e231]:
+              - generic [ref=e232]: Per 1K Impressions ($)
+              - spinbutton "Per 1K Impressions ($)" [ref=e233]: "0.5"
+            - generic [ref=e234]:
+              - generic [ref=e235]: Per Like ($)
+              - spinbutton "Per Like ($)" [ref=e236]: "0.01"
+          - generic [ref=e237]:
+            - generic [ref=e238]:
+              - generic [ref=e239]: Per Repost ($)
+              - spinbutton "Per Repost ($)" [ref=e240]: "0.05"
+            - generic [ref=e241]:
+              - generic [ref=e242]: Per Click ($)
+              - spinbutton "Per Click ($)" [ref=e243]: "0.1"
+        - generic [ref=e244]:
+          - generic [ref=e245]: Budget & Schedule
+          - generic [ref=e246]:
+            - generic [ref=e247]:
+              - generic [ref=e248]: Budget ($)
+              - spinbutton "Budget ($)" [ref=e249]: "50"
+              - generic [ref=e250]: "Minimum $50. Your balance: $500.00"
+            - generic [ref=e251]:
+              - generic [ref=e252]: Start Date
+              - textbox "Start Date" [ref=e253]: 2026-03-25T19:38
+            - generic [ref=e254]:
+              - generic [ref=e255]: End Date
+              - textbox "End Date" [ref=e256]: 2026-04-23T19:38
+          - generic [ref=e257]:
+            - generic [ref=e258]: When budget runs out
+            - combobox "When budget runs out" [ref=e259] [cursor=pointer]:
+              - option "Pause campaign (you can top up and resume)" [selected]
+              - option "End campaign (campaign completes when budget is exhausted)"
+            - generic [ref=e260]: Choose what happens when your campaign budget is fully spent.
+        - generic [ref=e261]:
+          - button "← Back" [ref=e262] [cursor=pointer]
+          - generic [ref=e263]:
+            - button "Regenerate" [ref=e264] [cursor=pointer]:
+              - img [ref=e265]
+              - text: Regenerate
+            - button "Save as Draft" [ref=e267] [cursor=pointer]
+            - button "Activate Campaign" [ref=e268] [cursor=pointer]
