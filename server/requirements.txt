@@ -27,5 +27,8 @@ email-validator>=2.2.0
 # Payments (Phase 7)
 # stripe>=11.0.0
 
+# AI (Gemini for campaign wizard)
+google-genai>=1.0.0
+
 # HTTP client
 httpx>=0.28.0
