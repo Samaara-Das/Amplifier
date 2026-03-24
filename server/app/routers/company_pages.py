@@ -4,8 +4,7 @@ import os
 
 from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from jose import JWTError
+from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,8 +24,13 @@ from app.models.metric import Metric
 
 router = APIRouter()
 _template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
-templates = Jinja2Templates(directory=_template_dir)
+_env = Environment(loader=FileSystemLoader(_template_dir), autoescape=True)
 settings = get_settings()
+
+
+def _render(template_name: str, status_code: int = 200, **ctx) -> HTMLResponse:
+    tpl = _env.get_template(template_name)
+    return HTMLResponse(tpl.render(**ctx), status_code=status_code)
 
 
 # ── Helper: cookie-based auth ──────────────────────────────────────
@@ -61,10 +65,7 @@ def _login_redirect():
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str | None = None):
-    return templates.TemplateResponse(
-        "company/login.html",
-        {"request": request, "error": error},
-    )
+    return _render("company/login.html", error=error)
 
 
 @router.post("/login")
@@ -77,11 +78,7 @@ async def login_submit(
     result = await db.execute(select(Company).where(Company.email == email))
     company = result.scalar_one_or_none()
     if not company or not verify_password(password, company.password_hash):
-        return templates.TemplateResponse(
-            "company/login.html",
-            {"request": request, "error": "Invalid email or password"},
-            status_code=401,
-        )
+        return _render("company/login.html", status_code=401, error="Invalid email or password")
 
     token = create_access_token({"sub": str(company.id), "type": "company"})
     response = RedirectResponse(url="/company/", status_code=302)
@@ -106,11 +103,7 @@ async def register_submit(
     # Check duplicate email
     existing = await db.execute(select(Company).where(Company.email == email))
     if existing.scalar_one_or_none():
-        return templates.TemplateResponse(
-            "company/login.html",
-            {"request": request, "error": "Email already registered", "show_register": True},
-            status_code=400,
-        )
+        return _render("company/login.html", status_code=400, error="Email already registered", show_register=True)
 
     company = Company(
         name=name,
@@ -205,15 +198,7 @@ async def campaigns_page(
             }
         )
 
-    return templates.TemplateResponse(
-        "company/campaigns.html",
-        {
-            "request": request,
-            "company": company,
-            "campaigns": campaign_data,
-            "active": "campaigns",
-        },
-    )
+    return _render("company/campaigns.html", company=company, campaigns=campaign_data, active="campaigns")
 
 
 # ── Create Campaign ────────────────────────────────────────────────
@@ -227,10 +212,7 @@ async def campaign_create_page(
     if not company:
         return _login_redirect()
 
-    return templates.TemplateResponse(
-        "company/campaign_create.html",
-        {"request": request, "company": company, "active": "create"},
-    )
+    return _render("company/campaign_create.html", company=company, active="create")
 
 
 @router.post("/campaigns/new")
@@ -270,31 +252,28 @@ async def campaign_create_submit(
 
     # Validate budget
     if float(company.balance) < budget:
-        return templates.TemplateResponse(
+        return _render(
             "company/campaign_create.html",
-            {
-                "request": request,
-                "company": company,
-                "active": "create",
-                "error": f"Insufficient balance. Current balance: ${float(company.balance):.2f}",
-                "form": {
-                    "title": title,
-                    "brief": brief,
-                    "content_guidance": content_guidance,
-                    "budget": budget,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "rate_per_1k_impressions": rate_per_1k_impressions,
-                    "rate_per_like": rate_per_like,
-                    "rate_per_repost": rate_per_repost,
-                    "rate_per_click": rate_per_click,
-                    "min_followers_json": min_followers_json,
-                    "niche_tags": niche_tags,
-                    "target_regions": target_regions,
-                    "required_platforms": required_platforms,
-                },
-            },
             status_code=400,
+            company=company,
+            active="create",
+            error=f"Insufficient balance. Current balance: ${float(company.balance):.2f}",
+            form={
+                "title": title,
+                "brief": brief,
+                "content_guidance": content_guidance,
+                "budget": budget,
+                "start_date": start_date,
+                "end_date": end_date,
+                "rate_per_1k_impressions": rate_per_1k_impressions,
+                "rate_per_like": rate_per_like,
+                "rate_per_repost": rate_per_repost,
+                "rate_per_click": rate_per_click,
+                "min_followers_json": min_followers_json,
+                "niche_tags": niche_tags,
+                "target_regions": target_regions,
+                "required_platforms": required_platforms,
+            },
         )
 
     campaign = Campaign(
@@ -456,21 +435,18 @@ async def campaign_detail_page(
             "engagement": int(um.engagement),
         })
 
-    return templates.TemplateResponse(
+    return _render(
         "company/campaign_detail.html",
-        {
-            "request": request,
-            "company": company,
-            "campaign": campaign,
-            "spent": spent,
-            "post_count": t.post_count,
-            "user_count": t.user_count,
-            "impressions": int(t.impressions),
-            "engagement": int(t.engagement),
-            "platforms": platforms,
-            "influencers": influencers,
-            "active": "campaigns",
-        },
+        company=company,
+        campaign=campaign,
+        spent=spent,
+        post_count=t.post_count,
+        user_count=t.user_count,
+        impressions=int(t.impressions),
+        engagement=int(t.engagement),
+        platforms=platforms,
+        influencers=influencers,
+        active="campaigns",
     )
 
 
@@ -538,15 +514,7 @@ async def billing_page(
             }
         )
 
-    return templates.TemplateResponse(
-        "company/billing.html",
-        {
-            "request": request,
-            "company": company,
-            "allocations": allocations,
-            "active": "billing",
-        },
-    )
+    return _render("company/billing.html", company=company, allocations=allocations, active="billing")
 
 
 @router.post("/billing/topup")
@@ -580,14 +548,7 @@ async def settings_page(
     if not company:
         return _login_redirect()
 
-    return templates.TemplateResponse(
-        "company/settings.html",
-        {
-            "request": request,
-            "company": company,
-            "active": "settings",
-        },
-    )
+    return _render("company/settings.html", company=company, active="settings")
 
 
 @router.post("/settings")
@@ -605,27 +566,16 @@ async def settings_update(
     if email != company.email:
         existing = await db.execute(select(Company).where(Company.email == email))
         if existing.scalar_one_or_none():
-            return templates.TemplateResponse(
+            return _render(
                 "company/settings.html",
-                {
-                    "request": request,
-                    "company": company,
-                    "active": "settings",
-                    "error": "Email already in use by another account",
-                },
                 status_code=400,
+                company=company,
+                active="settings",
+                error="Email already in use by another account",
             )
 
     company.name = name
     company.email = email
     await db.flush()
 
-    return templates.TemplateResponse(
-        "company/settings.html",
-        {
-            "request": request,
-            "company": company,
-            "active": "settings",
-            "success": "Profile updated successfully",
-        },
-    )
+    return _render("company/settings.html", company=company, active="settings", success="Profile updated successfully")
