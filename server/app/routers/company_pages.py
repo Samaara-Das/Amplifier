@@ -236,7 +236,20 @@ async def ai_generate_campaign(
 
     from app.services.campaign_wizard import run_campaign_wizard
     try:
-        result = await run_campaign_wizard(body, db)
+        targeting = body.get("targeting", {})
+        result = await run_campaign_wizard(
+            db=db,
+            product_description=body.get("product_description", ""),
+            campaign_goal=body.get("campaign_goal", "brand_awareness"),
+            company_urls=body.get("company_urls", []),
+            target_niches=targeting.get("niche_tags") or targeting.get("target_niches", []),
+            target_regions=targeting.get("target_regions", []),
+            required_platforms=targeting.get("required_platforms", []),
+            min_followers=targeting.get("min_followers", {}),
+            tone=body.get("tone", "professional"),
+            must_include=body.get("must_include", ""),
+            must_avoid=body.get("must_avoid", ""),
+        )
         return JSONResponse(result)
     except Exception as e:
         # Return sensible defaults on AI failure
