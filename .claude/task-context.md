@@ -1,13 +1,12 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-24 (Session 17)
+**Last Updated**: 2026-03-24 (Session 17, continued)
 
 ## Current Task
-- **Branch: `main`** — MVP complete, metric pipeline fixed, earnings verified E2E
-- All MVP phases (1-8) complete
-- Full metric pipeline verified: post → scrape → report to server → billing → $75.98 earned → dashboard
-- Server redeployed to Vercel with inline billing trigger
-- Webcrawler installed globally for content research
+- **Branch: `main`** — LangGraph agent pipeline built, tested, and E2E verified
+- Phase 1 of multi-agent content pipeline complete
+- 56 pytest tests passing
+- Next: plan MVP features from a business perspective
 
 ## Project Overview
 Two interconnected systems:
@@ -19,189 +18,168 @@ Two interconnected systems:
 ### MVP Phases (All Complete)
 - [x] Phase 1-8: All complete (critical fixes, PostgreSQL, content gen, matching, metrics, dashboards, installer, integration testing)
 
-### Session 17 Tasks (2026-03-24)
-- [x] **Task 31: Content prompt rewrite** — Rewrote CONTENT_PROMPT in content_generator.py with emotion-first hooks, value-first body, platform-specific format rules, hard rules from content-templates.md
-- [x] **Task 32: DeerFlow research** — Researched thoroughly, decided to SKIP (overkill: full-stack app, Python 3.12+, Node 22+, nginx, ~30 deps, doesn't work on Windows). Build lightweight research pipeline (crawler + Gemini) instead.
-- [x] **Task 33: Webcrawler setup** — Installed at `C:\Users\dassa\Work\webcrawler\`, added to global CLAUDE.md. Search + fetch work. Investopedia blocks but other financial sites work fine.
-- [x] **Task 34: Metric pipeline — 4 bugs fixed** — URL capture, cumulative scraping, inline billing, content prompt. Full E2E verified: $75.98 earned on dashboard.
-- [x] **Task 35: Model exploration note** — Saved to memory. Deferred: Qwen, Llama, Nvidia, local LLMs. Current Gemini works.
+### Session 17 — Early (Metric Pipeline + Webcrawler)
+- [x] **Task 31: Content prompt rewrite** — Emotion-first hooks, value-first body, platform rules
+- [x] **Task 33: Webcrawler setup** — Installed globally at `C:\Users\dassa\Work\webcrawler\`
+- [x] **Task 34: Metric pipeline — 4 bugs fixed** — URL capture, cumulative scraping, inline billing. $75.98 earned E2E.
+- [x] **Task 35: Model exploration note** — Deferred: Qwen, Llama, Nvidia, local LLMs
 
-### Next Session Priority
-- [ ] **Lightweight research pipeline** — Wire webcrawler + Gemini together in content_generator.py (crawler fetches trending topics/articles → feeds into prompt as context → Gemini generates brand-voice content). This replaces DeerFlow.
-- [ ] **Test real posting with URL capture** — Run campaign_runner.py to verify post functions capture real URLs (not placeholders) from the browser after posting
-- [ ] **Local server SQLite schema drift** — Local `amplifier.db` may lack `audience_region` column. Delete stale DB to recreate. Only affects local dev (Supabase has all columns).
+### Session 17 — Late (Agent Pipeline Phase 1)
+- [x] **Task 36 (Phase 1): LangGraph agent pipeline** — Built and E2E tested
+  - Installed langgraph + langchain-google-genai
+  - Created `scripts/agents/` package (7 files): pipeline.py, state.py, profile_node.py, research_node.py, draft_node.py, quality_node.py
+  - Extended local_db.py with 4 agent tables + CRUD functions
+  - Wired into campaign_runner.py with feature flag (`enable_agent_pipeline`)
+  - Legacy ContentGenerator preserved as fallback
+  - E2E: poll → agent pipeline → 4 platform drafts (avg quality 88/100) → image gen → posted to Facebook + LinkedIn
+  - 56 pytest tests written and passing
+- [x] **DeerFlow evaluated and rejected** — Windows issues, ~30 deps, HTTP stack assumptions. LangGraph standalone chosen instead.
+- [x] **Task 32 cancelled** — DeerFlow integration
 
-### Post-MVP Tasks (Pending)
-- [ ] AI architecture rethink — multi-agent pipeline, model economics (see `docs/POST_MVP_AI_STRATEGY.md`)
-- [ ] User app distribution — web dashboard + Tauri desktop agent (see `docs/POST_MVP_ROADMAP.md`)
+### Agent Pipeline Phase 1 — E2E Results
+- **Campaign**: "Smart Money Indicator Beta" (created on live Vercel server)
+- **Research**: 5 web search results via webcrawler (DuckDuckGo)
+- **Drafts**: X (342 chars, flagged over limit), LinkedIn (897), Facebook (402), Reddit (1032)
+- **Quality**: avg 88/100. X too long. Reddit false positive on "ist" in "institutional" — fixed.
+- **Image**: Cloudflare FLUX generated
+- **Posting**: Facebook posted (real URL captured), LinkedIn posted (fallback URL), Reddit failed (selector), X failed (account locked)
+- **Server sync**: 2 posts reported, assignment status "posted"
+
+### Pending (Task-Master Tasks 37-40)
+- [ ] **Task 37 (Phase 2)**: Content variety (educational/funny/ragebait/story) + audience-aware scheduling + CTA rotation + post-post engagement (browse only)
+- [ ] **Task 38 (Phase 3)**: Learning loop — metrics feed back into content decisions
+- [ ] **Task 39 (Phase 4)**: Dashboard views — research, drafts, schedule
+- [ ] **Task 40 (Phase 5)**: Personal brand pipeline (separate graph, shared nodes)
+
+### Critical Issues
+- [ ] **X account locked** — Playwright automation detected. Must fix before user onboarding: stealth browser, official API, or alternative method.
+- [ ] **Reddit posting broken** — `textarea[name="title"]` selector timeout. Reddit UI likely changed.
+
+### Post-MVP Tasks
+- [ ] User app distribution — web dashboard + Tauri desktop agent
 - [ ] Browser Use migration for posting
 - [ ] LinkedIn/Facebook official API migration
-- [ ] Write tests (~50 pytest tests)
-- [ ] 18-21: Test Run, Account Warmup, Profile Revamps, LinkedIn "I'm Back"
-- [ ] 22-30: AI Video, Newsletters, Facebook Groups, TradingView, Analytics, etc.
+- [ ] 18-21: Account Warmup, Profile Revamps, LinkedIn "I'm Back"
+- [ ] 22-30: AI Video, Newsletters, Facebook Groups, TradingView, Analytics
 
 ## Session History
 
-### Sessions 1-8 (2026-03-07 to 2026-03-18) — Original Amplifier
-- Built entire system, 6 platforms E2E tested, brand strategy, Task 17 workflow
+### Sessions 1-16 (2026-03-07 to 2026-03-22)
+- Built entire system: 6-platform posting, server (52 routes, 8 models), dashboards, Vercel deploy
+- 9 bugs fixed in E2E testing, Supabase PostgreSQL, UI polish, image gen chain
 
-### Session 9 (2026-03-18) — Server Architecture & Build
-- Designed two-sided marketplace (user-side compute, pull-based)
-- Built 19 tasks: server (52 routes, 8 models), user app (7 new files), distribution
+### Session 17 (2026-03-24) — Metric Pipeline, Agent Pipeline, Tests
 
-### Session 10 (2026-03-18) — Dashboard Pages & E2E Testing
-- Built 17 web pages, shared dark theme, E2E tested via Chrome DevTools — 0 bugs
+**Part 1: Metric pipeline fix + webcrawler**
+- Rewrote content generation prompt (emotion-first, value-first, brand voice)
+- Installed webcrawler globally, added to CLAUDE.md
+- Fixed 4 metric pipeline bugs (URL capture, cumulative scraping, inline billing, content prompt)
+- E2E verified: $75.98 earned on dashboard
 
-### Session 11 (2026-03-18 to 2026-03-21) — Rename & Vercel Deploy
-- Renamed to "Amplifier", deployed to Vercel
+**Part 2: Framework decision**
+- Researched DeerFlow, LangGraph, CrewAI, Custom pipeline
+- DeerFlow: Windows issues (#1278, #1210), ~30 deps, HTTP stack assumptions. `DeerFlowClient` exists but not plug-and-play on Windows.
+- **Decision: LangGraph standalone** — same engine as DeerFlow, pure Python, Windows-native, 2 packages, production-ready (1.0 stable)
+- DeerFlow could be useful later for: company-side campaign brief assistant, general research tool
+- Plan documented in `docs/AGENT_PIPELINE_PLAN.md` (5 phases)
 
-### Session 12 (2026-03-22) — MVP Build (Ralph Agent)
-- Phases 1-7 completed. New modules: `content_generator.py`, `metric_collector.py`
+**Part 3: Agent pipeline Phase 1 build**
+- Created `scripts/agents/` package with 7 files
+- State schema: PipelineState TypedDict (campaign, profiles, research, drafts, quality, output)
+- Nodes: profile (weekly cache) → research (webcrawler + past perf) → draft (Gemini per-platform) → quality (hard rules, 0-100 score) → output
+- Feature flag: `enable_agent_pipeline` in settings table
+- Agent pipeline falls back to legacy ContentGenerator on failure
+- E2E tested with live Vercel server campaign
 
-### Session 13 (2026-03-22) — Integration Testing, Database Fix & UI Polish
-- Supabase PostgreSQL fixed, UI polish, 4 bugs fixed
+**Part 4: Testing**
+- 56 pytest tests written across 4 files
+- Coverage: DB CRUD (18), quality validation (20), profile node (5), pipeline integration (3+1 skipped)
+- All passing
 
-### Session 14 (2026-03-22) — Brand Strategy: User App Distribution
-- Decision: post-MVP split into web dashboard + Tauri desktop agent
-
-### Session 15 (2026-03-22) — User App E2E Testing & Bug Fixes
-- 9 bugs found and fixed (commits e5c893a, 570a12b). Critical: matching was broken (missing `connected` flag).
-
-### Session 16 (2026-03-22) — Image Gen Fix, Full E2E Posting Verified
-- Cloudflare Workers AI FLUX.1 schnell as primary image gen
-- Campaign runner posting fixed (function names + signatures)
-- Full E2E posting verified across 4 platforms (41 min)
-- DeerFlow exploration deferred
-
-### Session 17 (2026-03-24) — Metric Pipeline Fix, Content Prompt, Webcrawler
-
-**Content generation prompt rewrite:**
-- Rewrote `CONTENT_PROMPT` in `content_generator.py` to include emotion-first hooks, value-first body, platform-specific format rules, all hard rules from `content-templates.md`
-- Old prompt was generic ("generate social media content for a brand campaign") — produced ad-like output
-
-**Webcrawler setup:**
-- Cloned `github.com/Devtest-Dan/webcrawler` to `C:\Users\dassa\Work\webcrawler\`
-- Installed deps: httpx, beautifulsoup4, markdownify, readability-lxml, ddgs, playwright
-- Added reference to global `~/.claude/CLAUDE.md` so Claude Code in any session can use it
-- Verified: `search "query"` works (DuckDuckGo), `fetch <url>` works on most sites (Investopedia blocks)
-- Two modes: httpx (fast, public) and Playwright browser (JS-heavy/auth-required)
-
-**DeerFlow research and decision:**
-- Researched thoroughly via agent: it's a full-stack app (LangGraph server + FastAPI gateway + Next.js frontend + nginx)
-- Requires Python 3.12+, Node.js 22+, uv, nginx, ~30 heavy dependencies
-- Windows incompatible (uses `pkill`, unix nginx conventions, shell scripts — needs WSL)
-- **Decision: Skip DeerFlow.** Build lightweight research pipeline (crawler + Gemini) instead.
-
-**Metric pipeline — 4 bugs found and fixed (commit 6835344):**
-
-1. **Post URLs were placeholders (CRITICAL)** — `campaign_runner.py:141` stored `https://{platform}.com/posted` as fake URLs. Fixed: posting functions now return actual URL strings (or fallback URLs). X/LinkedIn/Facebook extract from feed, Reddit captures redirect URL. Campaign runner stores returned URLs.
-
-2. **`_should_scrape` had rigid 30-min windows** — Only scraped at exactly T+1h/6h/24h/72h ±30min. If scraper missed the window, data was lost. Fixed: cumulative approach — tracks completed tiers per post via metric count, scrapes next due tier regardless of when scraper runs.
-
-3. **Earnings never calculated on Vercel** — Server billing runs via ARQ background worker which doesn't exist on Vercel serverless. Fixed: `/api/metrics` endpoint now triggers `run_billing_cycle()` inline when final metrics are submitted.
-
-4. **Content prompt was generic** — (See above)
-
-**E2E verification of full pipeline:**
-- Inserted test metrics for 4 posts into local DB (simulating scrape)
-- Synced to Vercel server via `sync_metrics_to_server()`
-- Billing triggered inline → 10 posts processed, $75.98 earned
-- User dashboard verified via Chrome DevTools MCP:
-  - Header shows $75.98 EARNED, $75.98 BALANCE
-  - Earnings tab: $75.98 total earned, $75.98 balance
-  - Posts tab: all 4 posts with impressions, likes, reposts populated
-  - Admin stats: $75.98 total payouts
-
-**Vercel deployment note:**
-- Cold starts cause intermittent 500s — retry logic needed for API calls
-- Local SQLite may have stale schema (missing `audience_region` column) — delete `server/amplifier.db` to recreate
-
-**Task-master tasks.json manually updated** (ANTHROPIC_API_KEY not set, so `task-master add-task` fails). Added tasks 31-35 directly to JSON.
+**Part 5: Key decisions**
+- User wants Claude as business partner, not just coder
+- Campaign + personal brand pipelines will be separate graphs sharing nodes
+- Desktop-first architecture, but nodes are stateless/split-ready for server later
+- User profiles extracted weekly for content personalization
+- X account locked — posting method must be made robust (API or stealth)
 
 ## Important Decisions Made
-- **User-side compute** — AI generation, posting, scraping on user device
-- **Pull-based polling** — every 5-15 min, no websockets
-- **Credentials never leave device** — server never touches social media passwords
-- **Billing**: pay per impression/engagement, 20% platform cut, per-metric dedup
-- **Database**: Supabase PostgreSQL via transaction pooler (port 6543)
-- **Deploy autonomously**: user wants Vercel deployment done without intervention
-- **Skip DeerFlow** — overkill for content gen, Windows incompatible. Build crawler + Gemini pipeline instead.
-- **Inline billing on Vercel** — trigger billing in metrics endpoint since ARQ worker doesn't run on serverless
-- **Post functions return URLs** — `str | None` instead of `bool`, preserves existing truthiness checks
+- **LangGraph standalone over DeerFlow** — Same engine, no baggage. Revisit DeerFlow when it ships pip-installable Windows package.
+- **Desktop-first, split-ready** — Nodes are independent stateless functions. Can move research/draft/quality to server later.
+- **Campaign + personal = separate pipelines, shared nodes** — Built campaign first (Phases 1-4), personal brand later (Phase 5).
+- **Feature flag for agent pipeline** — `enable_agent_pipeline` in settings. Legacy ContentGenerator is fallback.
+- **Post-post engagement = browse only** — No liking/retweeting on behalf of user.
+- **Content personalization** — User profiles scraped weekly, fed into draft prompts.
+- **Business partner role** — Claude helps run the business, not just build features.
+- **X account security** — Must fix before onboarding: API, stealth browser, or alternative method.
 
 ## Key Reference Files
 
+### Agent Pipeline (NEW)
+- `scripts/agents/pipeline.py` — LangGraph graph (profile → research → draft → quality → output)
+- `scripts/agents/state.py` — PipelineState TypedDict
+- `scripts/agents/profile_node.py` — User profile extraction (weekly Playwright cache)
+- `scripts/agents/research_node.py` — Webcrawler search + company links + past performance
+- `scripts/agents/draft_node.py` — Per-platform Gemini drafting with brand voice + user profile
+- `scripts/agents/quality_node.py` — Hard rules validation, 0-100 scoring
+- `docs/AGENT_PIPELINE_PLAN.md` — Full 5-phase plan with architecture, DB schema, decisions
+
 ### Server
-- `server/app/main.py` — Entry point (52 routes, lifespan)
-- `server/app/core/database.py` — Supabase PostgreSQL + NullPool + SSL
+- `server/app/main.py` — Entry point (52 routes)
 - `server/app/routers/metrics.py` — Metrics submission + inline billing trigger
-- `server/app/services/billing.py` — Earnings calculation from metrics + payout rules
-- `server/app/templates/base.html` — Shared Jinja2 base template (emerald theme)
+- `server/app/services/billing.py` — Earnings calculation
 
 ### User App
-- `scripts/campaign_dashboard.py` — User dashboard (4 tabs + onboarding, port 5222)
-- `scripts/campaign_runner.py` — Campaign loop (poll → generate → post → report). Now captures real post URLs.
-- `scripts/post.py` — Posting functions now return URL strings instead of booleans
-- `scripts/utils/content_generator.py` — Text: Gemini → Mistral → Groq (prompt rewritten for brand voice). Image: Cloudflare FLUX → Together AI → PIL
-- `scripts/utils/metric_scraper.py` — Cumulative tier-based scraping (no more missed windows)
-- `scripts/utils/metric_collector.py` — Hybrid metric collection (X/Reddit APIs + Playwright fallback)
-- `scripts/utils/server_client.py` — Server API client with retry
+- `scripts/campaign_runner.py` — Campaign loop with agent pipeline routing (feature flag)
+- `scripts/campaign_dashboard.py` — User dashboard (port 5222)
+- `scripts/post.py` — Posting functions (return URL strings)
+- `scripts/utils/content_generator.py` — Legacy content gen (fallback)
+- `scripts/utils/local_db.py` — SQLite with 4 agent tables + CRUD
+- `scripts/utils/metric_scraper.py` — Cumulative tier-based scraping
+
+### Tests
+- `tests/test_local_db_agent.py` — 18 tests: agent table CRUD + feature flag
+- `tests/test_quality_node.py` — 20 tests: banned phrases, length, hooks, scoring
+- `tests/test_profile_node.py` — 5 tests: cache, filtering, staleness
+- `tests/test_pipeline_integration.py` — 3+1 tests: graph structure, mock pipeline, real API
 
 ### Config & Docs
-- `config/content-templates.md` — Brand voice, content pillars, emotion-first + value-first principles
-- `config/platforms.json` — Platform config (TikTok/Instagram disabled)
-- `config/.env` — API keys (Gemini, Cloudflare, Together), server URL, timing params
-- `docs/POST_MVP_AI_STRATEGY.md` — Future AI architecture: multi-agent pipeline, model economics
-- `docs/POST_MVP_ROADMAP.md` — User app distribution: web dashboard + Tauri desktop agent
-
-### Tools
-- `C:\Users\dassa\Work\webcrawler\crawl.py` — Global webcrawler (search, fetch, crawl, authenticated sessions)
-
-## Deployed URLs
-- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
-- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login
-- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
-- **Health check**: https://server-five-omega-23.vercel.app/health
+- `config/content-templates.md` — Brand voice rules (quality node reads this)
+- `config/platforms.json` — Platform config
+- `C:\Users\dassa\Work\webcrawler\crawl.py` — Global webcrawler
 
 ## Test Data on Deployed Server
-- **Test user**: `testuser_e2e@gmail.com` / `TestPass123!` — registered, onboarded, $75.98 earned
-- **Test company**: `testcorp@gmail.com` / `TestPass123!` — "TestCorp Trading", budget partially spent
-- **Test campaign**: "Trading Tools Launch Campaign" — 4 posts, metrics submitted, billing processed
+- **Test user**: `testuser_e2e@gmail.com` / `TestPass123!` — $75.98 earned
+- **Test company**: `testcorp@gmail.com` / `TestPass123!` — 2 campaigns
+- **Campaigns**: "Trading Tools Launch" (4 posts, billed), "Smart Money Indicator Beta" (2 posts, agent pipeline)
 
 ## Test Commands
 ```bash
-# === Deployed Server ===
-# Company: register at /company/login
-# Admin: /admin/login (password set via env var)
-# Swagger: /docs
+# Run tests
+python -m pytest tests/ -v
 
-# === Local Development ===
-cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-python scripts/campaign_dashboard.py  # http://localhost:5222
+# Agent pipeline standalone test
+cd scripts && python -m agents.pipeline
+
+# Campaign runner with agent pipeline
 python scripts/campaign_runner.py --once
-python scripts/utils/metric_scraper.py  # scrape metrics for posted URLs
 
-# === Webcrawler (available globally) ===
-python C:/Users/dassa/Work/webcrawler/crawl.py search "trading strategies 2026"
-python C:/Users/dassa/Work/webcrawler/crawl.py fetch https://example.com
-python C:/Users/dassa/Work/webcrawler/crawl.py --json search "query"  # structured output
+# Dashboard
+python scripts/campaign_dashboard.py  # http://localhost:5222
 
-# === Vercel Deploy ===
+# Webcrawler
+python C:/Users/dassa/Work/webcrawler/crawl.py search "trading strategies"
+
+# Vercel Deploy
 vercel deploy --yes --prod --cwd "C:/Users/dassa/Work/Auto-Posting-System/server"
-printf "value" | vercel env add VAR_NAME production --cwd server
 ```
 
 ## Gotchas & Patterns Discovered
-- `python-dotenv` treats inline comments as values — always put comments on separate lines
-- `load_dotenv(override=True)` needed or Flask reloader inherits stale env vars
-- Matching algorithm requires `"connected": True` in platform dict
-- Supabase: use transaction pooler (port 6543), requires `NullPool` + `prepared_statement_cache_size=0`
-- Cloudflare Workers AI FLUX.1 schnell works reliably on free tier (10k neurons/day)
-- `post_to_x()` functions return `str | None` (URL or None), take `(draft, pw)` — each manages own browser context
-- Reddit redirects to new post after submission — `page.url` captures the post URL
-- X/LinkedIn/Facebook URL extraction: look for feed links after posting (best-effort, fallback to placeholder)
-- Vercel cold starts cause intermittent 500s — use retry logic for API calls
-- Local SQLite may lack `audience_region` column — delete `server/amplifier.db` to recreate fresh schema
-- ARQ background worker doesn't run on Vercel serverless — billing must be triggered inline in API endpoints
-- `_should_scrape` uses cumulative tiers (not rigid windows) — tracks completed scrapes per post via metric count
-- Investopedia blocks webcrawler httpx requests — use `--browser` mode or try other financial sites
+- LangGraph `ChatGoogleGenerativeAI` must be imported inside function for mock patching — use `patch("langchain_google_genai.ChatGoogleGenerativeAI")`
+- Quality node: "ist" banned phrase must match standalone word (` ist `) not inside "institutional"
+- X account gets locked from Playwright automation — need stealth or API approach
+- Reddit `textarea[name="title"]` selector may be outdated — Reddit UI changes frequently
+- Facebook URL capture works (extracts real permalink from feed after posting)
+- LinkedIn URL capture returns fallback — feed link extraction needs improvement
+- Vercel cold starts: warm up with `/health` GET before API calls
+- `conftest.py` uses `monkeypatch.setattr("utils.local_db.DB_PATH", tmp_path / "test.db")` for test isolation
