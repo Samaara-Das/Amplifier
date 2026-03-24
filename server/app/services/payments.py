@@ -147,7 +147,7 @@ async def run_payout_cycle(db: AsyncSession) -> dict:
         # For now, just create payout records marked as pending
         payout = Payout(
             user_id=user.id,
-            campaign_id=0,  # Aggregate payout
+            campaign_id=None,  # Aggregate payout
             amount=amount,
             period_start=datetime.now(timezone.utc),
             period_end=datetime.now(timezone.utc),

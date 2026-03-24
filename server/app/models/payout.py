@@ -11,7 +11,7 @@ class Payout(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id"), index=True)
+    campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id"), nullable=True, index=True)
 
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
