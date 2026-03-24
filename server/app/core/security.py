@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from passlib.context import CryptContext
+import hashlib
+import secrets
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -14,15 +15,38 @@ settings = get_settings()
 
 security_scheme = HTTPBearer()
 
-_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    return _pwd_ctx.hash(password)
+    """Hash password using PBKDF2-SHA256 (pure Python, no C extensions needed)."""
+    salt = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260000)
+    return f"pbkdf2:sha256:260000${salt}${h.hex()}"
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_ctx.verify(plain, hashed)
+    """Verify password against hash. Supports both PBKDF2 and legacy bcrypt."""
+    if hashed.startswith("pbkdf2:"):
+        # New PBKDF2 format
+        parts = hashed.split("$")
+        if len(parts) != 3:
+            return False
+        salt = parts[1]
+        expected = parts[2]
+        h = hashlib.pbkdf2_hmac("sha256", plain.encode(), salt.encode(), 260000)
+        return secrets.compare_digest(h.hex(), expected)
+    elif hashed.startswith("$2"):
+        # Legacy bcrypt hash — try passlib, fall back to bcrypt
+        try:
+            from passlib.context import CryptContext
+            ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            return ctx.verify(plain, hashed)
+        except Exception:
+            try:
+                import bcrypt
+                return bcrypt.checkpw(plain.encode(), hashed.encode())
+            except Exception:
+                return False
+    return False
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
