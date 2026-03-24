@@ -57,17 +57,56 @@ def _get_content_generator() -> ContentGenerator:
     return _content_gen
 
 
+def _use_agent_pipeline() -> bool:
+    """Check if the agent pipeline feature flag is enabled."""
+    from utils.local_db import get_setting
+    return get_setting("enable_agent_pipeline", "false").lower() == "true"
+
+
 async def _generate_content(campaign: dict) -> dict | None:
-    """Generate platform content for a campaign using free AI APIs."""
+    """Generate platform content — agent pipeline or legacy fallback."""
+    # Determine which platforms are enabled
+    with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
+        platforms_config = json.load(f)
+    enabled = [p for p, cfg in platforms_config.items() if cfg.get("enabled")]
+
+    # Route to agent pipeline if enabled
+    if _use_agent_pipeline():
+        return await _generate_content_agent(campaign, enabled)
+
+    # Legacy: single API call via ContentGenerator
+    return await _generate_content_legacy(campaign, enabled)
+
+
+async def _generate_content_agent(campaign: dict, enabled: list[str]) -> dict | None:
+    """Generate content via LangGraph agent pipeline."""
+    try:
+        from agents.pipeline import run_pipeline
+
+        logger.info("Using agent pipeline for content generation")
+        content = run_pipeline(campaign, enabled_platforms=enabled)
+
+        # Generate image if we got an image prompt
+        image_prompt = content.pop("image_prompt", None)
+        if image_prompt:
+            gen = _get_content_generator()
+            image_path = await gen.generate_image(image_prompt)
+            if image_path:
+                content["_image_path"] = image_path
+
+        return {"content": content}
+
+    except Exception as e:
+        logger.error("Agent pipeline failed for campaign %s: %s — falling back to legacy",
+                     campaign.get("campaign_id"), e)
+        return await _generate_content_legacy(campaign, enabled)
+
+
+async def _generate_content_legacy(campaign: dict, enabled: list[str]) -> dict | None:
+    """Generate content via legacy single-call ContentGenerator."""
     try:
         gen = _get_content_generator()
 
-        # Determine which platforms are enabled
-        with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
-            platforms_config = json.load(f)
-        enabled = [p for p, cfg in platforms_config.items() if cfg.get("enabled")]
-
-        # Generate text content
         content = await gen.generate(campaign, enabled_platforms=enabled)
 
         # Generate image if we got an image prompt

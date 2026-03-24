@@ -81,6 +81,50 @@ def init_db() -> None:
             key TEXT PRIMARY KEY,
             value TEXT
         );
+
+        -- Agent pipeline tables
+        CREATE TABLE IF NOT EXISTS agent_user_profile (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform TEXT UNIQUE,
+            bio TEXT,
+            recent_posts TEXT,
+            style_notes TEXT,
+            follower_count INTEGER DEFAULT 0,
+            extracted_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS agent_research (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER,
+            research_type TEXT,
+            content TEXT,
+            source_url TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS agent_draft (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER,
+            platform TEXT,
+            draft_text TEXT,
+            pillar_type TEXT,
+            quality_score REAL DEFAULT 0,
+            iteration INTEGER DEFAULT 1,
+            approved INTEGER DEFAULT 0,
+            posted INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS agent_content_insights (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform TEXT,
+            pillar_type TEXT,
+            hook_type TEXT,
+            avg_engagement_rate REAL DEFAULT 0,
+            sample_count INTEGER DEFAULT 0,
+            best_performing_text TEXT,
+            last_updated TEXT DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
     conn.close()
@@ -328,5 +372,155 @@ def get_campaign_earnings() -> list[dict]:
         LEFT JOIN local_campaign c ON e.campaign_server_id = c.server_id
         ORDER BY e.updated_at DESC
     """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Agent Pipeline: User Profiles ─────────────────────────────────
+
+
+def upsert_user_profile(platform: str, bio: str, recent_posts: str,
+                        style_notes: str, follower_count: int = 0) -> None:
+    conn = _get_db()
+    conn.execute("""
+        INSERT INTO agent_user_profile (platform, bio, recent_posts, style_notes,
+                                        follower_count, extracted_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(platform) DO UPDATE SET
+            bio=excluded.bio, recent_posts=excluded.recent_posts,
+            style_notes=excluded.style_notes, follower_count=excluded.follower_count,
+            extracted_at=excluded.extracted_at
+    """, (platform, bio, recent_posts, style_notes, follower_count))
+    conn.commit()
+    conn.close()
+
+
+def get_user_profiles(platforms: list[str] = None) -> list[dict]:
+    conn = _get_db()
+    if platforms:
+        placeholders = ",".join("?" for _ in platforms)
+        rows = conn.execute(
+            f"SELECT * FROM agent_user_profile WHERE platform IN ({placeholders})",
+            platforms,
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM agent_user_profile").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_user_profile(platform: str) -> dict | None:
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT * FROM agent_user_profile WHERE platform = ?", (platform,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ── Agent Pipeline: Research ──────────────────────────────────────
+
+
+def add_research(campaign_id: int, research_type: str, content: str,
+                 source_url: str = None) -> int:
+    conn = _get_db()
+    cursor = conn.execute("""
+        INSERT INTO agent_research (campaign_id, research_type, content, source_url)
+        VALUES (?, ?, ?, ?)
+    """, (campaign_id, research_type, content, source_url))
+    rid = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return rid
+
+
+def get_research(campaign_id: int) -> list[dict]:
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT * FROM agent_research WHERE campaign_id = ? ORDER BY created_at DESC",
+        (campaign_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Agent Pipeline: Drafts ────────────────────────────────────────
+
+
+def add_draft(campaign_id: int, platform: str, draft_text: str,
+              pillar_type: str = None, quality_score: float = 0,
+              iteration: int = 1) -> int:
+    conn = _get_db()
+    cursor = conn.execute("""
+        INSERT INTO agent_draft (campaign_id, platform, draft_text, pillar_type,
+                                 quality_score, iteration)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (campaign_id, platform, draft_text, pillar_type, quality_score, iteration))
+    did = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return did
+
+
+def get_drafts(campaign_id: int, platform: str = None) -> list[dict]:
+    conn = _get_db()
+    if platform:
+        rows = conn.execute(
+            "SELECT * FROM agent_draft WHERE campaign_id = ? AND platform = ? ORDER BY quality_score DESC",
+            (campaign_id, platform),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM agent_draft WHERE campaign_id = ? ORDER BY quality_score DESC",
+            (campaign_id,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def approve_draft(draft_id: int) -> None:
+    conn = _get_db()
+    conn.execute("UPDATE agent_draft SET approved = 1 WHERE id = ?", (draft_id,))
+    conn.commit()
+    conn.close()
+
+
+def mark_draft_posted(draft_id: int) -> None:
+    conn = _get_db()
+    conn.execute("UPDATE agent_draft SET posted = 1 WHERE id = ?", (draft_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Agent Pipeline: Content Insights ──────────────────────────────
+
+
+def upsert_content_insight(platform: str, pillar_type: str, hook_type: str,
+                           avg_engagement_rate: float, sample_count: int,
+                           best_performing_text: str = None) -> None:
+    conn = _get_db()
+    conn.execute("""
+        INSERT INTO agent_content_insights (platform, pillar_type, hook_type,
+                                            avg_engagement_rate, sample_count,
+                                            best_performing_text, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT DO NOTHING
+    """, (platform, pillar_type, hook_type, avg_engagement_rate,
+          sample_count, best_performing_text))
+    conn.commit()
+    conn.close()
+
+
+def get_content_insights(platform: str = None) -> list[dict]:
+    conn = _get_db()
+    if platform:
+        rows = conn.execute(
+            "SELECT * FROM agent_content_insights WHERE platform = ? ORDER BY avg_engagement_rate DESC",
+            (platform,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM agent_content_insights ORDER BY avg_engagement_rate DESC"
+        ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
