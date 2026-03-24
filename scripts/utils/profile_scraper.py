@@ -40,14 +40,19 @@ with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
 # ── Browser Launch ────────────────────────────────────────────────
 
 
+HEADED_PLATFORMS = {"reddit"}  # Platforms that block headless browsers
+
+
 async def _launch_context(pw, platform: str) -> BrowserContext:
     """Launch persistent browser context for scraping (reuses posting profiles)."""
     profile_dir = ROOT / "profiles" / f"{platform}-profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
 
+    headless = platform not in HEADED_PLATFORMS
+
     kwargs = dict(
         user_data_dir=str(profile_dir),
-        headless=True,
+        headless=headless,
         viewport={"width": 1280, "height": 800},
         args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
     )
@@ -56,6 +61,9 @@ async def _launch_context(pw, platform: str) -> BrowserContext:
     if proxy_url:
         logger.info("Using proxy for %s: %s", platform, proxy_url)
         kwargs["proxy"] = {"server": proxy_url}
+
+    if not headless:
+        logger.info("Using headed mode for %s (headless blocked)", platform)
 
     return await pw.chromium.launch_persistent_context(**kwargs)
 
@@ -127,7 +135,7 @@ async def scrape_x_profile(playwright) -> dict:
     X_PROFILE_LINK = 'a[data-testid="AppTabBar_Profile_Link"]'
     X_DISPLAY_NAME = '[data-testid="UserName"]'
     X_BIO = '[data-testid="UserDescription"]'
-    X_PROFILE_PIC = 'a[data-testid="UserAvatar"] img, img[data-testid="UserAvatar-Container-unknown"] img'
+    X_PROFILE_PIC = 'img[src*="profile_images"][alt*="Opens profile photo"], img[src*="profile_images"]'
     X_FOLLOWERS = 'a[href$="/verified_followers"]'
     X_FOLLOWING = 'a[href$="/following"]'
     X_TWEET_ARTICLE = 'article[data-testid="tweet"]'
@@ -312,7 +320,7 @@ async def scrape_linkedin_profile(playwright) -> dict:
     # Selectors — LinkedIn uses Shadow DOM, page.locator() pierces automatically
     LI_PROFILE_URL = "https://www.linkedin.com/in/me/"
     LI_ACTIVITY_SUFFIX = "/recent-activity/all/"
-    LI_DISPLAY_NAME = "h1.text-heading-xlarge"
+    LI_DISPLAY_NAME = "h1.inline, h1.text-heading-xlarge"
     LI_HEADLINE = "div.text-body-medium"
     LI_CONNECTIONS = 'a[href*="/mynetwork/"] span.t-bold, li.text-body-small a span.t-bold'
     LI_PROFILE_PIC = 'img.pv-top-card-profile-picture__image--show, img.profile-photo-edit__preview'
@@ -379,7 +387,12 @@ async def scrape_linkedin_profile(playwright) -> dict:
         activity_url = profile_url + LI_ACTIVITY_SUFFIX
         logger.info("LinkedIn: navigating to activity: %s", activity_url)
         await page.goto(activity_url, wait_until="domcontentloaded", timeout=20000)
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(5000)  # LinkedIn needs extra time to render posts
+
+        # Scroll down to trigger lazy-loading of posts
+        for _ in range(3):
+            await page.mouse.wheel(0, 800)
+            await page.wait_for_timeout(2000)
 
         # Scrape recent posts
         posts = []
@@ -416,13 +429,30 @@ async def scrape_linkedin_profile(playwright) -> dict:
                     comments = 0
                     comments_el = container.locator('button[aria-label*="comment"]')
                     if await comments_el.count() > 0:
-                        comments_text = await comments_el.first.inner_text()
-                        comments = _parse_number(comments_text)
+                        comments_label = await comments_el.first.get_attribute("aria-label") or ""
+                        comments = _parse_number(comments_label)
+
+                    # Get reposts count
+                    reposts = 0
+                    reposts_el = container.locator('button[aria-label*="repost"]')
+                    if await reposts_el.count() > 0:
+                        reposts_label = await reposts_el.first.get_attribute("aria-label") or ""
+                        reposts = _parse_number(reposts_label)
+
+                    # Get timestamp
+                    posted_at = ""
+                    time_el = container.locator('span.update-components-actor__sub-description, time')
+                    if await time_el.count() > 0:
+                        posted_at = (await time_el.first.inner_text()).strip()
+                        # Clean up: "1yr • \n..." → "1yr"
+                        posted_at = posted_at.split("•")[0].split("\n")[0].strip()
 
                     posts.append({
                         "text": post_text[:500],
                         "likes": likes,
                         "comments": comments,
+                        "reposts": reposts,
+                        "posted_at": posted_at,
                     })
 
                 except Exception as e:
@@ -439,7 +469,9 @@ async def scrape_linkedin_profile(playwright) -> dict:
 
         # Calculate engagement rate
         if posts and result["follower_count"] > 0:
-            total_engagement = sum(p["likes"] + p["comments"] for p in posts)
+            total_engagement = sum(
+                p["likes"] + p["comments"] + p.get("reposts", 0) for p in posts
+            )
             avg_engagement = total_engagement / len(posts)
             result["engagement_rate"] = round(avg_engagement / result["follower_count"], 6)
 
@@ -498,11 +530,20 @@ async def scrape_facebook_profile(playwright) -> dict:
         await page.goto(FB_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
-        # Extract display name
-        name_text = await _safe_text(page.locator('h1'))
-        if name_text:
-            result["display_name"] = name_text
-            logger.info("Facebook: display_name=%s", name_text)
+        # Extract display name — skip hidden h1 elements (e.g. "Notifications")
+        h1_elements = page.locator('h1')
+        h1_count = await h1_elements.count()
+        for i in range(h1_count):
+            try:
+                h1 = h1_elements.nth(i)
+                if await h1.is_visible():
+                    text = (await h1.inner_text()).strip().replace("\xa0", "")
+                    if text and text.lower() not in ("notifications", "new", ""):
+                        result["display_name"] = text
+                        logger.info("Facebook: display_name=%s", text)
+                        break
+            except Exception:
+                continue
 
         # Extract profile picture
         pic_el = page.locator('svg[aria-label*="rofile"] image, g image')
@@ -695,61 +736,66 @@ async def scrape_reddit_profile(playwright) -> dict:
         if pic_url:
             result["profile_pic_url"] = pic_url
 
-        # Scrape recent posts
+        # Scrape recent posts — prefer shreddit-post attributes (most reliable)
         posts = []
         seen_titles = set()
 
         for scroll_round in range(8):
-            # Reddit uses shadow DOM components — Playwright pierces automatically
-            post_elements = page.locator('shreddit-post, article, [data-testid="post-container"]')
-            count = await post_elements.count()
+            # shreddit-post elements have score, comment-count, post-title, permalink as attributes
+            shreddit_posts = page.locator('shreddit-post')
+            sp_count = await shreddit_posts.count()
 
-            for i in range(count):
+            for i in range(sp_count):
                 if len(posts) >= 30:
                     break
                 try:
-                    post_el = post_elements.nth(i)
-
-                    # Get post title
-                    title_el = post_el.locator('a[slot="title"], [data-testid="post-title"], h3')
-                    title = ""
-                    if await title_el.count() > 0:
-                        title = (await title_el.first.inner_text()).strip()
-
+                    el = shreddit_posts.nth(i)
+                    title = await el.get_attribute("post-title") or ""
                     if not title or title in seen_titles:
                         continue
                     seen_titles.add(title)
 
-                    # Get score
-                    score = 0
-                    score_el = post_el.locator('[data-testid="post-unit-score"], faceplate-number')
-                    if await score_el.count() > 0:
-                        score_text = await score_el.first.inner_text()
-                        score = _parse_number(score_text)
-
-                    # Get comment count
-                    comments = 0
-                    comment_el = post_el.locator('[data-testid="post-comment-count"], a:has-text("comment")')
-                    if await comment_el.count() > 0:
-                        comment_text = await comment_el.first.inner_text()
-                        comments = _parse_number(comment_text)
-
-                    # Get subreddit
+                    score = _parse_number(await el.get_attribute("score") or "0")
+                    comment_count = _parse_number(await el.get_attribute("comment-count") or "0")
+                    permalink = await el.get_attribute("permalink") or ""
+                    # Extract subreddit from permalink like /r/fintech/comments/...
                     subreddit = ""
-                    sub_el = post_el.locator('a[href*="/r/"]')
-                    if await sub_el.count() > 0:
-                        sub_text = await sub_el.first.inner_text()
-                        subreddit = sub_text.strip()
+                    sub_match = re.search(r'/r/([^/]+)/', permalink)
+                    if sub_match:
+                        subreddit = f"r/{sub_match.group(1)}"
+                    # Extract timestamp
+                    created = await el.get_attribute("created-timestamp") or ""
 
                     posts.append({
                         "title": title[:300],
                         "score": score,
-                        "comments": comments,
+                        "comments": comment_count,
                         "subreddit": subreddit,
+                        "permalink": permalink,
+                        "created_at": created,
                     })
-
                 except Exception as e:
-                    logger.debug("Reddit: error parsing post %d: %s", i, e)
+                    logger.debug("Reddit: error parsing shreddit-post %d: %s", i, e)
+
+            # Fallback: parse article elements if no shreddit-posts found
+            if sp_count == 0:
+                articles = page.locator('article')
+                a_count = await articles.count()
+                for i in range(a_count):
+                    if len(posts) >= 30:
+                        break
+                    try:
+                        article = articles.nth(i)
+                        text = (await article.inner_text()).strip()
+                        # First line is usually the title
+                        lines = [l.strip() for l in text.split("\n") if l.strip()]
+                        title = lines[0] if lines else ""
+                        if not title or title in seen_titles or len(title) < 10:
+                            continue
+                        seen_titles.add(title)
+                        posts.append({"title": title[:300], "score": 0, "comments": 0, "subreddit": ""})
+                    except Exception:
+                        pass
 
             if len(posts) >= 30:
                 break

@@ -2764,22 +2764,46 @@ async function obSubmitLogin(event) {
 
 // ── Step 2: Connect Platforms ──
 
+let obConnectingPlatform = null; // tracks which platform is currently connecting
+
 async function obConnectPlatform(platform) {
+  // Prevent multiple simultaneous browser launches
+  if (obConnectingPlatform) {
+    showToast(`Please finish connecting ${obConnectingPlatform.toUpperCase()} first. Log in and close that browser window.`, 'warning');
+    return;
+  }
+
   const btn = document.getElementById(`ob-connect-${platform}`);
   const statusEl = document.getElementById(`ob-status-${platform}`);
   const card = document.getElementById(`ob-platform-${platform}`);
+
+  obConnectingPlatform = platform;
+
+  // Disable ALL other connect buttons while one is in progress
+  const allBtns = document.querySelectorAll('.ob-connect-btn');
+  allBtns.forEach(b => {
+    if (b.id !== `ob-connect-${platform}`) {
+      b.disabled = true;
+      b.classList.add('disabled');
+    }
+  });
 
   if (btn) {
     btn.textContent = 'Connecting...';
     btn.classList.add('connecting');
   }
-  if (statusEl) statusEl.textContent = 'Opening browser...';
+  if (statusEl) statusEl.textContent = 'Checking...';
 
   try {
-    await invoke('connect_platform', { platform });
+    const result = await invoke('connect_platform', { platform });
     obConnectedPlatforms[platform] = true;
     if (card) card.classList.add('connected');
-    if (statusEl) statusEl.textContent = 'Connected';
+    if (result && result.already_connected) {
+      if (statusEl) statusEl.textContent = 'Already logged in';
+      showToast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} is already connected.`, 'success');
+    } else {
+      if (statusEl) statusEl.textContent = 'Connected';
+    }
     if (btn) {
       btn.textContent = 'Connected';
       btn.classList.remove('connecting');
@@ -2793,6 +2817,15 @@ async function obConnectPlatform(platform) {
       btn.classList.remove('connecting');
     }
   }
+
+  // Re-enable other connect buttons
+  obConnectingPlatform = null;
+  allBtns.forEach(b => {
+    if (!b.classList.contains('connected')) {
+      b.disabled = false;
+      b.classList.remove('disabled');
+    }
+  });
 
   // Update next button state
   const nextBtn = document.getElementById('ob-btn-next');
@@ -2811,23 +2844,49 @@ async function obConnectPlatform(platform) {
   }
 }
 
-function obRefreshPlatformStatuses() {
-  // On entering step 2, check existing platform health to pre-populate
-  // statuses for platforms that may already be connected
-  const platforms = ['x', 'linkedin', 'facebook', 'reddit'];
-  platforms.forEach(async (platform) => {
-    if (obConnectedPlatforms[platform]) {
+async function obRefreshPlatformStatuses() {
+  // On entering step 2, auto-detect platforms that already have valid sessions
+  // via get_settings (reads profile dirs, no browser launch).
+  try {
+    const settings = await invoke('get_settings');
+    const platformData = settings?.platforms || {};
+
+    for (const platform of ['x', 'linkedin', 'facebook', 'reddit']) {
       const card = document.getElementById(`ob-platform-${platform}`);
       const statusEl = document.getElementById(`ob-status-${platform}`);
       const btn = document.getElementById(`ob-connect-${platform}`);
-      if (card) card.classList.add('connected');
-      if (statusEl) statusEl.textContent = 'Connected';
-      if (btn) {
-        btn.textContent = 'Connected';
-        btn.classList.add('connected');
+
+      if (obConnectedPlatforms[platform]) {
+        if (card) card.classList.add('connected');
+        if (statusEl) statusEl.textContent = 'Connected';
+        if (btn) { btn.textContent = 'Connected'; btn.classList.add('connected'); }
+        continue;
+      }
+
+      if (platformData[platform]?.connected) {
+        obConnectedPlatforms[platform] = true;
+        if (card) card.classList.add('connected');
+        if (statusEl) statusEl.textContent = 'Already logged in';
+        if (btn) { btn.textContent = 'Connected'; btn.classList.add('connected'); }
       }
     }
-  });
+  } catch (err) {
+    console.error('Failed to refresh platform statuses:', err);
+  }
+
+  // Update next button and hint
+  const nextBtn = document.getElementById('ob-btn-next');
+  if (nextBtn && obCurrentStep === 2) {
+    nextBtn.disabled = !obHasConnectedPlatform();
+  }
+  const hint = document.getElementById('ob-platforms-hint');
+  if (hint) {
+    const count = Object.values(obConnectedPlatforms).filter(v => v).length;
+    if (count > 0) {
+      hint.textContent = `${count} platform${count > 1 ? 's' : ''} connected. You can connect more or continue.`;
+      hint.style.color = 'var(--success)';
+    }
+  }
 }
 
 // ── Step 3: Profile Scraping ──

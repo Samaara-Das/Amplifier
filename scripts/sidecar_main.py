@@ -1487,25 +1487,29 @@ def handle_save_onboarding(params):
 
 
 def handle_connect_platform(params):
-    """Launch browser for platform login (delegates to login_setup.py)."""
+    """Launch browser for platform login (delegates to login_setup.py).
+
+    If profile directory already exists with files, skip browser launch
+    and return already_connected=True.
+    """
     platform = params.get("platform")
     if not platform:
         raise ValueError("platform is required")
 
-    try:
-        # Import and run the login setup for this platform
-        from login_setup import setup_platform_login
+    # Check if already connected (profile dir exists and has files)
+    profile_dir = Path("profiles") / f"{platform}-profile"
+    if profile_dir.exists() and any(profile_dir.iterdir()):
+        logger.info("Platform %s already connected (profile exists at %s)", platform, profile_dir)
+        return {"success": True, "platform": platform, "already_connected": True}
 
-        setup_platform_login(platform)
-        return {"success": True, "platform": platform}
-    except ImportError:
-        # Fallback: run as subprocess
-        logger.info("Running login_setup.py as subprocess for %s", platform)
+    # Launch login_setup.py as subprocess (opens browser for manual login)
+    logger.info("Running login_setup.py as subprocess for %s", platform)
+    try:
         subprocess.Popen(
             [sys.executable, "scripts/login_setup.py", platform],
             cwd=str(Path.cwd()),
         )
-        return {"success": True, "platform": platform, "note": "launched as subprocess"}
+        return {"success": True, "platform": platform, "already_connected": False}
     except Exception as e:
         logger.error("connect_platform failed: %s", e)
         return {"success": False, "error": str(e)}

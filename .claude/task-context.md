@@ -1,185 +1,181 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-24 (Session 17, continued)
+**Last Updated**: 2026-03-24 (Session 18)
 
 ## Current Task
-- **Branch: `main`** — LangGraph agent pipeline built, tested, and E2E verified
-- Phase 1 of multi-agent content pipeline complete
-- 56 pytest tests passing
-- Next: plan MVP features from a business perspective
+- **Branch: `main`** — Amplifier v2 built (29 tasks, 588 tests). UAT testing in progress.
+- Company dashboard: 7/7 core features verified working on Vercel
+- User app (Tauri): sidecar connection fixed, real data showing, testing accept/reject/approve flows
+- Active bugs: accept/reject campaigns and approve/skip content failing in user app (server_client functions added, needs testing)
 
 ## Project Overview
-Two interconnected systems:
-1. **Amplifier Engine** — Personal social media automation (6 platforms, Playwright, Claude CLI)
-2. **Amplifier Server** — Two-sided marketplace: companies create campaigns, users earn by posting via Amplifier
+Two-sided marketplace:
+1. **Company Dashboard** (Web, Vercel) — Companies create campaigns, monitor performance, manage budgets
+2. **User App** (Tauri Desktop) — Users earn money by posting campaign content to social media
+3. **Admin Dashboard** (Web, Vercel) — Platform management, fraud detection, payouts
+4. **Server API** (FastAPI, Vercel + Supabase PostgreSQL) — 82 routes, 10 models, matching, billing, trust
 
-## Task Progress Summary
+## Amplifier v2 — Build Summary (Session 18)
 
-### MVP Phases (All Complete)
-- [x] Phase 1-8: All complete (critical fixes, PostgreSQL, content gen, matching, metrics, dashboards, installer, integration testing)
+### What Was Built (29 tasks, all complete)
+**Phase 1: Server Foundation (Tasks 1-6)**
+- [x] DB schema migration (invitation states, scraped profiles, screening log, invitation log)
+- [x] Campaign invitation system (replace auto-assign with accept/reject, 3-day expiry, max 5)
+- [x] Removed payout multiplier (earnings = pure metrics)
+- [x] Prohibited content screening (6 categories, admin review queue)
+- [x] Campaign management (clone, delete, budget top-up, auto-pause/complete, $50 min, edit propagation)
+- [x] Fixed user earnings endpoint (real per-campaign/platform breakdown, payout withdrawal)
 
-### Session 17 — Early (Metric Pipeline + Webcrawler)
-- [x] **Task 31: Content prompt rewrite** — Emotion-first hooks, value-first body, platform rules
-- [x] **Task 33: Webcrawler setup** — Installed globally at `C:\Users\dassa\Work\webcrawler\`
-- [x] **Task 34: Metric pipeline — 4 bugs fixed** — URL capture, cumulative scraping, inline billing. $75.98 earned E2E.
-- [x] **Task 35: Model exploration note** — Deferred: Qwen, Llama, Nvidia, local LLMs
+**Phase 2: Profile Scraping (Tasks 7-8)**
+- [x] Profile scraping system (X, LinkedIn, Facebook, Reddit scrapers)
+- [x] AI niche classification (Gemini classifies from scraped posts)
 
-### Session 17 — Late (Agent Pipeline Phase 1)
-- [x] **Task 36 (Phase 1): LangGraph agent pipeline** — Built and E2E tested
-  - Installed langgraph + langchain-google-genai
-  - Created `scripts/agents/` package (7 files): pipeline.py, state.py, profile_node.py, research_node.py, draft_node.py, quality_node.py
-  - Extended local_db.py with 4 agent tables + CRUD functions
-  - Wired into campaign_runner.py with feature flag (`enable_agent_pipeline`)
-  - Legacy ContentGenerator preserved as fallback
-  - E2E: poll → agent pipeline → 4 platform drafts (avg quality 88/100) → image gen → posted to Facebook + LinkedIn
-  - 56 pytest tests written and passing
-- [x] **DeerFlow evaluated and rejected** — Windows issues, ~30 deps, HTTP stack assumptions. LangGraph standalone chosen instead.
-- [x] **Task 32 cancelled** — DeerFlow integration
+**Phase 3: AI Features (Tasks 9-12)**
+- [x] AI campaign creation wizard (URL scraping, Gemini generation, reach estimation)
+- [x] AI-powered matching (LLM relevance scoring + caching)
+- [x] Content quality improvements (brief adherence scoring)
+- [x] CSV export for campaign reports
 
-### Agent Pipeline Phase 1 — E2E Results
-- **Campaign**: "Smart Money Indicator Beta" (created on live Vercel server)
-- **Research**: 5 web search results via webcrawler (DuckDuckGo)
-- **Drafts**: X (342 chars, flagged over limit), LinkedIn (897), Facebook (402), Reddit (1032)
-- **Quality**: avg 88/100. X too long. Reddit false positive on "ist" in "institutional" — fixed.
-- **Image**: Cloudflare FLUX generated
-- **Posting**: Facebook posted (real URL captured), LinkedIn posted (fallback URL), Reddit failed (selector), X failed (account locked)
-- **Server sync**: 2 posts reported, assignment status "posted"
+**Phase 4: Tauri Desktop App (Tasks 13-22)**
+- [x] Tauri project setup + Python sidecar (JSON-RPC over stdin/stdout)
+- [x] 7-step onboarding wizard
+- [x] Home dashboard (stat cards, platform health, activity feed)
+- [x] Campaigns tab (invitations, active pipeline, completed)
+- [x] Posts tab (per-platform editing/regeneration, scheduled, posted, failed)
+- [x] Earnings tab (breakdown, platform bars, withdraw modal)
+- [x] Settings tab (mode, platforms, profile, stats, notifications)
+- [x] Post scheduling engine (region-based, 30-min spacing)
+- [x] Session health monitoring
+- [x] Background agent (polling, posting, scraping, health checks, notifications)
 
-### Pending (Task-Master Tasks 37-40)
-- [ ] **Task 37 (Phase 2)**: Content variety (educational/funny/ragebait/story) + audience-aware scheduling + CTA rotation + post-post engagement (browse only)
-- [ ] **Task 38 (Phase 3)**: Learning loop — metrics feed back into content decisions
-- [ ] **Task 39 (Phase 4)**: Dashboard views — research, drafts, schedule
-- [ ] **Task 40 (Phase 5)**: Personal brand pipeline (separate graph, shared nodes)
+**Phase 5-7: Dashboards + Integration (Tasks 23-29)**
+- [x] AI campaign wizard UI (4-step wizard with AI generation)
+- [x] Enhanced campaign detail page (invitation stats, per-user table, ROI, edit modal)
+- [x] Company dashboard improvements (clone, delete, top-up, stats page, export)
+- [x] Admin review queue + platform stats + blue theme
+- [x] Blue/white theme across all apps
+- [x] E2E integration tests (26 tests covering full lifecycle)
+- [x] Bug fix and polish pass (588 tests, 0 failures)
 
-### Critical Issues
-- [ ] **X account locked** — Playwright automation detected. Must fix before user onboarding: stealth browser, official API, or alternative method.
-- [ ] **Reddit posting broken** — `textarea[name="title"]` selector timeout. Reddit UI likely changed.
+### Production Bugs Found & Fixed During UAT
+1. **Jinja2Templates crash on Vercel** — Switched company pages to raw Jinja2 (same as admin)
+2. **pgbouncer prepared statement error** — Added `statement_cache_size=0`
+3. **Payout FK constraint** — Made `campaign_id` nullable for aggregate payouts
+4. **bcrypt crash on Vercel Lambda** — Switched to PBKDF2-SHA256 (pure Python)
+5. **Missing Campaign columns on Supabase** — Migration endpoint didn't include Task 4+5 columns
+6. **Admin password reset** — `ADMIN_PASSWORD` env var was wrong on Vercel
+7. **AI wizard "Session expired"** — Cookie was httpOnly, JS couldn't read it. Added server-side proxy
+8. **AI wizard not generating** — `google-genai` missing from server requirements.txt
+9. **AI wizard wrong args** — `run_campaign_wizard()` called with positional args instead of kwargs
+10. **Draft blocked by $0 balance** — Removed balance check for drafts, only check on activation
+11. **Sidecar not connected** — `withGlobalTauri` missing, 14/28 Rust commands unregistered, `onboarding_done` use-after-close bug
+12. **Accept/reject/approve failing** — `accept_invitation()`, `reject_invitation()` missing from server_client.py (JUST FIXED, needs testing)
 
-### Post-MVP Tasks
-- [ ] User app distribution — web dashboard + Tauri desktop agent
-- [ ] Browser Use migration for posting
-- [ ] LinkedIn/Facebook official API migration
-- [ ] 18-21: Account Warmup, Profile Revamps, LinkedIn "I'm Back"
-- [ ] 22-30: AI Video, Newsletters, Facebook Groups, TradingView, Analytics
+### Key Decisions (Session 18)
+- **No payout multiplier** — Earnings = pure engagement metrics. Mode only affects workflow.
+- **Amplifier provides API keys** — Users don't need to create Gemini keys
+- **Campaign invitations** — Users accept/reject (not auto-assigned). 3-day expiry. Max 5 active.
+- **AI matching is core** — Campaign brief + user profile fed to LLM for relevance scoring
+- **Draft without balance** — Companies can save drafts with $0, only need balance to activate
+- **Post timing = campaign region** — Not hardcoded US timezone
+- **30-min minimum spacing** between posts
+- **Personal brand engine is separate** — Not part of the user-facing Amplifier app
+- **Tauri over Flask+pystray** — Full desktop app, not a workaround
+- **Blue/white theme** — Primary #2563eb, replaces emerald green
 
-## Session History
+## Core Features for Testing
 
-### Sessions 1-16 (2026-03-07 to 2026-03-22)
-- Built entire system: 6-platform posting, server (52 routes, 8 models), dashboards, Vercel deploy
-- 9 bugs fixed in E2E testing, Supabase PostgreSQL, UI polish, image gen chain
+### User App Core
+1. Register + login
+2. Connect platforms (browser login)
+3. Profile scraping (followers, bio, engagement)
+4. AI niche detection
+5. Receive campaign invitations (AI matched)
+6. Accept/reject invitations (3-day expiry, max 5)
+7. Content generated per platform
+8. Review + edit content per platform, approve
+9. Post scheduled and executed (headless, region-based)
+10. Metrics scraped and synced
+11. Earnings visible (balance, per-campaign)
+12. Withdraw earnings
 
-### Session 17 (2026-03-24) — Metric Pipeline, Agent Pipeline, Tests
+### Company Dashboard Core
+1. Register + login ✅
+2. Create campaign (form with targeting) ✅
+3. Campaign lifecycle (draft → active → pause) ✅
+4. Campaign list with stats ✅
+5. Campaign detail with per-user data ✅
+6. Billing (balance, add funds) ✅
+7. Edit active campaign ✅
 
-**Part 1: Metric pipeline fix + webcrawler**
-- Rewrote content generation prompt (emotion-first, value-first, brand voice)
-- Installed webcrawler globally, added to CLAUDE.md
-- Fixed 4 metric pipeline bugs (URL capture, cumulative scraping, inline billing, content prompt)
-- E2E verified: $75.98 earned on dashboard
+## Deployed URLs
+- **Company**: https://server-five-omega-23.vercel.app/company/login
+- **Admin**: https://server-five-omega-23.vercel.app/admin/login (password: admin)
+- **Swagger**: https://server-five-omega-23.vercel.app/docs
 
-**Part 2: Framework decision**
-- Researched DeerFlow, LangGraph, CrewAI, Custom pipeline
-- DeerFlow: Windows issues (#1278, #1210), ~30 deps, HTTP stack assumptions. `DeerFlowClient` exists but not plug-and-play on Windows.
-- **Decision: LangGraph standalone** — same engine as DeerFlow, pure Python, Windows-native, 2 packages, production-ready (1.0 stable)
-- DeerFlow could be useful later for: company-side campaign brief assistant, general research tool
-- Plan documented in `docs/AGENT_PIPELINE_PLAN.md` (5 phases)
-
-**Part 3: Agent pipeline Phase 1 build**
-- Created `scripts/agents/` package with 7 files
-- State schema: PipelineState TypedDict (campaign, profiles, research, drafts, quality, output)
-- Nodes: profile (weekly cache) → research (webcrawler + past perf) → draft (Gemini per-platform) → quality (hard rules, 0-100 score) → output
-- Feature flag: `enable_agent_pipeline` in settings table
-- Agent pipeline falls back to legacy ContentGenerator on failure
-- E2E tested with live Vercel server campaign
-
-**Part 4: Testing**
-- 56 pytest tests written across 4 files
-- Coverage: DB CRUD (18), quality validation (20), profile node (5), pipeline integration (3+1 skipped)
-- All passing
-
-**Part 5: Key decisions**
-- User wants Claude as business partner, not just coder
-- Campaign + personal brand pipelines will be separate graphs sharing nodes
-- Desktop-first architecture, but nodes are stateless/split-ready for server later
-- User profiles extracted weekly for content personalization
-- X account locked — posting method must be made robust (API or stealth)
-
-## Important Decisions Made
-- **LangGraph standalone over DeerFlow** — Same engine, no baggage. Revisit DeerFlow when it ships pip-installable Windows package.
-- **Desktop-first, split-ready** — Nodes are independent stateless functions. Can move research/draft/quality to server later.
-- **Campaign + personal = separate pipelines, shared nodes** — Built campaign first (Phases 1-4), personal brand later (Phase 5).
-- **Feature flag for agent pipeline** — `enable_agent_pipeline` in settings. Legacy ContentGenerator is fallback.
-- **Post-post engagement = browse only** — No liking/retweeting on behalf of user.
-- **Content personalization** — User profiles scraped weekly, fed into draft prompts.
-- **Business partner role** — Claude helps run the business, not just build features.
-- **X account security** — Must fix before onboarding: API, stealth browser, or alternative method.
+## Test Accounts
+- **Company**: `testcorp@gmail.com` / `TestPass123!`
+- **User**: `testuser_e2e@gmail.com` / `TestPass123!`
+- **Admin**: password `admin`
 
 ## Key Reference Files
 
-### Agent Pipeline (NEW)
-- `scripts/agents/pipeline.py` — LangGraph graph (profile → research → draft → quality → output)
-- `scripts/agents/state.py` — PipelineState TypedDict
-- `scripts/agents/profile_node.py` — User profile extraction (weekly Playwright cache)
-- `scripts/agents/research_node.py` — Webcrawler search + company links + past performance
-- `scripts/agents/draft_node.py` — Per-platform Gemini drafting with brand voice + user profile
-- `scripts/agents/quality_node.py` — Hard rules validation, 0-100 scoring
-- `docs/AGENT_PIPELINE_PLAN.md` — Full 5-phase plan with architecture, DB schema, decisions
+### Tauri App
+- `tauri-app/src/index.html` — Frontend (onboarding + all tabs)
+- `tauri-app/src/main.js` — Frontend logic (~3000 lines)
+- `tauri-app/src/styles.css` — Blue/white theme (~1500 lines)
+- `tauri-app/src-tauri/src/lib.rs` — App setup, 28 commands registered
+- `tauri-app/src-tauri/src/sidecar.rs` — Python sidecar manager (JSON-RPC)
+- `tauri-app/src-tauri/src/commands/` — Rust command handlers
+- `scripts/sidecar_main.py` — Python sidecar (34 handlers)
 
 ### Server
-- `server/app/main.py` — Entry point (52 routes)
-- `server/app/routers/metrics.py` — Metrics submission + inline billing trigger
-- `server/app/services/billing.py` — Earnings calculation
+- `server/app/main.py` — 82 routes
+- `server/app/routers/invitations.py` — Campaign invitation endpoints
+- `server/app/routers/campaigns.py` — Campaign CRUD + clone/delete/export/wizard
+- `server/app/routers/company_pages.py` — Company web dashboard
+- `server/app/services/campaign_wizard.py` — AI wizard (Gemini)
+- `server/app/services/matching.py` — AI matching (Gemini relevance scoring)
+- `server/app/services/billing.py` — Earnings calculation (pure metrics)
+- `server/app/services/content_screening.py` — Prohibited content detection
 
-### User App
-- `scripts/campaign_runner.py` — Campaign loop with agent pipeline routing (feature flag)
-- `scripts/campaign_dashboard.py` — User dashboard (port 5222)
-- `scripts/post.py` — Posting functions (return URL strings)
-- `scripts/utils/content_generator.py` — Legacy content gen (fallback)
-- `scripts/utils/local_db.py` — SQLite with 4 agent tables + CRUD
-- `scripts/utils/metric_scraper.py` — Cumulative tier-based scraping
+### New Modules
+- `scripts/utils/profile_scraper.py` — 4 platform scrapers
+- `scripts/utils/niche_classifier.py` — Gemini niche detection
+- `scripts/utils/post_scheduler.py` — Region-based scheduling
+- `scripts/utils/session_health.py` — Platform session monitoring
+- `scripts/utils/content_quality.py` — Brief adherence scoring
+- `scripts/background_agent.py` — Always-running automation
 
-### Tests
-- `tests/test_local_db_agent.py` — 18 tests: agent table CRUD + feature flag
-- `tests/test_quality_node.py` — 20 tests: banned phrases, length, hooks, scoring
-- `tests/test_profile_node.py` — 5 tests: cache, filtering, staleness
-- `tests/test_pipeline_integration.py` — 3+1 tests: graph structure, mock pipeline, real API
-
-### Config & Docs
-- `config/content-templates.md` — Brand voice rules (quality node reads this)
-- `config/platforms.json` — Platform config
-- `C:\Users\dassa\Work\webcrawler\crawl.py` — Global webcrawler
-
-## Test Data on Deployed Server
-- **Test user**: `testuser_e2e@gmail.com` / `TestPass123!` — $75.98 earned
-- **Test company**: `testcorp@gmail.com` / `TestPass123!` — 2 campaigns
-- **Campaigns**: "Trading Tools Launch" (4 posts, billed), "Smart Money Indicator Beta" (2 posts, agent pipeline)
+### Tests (588 total)
+- `tests/test_schema_v2.py` (71), `tests/test_invitations.py` (43), `tests/test_billing_v2.py` (12)
+- `tests/test_screening.py` (24), `tests/test_campaign_mgmt.py` (26), `tests/test_earnings_v2.py` (19)
+- `tests/test_profile_scraper.py` (35), `tests/test_niche_classifier.py` (39)
+- `tests/test_ai_wizard.py` (57), `tests/test_ai_matching.py` (34)
+- `tests/test_scheduling.py` (41), `tests/test_session_health.py` (30)
+- `tests/test_background_agent.py` (43), `tests/test_content_quality.py` (22)
+- `tests/test_export.py` (10), `tests/test_e2e_integration.py` (26)
 
 ## Test Commands
 ```bash
-# Run tests
-python -m pytest tests/ -v
+# Run all tests
+cd C:/Users/dassa/Work/Auto-Posting-System && python -m pytest tests/ -v
 
-# Agent pipeline standalone test
-cd scripts && python -m agents.pipeline
+# Run Tauri app
+cd tauri-app && $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH" && npm run tauri dev
 
-# Campaign runner with agent pipeline
-python scripts/campaign_runner.py --once
+# Deploy to Vercel
+vercel deploy --yes --prod --cwd server
 
-# Dashboard
-python scripts/campaign_dashboard.py  # http://localhost:5222
-
-# Webcrawler
-python C:/Users/dassa/Work/webcrawler/crawl.py search "trading strategies"
-
-# Vercel Deploy
-vercel deploy --yes --prod --cwd "C:/Users/dassa/Work/Auto-Posting-System/server"
+# Run v2 migration on Supabase
+curl -X POST https://server-five-omega-23.vercel.app/api/admin/run-v2-migration
 ```
 
-## Gotchas & Patterns Discovered
-- LangGraph `ChatGoogleGenerativeAI` must be imported inside function for mock patching — use `patch("langchain_google_genai.ChatGoogleGenerativeAI")`
-- Quality node: "ist" banned phrase must match standalone word (` ist `) not inside "institutional"
-- X account gets locked from Playwright automation — need stealth or API approach
-- Reddit `textarea[name="title"]` selector may be outdated — Reddit UI changes frequently
-- Facebook URL capture works (extracts real permalink from feed after posting)
-- LinkedIn URL capture returns fallback — feed link extraction needs improvement
-- Vercel cold starts: warm up with `/health` GET before API calls
-- `conftest.py` uses `monkeypatch.setattr("utils.local_db.DB_PATH", tmp_path / "test.db")` for test isolation
+## Noted for Later (Post-MVP)
+- Campaign exclusivity (competing brands)
+- Influencer/company search & discovery (both sides find each other)
+- Dynamic niche evolution tracking (AI monitors content shifts)
+- Stripe payment integration
+- Web dashboard split (separate from desktop app)
+- TikTok and Instagram posting
+- Auto-update mechanism for desktop app
