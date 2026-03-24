@@ -44,14 +44,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": [
-        {
-          "name": "python-sidecar",
-          "cmd": "python",
-          "args": true
-        }
-      ]
+      "open": true
     }
   }
 }

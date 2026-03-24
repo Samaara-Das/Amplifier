@@ -219,6 +219,39 @@ async def campaign_create_page(
     return _render("company/campaign_wizard.html", company=company, active="create")
 
 
+@router.post("/campaigns/ai-generate")
+async def ai_generate_campaign(
+    request: Request,
+    company: Company | None = Depends(get_company_from_cookie),
+    db: AsyncSession = Depends(get_db),
+):
+    """Proxy for AI wizard — uses cookie auth instead of JWT Bearer."""
+    from fastapi.responses import JSONResponse
+    if not company:
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    from app.services.campaign_wizard import run_campaign_wizard
+    try:
+        result = await run_campaign_wizard(body, db)
+        return JSONResponse(result)
+    except Exception as e:
+        # Return sensible defaults on AI failure
+        return JSONResponse({
+            "title": body.get("product_description", "Campaign")[:60],
+            "brief": body.get("product_description", ""),
+            "content_guidance": f"Tone: {body.get('tone', 'professional')}. Create engaging content.",
+            "payout_rules": {"rate_per_1k_impressions": 0.50, "rate_per_like": 0.01, "rate_per_repost": 0.05, "rate_per_click": 0.10},
+            "suggested_budget": 100,
+            "targeting": body.get("targeting", {}),
+            "reach_estimate": {"matching_users": 0, "estimated_impressions_low": 0, "estimated_impressions_high": 0},
+            "error": str(e)
+        })
+
+
 @router.post("/campaigns/new")
 async def campaign_create_submit(
     request: Request,

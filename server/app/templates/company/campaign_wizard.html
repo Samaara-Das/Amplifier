@@ -162,11 +162,11 @@
     <div class="card">
         <div class="card-title">Content direction</div>
         <div class="form-group">
-            <label>What tone should the posts have?</label>
+            <label>What tone should the posts have? (select all that apply)</label>
             <div class="radio-group radio-group-horizontal">
                 {% for val, label in [('professional', 'Professional'), ('casual', 'Casual'), ('funny', 'Funny'), ('educational', 'Educational'), ('inspirational', 'Inspirational')] %}
                 <label class="chip-radio">
-                    <input type="radio" name="tone" value="{{ val }}">
+                    <input type="checkbox" name="tone" value="{{ val }}">
                     <span class="chip">{{ label }}</span>
                 </label>
                 {% endfor %}
@@ -675,8 +675,8 @@
             if (platforms.length === 0) return 'Please select at least one platform.';
         }
         if (step === 3) {
-            var tone = document.querySelector('input[name="tone"]:checked');
-            if (!tone) return 'Please select a content tone.';
+            var tones = document.querySelectorAll('input[name="tone"]:checked');
+            if (tones.length === 0) return 'Please select at least one content tone.';
         }
         return null;
     }
@@ -717,7 +717,7 @@
         var mustAvoidRaw = $('#mustAvoid').value.trim();
         var mustAvoid = mustAvoidRaw ? mustAvoidRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
 
-        var toneEl = document.querySelector('input[name="tone"]:checked');
+        var toneEls = document.querySelectorAll('input[name="tone"]:checked');
         var goalEl = document.querySelector('input[name="campaignGoal"]:checked');
 
         return {
@@ -728,7 +728,7 @@
             target_regions: regions,
             required_platforms: platforms,
             min_followers: minFollowers,
-            tone: toneEl ? toneEl.value : 'professional',
+            tone: toneEls.length > 0 ? Array.from(toneEls).map(function(el){return el.value;}).join(', ') : 'professional',
             must_include: mustInclude,
             must_avoid: mustAvoid
         };
@@ -748,20 +748,14 @@
         show($('#generatingSpinner'));
         hide($('#generatedResults'));
 
-        var token = getToken();
-        if (!token) {
-            showError('Session expired. Please log in again.');
-            return;
-        }
-
         var data = collectWizardData();
 
-        fetch('/api/company/campaigns/ai-wizard', {
+        fetch('/company/campaigns/ai-generate', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
+                'Content-Type': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify(data)
         })
         .then(function(resp) {
@@ -791,20 +785,14 @@
         hide($('#generatedResults'));
         hideError();
 
-        var token = getToken();
-        if (!token) {
-            showError('Session expired. Please log in again.');
-            return;
-        }
-
         var data = collectWizardData();
 
-        fetch('/api/company/campaigns/ai-wizard', {
+        fetch('/company/campaigns/ai-generate', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
+                'Content-Type': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify(data)
         })
         .then(function(resp) {
@@ -901,7 +889,7 @@
     function populateStep4Defaults(data) {
         $('#genTitle').value = data.product_description.substring(0, 80);
         $('#genBrief').value = 'Promote: ' + data.product_description + '. Goal: ' + data.campaign_goal.replace(/_/g, ' ') + '.';
-        $('#genGuidance').value = 'Tone: ' + (data.tone || 'professional') + '. Create genuine, engaging content that resonates with your audience.';
+        $('#genGuidance').value = 'Tone: ' + (data.tone || 'professional') + '. Create genuine, engaging content that resonates with your audience. Use a mix of the selected tones.';
         $('#genRateCpm').value = 0.50;
         $('#genRateLike').value = 0.01;
         $('#genRateRepost').value = 0.05;
@@ -970,15 +958,12 @@
     }
 
     function fetchReachEstimate(data) {
-        var token = getToken();
-        if (!token) return;
-
-        fetch('/api/company/campaigns/reach-estimate', {
+        fetch('/company/campaigns/ai-generate', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
+                'Content-Type': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 target_niches: data.target_niches || [],
                 target_regions: data.target_regions || [],
