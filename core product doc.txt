@@ -1,0 +1,8 @@
+core product doc
+
+For the user app:
+the user will use a desktop app to open amplifier. the app will show users new campaigns that they've been matched for. it will show users their existing campaigns. it will show all the posts that they have to approve/edit. after they approve a post, it will get posted at its scheduled time by the app. they will see campaign invitiations for them to accept/reject. the user will see their settings and can update them. they will also see other statistics. think up what other statistics and features shuld display
+
+
+For the company app:
+the company should be able to see, create, delete, edit their campaigns. it should be easy for them to create. an AI should help them write their campaign description. an AI paid by us for now (amplifier) walking them through a questionnaire asking them what platforms they want to target, audience, following counts etc. the company will answer by selecting checkboxes and typing in answers based on the question. they will then read and edit the generated campaign before they save it. Amplifier will then do intelligent AI based matching to find candidates for the campaign and send them campaign invitations. a company can see all the stats of all the users per campaign, how much money is being spent, the metrics of the posts of the users etc. they will also see other statistics. think up what other statistics and features shuld display

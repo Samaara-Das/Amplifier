@@ -1,0 +1,17 @@
+{
+  "name": "amplifier",
+  "version": "2.0.0",
+  "description": "Amplifier — earn money by posting campaign content on social media",
+  "private": true,
+  "scripts": {
+    "dev": "npx @tauri-apps/cli@^2 dev",
+    "build": "npx @tauri-apps/cli@^2 build",
+    "tauri": "npx @tauri-apps/cli@^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  }
+}

@@ -1,0 +1,592 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Project Scaffolding",
+        "description": "Create directory structure, config files (platforms.json, .env, content-templates.md), requirements.txt",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": []
+      },
+      {
+        "id": "2",
+        "title": "Content Generator",
+        "description": "PowerShell script (generate.ps1) that calls Claude CLI to generate 7-platform JSON drafts. Handles CLAUDECODE env var, file validation, dedup.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "3",
+        "title": "Draft Manager",
+        "description": "Python module (draft_manager.py) for draft lifecycle: get_next_draft, mark_posted, mark_failed. Moves files between pending/posted/failed dirs.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "4",
+        "title": "Human Behavior Emulation",
+        "description": "Anti-detection module (human_behavior.py): human_type (char-by-char 30-120ms), human_scroll, random_mouse_movement, browse_feed (1-5 min realistic browsing).",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "5",
+        "title": "X (Twitter) Posting",
+        "description": "Post to X via Playwright. Uses dispatch_event('click') to bypass overlay div on tweet button. E2E tested and working.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "6",
+        "title": "LinkedIn Posting",
+        "description": "Post to LinkedIn via Playwright. Shadow DOM requires locator().wait_for() instead of wait_for_selector(). get_by_role for exact Post button match. E2E tested.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "Facebook Posting",
+        "description": "Post to Facebook via Playwright. Standard selectors work. E2E tested and working.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "Reddit Posting",
+        "description": "Post text posts to random subreddit from configured list. Shadow DOM (faceplate web components) requires locator pattern. E2E tested and working.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "TikTok Posting â€” E2E Test with Surfshark",
+        "description": "Post photo posts with generated branded images (1080x1920). Code complete. User has Surfshark VPN installed â€” configure proxy or use VPN directly to access TikTok from India.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "TikTok image generator",
+            "description": "Pillow-based 1080x1920 branded text-on-image with color schemes, text shadow, accent bars, watermark.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "TikTok posting function",
+            "description": "Upload image via file input, fill caption with fallback selectors, click post/publish button.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Configure Surfshark VPN for TikTok access",
+            "description": "User has Surfshark desktop app installed. Either use Surfshark's SOCKS5 proxy feature and update platforms.json proxy field, or simply connect VPN system-wide before running poster (remove proxy config from platforms.json).",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-08T10:16:31.480Z"
+          },
+          {
+            "id": 4,
+            "title": "TikTok login setup",
+            "description": "Connect Surfshark VPN, then run login_setup.py tiktok to create persistent browser session.",
+            "status": "done",
+            "dependencies": [
+              3
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T09:38:01.453Z"
+          },
+          {
+            "id": 5,
+            "title": "TikTok E2E test",
+            "description": "Test full TikTok posting flow: image generation, upload, caption, post. Fix selectors if needed.",
+            "status": "done",
+            "dependencies": [
+              4
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T11:13:18.620Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T11:13:18.620Z"
+      },
+      {
+        "id": "10",
+        "title": "Remove BlueSky Integration",
+        "description": "Remove BlueSky entirely: delete post_to_bluesky from post.py, remove from PLATFORM_POSTERS, platforms.json, login_setup.py, human_behavior.py, content-templates.md, and update generate.ps1 from 7 to 6 platforms.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "updatedAt": "2026-03-08T10:16:01.252Z",
+        "subtasks": []
+      },
+      {
+        "id": "11",
+        "title": "Instagram Posting",
+        "description": "Post photo+caption to Instagram desktop web. Generates 1080x1080 branded image. Flow: Create â†’ upload â†’ Next â†’ Next â†’ caption â†’ Share. Code complete, needs login + E2E test.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Instagram image generator",
+            "description": "1080x1080 square branded image with text overlay, accent borders, watermark. Strips hashtags from image text.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Instagram posting function",
+            "description": "Implemented post_to_instagram() with desktop web flow: Create â†’ file upload â†’ Next (crop) â†’ Next (filter) â†’ caption â†’ Share.",
+            "status": "done",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Instagram login setup",
+            "description": "Run login_setup.py instagram to create persistent browser session.",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-08T10:26:23.908Z"
+          },
+          {
+            "id": 4,
+            "title": "Instagram E2E test",
+            "description": "Test full posting flow. Instagram web posting can be flaky â€” may need selector adjustments.",
+            "status": "done",
+            "dependencies": [
+              3
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T10:58:17.154Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T10:58:17.154Z"
+      },
+      {
+        "id": "15",
+        "title": "Instagram E2E Testing",
+        "description": "Login to Instagram and E2E test the posting automation. User will test â€” may need selector fixes for Instagram's desktop web posting flow (Create â†’ upload â†’ Next â†’ Next â†’ caption â†’ Share).",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "11"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Instagram login setup",
+            "description": "Run login_setup.py instagram to create persistent browser session.",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T10:58:26.567Z"
+          },
+          {
+            "id": 2,
+            "title": "Instagram E2E test run",
+            "description": "Run poster with a draft, verify Create â†’ upload â†’ Next â†’ Next â†’ caption â†’ Share flow works. Fix selectors if needed.",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T10:58:37.696Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T10:58:37.696Z"
+      },
+      {
+        "id": "16",
+        "title": "TikTok E2E Testing with Surfshark",
+        "description": "Connect Surfshark VPN, login to TikTok, and E2E test posting automation. User has Surfshark installed on desktop.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "9"
+        ],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure Surfshark + TikTok login",
+            "description": "Connect Surfshark VPN to a non-India server, then run login_setup.py tiktok.",
+            "status": "done",
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T11:27:10.379Z"
+          },
+          {
+            "id": 2,
+            "title": "TikTok E2E test run",
+            "description": "Run poster to test TikTok posting flow with VPN active. Fix selectors if needed.",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentId": "undefined",
+            "updatedAt": "2026-03-13T11:27:19.962Z"
+          }
+        ],
+        "updatedAt": "2026-03-13T11:27:19.962Z"
+      },
+      {
+        "id": "12",
+        "title": "Login Setup Helper",
+        "description": "CLI tool (login_setup.py) to launch persistent browser for manual login. Supports all 7 platforms with proxy support.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "13",
+        "title": "Windows Task Scheduler",
+        "description": "PowerShell script (setup_scheduler.ps1) to register scheduled tasks: AutoPoster-Generate (8AM, 1PM, 6PM) and AutoPoster-Post (every 2h from 9AM).",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "2",
+          "5"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "14",
+        "title": "Main Orchestrator",
+        "description": "Async orchestrator in post.py: loads draft, shuffles enabled platforms, posts sequentially with 30-90s delays, marks draft posted/failed.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "17",
+        "title": "Implement Updated Auto-Poster Workflow",
+        "description": "Rebuild the auto-poster pipeline to match the finalized E2E workflow in docs/auto-poster-workflow.md. Major changes: (1) Content Research Pipeline â€” module that reads Coda notes via MCP, pulls backtest reports from 192.168.1.11:5050, captures your own TradingView indicator signal screenshots, checks market events calendar. Outputs structured content brief. (2) Content Generation â€” update generate.ps1 for per-platform cadence: X 3 tweets/day + 2 threads/week, Reddit 2-3/week, LinkedIn 4/week Tue-Fri, Facebook 1/day. Voice: discovery-oriented, never claiming trading experience, emotion-first hooks. Cross-platform repurposing. (3) Review Dashboard â€” drafts grouped by platform, pillar tags, format labels, image previews, 1-day content buffer. (4) Posting Schedule â€” platform-specific times aligned to US hours. (5) Image/slideshow generation â€” visually striking, scroll-stopping, branded, mobile-first. (6) CTA rotation: month 1 = 100% value, month 2+ = 80/15/5. (7) Content series: Backtest Wednesday, Setup of the Week, One Thing I Learned This Week.",
+        "details": "Reference docs/auto-poster-workflow.md for complete spec. This is a large task that should be broken into subtasks during implementation planning. Key files to modify: scripts/generate.ps1, scripts/post.py, scripts/review_dashboard.py, scripts/setup_scheduler.ps1, scripts/utils/image_generator.py. New modules needed: content research pipeline, market events calendar, content buffer manager.",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:57:13.166Z"
+      },
+      {
+        "id": "18",
+        "title": "Test Run â€” Confirm Updated Workflow Works",
+        "description": "End-to-end test of the updated auto-poster workflow. Run through the complete pipeline: content research â†’ generation â†’ review dashboard â†’ posting to all 4 active platforms (X, Reddit, LinkedIn, Facebook). Verify: (1) Content research pipeline correctly pulls from Coda notes, backtest reports, and your own indicator signal screenshots. (2) Generator produces correct volume per platform (X: 3 tweets, Reddit: 1 long-form, LinkedIn: 1 post, Facebook: 1 post). (3) Drafts appear correctly in review dashboard grouped by platform with pillar tags and image previews. (4) Approved drafts post at correct platform-specific times. (5) Content buffer logic works (1-day buffer). (6) Image generation produces visually striking, branded content. (7) Failure handling works (retry once, then move to failed). Fix any bugs found.",
+        "details": "Test against real platforms. Use existing browser profiles. Check human behavior emulation still works. Verify draft lifecycle: review/ â†’ pending/ â†’ posted/ or failed/. Test with headless=false first to visually confirm.",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [
+          "17"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:57:34.509Z"
+      },
+      {
+        "id": "19",
+        "title": "Account Warmup â€” Gradual Ramp-Up Per Platform",
+        "description": "Execute the account warmup plan for all 4 platforms before going to full posting cadence. New accounts risk being flagged as spam if they go from 0 to full volume immediately. Warmup schedule: X (new account) â€” Week 1: 1 tweet/day + 10 replies/day, Week 2: 2 tweets/day + replies, Week 3+: full cadence (3/day + threads). Reddit â€” Weeks 1-2: comments only (3-5/day, no posts, build karma), Weeks 3-4: 1 post every few days, Month 2+: full cadence 2-3/week. LinkedIn (existing 9.5K connections) â€” no warmup needed, start at full cadence 4/week Tue-Fri. Facebook (existing but empty) â€” Week 1: 1 post every other day, Week 2+: 1/day. The auto-poster's posting frequency config should support a warmup mode that automatically escalates cadence week by week.",
+        "details": "Implement warmup mode in the posting scheduler. Config should have a start_date per platform and automatically calculate which warmup week we're in. Cadence increases automatically â€” no manual intervention needed. Reference docs/auto-poster-workflow.md Account Warmup Plan section.",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [
+          "18"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:57:42.172Z"
+      },
+      {
+        "id": "20",
+        "title": "Revamp Profiles â€” X, Reddit, LinkedIn, Facebook",
+        "description": "Revamp all 4 platform profiles to align with the brand strategy before going live. X: Create new account with new email. Bio, banner, profile pic aligned with brand identity (helps people achieve financial freedom, not tool builder). Link to TradingView. Reddit: Update existing profile â€” bio, avatar. No self-promotion in bio, just establish credibility. LinkedIn: Revamp existing profile (9.5K connections) for US positioning. Update headline, about section, banner. Shift from Indian professional network to US-targeted trading education brand. Facebook: Set up empty profile â€” bio, cover photo, profile pic. All profiles must: hide age and location, use US-centric language, have consistent branding across platforms, link to TradingView where applicable.",
+        "details": "Do this AFTER the 'I'm back' LinkedIn discussion since that post informs the LinkedIn profile revamp. Ensure consistent visual branding (colors, fonts, profile pic style) across all 4 platforms. Profile bios should reflect the 'helps people achieve financial freedom' positioning, not 'builds trading tools'.",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [
+          "21"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:57:49.981Z"
+      },
+      {
+        "id": "21",
+        "title": "Discuss 'I'm Back' LinkedIn Post Strategy",
+        "description": "Plan the LinkedIn re-introduction post before profile revamps. User has 9.5K connections dormant for 1-2 years. LinkedIn's algorithm boosts posts from reactivated accounts, making this a high-impact first move. The post should: (1) Re-introduce who you are and what you've been building (without revealing age/location). (2) Tease what's coming â€” trading tools, education, free indicators. (3) Set the tone for future content â€” emotion-first, value-first, builder-educator positioning. (4) Include a soft CTA (follow for upcoming content). This post informs the LinkedIn profile revamp â€” the profile and the post must tell a coherent story. Discuss content, format, timing.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [
+          "19"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:57:57.666Z"
+      },
+      {
+        "id": "22",
+        "title": "AI Video Generation for TikTok and Instagram",
+        "description": "Research and integrate an AI video generation tool to produce short-form video content for TikTok and Instagram. Current slideshow-to-MP4 approach (Pillow image + Ken Burns zoom via moviepy) can't compete with native video content. TikTok's algorithm favors fresh accounts but only with real video. Instagram Reels require video too. Requirements: (1) Generate 15-30 second videos from text content (trading education, backtest results, market insights). (2) Branded visual style consistent with image generation. (3) Text-on-screen, transitions, background music. (4) Output formats: TikTok 1080x1920 vertical, Instagram Reels 1080x1920. Once video generation works, TikTok and Instagram become active platforms in the posting schedule (slots at 4:30 AM and 6:30 AM IST).",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:05.294Z"
+      },
+      {
+        "id": "23",
+        "title": "Financial Newsletters/Articles as Content Source",
+        "description": "Add curated financial newsletters and articles to the content research pipeline. The system reads 3-5 configured newsletter sources daily, extracts core insights, and rephrases them in the user's voice with their angle. NOT copy-paste â€” extract the insight, add perspective. This solves the 'content sounds fake because generator has no real knowledge' problem by grounding posts in real market analysis and expert commentary. Implementation: (1) Configure 3-5 newsletter sources (email subscriptions or RSS feeds). (2) Build a reader/parser that extracts key insights from each newsletter. (3) Feed extracted insights into the content research pipeline as additional content seeds. (4) Generator uses these as source material alongside Coda notes and backtest reports.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:12.922Z"
+      },
+      {
+        "id": "25",
+        "title": "Facebook Groups Posting",
+        "description": "Add posting to relevant Facebook investing/trading groups. Facebook Groups get significantly higher organic reach than profile posts â€” this is the main distribution channel on Facebook. Implementation: (1) Research and join 5-10 relevant groups (investing, trading education, financial freedom, side hustle). (2) Add group posting to the auto-poster â€” post to 1-2 groups per day, rotating through the list. (3) Content must be pure value, no self-promotion â€” groups have moderators who will ban promotional accounts. (4) Adapt post format for group culture (more conversational, question-ending posts that invite discussion). Group posts are separate from profile posts â€” this adds to the Facebook posting volume.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:20.691Z"
+      },
+      {
+        "id": "26",
+        "title": "TradingView Content Auto-Posting",
+        "description": "Auto-post educational ideas and analyses to TradingView. User has 357 followers and it's the monetization platform (free indicators â†’ paid subscriptions). Staying active on TradingView drives indicator discovery and builds credibility. Implementation: (1) Automate posting TradingView ideas (educational chart analyses). (2) Repurpose backtest results and strategy breakdowns from other platforms. (3) Post 1-2 ideas per week â€” quality matters more than volume on TradingView. (4) Link to free indicators in ideas to drive downloads. TradingView has its own web editor â€” will need Playwright automation for posting.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:28.369Z"
+      },
+      {
+        "id": "27",
+        "title": "Analytics Dashboard â€” Automate Weekly Review Data Pull",
+        "description": "Build a dashboard that auto-pulls metrics from all 4 platforms (X, Reddit, LinkedIn, Facebook) into one view for the weekly performance review. Currently the weekly review requires manually checking each platform. This dashboard aggregates: impressions, engagement rate, likes, comments, shares, follows gained per post. Ranks top 5 and bottom 5 posts. Identifies patterns (best pillar, hook style, format, posting time). Generates a summary report. Could be a new page in the existing review dashboard (localhost:5111) or a standalone tool. Data sources: platform APIs or scraping.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:36.197Z"
+      },
+      {
+        "id": "28",
+        "title": "Content A/B Testing Framework",
+        "description": "Build infrastructure for A/B testing content. From month 3+ when enough data exists, test the same topic with two different hooks to measure which performs better. Implementation: (1) Generator creates variant pairs â€” same topic, different hook style (e.g., fear vs. aspiration hook). (2) Tag variants in the draft system so they can be tracked as pairs. (3) Analytics dashboard compares variant performance after 48-72 hours. (4) Winning hook style gets weighted higher in future generation. Start simple: just track which hook styles perform best per pillar per platform.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:43.991Z"
+      },
+      {
+        "id": "29",
+        "title": "Email List + Lead Magnet for Monetization Funnel",
+        "description": "Critical missing piece in the monetization funnel. Current funnel: free content â†’ free TradingView indicators â†’ \\0/month subscription. The gap: no way to capture emails between free content and paid conversion. A lead magnet (e.g., '5 Indicators Every Beginner Needs' PDF, free email course, or strategy guide) collects emails and gives a direct channel to convert followers into subscribers. Implementation: (1) Create a lead magnet (downloadable resource). (2) Build a simple landing page for email capture. (3) Set up email collection (ConvertKit, Mailchimp, or similar). (4) Add occasional soft CTAs in social posts pointing to the lead magnet. (5) Build a simple email nurture sequence (3-5 emails over 2 weeks) that leads to the \\0/month offer.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:51.580Z"
+      },
+      {
+        "id": "30",
+        "title": "Competitor Analysis Tooling",
+        "description": "Build a tool to periodically review what top FinTwit and trading education accounts post and what performs well. Use as content inspiration (not copying). Implementation: (1) Curate a list of 10-15 accounts to monitor across X, Reddit, LinkedIn. (2) Scrape their top-performing posts weekly (by engagement metrics). (3) Identify patterns: topics, hook styles, formats, posting times that work in the trading niche. (4) Feed insights into the content research pipeline as inspiration seeds. This is research tooling â€” helps you stay aware of what resonates in the niche without manually scrolling.",
+        "details": "",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": [],
+        "updatedAt": "2026-03-22T10:58:59.167Z"
+      }
+      {
+        "id": "31",
+        "title": "Fix content generation prompt to match brand voice",
+        "description": "Rewrite CONTENT_PROMPT in content_generator.py to incorporate emotion-first hooks, value-first body, platform-specific format rules, and hard rules from config/content-templates.md. Current prompt is generic and produces ad-like content.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "32",
+        "title": "Integrate DeerFlow into Amplifier content pipeline",
+        "description": "CANCELLED — DeerFlow evaluated but skipped (Windows issues, ~30 heavy deps, HTTP stack assumptions). Using LangGraph standalone instead. See docs/AGENT_PIPELINE_PLAN.md.",
+        "status": "cancelled",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "33",
+        "title": "Set up webcrawler globally for Claude Code",
+        "description": "Install webcrawler (github.com/Devtest-Dan/webcrawler) and make it accessible to Claude Code across all sessions and directories. Wire into DeerFlow for content research.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "34",
+        "title": "Verify metric scraping and earnings pipeline",
+        "description": "Run metric_scraper.py on posted URLs, verify engagement data is collected, confirm earnings appear on user dashboard. Full loop: post → scrape → earnings.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "35",
+        "title": "Explore free/cheap LLMs for Amplifier",
+        "description": "Evaluate free/cheap models for Amplifier content generation: Qwen coder/multimodal, Llama, Nvidia LLMs, local LLM options (Ollama). Deferred — current Gemini setup works.",
+        "status": "deferred",
+        "priority": "low",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      }
+      {
+        "id": "36",
+        "title": "Phase 1: LangGraph skeleton — core agent pipeline",
+        "description": "Build the LangGraph content pipeline that replaces single-API-call content generation. Install langgraph + langchain-google-genai. Create scripts/agents/ package with pipeline.py (graph definition), profile_node.py (scrape user profiles weekly via Playwright), research_node.py (webcrawler search + company links + past performance), draft_node.py (per-platform Gemini generation with research + profile + brand voice), quality_node.py (validate against content-templates.md, score 0-100), decision_node.py (route to post or review queue), post node (reuse existing post_to_* functions). Wire into campaign_runner.py behind feature flag. Extend local_db.py with 4 agent tables (agent_user_profile, agent_research, agent_draft, agent_content_insights). All nodes are independent stateless functions — split-ready for server deployment later. See docs/AGENT_PIPELINE_PLAN.md.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "37",
+        "title": "Phase 2: Content variety + audience-aware scheduling",
+        "description": "Add content types to draft node: educational, funny, ragebait, text+image, story/narrative. Reuse hooks and format rules from config/content-templates.md. Build audience-aware scheduling — analyze user's follower activity patterns to propose optimal posting times per platform, store as editable schedule in local DB. Add CTA rotation — more aggressive than personal brand (50/30/20 value/soft/direct). Post-post engagement: browse feed + click profiles only (no liking/retweeting). See docs/AGENT_PIPELINE_PLAN.md Phase 2.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": ["36"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "38",
+        "title": "Phase 3: Learning loop — metrics feed back into content",
+        "description": "Close the feedback loop. Learn node analyzes metrics (T+24h+) — which content types, hooks, posting times drove highest engagement per platform. Update agent_content_insights table. Research node reads insights for future campaigns. Draft node uses insights to weight content type selection. See docs/AGENT_PIPELINE_PLAN.md Phase 3.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": ["36"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "39",
+        "title": "Phase 4: Dashboard — research, drafts, schedule views",
+        "description": "Surface agent artifacts in user dashboard (campaign_dashboard.py). Add Research view (what research node found per campaign), Drafts view (all draft versions with quality scores and content type labels), Schedule view (proposed posting times, user can edit). Semi-auto mode: ranked drafts with quality scores → user picks best → confirms schedule → post. See docs/AGENT_PIPELINE_PLAN.md Phase 4.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": ["36"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      },
+      {
+        "id": "40",
+        "title": "Phase 5: Personal brand pipeline (separate from campaigns)",
+        "description": "Build personal posting workflow as separate LangGraph graph reusing same nodes. Content source: 5 pillars from content-templates.md + market research + backtest results. Daily cadence: 6 posts/day across US time slots (reuse scheduling node). Pillar rotation: 2x education, 1x automation, 1x proof, 1x AI, 1x wildcard. CTA rotation: month 1 = 100% value, month 2+ = graduated. Legal disclaimers on all content. Same draft/quality/post/learn nodes shared with campaign pipeline. See docs/AGENT_PIPELINE_PLAN.md Phase 5.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": ["36", "37", "38"],
+        "subtasks": [],
+        "updatedAt": "2026-03-24T00:00:00.000Z"
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-03-24T00:00:00.000Z",
+      "taskCount": 39,
+      "completedCount": 17,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

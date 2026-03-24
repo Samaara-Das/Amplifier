@@ -13,6 +13,7 @@ class Targeting(BaseModel):
     min_followers: dict[str, int] = {}  # {"x": 100, "linkedin": 50}
     niche_tags: list[str] = []
     required_platforms: list[str] = []
+    target_regions: list[str] = []  # ["us", "uk", "eu", ...]
 
 
 class CampaignCreate(BaseModel):
@@ -48,15 +49,23 @@ class CampaignResponse(BaseModel):
     targeting: dict
     content_guidance: str | None
     status: str
+    screening_status: str = "pending"
     start_date: datetime
     end_date: datetime
     created_at: datetime
+    budget_alert_sent: bool = False
+    campaign_version: int = 1
+    screening_warning: str | None = None
 
     model_config = {"from_attributes": True}
 
 
+class BudgetTopUp(BaseModel):
+    amount: float
+
+
 class CampaignBrief(BaseModel):
-    """What the user app receives — campaign info needed for content generation."""
+    """What the user app receives -- campaign info needed for content generation."""
     campaign_id: int
     assignment_id: int
     title: str
@@ -67,3 +76,31 @@ class CampaignBrief(BaseModel):
     payout_multiplier: float
 
     model_config = {"from_attributes": True}
+
+
+# ── AI Wizard schemas ─────────────────────────────────────────────
+
+
+class WizardRequest(BaseModel):
+    """Input for the AI campaign creation wizard."""
+    product_description: str
+    campaign_goal: str  # brand_awareness | product_launch | event_promotion | lead_generation
+    company_urls: list[str] = []
+    target_niches: list[str] = []
+    target_regions: list[str] = []
+    required_platforms: list[str] = []
+    min_followers: dict[str, int] = {}
+    tone: str | None = None  # professional | casual | funny | educational | inspirational
+    must_include: list[str] = []
+    must_avoid: list[str] = []
+    budget_range: dict[str, float] | None = None  # {"min": 200, "max": 500}
+    start_date: str | None = None
+    end_date: str | None = None
+
+
+class ReachEstimateRequest(BaseModel):
+    """Input for pre-creation reach estimation."""
+    target_niches: list[str] = []
+    target_regions: list[str] = []
+    required_platforms: list[str] = []
+    min_followers: dict[str, int] = {}

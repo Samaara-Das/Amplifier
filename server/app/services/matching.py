@@ -1,14 +1,296 @@
-from sqlalchemy import select, and_, not_
+"""Campaign-to-user matching with AI-powered relevance scoring.
+
+v2 upgrade: replaces simple niche-overlap scoring with Gemini AI scoring.
+Falls back to niche-overlap if AI fails. Caches scores for 24 hours.
+"""
+
+import asyncio
+import logging
+import os
+import re
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
+from app.models.invitation_log import CampaignInvitationLog
 from app.models.user import User
 from app.schemas.campaign import CampaignBrief
 
+logger = logging.getLogger(__name__)
 
-async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBrief]:
-    """Match active campaigns to a user and return briefs for assigned campaigns."""
+# Invitation expires 3 days after being sent
+INVITATION_TTL = timedelta(days=3)
+
+# Score cache: (campaign_id, user_id) -> (score, cached_at)
+SCORE_CACHE_TTL = timedelta(hours=24)
+_score_cache: dict[tuple[int, int], tuple[float, datetime]] = {}
+
+
+# ── Score Caching ─────────────────────────────────────────────────
+
+
+def get_cached_score(campaign_id: int, user_id: int) -> float | None:
+    """Get cached AI score if not stale (< 24h). Returns None on miss."""
+    key = (campaign_id, user_id)
+    entry = _score_cache.get(key)
+    if entry is None:
+        return None
+    score, cached_at = entry
+    if datetime.now(timezone.utc) - cached_at > SCORE_CACHE_TTL:
+        # Stale — remove and return miss
+        del _score_cache[key]
+        return None
+    return score
+
+
+def cache_score(campaign_id: int, user_id: int, score: float):
+    """Cache an AI relevance score."""
+    _score_cache[(campaign_id, user_id)] = (score, datetime.now(timezone.utc))
+
+
+def invalidate_cache(
+    campaign_id: int | None = None, user_id: int | None = None
+):
+    """Invalidate cached scores for a campaign edit or user profile refresh.
+
+    If both campaign_id and user_id are given, only the exact pair is removed.
+    If only one is given, all entries matching that dimension are removed.
+    """
+    if campaign_id is not None and user_id is not None:
+        _score_cache.pop((campaign_id, user_id), None)
+        return
+
+    keys_to_remove = []
+    for (cid, uid) in _score_cache:
+        if campaign_id is not None and cid == campaign_id:
+            keys_to_remove.append((cid, uid))
+        elif user_id is not None and uid == user_id:
+            keys_to_remove.append((cid, uid))
+
+    for key in keys_to_remove:
+        del _score_cache[key]
+
+
+# ── Gemini API Call ───────────────────────────────────────────────
+
+
+async def _call_gemini(prompt: str) -> str:
+    """Call Gemini API and return raw text response.
+
+    Uses google.genai Client, same pattern as campaign_wizard.py.
+    Runs the synchronous SDK call in a thread to avoid blocking the event loop.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY not set")
+
+    from google import genai
+
+    client = genai.Client(api_key=api_key)
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model="gemini-2.5-flash-lite",
+        contents=prompt,
+    )
+    return response.text.strip()
+
+
+# ── AI Relevance Scoring ─────────────────────────────────────────
+
+
+def _get_user_engagement_rate(user: User) -> float:
+    """Calculate average engagement rate across all scraped platforms."""
+    profiles = user.scraped_profiles
+    if not profiles:
+        return 0.0
+
+    rates = []
+    for platform_data in profiles.values():
+        if isinstance(platform_data, dict):
+            rate = platform_data.get("avg_engagement_rate")
+            if rate is not None:
+                rates.append(float(rate))
+
+    if not rates:
+        return 0.0
+    return sum(rates) / len(rates)
+
+
+def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
+    """Build the prompt for AI relevance scoring."""
+    targeting = campaign.targeting or {}
+
+    # Summarize user's scraped profiles
+    bio_summary = ""
+    recent_topics = []
+    profiles = user.scraped_profiles or {}
+    for platform, data in profiles.items():
+        if isinstance(data, dict):
+            bio = data.get("bio", "")
+            if bio:
+                bio_summary += f"{platform}: {bio}. "
+            posts = data.get("recent_posts", [])
+            recent_topics.extend(posts[:3])  # sample up to 3 per platform
+
+    engagement_rate = _get_user_engagement_rate(user)
+    connected_platforms = [
+        k for k, v in (user.platforms or {}).items()
+        if isinstance(v, dict) and v.get("connected")
+    ]
+
+    return f"""Rate the relevance of this campaign for this social media creator on a scale of 0-100.
+
+CAMPAIGN:
+Title: {campaign.title}
+Brief: {campaign.brief}
+Target niches: {targeting.get('niche_tags', [])}
+
+CREATOR PROFILE:
+Niches: {user.ai_detected_niches or user.niche_tags or []}
+Bio: {bio_summary or 'Not available'}
+Recent post topics: {recent_topics[:5] or ['Not available']}
+Engagement rate: {engagement_rate:.3f}
+Platforms: {connected_platforms}
+
+Consider: niche alignment, audience overlap, content style fit, engagement quality.
+Return ONLY a number between 0 and 100."""
+
+
+def _parse_score(text: str) -> float:
+    """Extract a numeric score from AI response text.
+
+    Handles responses like "85", "85.5", "Score: 78", "78/100", "-10", etc.
+    """
+    # Find the first number (possibly negative) in the response
+    match = re.search(r"(-?\d+(?:\.\d+)?)", text)
+    if match:
+        score = float(match.group(1))
+        return max(0.0, min(100.0, score))
+    raise ValueError(f"Could not parse score from: {text!r}")
+
+
+async def ai_score_relevance(campaign: Campaign, user: User) -> float:
+    """Score how relevant a campaign is for a user using AI.
+
+    Returns a float 0-100 on success, or -1.0 if AI fails (sentinel for
+    fallback to niche-overlap scoring).
+
+    Checks the score cache first; on cache hit, skips the AI call entirely.
+    """
+    # Check cache first
+    cached = get_cached_score(campaign.id, user.id)
+    if cached is not None:
+        return cached
+
+    try:
+        prompt = _build_scoring_prompt(campaign, user)
+        response_text = await _call_gemini(prompt)
+        score = _parse_score(response_text)
+        cache_score(campaign.id, user.id, score)
+        return score
+    except Exception as exc:
+        logger.warning(
+            "AI scoring failed for campaign=%d user=%d: %s",
+            campaign.id, user.id, exc,
+        )
+        return -1.0  # sentinel: caller should fall back
+
+
+# ── Combined Scoring ──────────────────────────────────────────────
+
+
+def calculate_combined_score(
+    ai_score: float, trust_score: int, engagement_rate: float
+) -> float:
+    """Combine AI relevance, trust, and engagement into a final score.
+
+    Formula:
+        final = ai_score * 0.6 + trust_score * 0.2 + min(engagement_rate * 1000, 20)
+
+    All components are capped so the maximum final score is 100.
+    """
+    trust_bonus = (trust_score or 0) * 0.2  # 0-20
+    engagement_bonus = min(engagement_rate * 1000, 20)  # 0-20
+    return ai_score * 0.6 + trust_bonus + engagement_bonus
+
+
+# ── Niche-Overlap Fallback Scoring ────────────────────────────────
+
+
+def _fallback_niche_score(campaign: Campaign, user: User) -> float:
+    """Original v1 niche-overlap scoring. Used when AI fails."""
+    targeting = campaign.targeting or {}
+    score = 0.0
+
+    target_niches = set(targeting.get("niche_tags", []))
+    # Use AI-detected niches if available, fall back to self-reported
+    user_niches = set(user.ai_detected_niches or user.niche_tags or [])
+    niche_overlap = len(target_niches & user_niches)
+    score += niche_overlap * 30
+
+    # If no niche targeting, give a base score so everyone can participate
+    if not target_niches:
+        score += 10
+
+    return max(score, 1.0)
+
+
+# ── Hard Filters ──────────────────────────────────────────────────
+
+
+def _passes_hard_filters(campaign: Campaign, user: User) -> bool:
+    """Check hard filters. Returns True if user is eligible for the campaign."""
+    targeting = campaign.targeting or {}
+
+    # Required platforms
+    required_platforms = targeting.get("required_platforms", [])
+    if required_platforms:
+        user_platforms = set(
+            k for k, v in (user.platforms or {}).items()
+            if isinstance(v, dict) and v.get("connected")
+        )
+        if not set(required_platforms).issubset(user_platforms):
+            return False
+
+    # Minimum follower counts
+    min_followers = targeting.get("min_followers", {})
+    user_followers = user.follower_counts or {}
+    for platform, minimum in min_followers.items():
+        if user_followers.get(platform, 0) < minimum:
+            return False
+
+    # Target regions
+    target_regions = targeting.get("target_regions", [])
+    if target_regions:
+        user_region = getattr(user, "audience_region", "global") or "global"
+        if user_region != "global" and user_region not in target_regions:
+            return False
+
+    return True
+
+
+# ── Main Matching Function ────────────────────────────────────────
+
+
+async def get_matched_campaigns(
+    user: User, db: AsyncSession
+) -> list[CampaignBrief]:
+    """Match active campaigns to a user and return briefs for assigned campaigns.
+
+    New matches are created with status ``pending_invitation`` (v2 invitation
+    model).  Existing non-completed assignments are also returned so the user
+    app has a single list of everything relevant.
+
+    Scoring pipeline:
+    1. Hard filters (required platforms, followers, region, budget, not already invited)
+    2. AI relevance scoring via Gemini (cached for 24h)
+    3. Combined score = AI * 0.6 + trust * 0.2 + engagement bonus (capped at 20)
+    4. Fallback to niche-overlap if AI fails for a given user
+    5. Sort by score, take top 10, create invitations
+    """
 
     # Get campaigns already assigned to this user
     existing_result = await db.execute(
@@ -24,42 +306,80 @@ async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBr
     )
     active_campaigns = result.scalars().all()
 
-    # Score and filter campaigns for this user
-    matched = []
+    # Stage 1: Hard filters
+    candidates = []
     for campaign in active_campaigns:
         if campaign.id in existing_campaign_ids:
-            continue  # Already assigned
+            continue  # Already assigned/invited
 
         if float(campaign.budget_remaining) <= 0:
             continue
 
-        score = _calculate_match_score(campaign, user)
-        if score > 0:
-            matched.append((campaign, score))
+        if not _passes_hard_filters(campaign, user):
+            continue
+
+        candidates.append(campaign)
+
+    # Stage 2 + 3: AI scoring + combined score
+    engagement_rate = _get_user_engagement_rate(user)
+    scored = []
+
+    for campaign in candidates:
+        ai_score = await ai_score_relevance(campaign, user)
+
+        if ai_score < 0:
+            # AI failed — use fallback niche-overlap scoring
+            fallback = _fallback_niche_score(campaign, user)
+            final_score = calculate_combined_score(
+                ai_score=fallback,
+                trust_score=user.trust_score or 50,
+                engagement_rate=engagement_rate,
+            )
+        else:
+            final_score = calculate_combined_score(
+                ai_score=ai_score,
+                trust_score=user.trust_score or 50,
+                engagement_rate=engagement_rate,
+            )
+
+        if final_score > 0:
+            scored.append((campaign, final_score))
 
     # Sort by score descending, take top 10
-    matched.sort(key=lambda x: x[1], reverse=True)
-    matched = matched[:10]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    scored = scored[:10]
 
-    # Create assignments for new matches
+    # Create invitation assignments for new matches
+    now = datetime.now(timezone.utc)
     new_assignments = []
-    for campaign, score in matched:
-        # Determine payout multiplier based on user mode
-        mode_multipliers = {
-            "full_auto": 1.5,  # AI generated
-            "semi_auto": 2.0,  # User customized
-            "manual": 2.0,     # User customized
-        }
-        multiplier = mode_multipliers.get(user.mode, 1.5)
-        content_mode = "ai_generated" if user.mode == "full_auto" else "user_customized"
+    for campaign, score in scored:
+        content_mode = (
+            "ai_generated" if user.mode == "full_auto" else "user_customized"
+        )
 
         assignment = CampaignAssignment(
             campaign_id=campaign.id,
             user_id=user.id,
+            status="pending_invitation",
             content_mode=content_mode,
-            payout_multiplier=multiplier,
+            invited_at=now,
+            expires_at=now + INVITATION_TTL,
+            # payout_multiplier defaults to 1.0 — no longer mode-dependent (v2)
         )
         db.add(assignment)
+        await db.flush()
+
+        # Increment campaign invitation counter
+        campaign.invitation_count = (campaign.invitation_count or 0) + 1
+
+        # Log the event
+        db.add(
+            CampaignInvitationLog(
+                campaign_id=campaign.id,
+                user_id=user.id,
+                event="sent",
+            )
+        )
         await db.flush()
 
         new_assignments.append(
@@ -71,7 +391,7 @@ async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBr
                 assets=campaign.assets,
                 content_guidance=campaign.content_guidance,
                 payout_rules=campaign.payout_rules,
-                payout_multiplier=multiplier,
+                payout_multiplier=1.0,
             )
         )
 
@@ -83,7 +403,9 @@ async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBr
         .where(
             and_(
                 CampaignAssignment.user_id == user.id,
-                CampaignAssignment.status.in_(["assigned", "content_generated"]),
+                CampaignAssignment.status.in_(
+                    ["pending_invitation", "accepted", "content_generated"]
+                ),
                 Campaign.status == "active",
             )
         )
@@ -104,54 +426,8 @@ async def get_matched_campaigns(user: User, db: AsyncSession) -> list[CampaignBr
                 assets=campaign.assets,
                 content_guidance=campaign.content_guidance,
                 payout_rules=campaign.payout_rules,
-                payout_multiplier=float(assignment.payout_multiplier),
+                payout_multiplier=1.0,  # v2: multiplier always 1.0
             )
         )
 
     return new_assignments
-
-
-def _calculate_match_score(campaign: Campaign, user: User) -> int:
-    """Score a campaign against a user profile. Returns 0 if hard filter fails."""
-    targeting = campaign.targeting or {}
-    score = 0
-
-    # Hard filter: required platforms
-    required_platforms = targeting.get("required_platforms", [])
-    if required_platforms:
-        user_platforms = set(
-            k for k, v in (user.platforms or {}).items()
-            if isinstance(v, dict) and v.get("connected")
-        )
-        if not set(required_platforms).issubset(user_platforms):
-            return 0
-
-    # Hard filter: minimum follower counts
-    min_followers = targeting.get("min_followers", {})
-    user_followers = user.follower_counts or {}
-    for platform, minimum in min_followers.items():
-        if user_followers.get(platform, 0) < minimum:
-            return 0
-
-    # Hard filter: target regions
-    target_regions = targeting.get("target_regions", [])
-    if target_regions:
-        user_region = getattr(user, "audience_region", "global") or "global"
-        if user_region != "global" and user_region not in target_regions:
-            return 0
-
-    # Soft: niche overlap
-    target_niches = set(targeting.get("niche_tags", []))
-    user_niches = set(user.niche_tags or [])
-    niche_overlap = len(target_niches & user_niches)
-    score += niche_overlap * 30
-
-    # If no niche targeting, give a base score so everyone can participate
-    if not target_niches:
-        score += 10
-
-    # Soft: trust score
-    score += (user.trust_score or 50) * 0.5
-
-    # Ensure minimum score of 1 if hard filters passed
-    return max(score, 1)

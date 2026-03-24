@@ -117,7 +117,8 @@ def get_profile() -> dict:
 
 def update_profile(platforms: dict = None, follower_counts: dict = None,
                    niche_tags: list = None, audience_region: str = None,
-                   mode: str = None) -> dict:
+                   mode: str = None, scraped_profiles: dict = None,
+                   ai_detected_niches: list = None) -> dict:
     payload = {}
     if platforms is not None:
         payload["platforms"] = platforms
@@ -129,6 +130,10 @@ def update_profile(platforms: dict = None, follower_counts: dict = None,
         payload["audience_region"] = audience_region
     if mode is not None:
         payload["mode"] = mode
+    if scraped_profiles is not None:
+        payload["scraped_profiles"] = scraped_profiles
+    if ai_detected_niches is not None:
+        payload["ai_detected_niches"] = ai_detected_niches
 
     resp = _request_with_retry("PATCH", "/api/users/me", json=payload)
     resp.raise_for_status()
@@ -195,5 +200,12 @@ def report_metrics(metrics: list[dict]) -> dict:
 
 def get_earnings() -> dict:
     resp = _request_with_retry("GET", "/api/users/me/earnings")
+    resp.raise_for_status()
+    return resp.json()
+
+
+def request_payout(amount: float) -> dict:
+    """Request a payout withdrawal from the user's earnings balance."""
+    resp = _request_with_retry("POST", "/api/users/me/payout", json={"amount": amount})
     resp.raise_for_status()
     return resp.json()

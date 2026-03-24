@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -18,6 +18,7 @@ from app.models.post import Post
 from app.models.metric import Metric
 from app.models.payout import Payout
 from app.models.penalty import Penalty
+from app.models.screening_log import ContentScreeningLog
 
 router = APIRouter()
 
@@ -506,3 +507,200 @@ async def run_payout(admin_token: str = Cookie(None), db: AsyncSession = Depends
         payouts=payouts_list,
         result_msg=msg,
     )
+
+
+# ---------------------------------------------------------------------------
+# Platform Stats
+# ---------------------------------------------------------------------------
+
+@router.get("/platform-stats", response_class=HTMLResponse)
+async def platform_stats_page(
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    if not _check_admin(admin_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    # Get per-platform post counts and success rates
+    post_result = await db.execute(
+        select(
+            Post.platform,
+            func.count(Post.id).label("total_posts"),
+            func.sum(
+                case((Post.status == "live", 1), else_=0)
+            ).label("live_count"),
+        )
+        .group_by(Post.platform)
+    )
+
+    platform_data = {}
+    for row in post_result.all():
+        platform_name = row[0]
+        total = row[1] or 0
+        live = row[2] or 0
+        platform_data[platform_name] = {
+            "platform": platform_name,
+            "total_posts": total,
+            "live_count": live,
+            "success_rate": (live / total * 100) if total > 0 else 0,
+            "avg_impressions": 0.0,
+            "avg_likes": 0.0,
+            "avg_reposts": 0.0,
+            "total_impressions": 0,
+            "total_engagement": 0,
+        }
+
+    # Get per-platform metric aggregates via Post join
+    metric_result = await db.execute(
+        select(
+            Post.platform,
+            func.coalesce(func.avg(Metric.impressions), 0).label("avg_imp"),
+            func.coalesce(func.avg(Metric.likes), 0).label("avg_likes"),
+            func.coalesce(func.avg(Metric.reposts), 0).label("avg_reposts"),
+            func.coalesce(func.sum(Metric.impressions), 0).label("total_imp"),
+            func.coalesce(func.sum(Metric.likes), 0).label("total_likes"),
+            func.coalesce(func.sum(Metric.reposts), 0).label("total_reposts"),
+            func.coalesce(func.sum(Metric.comments), 0).label("total_comments"),
+        )
+        .select_from(Metric)
+        .join(Post, Metric.post_id == Post.id)
+        .where(Metric.is_final == True)
+        .group_by(Post.platform)
+    )
+
+    for row in metric_result.all():
+        platform_name = row[0]
+        if platform_name not in platform_data:
+            platform_data[platform_name] = {
+                "platform": platform_name,
+                "total_posts": 0,
+                "live_count": 0,
+                "success_rate": 0,
+            }
+        platform_data[platform_name]["avg_impressions"] = float(row[1])
+        platform_data[platform_name]["avg_likes"] = float(row[2])
+        platform_data[platform_name]["avg_reposts"] = float(row[3])
+        platform_data[platform_name]["total_impressions"] = int(row[4])
+        total_likes = int(row[5])
+        total_reposts = int(row[6])
+        total_comments = int(row[7])
+        platform_data[platform_name]["total_engagement"] = (
+            total_likes + total_reposts + total_comments
+        )
+
+    platforms = sorted(platform_data.values(), key=lambda x: x["total_posts"], reverse=True)
+
+    total_posts = sum(p["total_posts"] for p in platforms)
+    total_impressions = sum(p.get("total_impressions", 0) for p in platforms)
+    total_engagement = sum(p.get("total_engagement", 0) for p in platforms)
+
+    return _render(
+        "admin/platform_stats.html",
+        platforms=platforms,
+        total_posts=total_posts,
+        total_impressions=total_impressions,
+        total_engagement=total_engagement,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Review Queue (Flagged Campaigns)
+# ---------------------------------------------------------------------------
+
+@router.get("/review-queue", response_class=HTMLResponse)
+async def review_queue_page(
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    if not _check_admin(admin_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    result = await db.execute(
+        select(ContentScreeningLog, Campaign, Company)
+        .join(Campaign, ContentScreeningLog.campaign_id == Campaign.id)
+        .join(Company, Campaign.company_id == Company.id)
+        .where(
+            and_(
+                ContentScreeningLog.flagged == True,
+                ContentScreeningLog.reviewed_by_admin == False,
+            )
+        )
+        .order_by(ContentScreeningLog.created_at.desc())
+    )
+
+    flagged_list = []
+    for log, campaign, company in result.all():
+        flagged_list.append({
+            "campaign_id": campaign.id,
+            "company_name": company.name,
+            "title": campaign.title,
+            "flagged_keywords": log.flagged_keywords or [],
+            "categories": log.screening_categories or [],
+            "created_at": log.created_at,
+        })
+
+    return _render("admin/review_queue.html", flagged=flagged_list, result_msg=None)
+
+
+@router.post("/review-queue/{campaign_id}/approve", response_class=HTMLResponse)
+async def approve_flagged(
+    campaign_id: int,
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    if not _check_admin(admin_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    log_result = await db.execute(
+        select(ContentScreeningLog).where(ContentScreeningLog.campaign_id == campaign_id)
+    )
+    log = log_result.scalar_one_or_none()
+    campaign_result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+    campaign = campaign_result.scalar_one_or_none()
+
+    if log and campaign and campaign.screening_status == "flagged":
+        log.reviewed_by_admin = True
+        log.review_result = "approved"
+        campaign.screening_status = "approved"
+        await db.flush()
+        await db.commit()
+
+    return RedirectResponse(url="/admin/review-queue", status_code=303)
+
+
+@router.post("/review-queue/{campaign_id}/reject", response_class=HTMLResponse)
+async def reject_flagged(
+    campaign_id: int,
+    reason: str = Form("Rejected by admin"),
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    if not _check_admin(admin_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    log_result = await db.execute(
+        select(ContentScreeningLog).where(ContentScreeningLog.campaign_id == campaign_id)
+    )
+    log = log_result.scalar_one_or_none()
+    campaign_result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+    campaign = campaign_result.scalar_one_or_none()
+
+    if log and campaign and campaign.screening_status == "flagged":
+        log.reviewed_by_admin = True
+        log.review_result = "rejected"
+        log.review_notes = reason
+        campaign.screening_status = "rejected"
+        campaign.status = "cancelled"
+
+        # Refund budget to company
+        company_result = await db.execute(
+            select(Company).where(Company.id == campaign.company_id)
+        )
+        company = company_result.scalar_one_or_none()
+        if company:
+            company.balance = float(company.balance) + float(campaign.budget_remaining)
+
+        await db.flush()
+        await db.commit()
+
+    return RedirectResponse(url="/admin/review-queue", status_code=303)

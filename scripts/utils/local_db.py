@@ -33,9 +33,13 @@ def init_db() -> None:
             assets TEXT DEFAULT '{}',
             content_guidance TEXT,
             payout_rules TEXT DEFAULT '{}',
-            payout_multiplier REAL DEFAULT 1.5,
+            payout_multiplier REAL DEFAULT 1.0,
             status TEXT DEFAULT 'assigned',
             content TEXT,
+            invitation_status TEXT DEFAULT 'pending_invitation',
+            invited_at TEXT,
+            expires_at TEXT,
+            responded_at TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
@@ -82,6 +86,42 @@ def init_db() -> None:
             value TEXT
         );
 
+        -- v2: Scraped profile data per platform
+        CREATE TABLE IF NOT EXISTS scraped_profile (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform TEXT NOT NULL UNIQUE,
+            follower_count INTEGER DEFAULT 0,
+            following_count INTEGER DEFAULT 0,
+            bio TEXT,
+            display_name TEXT,
+            profile_pic_url TEXT,
+            recent_posts TEXT,
+            engagement_rate REAL DEFAULT 0.0,
+            posting_frequency REAL DEFAULT 0.0,
+            ai_niches TEXT DEFAULT '[]',
+            scraped_at TEXT NOT NULL
+        );
+
+        -- v2: Post scheduling queue for background agent
+        CREATE TABLE IF NOT EXISTS post_schedule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_server_id INTEGER NOT NULL,
+            platform TEXT NOT NULL,
+            scheduled_at TEXT NOT NULL,
+            content TEXT,
+            image_path TEXT,
+            draft_id INTEGER,
+            status TEXT DEFAULT 'queued',
+            error_message TEXT,
+            actual_posted_at TEXT,
+            local_post_id INTEGER,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (campaign_server_id) REFERENCES local_campaign(server_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_post_schedule_status_time
+            ON post_schedule(status, scheduled_at);
+
         -- Agent pipeline tables
         CREATE TABLE IF NOT EXISTS agent_user_profile (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,7 +165,35 @@ def init_db() -> None:
             best_performing_text TEXT,
             last_updated TEXT DEFAULT (datetime('now'))
         );
+
+        -- Notification feed for background agent events
+        CREATE TABLE IF NOT EXISTS local_notification (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            data TEXT DEFAULT '{}',
+            read INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_notification_read_time
+            ON local_notification(read, created_at DESC);
     """)
+
+    # Add new columns to existing tables (idempotent — catches "duplicate column" errors)
+    _safe_alter_columns = [
+        "ALTER TABLE local_campaign ADD COLUMN invitation_status TEXT DEFAULT 'pending_invitation'",
+        "ALTER TABLE local_campaign ADD COLUMN invited_at TEXT",
+        "ALTER TABLE local_campaign ADD COLUMN expires_at TEXT",
+        "ALTER TABLE local_campaign ADD COLUMN responded_at TEXT",
+    ]
+    for stmt in _safe_alter_columns:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
     conn.commit()
     conn.close()
     logger.info("Local database initialized at %s", DB_PATH)
@@ -160,8 +228,10 @@ def upsert_campaign(campaign: dict) -> None:
     conn.execute("""
         INSERT OR REPLACE INTO local_campaign
         (server_id, assignment_id, title, brief, assets, content_guidance,
-         payout_rules, payout_multiplier, status, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         payout_rules, payout_multiplier, status,
+         invitation_status, invited_at, expires_at, responded_at,
+         updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     """, (
         campaign["campaign_id"],
         campaign["assignment_id"],
@@ -170,8 +240,12 @@ def upsert_campaign(campaign: dict) -> None:
         json.dumps(campaign.get("assets", {})),
         campaign.get("content_guidance"),
         json.dumps(campaign.get("payout_rules", {})),
-        campaign.get("payout_multiplier", 1.5),
-        "assigned",
+        campaign.get("payout_multiplier", 1.0),
+        campaign.get("status", "assigned"),
+        campaign.get("invitation_status", "pending_invitation"),
+        campaign.get("invited_at"),
+        campaign.get("expires_at"),
+        campaign.get("responded_at"),
     ))
     conn.commit()
     conn.close()
@@ -214,6 +288,31 @@ def update_campaign_status(server_id: int, status: str, content: str = None) -> 
         )
     conn.commit()
     conn.close()
+
+
+def update_invitation_status(server_id: int, invitation_status: str,
+                              responded_at: str = None) -> None:
+    """Update the invitation status of a local campaign."""
+    conn = _get_db()
+    conn.execute(
+        """UPDATE local_campaign
+           SET invitation_status = ?, responded_at = ?, updated_at = datetime('now')
+           WHERE server_id = ?""",
+        (invitation_status, responded_at, server_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_campaigns_by_invitation_status(invitation_status: str) -> list[dict]:
+    """Get campaigns filtered by invitation status."""
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT * FROM local_campaign WHERE invitation_status = ? ORDER BY created_at DESC",
+        (invitation_status,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # ── Posts ──────────────────────────────────────────────────────────
@@ -376,6 +475,122 @@ def get_campaign_earnings() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+# ── Scraped Profiles (v2) ─────────────────────────────────────────
+
+
+def upsert_scraped_profile(platform: str, follower_count: int = 0,
+                            following_count: int = 0, bio: str = None,
+                            display_name: str = None, profile_pic_url: str = None,
+                            recent_posts: str = "[]", engagement_rate: float = 0.0,
+                            posting_frequency: float = 0.0,
+                            ai_niches: str = "[]") -> None:
+    """Insert or update a scraped profile for a platform."""
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute("""
+        INSERT INTO scraped_profile
+        (platform, follower_count, following_count, bio, display_name,
+         profile_pic_url, recent_posts, engagement_rate, posting_frequency,
+         ai_niches, scraped_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(platform) DO UPDATE SET
+            follower_count=excluded.follower_count,
+            following_count=excluded.following_count,
+            bio=excluded.bio,
+            display_name=excluded.display_name,
+            profile_pic_url=excluded.profile_pic_url,
+            recent_posts=excluded.recent_posts,
+            engagement_rate=excluded.engagement_rate,
+            posting_frequency=excluded.posting_frequency,
+            ai_niches=excluded.ai_niches,
+            scraped_at=excluded.scraped_at
+    """, (platform, follower_count, following_count, bio, display_name,
+          profile_pic_url, recent_posts, engagement_rate, posting_frequency,
+          ai_niches, now))
+    conn.commit()
+    conn.close()
+
+
+def get_scraped_profile(platform: str) -> dict | None:
+    """Get scraped profile for a single platform."""
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT * FROM scraped_profile WHERE platform = ?", (platform,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_all_scraped_profiles() -> list[dict]:
+    """Get all scraped profiles."""
+    conn = _get_db()
+    rows = conn.execute("SELECT * FROM scraped_profile ORDER BY platform").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Post Schedule (v2) ────────────────────────────────────────────
+
+
+def add_scheduled_post(campaign_server_id: int, platform: str,
+                        scheduled_at: str, content: str = None,
+                        image_path: str = None, draft_id: int = None) -> int:
+    """Add a post to the schedule queue."""
+    conn = _get_db()
+    cursor = conn.execute("""
+        INSERT INTO post_schedule
+        (campaign_server_id, platform, scheduled_at, content, image_path, draft_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (campaign_server_id, platform, scheduled_at, content, image_path, draft_id))
+    post_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return post_id
+
+
+def get_scheduled_posts(status: str = None) -> list[dict]:
+    """Get scheduled posts, optionally filtered by status."""
+    conn = _get_db()
+    if status:
+        rows = conn.execute(
+            "SELECT * FROM post_schedule WHERE status = ? ORDER BY scheduled_at ASC",
+            (status,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM post_schedule ORDER BY scheduled_at ASC"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_schedule_status(schedule_id: int, status: str,
+                            error_message: str = None,
+                            local_post_id: int = None) -> None:
+    """Update the status of a scheduled post."""
+    conn = _get_db()
+    if status == "posted":
+        conn.execute(
+            """UPDATE post_schedule
+               SET status = ?, actual_posted_at = datetime('now'),
+                   local_post_id = ?
+               WHERE id = ?""",
+            (status, local_post_id, schedule_id),
+        )
+    elif status == "failed":
+        conn.execute(
+            "UPDATE post_schedule SET status = ?, error_message = ? WHERE id = ?",
+            (status, error_message, schedule_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE post_schedule SET status = ? WHERE id = ?",
+            (status, schedule_id),
+        )
+    conn.commit()
+    conn.close()
+
+
 # ── Agent Pipeline: User Profiles ─────────────────────────────────
 
 
@@ -524,3 +739,46 @@ def get_content_insights(platform: str = None) -> list[dict]:
         ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ── Notifications ─────────────────────────────────────────────────
+
+
+def add_notification(notification_type: str, title: str, message: str,
+                     data: str = "{}") -> int:
+    """Add a notification to the local feed."""
+    conn = _get_db()
+    cursor = conn.execute("""
+        INSERT INTO local_notification (type, title, message, data)
+        VALUES (?, ?, ?, ?)
+    """, (notification_type, title, message, data))
+    nid = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return nid
+
+
+def get_notifications(unread_only: bool = False, limit: int = 50) -> list[dict]:
+    """Get notifications, optionally filtered to unread only."""
+    conn = _get_db()
+    if unread_only:
+        rows = conn.execute(
+            "SELECT * FROM local_notification WHERE read = 0 ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM local_notification ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_notifications_read(notification_ids: list[int]) -> None:
+    """Mark notifications as read."""
+    conn = _get_db()
+    for nid in notification_ids:
+        conn.execute("UPDATE local_notification SET read = 1 WHERE id = ?", (nid,))
+    conn.commit()
+    conn.close()

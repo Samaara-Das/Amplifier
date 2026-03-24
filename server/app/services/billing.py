@@ -20,9 +20,12 @@ settings = get_settings()
 
 async def calculate_post_earnings(post: Post, metric: Metric, assignment: CampaignAssignment,
                                   campaign: Campaign) -> float:
-    """Calculate earnings for a single post based on its final metrics and payout rules."""
+    """Calculate earnings for a single post based on its final metrics and payout rules.
+
+    v2: payout_multiplier is ignored. Earnings = raw metrics * rates * (1 - platform_cut).
+    The multiplier field still exists on assignments for backward compat but is NOT used.
+    """
     rules = campaign.payout_rules or {}
-    multiplier = float(assignment.payout_multiplier or 1.0)
 
     rate_per_1k_imp = rules.get("rate_per_1k_impressions", 0)
     rate_per_like = rules.get("rate_per_like", 0)
@@ -36,12 +39,9 @@ async def calculate_post_earnings(post: Post, metric: Metric, assignment: Campai
         (metric.clicks * rate_per_click)
     )
 
-    # Apply content mode multiplier
-    earning = raw_earning * multiplier
-
-    # Apply platform cut
+    # Apply platform cut (no multiplier — v2 simplified billing)
     platform_cut = settings.platform_cut_percent / 100.0
-    user_earning = earning * (1 - platform_cut)
+    user_earning = raw_earning * (1 - platform_cut)
 
     return round(user_earning, 2)
 
@@ -113,9 +113,19 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
         # Deduct from campaign budget
         campaign.budget_remaining = float(campaign.budget_remaining) - budget_cost
 
-        # Auto-pause campaign if budget is low
+        # Budget exhaustion: auto_pause vs auto_complete
         if float(campaign.budget_remaining) < 1.0:
-            campaign.status = "completed"
+            action = getattr(campaign, "budget_exhaustion_action", "auto_complete") or "auto_complete"
+            if action == "auto_pause":
+                campaign.status = "paused"
+            else:
+                campaign.status = "completed"
+
+        # 80% budget alert: flag when remaining < 20% of total
+        budget_total = float(campaign.budget_total) if campaign.budget_total else 0
+        if budget_total > 0 and not getattr(campaign, "budget_alert_sent", True):
+            if float(campaign.budget_remaining) < 0.2 * budget_total:
+                campaign.budget_alert_sent = True
 
         # Create payout record
         now = datetime.now(timezone.utc)
@@ -134,7 +144,6 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
                 "likes": metric.likes,
                 "reposts": metric.reposts,
                 "clicks": metric.clicks,
-                "multiplier": float(assignment.payout_multiplier),
                 "platform_cut_pct": settings.platform_cut_percent,
             },
         )

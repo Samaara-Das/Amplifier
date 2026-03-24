@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Text, Numeric, DateTime, ForeignKey, Integer, func
+from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, Integer, func
 from sqlalchemy import JSON as JSONB  # Portable: works with SQLite and PostgreSQL
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,6 +37,37 @@ class Campaign(Base):
 
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # v2: AI wizard & invitation tracking
+    company_urls: Mapped[list] = mapped_column(JSONB, default=list)
+    # URLs provided by company during wizard step 1
+
+    ai_generated_brief: Mapped[bool] = mapped_column(Boolean, default=False)
+    # True if the brief was generated/enriched by AI from scraped URLs
+
+    budget_exhaustion_action: Mapped[str] = mapped_column(
+        String(20), default="auto_pause"
+    )
+    # "auto_pause" (can top up and resume) or "auto_complete" (campaign ends)
+
+    # Budget management
+    budget_alert_sent: Mapped[bool] = mapped_column(Boolean, default=False)
+    # True when budget_remaining < 20% of budget_total — triggers 80% alert
+
+    screening_status: Mapped[str] = mapped_column(
+        String(20), default="pending", index=True
+    )
+    # pending | approved | flagged | rejected
+
+    campaign_version: Mapped[int] = mapped_column(Integer, default=1)
+    # Incremented on every edit — user app compares to detect campaign changes
+
+    # Denormalized invitation counters
+    invitation_count: Mapped[int] = mapped_column(Integer, default=0)
+    accepted_count: Mapped[int] = mapped_column(Integer, default=0)
+    rejected_count: Mapped[int] = mapped_column(Integer, default=0)
+    expired_count: Mapped[int] = mapped_column(Integer, default=0)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

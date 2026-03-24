@@ -1,5 +1,10 @@
+import csv
+import io
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, and_
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -8,8 +13,19 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.user import User
 from app.models.company import Company
-from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignResponse, CampaignBrief
+from app.models.post import Post
+from app.models.metric import Metric
+from app.models.payout import Payout
+from app.schemas.campaign import (
+    CampaignCreate, CampaignUpdate, CampaignResponse, CampaignBrief,
+    BudgetTopUp, WizardRequest, ReachEstimateRequest,
+)
+from app.models.screening_log import ContentScreeningLog
 from app.services.matching import get_matched_campaigns
+from app.services.campaign_wizard import run_campaign_wizard, estimate_reach, suggest_payout_rates
+from app.services.content_screening import screen_campaign
+
+MINIMUM_CAMPAIGN_BUDGET = 50.0
 
 router = APIRouter()
 
@@ -23,6 +39,11 @@ async def create_campaign(
     company: Company = Depends(get_current_company),
     db: AsyncSession = Depends(get_db),
 ):
+    if data.budget_total < MINIMUM_CAMPAIGN_BUDGET:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Minimum campaign budget is ${MINIMUM_CAMPAIGN_BUDGET:.2f}",
+        )
     if float(company.balance) < data.budget_total:
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
@@ -47,10 +68,146 @@ async def create_campaign(
     company.balance = float(company.balance) - data.budget_total
     await db.flush()
 
+    # ── Content screening ─────────────────────────────────────────
+    screening_result = screen_campaign(
+        title=data.title,
+        brief=data.brief,
+        content_guidance=data.content_guidance or "",
+    )
+
+    if screening_result["flagged"]:
+        campaign.screening_status = "flagged"
+        log = ContentScreeningLog(
+            campaign_id=campaign.id,
+            flagged=True,
+            flagged_keywords=screening_result["flagged_keywords"],
+            screening_categories=screening_result["categories"],
+        )
+        db.add(log)
+        await db.flush()
+
+        # Return campaign with a screening warning
+        response = CampaignResponse.model_validate(campaign).model_dump()
+        response["screening_warning"] = (
+            f"Campaign flagged for review. Prohibited content detected in categories: "
+            f"{', '.join(screening_result['categories'])}. "
+            f"An admin must approve before activation."
+        )
+        return response
+    else:
+        campaign.screening_status = "approved"
+        await db.flush()
+
     return campaign
 
 
-@router.get("/company/campaigns", response_model=list[CampaignResponse])
+@router.post("/company/campaigns/ai-wizard")
+async def ai_wizard(
+    data: WizardRequest,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """AI generates a full campaign draft from wizard answers and optionally scraped company URLs.
+
+    Does NOT create a campaign. Returns a generated draft for the company to
+    review and edit before calling POST /api/company/campaigns.
+    """
+    result = await run_campaign_wizard(
+        db=db,
+        product_description=data.product_description,
+        campaign_goal=data.campaign_goal,
+        company_urls=data.company_urls or None,
+        target_niches=data.target_niches or None,
+        target_regions=data.target_regions or None,
+        required_platforms=data.required_platforms or None,
+        min_followers=data.min_followers or None,
+        tone=data.tone,
+        must_include=data.must_include or None,
+        must_avoid=data.must_avoid or None,
+        budget_range=data.budget_range,
+        start_date=data.start_date,
+        end_date=data.end_date,
+    )
+    return result
+
+
+@router.post("/company/campaigns/reach-estimate")
+async def reach_estimate(
+    data: ReachEstimateRequest,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Estimate reach for targeting criteria before creating a campaign.
+
+    Uses the same hard filters as the matching algorithm to count eligible users,
+    then estimates impressions from follower counts and engagement rates.
+    """
+    payout_rates = suggest_payout_rates(data.target_niches)
+    result = await estimate_reach(
+        db=db,
+        niche_tags=data.target_niches or None,
+        target_regions=data.target_regions or None,
+        required_platforms=data.required_platforms or None,
+        min_followers=data.min_followers or None,
+        payout_rates=payout_rates,
+    )
+    return result
+
+
+@router.get("/company/campaigns/{campaign_id}/reach-estimate")
+async def campaign_reach_estimate(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+    niche_tags: str | None = Query(None, description="Comma-separated niche tags override"),
+    required_platforms: str | None = Query(None, description="Comma-separated platforms override"),
+    target_regions: str | None = Query(None, description="Comma-separated regions override"),
+    min_followers_x: int | None = Query(None),
+    min_followers_linkedin: int | None = Query(None),
+    min_followers_facebook: int | None = Query(None),
+    min_followers_reddit: int | None = Query(None),
+):
+    """Estimate reach for an existing campaign, with optional targeting overrides."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    targeting = campaign.targeting or {}
+
+    # Use overrides if provided, otherwise fall back to campaign targeting
+    niches = niche_tags.split(",") if niche_tags else targeting.get("niche_tags")
+    platforms = required_platforms.split(",") if required_platforms else targeting.get("required_platforms")
+    regions = target_regions.split(",") if target_regions else targeting.get("target_regions")
+
+    min_f = targeting.get("min_followers", {})
+    if min_followers_x is not None:
+        min_f["x"] = min_followers_x
+    if min_followers_linkedin is not None:
+        min_f["linkedin"] = min_followers_linkedin
+    if min_followers_facebook is not None:
+        min_f["facebook"] = min_followers_facebook
+    if min_followers_reddit is not None:
+        min_f["reddit"] = min_followers_reddit
+
+    payout_rates = campaign.payout_rules or suggest_payout_rates(niches or [])
+
+    estimate = await estimate_reach(
+        db=db,
+        niche_tags=niches or None,
+        target_regions=regions or None,
+        required_platforms=platforms or None,
+        min_followers=min_f or None,
+        payout_rates=payout_rates,
+    )
+    return estimate
+
+
+@router.get("/company/campaigns")
 async def list_company_campaigns(
     company: Company = Depends(get_current_company),
     db: AsyncSession = Depends(get_db),
@@ -58,10 +215,26 @@ async def list_company_campaigns(
     result = await db.execute(
         select(Campaign).where(Campaign.company_id == company.id).order_by(Campaign.created_at.desc())
     )
-    return result.scalars().all()
+    campaigns = result.scalars().all()
+
+    out = []
+    for campaign in campaigns:
+        data = CampaignResponse.model_validate(campaign).model_dump()
+        data["invitation_stats"] = {
+            "total_invited": campaign.invitation_count or 0,
+            "accepted": campaign.accepted_count or 0,
+            "rejected": campaign.rejected_count or 0,
+            "expired": campaign.expired_count or 0,
+            "pending": (campaign.invitation_count or 0)
+                       - (campaign.accepted_count or 0)
+                       - (campaign.rejected_count or 0)
+                       - (campaign.expired_count or 0),
+        }
+        out.append(data)
+    return out
 
 
-@router.get("/company/campaigns/{campaign_id}", response_model=CampaignResponse)
+@router.get("/company/campaigns/{campaign_id}")
 async def get_company_campaign(
     campaign_id: int,
     company: Company = Depends(get_current_company),
@@ -75,7 +248,37 @@ async def get_company_campaign(
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return campaign
+
+    data = CampaignResponse.model_validate(campaign).model_dump()
+    data["invitation_stats"] = {
+        "total_invited": campaign.invitation_count or 0,
+        "accepted": campaign.accepted_count or 0,
+        "rejected": campaign.rejected_count or 0,
+        "expired": campaign.expired_count or 0,
+        "pending": (campaign.invitation_count or 0)
+                   - (campaign.accepted_count or 0)
+                   - (campaign.rejected_count or 0)
+                   - (campaign.expired_count or 0),
+    }
+
+    # Per-user invitation status
+    assignments_result = await db.execute(
+        select(CampaignAssignment).where(
+            CampaignAssignment.campaign_id == campaign_id
+        )
+    )
+    assignments = assignments_result.scalars().all()
+    data["invited_users"] = [
+        {
+            "user_id": a.user_id,
+            "status": a.status,
+            "invited_at": a.invited_at.isoformat() if a.invited_at else None,
+            "responded_at": a.responded_at.isoformat() if a.responded_at else None,
+        }
+        for a in assignments
+    ]
+
+    return data
 
 
 @router.patch("/company/campaigns/{campaign_id}", response_model=CampaignResponse)
@@ -107,19 +310,369 @@ async def update_campaign(
                 status_code=400,
                 detail=f"Cannot transition from {campaign.status} to {data.status}",
             )
+
+        # Block activation if screening status is flagged (not yet reviewed)
+        if data.status == "active" and campaign.screening_status == "flagged":
+            raise HTTPException(
+                status_code=400,
+                detail="Campaign is flagged for content review and cannot be activated until approved by an admin.",
+            )
+        # Block activation if screening status is rejected
+        if data.status == "active" and campaign.screening_status == "rejected":
+            raise HTTPException(
+                status_code=400,
+                detail="Campaign was rejected during content review and cannot be activated.",
+            )
+
         campaign.status = data.status
 
+    content_changed = False
     if data.title is not None:
         campaign.title = data.title
+        content_changed = True
     if data.brief is not None:
         campaign.brief = data.brief
+        content_changed = True
     if data.assets is not None:
         campaign.assets = data.assets
+        content_changed = True
     if data.content_guidance is not None:
         campaign.content_guidance = data.content_guidance
+        content_changed = True
+
+    # Increment version on content edits so user app detects changes
+    if content_changed:
+        campaign.campaign_version = (campaign.campaign_version or 1) + 1
+
+    # Re-screen on content changes
+    if content_changed:
+        screening_result = screen_campaign(
+            title=campaign.title,
+            brief=campaign.brief,
+            content_guidance=campaign.content_guidance or "",
+        )
+
+        if screening_result["flagged"]:
+            campaign.screening_status = "flagged"
+
+            # Upsert screening log (unique per campaign_id)
+            existing_log_result = await db.execute(
+                select(ContentScreeningLog).where(
+                    ContentScreeningLog.campaign_id == campaign.id
+                )
+            )
+            existing_log = existing_log_result.scalar_one_or_none()
+            if existing_log:
+                existing_log.flagged = True
+                existing_log.flagged_keywords = screening_result["flagged_keywords"]
+                existing_log.screening_categories = screening_result["categories"]
+                existing_log.reviewed_by_admin = False
+                existing_log.review_result = None
+            else:
+                log = ContentScreeningLog(
+                    campaign_id=campaign.id,
+                    flagged=True,
+                    flagged_keywords=screening_result["flagged_keywords"],
+                    screening_categories=screening_result["categories"],
+                )
+                db.add(log)
+        else:
+            campaign.screening_status = "approved"
 
     await db.flush()
     return campaign
+
+
+# ── Clone, Delete, Budget Top-up ──────────────────────────────────
+
+
+@router.post("/company/campaigns/{campaign_id}/clone", response_model=CampaignResponse)
+async def clone_campaign(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clone a campaign: duplicate all fields, reset status to draft, zero counters."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    original = result.scalar_one_or_none()
+    if not original:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Check company has enough balance for the cloned budget
+    if float(company.balance) < float(original.budget_total):
+        raise HTTPException(status_code=400, detail="Insufficient balance to clone campaign")
+
+    clone = Campaign(
+        company_id=company.id,
+        title=original.title,
+        brief=original.brief,
+        assets=original.assets,
+        budget_total=float(original.budget_total),
+        budget_remaining=float(original.budget_total),
+        payout_rules=original.payout_rules,
+        targeting=original.targeting,
+        content_guidance=original.content_guidance,
+        penalty_rules=original.penalty_rules,
+        company_urls=original.company_urls,
+        ai_generated_brief=original.ai_generated_brief,
+        budget_exhaustion_action=original.budget_exhaustion_action,
+        # Reset: new draft, no dates, zero counters
+        status="draft",
+        start_date=original.start_date,
+        end_date=original.end_date,
+        budget_alert_sent=False,
+        campaign_version=1,
+        invitation_count=0,
+        accepted_count=0,
+        rejected_count=0,
+        expired_count=0,
+    )
+    db.add(clone)
+
+    # Deduct budget from company balance
+    company.balance = float(company.balance) - float(original.budget_total)
+    await db.flush()
+
+    return clone
+
+
+@router.delete("/company/campaigns/{campaign_id}")
+async def delete_campaign(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a campaign. Only allowed if status is draft or cancelled."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status not in ("draft", "cancelled"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete campaign with status '{campaign.status}'. Only draft or cancelled campaigns can be deleted.",
+        )
+
+    # Refund budget_total back to company balance for draft campaigns
+    if campaign.status == "draft":
+        company.balance = float(company.balance) + float(campaign.budget_total)
+
+    # Delete associated assignments
+    await db.execute(
+        delete(CampaignAssignment).where(
+            CampaignAssignment.campaign_id == campaign_id
+        )
+    )
+
+    await db.delete(campaign)
+    await db.flush()
+
+    return {"status": "deleted", "campaign_id": campaign_id}
+
+
+@router.post("/company/campaigns/{campaign_id}/budget-topup", response_model=CampaignResponse)
+async def budget_topup(
+    campaign_id: int,
+    data: BudgetTopUp,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Top up an active campaign's budget."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+
+    if float(company.balance) < data.amount:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+
+    # Add to campaign budget
+    campaign.budget_remaining = float(campaign.budget_remaining) + data.amount
+    campaign.budget_total = float(campaign.budget_total) + data.amount
+
+    # Deduct from company balance
+    company.balance = float(company.balance) - data.amount
+
+    # Resume auto-paused campaign
+    if campaign.status == "paused" and campaign.budget_exhaustion_action == "auto_pause":
+        campaign.status = "active"
+
+    # Reset budget alert if budget is now above 20%
+    if float(campaign.budget_remaining) >= 0.2 * float(campaign.budget_total):
+        campaign.budget_alert_sent = False
+
+    await db.flush()
+    return campaign
+
+
+# ── Reporting & Export ─────────────────────────────────────────────
+
+
+@router.get("/company/campaigns/{campaign_id}/export")
+async def export_campaign_csv(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+    format: str = Query("csv", description="Export format (only csv supported)"),
+    start_date: str | None = Query(None, description="Filter start date (YYYY-MM-DD)"),
+    end_date: str | None = Query(None, description="Filter end date (YYYY-MM-DD)"),
+):
+    """Export campaign performance report as CSV download.
+
+    Includes all posts with metrics, user info, and earnings for the campaign.
+    Optional date range filtering on post.posted_at.
+    """
+    if format != "csv":
+        raise HTTPException(status_code=400, detail="Only csv format is supported")
+
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Parse date filters
+    filter_start = None
+    filter_end = None
+    if start_date:
+        try:
+            filter_start = datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+    if end_date:
+        try:
+            filter_end = datetime.strptime(end_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59
+            )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+
+    # Build query: assignments -> posts -> metrics, joined with users
+    assignments_q = select(CampaignAssignment).where(
+        CampaignAssignment.campaign_id == campaign_id
+    )
+    assignments_result = await db.execute(assignments_q)
+    assignments = assignments_result.scalars().all()
+
+    # Map user_id -> assignment for lookup
+    assignment_map = {a.id: a for a in assignments}
+    user_ids = {a.user_id for a in assignments}
+
+    # Fetch users
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids))) if user_ids else None
+    user_map = {}
+    if users_result:
+        for u in users_result.scalars().all():
+            user_map[u.id] = u
+
+    # Fetch all posts for these assignments
+    assignment_ids = [a.id for a in assignments]
+    posts_query = select(Post).where(Post.assignment_id.in_(assignment_ids)) if assignment_ids else None
+    posts = []
+    if posts_query is not None:
+        posts_result = await db.execute(posts_query)
+        posts = posts_result.scalars().all()
+
+    # Apply date filters
+    if filter_start:
+        posts = [p for p in posts if p.posted_at and p.posted_at.replace(tzinfo=None) >= filter_start]
+    if filter_end:
+        posts = [p for p in posts if p.posted_at and p.posted_at.replace(tzinfo=None) <= filter_end]
+
+    # Fetch payouts for this campaign
+    payouts_result = await db.execute(
+        select(Payout).where(Payout.campaign_id == campaign_id)
+    )
+    payouts = payouts_result.scalars().all()
+    # Build user_id -> total payout amount
+    user_payout_map: dict[int, float] = {}
+    for p in payouts:
+        user_payout_map[p.user_id] = user_payout_map.get(p.user_id, 0.0) + float(p.amount)
+
+    # Generate CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "User", "Platform", "Post URL", "Impressions", "Likes",
+        "Reposts", "Comments", "Clicks", "Earned", "Posted At",
+    ])
+
+    for post in posts:
+        assignment = assignment_map.get(post.assignment_id)
+        if not assignment:
+            continue
+
+        user = user_map.get(assignment.user_id)
+        user_display = user.email if user else f"user_{assignment.user_id}"
+
+        # Get the latest metric for this post (prefer is_final, otherwise most recent)
+        latest_metric = None
+        if post.metrics:
+            final_metrics = [m for m in post.metrics if m.is_final]
+            if final_metrics:
+                latest_metric = max(final_metrics, key=lambda m: m.scraped_at)
+            elif post.metrics:
+                latest_metric = max(post.metrics, key=lambda m: m.scraped_at)
+
+        impressions = latest_metric.impressions if latest_metric else 0
+        likes = latest_metric.likes if latest_metric else 0
+        reposts = latest_metric.reposts if latest_metric else 0
+        comments = latest_metric.comments if latest_metric else 0
+        clicks = latest_metric.clicks if latest_metric else 0
+
+        # Per-post earnings estimate from payout rules
+        payout_rules = campaign.payout_rules or {}
+        earned = (
+            (impressions / 1000 * payout_rules.get("rate_per_1k_impressions", 0))
+            + (likes * payout_rules.get("rate_per_like", 0))
+            + (reposts * payout_rules.get("rate_per_repost", 0))
+            + (clicks * payout_rules.get("rate_per_click", 0))
+        )
+        earned_str = f"${earned:.2f}"
+
+        posted_at_str = post.posted_at.strftime("%Y-%m-%d %H:%M:%S") if post.posted_at else ""
+
+        writer.writerow([
+            user_display,
+            post.platform,
+            post.post_url,
+            impressions,
+            likes,
+            reposts,
+            comments,
+            clicks,
+            earned_str,
+            posted_at_str,
+        ])
+
+    output.seek(0)
+    filename = f"campaign-{campaign_id}-report.csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # ── User endpoints ─────────────────────────────────────────────────
@@ -162,9 +715,7 @@ async def update_assignment_status(
 
     if content_mode:
         assignment.content_mode = content_mode
-        # Update payout multiplier based on content mode
-        multipliers = {"repost": 1.0, "ai_generated": 1.5, "user_customized": 2.0}
-        assignment.payout_multiplier = multipliers.get(content_mode, 1.5)
+        # v2: payout_multiplier no longer changes with content_mode — always 1.0
 
     await db.flush()
     return {"status": "updated", "assignment_id": assignment_id}

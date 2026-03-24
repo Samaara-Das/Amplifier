@@ -41,3 +41,8 @@ data/
 # tasks.json
 # tasks/ 
 .vercel
+
+# Tauri build artifacts
+tauri-app/src-tauri/target/
+tauri-app/src-tauri/gen/
+tauri-app/node_modules/

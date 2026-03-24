@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amplifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ═══════════════════════════════════════════════════
+       Onboarding Wizard (full-screen, shown on first launch)
+       ═══════════════════════════════════════════════════ -->
+  <div id="onboarding" class="onboarding-overlay" style="display:none;">
+    <div class="onboarding-container">
+      <!-- Logo + Step Indicator -->
+      <div class="onboarding-header">
+        <div class="onboarding-logo">
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" fill="#2563eb"/>
+            <text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="700" font-family="DM Sans, sans-serif">A</text>
+          </svg>
+          <span class="onboarding-logo-text">Amplifier</span>
+        </div>
+        <div class="onboarding-steps">
+          <span class="step-dot active" data-step="1">1</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step="2">2</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step="3">3</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step="4">4</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step="5">5</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step="6">6</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step="7">7</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Register / Login -->
+      <div class="onboarding-step active" id="ob-step-1">
+        <div class="ob-step-content">
+          <h2>Welcome to Amplifier</h2>
+          <p class="ob-subtitle">Create an account or log in to get started earning money from social media campaigns.</p>
+
+          <div class="ob-auth-toggle">
+            <button class="ob-auth-tab active" id="ob-tab-register" onclick="window.obSwitchAuth('register')">Register</button>
+            <button class="ob-auth-tab" id="ob-tab-login" onclick="window.obSwitchAuth('login')">Login</button>
+          </div>
+
+          <!-- Register Form -->
+          <form class="ob-auth-form" id="ob-form-register" onsubmit="window.obSubmitRegister(event)">
+            <div class="ob-field">
+              <label for="ob-reg-email">Email</label>
+              <input type="email" id="ob-reg-email" placeholder="you@example.com" required autocomplete="email" />
+              <span class="ob-field-error" id="ob-reg-email-error"></span>
+            </div>
+            <div class="ob-field">
+              <label for="ob-reg-password">Password</label>
+              <input type="password" id="ob-reg-password" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" />
+              <span class="ob-field-error" id="ob-reg-password-error"></span>
+            </div>
+            <div class="ob-field">
+              <label for="ob-reg-confirm">Confirm Password</label>
+              <input type="password" id="ob-reg-confirm" placeholder="Re-enter password" required minlength="8" autocomplete="new-password" />
+              <span class="ob-field-error" id="ob-reg-confirm-error"></span>
+            </div>
+            <span class="ob-field-error ob-global-error" id="ob-reg-global-error"></span>
+            <button type="submit" class="btn btn-primary ob-submit-btn" id="ob-btn-register">Create Account</button>
+          </form>
+
+          <!-- Login Form -->
+          <form class="ob-auth-form" id="ob-form-login" style="display:none;" onsubmit="window.obSubmitLogin(event)">
+            <div class="ob-field">
+              <label for="ob-login-email">Email</label>
+              <input type="email" id="ob-login-email" placeholder="you@example.com" required autocomplete="email" />
+              <span class="ob-field-error" id="ob-login-email-error"></span>
+            </div>
+            <div class="ob-field">
+              <label for="ob-login-password">Password</label>
+              <input type="password" id="ob-login-password" placeholder="Your password" required autocomplete="current-password" />
+              <span class="ob-field-error" id="ob-login-password-error"></span>
+            </div>
+            <span class="ob-field-error ob-global-error" id="ob-login-global-error"></span>
+            <button type="submit" class="btn btn-primary ob-submit-btn" id="ob-btn-login">Log In</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Step 2: Connect Platforms -->
+      <div class="onboarding-step" id="ob-step-2">
+        <div class="ob-step-content">
+          <h2>Connect Your Platforms</h2>
+          <p class="ob-subtitle">Amplifier opens a browser for each platform. You log in directly on the platform -- your credentials never touch Amplifier.</p>
+
+          <div class="ob-platform-grid">
+            <div class="ob-platform-card" id="ob-platform-x">
+              <div class="ob-platform-card-icon x">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </div>
+              <div class="ob-platform-card-info">
+                <span class="ob-platform-card-name">X (Twitter)</span>
+                <span class="ob-platform-card-status" id="ob-status-x">Not connected</span>
+              </div>
+              <button class="btn btn-primary btn-sm ob-connect-btn" id="ob-connect-x" onclick="window.obConnectPlatform('x')">Connect</button>
+            </div>
+
+            <div class="ob-platform-card" id="ob-platform-linkedin">
+              <div class="ob-platform-card-icon linkedin">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              </div>
+              <div class="ob-platform-card-info">
+                <span class="ob-platform-card-name">LinkedIn</span>
+                <span class="ob-platform-card-status" id="ob-status-linkedin">Not connected</span>
+              </div>
+              <button class="btn btn-primary btn-sm ob-connect-btn" id="ob-connect-linkedin" onclick="window.obConnectPlatform('linkedin')">Connect</button>
+            </div>
+
+            <div class="ob-platform-card" id="ob-platform-facebook">
+              <div class="ob-platform-card-icon facebook">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              </div>
+              <div class="ob-platform-card-info">
+                <span class="ob-platform-card-name">Facebook</span>
+                <span class="ob-platform-card-status" id="ob-status-facebook">Not connected</span>
+              </div>
+              <button class="btn btn-primary btn-sm ob-connect-btn" id="ob-connect-facebook" onclick="window.obConnectPlatform('facebook')">Connect</button>
+            </div>
+
+            <div class="ob-platform-card" id="ob-platform-reddit">
+              <div class="ob-platform-card-icon reddit">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>
+              </div>
+              <div class="ob-platform-card-info">
+                <span class="ob-platform-card-name">Reddit</span>
+                <span class="ob-platform-card-status" id="ob-status-reddit">Not connected</span>
+              </div>
+              <button class="btn btn-primary btn-sm ob-connect-btn" id="ob-connect-reddit" onclick="window.obConnectPlatform('reddit')">Connect</button>
+            </div>
+          </div>
+
+          <p class="ob-hint" id="ob-platforms-hint">Connect at least 1 platform to continue.</p>
+        </div>
+      </div>
+
+      <!-- Step 3: Profile Scraping (automatic) -->
+      <div class="onboarding-step" id="ob-step-3">
+        <div class="ob-step-content">
+          <h2>Analyzing Your Profiles</h2>
+          <p class="ob-subtitle">Amplifier is scraping your connected profiles to understand your reach and content style. This takes about a minute per platform.</p>
+
+          <div class="ob-scrape-list" id="ob-scrape-list">
+            <!-- Populated dynamically per connected platform -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Niche Confirmation -->
+      <div class="onboarding-step" id="ob-step-4">
+        <div class="ob-step-content">
+          <h2>Confirm Your Niches</h2>
+          <p class="ob-subtitle">Amplifier detected these niches from your posts. Adjust as needed -- this helps us match you to the right campaigns.</p>
+
+          <div class="ob-niche-grid" id="ob-niche-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Audience Region -->
+      <div class="onboarding-step" id="ob-step-5">
+        <div class="ob-step-content">
+          <h2>Audience Region</h2>
+          <p class="ob-subtitle">Where is most of your audience located? This helps us match you to campaigns targeting the right geography.</p>
+
+          <div class="ob-field ob-region-field">
+            <label for="ob-region-select">Primary audience location</label>
+            <select id="ob-region-select" class="ob-select">
+              <option value="global" selected>Global</option>
+              <option value="us">United States</option>
+              <option value="uk">United Kingdom</option>
+              <option value="india">India</option>
+              <option value="eu">European Union</option>
+              <option value="latam">Latin America</option>
+              <option value="sea">Southeast Asia</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6: Operating Mode -->
+      <div class="onboarding-step" id="ob-step-6">
+        <div class="ob-step-content">
+          <h2>Operating Mode</h2>
+          <p class="ob-subtitle">Choose how you want to work with campaigns. You can change this anytime in Settings.</p>
+
+          <div class="ob-mode-options">
+            <label class="ob-mode-option selected">
+              <input type="radio" name="ob-mode" value="semi_auto" checked onchange="window.obSelectMode(this)" />
+              <div class="ob-mode-option-body">
+                <div class="ob-mode-option-title">Semi-Auto <span class="ob-mode-recommended">Recommended</span></div>
+                <div class="ob-mode-option-desc">AI generates content, you review and edit before posting.</div>
+              </div>
+            </label>
+            <label class="ob-mode-option">
+              <input type="radio" name="ob-mode" value="full_auto" onchange="window.obSelectMode(this)" />
+              <div class="ob-mode-option-body">
+                <div class="ob-mode-option-title">Full Auto</div>
+                <div class="ob-mode-option-desc">AI generates and posts automatically. No review needed.</div>
+              </div>
+            </label>
+            <label class="ob-mode-option">
+              <input type="radio" name="ob-mode" value="manual" onchange="window.obSelectMode(this)" />
+              <div class="ob-mode-option-body">
+                <div class="ob-mode-option-title">Manual</div>
+                <div class="ob-mode-option-desc">You write your own content from the campaign brief.</div>
+              </div>
+            </label>
+          </div>
+          <p class="ob-hint">Earnings depend on engagement, not mode.</p>
+        </div>
+      </div>
+
+      <!-- Step 7: Done -->
+      <div class="onboarding-step" id="ob-step-7">
+        <div class="ob-step-content">
+          <h2>You're All Set</h2>
+          <p class="ob-subtitle">Here's a summary of your profile. You can change any of these settings later.</p>
+
+          <div class="ob-summary-card">
+            <div class="ob-summary-row">
+              <span class="ob-summary-label">Email</span>
+              <span class="ob-summary-value" id="ob-summary-email">--</span>
+            </div>
+            <div class="ob-summary-row">
+              <span class="ob-summary-label">Connected Platforms</span>
+              <span class="ob-summary-value" id="ob-summary-platforms">--</span>
+            </div>
+            <div class="ob-summary-row">
+              <span class="ob-summary-label">Detected Niches</span>
+              <span class="ob-summary-value" id="ob-summary-niches">--</span>
+            </div>
+            <div class="ob-summary-row">
+              <span class="ob-summary-label">Audience Region</span>
+              <span class="ob-summary-value" id="ob-summary-region">--</span>
+            </div>
+            <div class="ob-summary-row">
+              <span class="ob-summary-label">Operating Mode</span>
+              <span class="ob-summary-value" id="ob-summary-mode">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Navigation -->
+      <div class="onboarding-footer">
+        <button class="btn btn-secondary" id="ob-btn-back" onclick="window.obGoBack()" style="display:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button>
+        <div class="ob-footer-spacer"></div>
+        <button class="btn btn-primary" id="ob-btn-next" onclick="window.obGoNext()" style="display:none;">
+          Next
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <button class="btn btn-primary ob-finish-btn" id="ob-btn-finish" onclick="window.obFinish()" style="display:none;">
+          Start Using Amplifier
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app">
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" fill="#2563eb"/>
+            <text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="700" font-family="DM Sans, sans-serif">A</text>
+          </svg>
+          <span class="logo-text">Amplifier</span>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <a href="#" class="nav-item active" data-page="dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-page="campaigns">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <span>Campaigns</span>
+          <span class="badge" id="badge-campaigns" style="display:none;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-page="posts">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span>Posts</span>
+        </a>
+        <a href="#" class="nav-item" data-page="earnings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          <span>Earnings</span>
+        </a>
+        <a href="#" class="nav-item" data-page="settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Settings</span>
+        </a>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">U</div>
+          <div class="user-details">
+            <span class="user-name" id="user-name">User</span>
+            <span class="user-status" id="user-status">Connecting...</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="content">
+      <!-- Dashboard Page (default) -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <button class="btn btn-primary" id="btn-refresh" onclick="window.refreshDashboard()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-active-campaigns">--</span>
+              <span class="stat-label">Active Campaigns</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-pending-invitations">--</span>
+              <span class="stat-label">Pending Invitations</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-posts-queued">--</span>
+              <span class="stat-label">Posts Queued</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-earnings">--</span>
+              <span class="stat-label">Earnings Balance</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2>Platform Health</h2>
+            </div>
+            <div class="card-body" id="platform-health">
+              <div class="platform-row">
+                <div class="platform-info">
+                  <span class="platform-name">X (Twitter)</span>
+                </div>
+                <div class="platform-status">
+                  <span class="status-dot unknown"></span>
+                  <span class="platform-status-label muted">Checking...</span>
+                </div>
+              </div>
+              <div class="platform-row">
+                <div class="platform-info">
+                  <span class="platform-name">LinkedIn</span>
+                </div>
+                <div class="platform-status">
+                  <span class="status-dot unknown"></span>
+                  <span class="platform-status-label muted">Checking...</span>
+                </div>
+              </div>
+              <div class="platform-row">
+                <div class="platform-info">
+                  <span class="platform-name">Facebook</span>
+                </div>
+                <div class="platform-status">
+                  <span class="status-dot unknown"></span>
+                  <span class="platform-status-label muted">Checking...</span>
+                </div>
+              </div>
+              <div class="platform-row">
+                <div class="platform-info">
+                  <span class="platform-name">Reddit</span>
+                </div>
+                <div class="platform-status">
+                  <span class="status-dot unknown"></span>
+                  <span class="platform-status-label muted">Checking...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Recent Activity</h2>
+            </div>
+            <div class="card-body" id="recent-activity">
+              <div class="empty-state compact">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <p>No recent activity yet.</p>
+                <p class="text-muted">Activity will appear here once you start accepting campaigns.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campaigns Page -->
+      <div id="page-campaigns" class="page">
+        <div class="page-header">
+          <h1>Campaigns</h1>
+          <button class="btn btn-primary" id="btn-refresh-campaigns" onclick="window.refreshCampaigns()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Max active campaigns warning banner -->
+        <div id="campaigns-max-warning" class="campaigns-max-warning" style="display:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>You have 5 active campaigns. Complete or drop one to accept new invitations.</span>
+        </div>
+
+        <!-- Sub-tab navigation -->
+        <div class="campaigns-tabs">
+          <button class="campaigns-tab active" data-campaigns-tab="invitations" onclick="window.switchCampaignsTab('invitations')">
+            <span>Invitations</span>
+            <span class="campaigns-tab-count" id="campaigns-count-invitations">0</span>
+          </button>
+          <button class="campaigns-tab" data-campaigns-tab="active" onclick="window.switchCampaignsTab('active')">
+            <span>Active</span>
+            <span class="campaigns-tab-count" id="campaigns-count-active">0</span>
+          </button>
+          <button class="campaigns-tab" data-campaigns-tab="completed" onclick="window.switchCampaignsTab('completed')">
+            <span>Completed</span>
+            <span class="campaigns-tab-count" id="campaigns-count-completed">0</span>
+          </button>
+        </div>
+
+        <!-- Invitations Section -->
+        <div class="campaigns-section active" id="campaigns-section-invitations">
+          <div id="campaigns-invitations-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <h3>No new campaign invitations</h3>
+              <p class="text-muted">Campaign invitations will appear here when you are matched to new campaigns.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Section -->
+        <div class="campaigns-section" id="campaigns-section-active">
+          <div id="campaigns-active-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <h3>No active campaigns</h3>
+              <p class="text-muted">Accept a campaign invitation to get started.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Section -->
+        <div class="campaigns-section" id="campaigns-section-completed">
+          <div id="campaigns-completed-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <h3>No completed campaigns</h3>
+              <p class="text-muted">Completed campaigns with final metrics and earnings will appear here.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Posts Page -->
+      <div id="page-posts" class="page">
+        <div class="page-header">
+          <h1>Posts</h1>
+          <button class="btn btn-primary" id="btn-refresh-posts" onclick="window.refreshPosts()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Status Tabs -->
+        <div class="posts-status-tabs">
+          <button class="posts-tab active" data-posts-tab="pending_review" onclick="window.switchPostsTab('pending_review')">
+            <span>Pending Review</span>
+            <span class="posts-tab-count" id="posts-count-pending_review">0</span>
+          </button>
+          <button class="posts-tab" data-posts-tab="scheduled" onclick="window.switchPostsTab('scheduled')">
+            <span>Scheduled</span>
+            <span class="posts-tab-count" id="posts-count-scheduled">0</span>
+          </button>
+          <button class="posts-tab" data-posts-tab="posted" onclick="window.switchPostsTab('posted')">
+            <span>Posted</span>
+            <span class="posts-tab-count" id="posts-count-posted">0</span>
+          </button>
+          <button class="posts-tab" data-posts-tab="failed" onclick="window.switchPostsTab('failed')">
+            <span>Failed</span>
+            <span class="posts-tab-count" id="posts-count-failed">0</span>
+          </button>
+        </div>
+
+        <!-- Pending Review Section -->
+        <div class="posts-section active" id="posts-section-pending_review">
+          <div id="posts-pending-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <h3>No posts pending review</h3>
+              <p class="text-muted">AI-generated content will appear here for your approval.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scheduled Section -->
+        <div class="posts-section" id="posts-section-scheduled">
+          <div id="posts-scheduled-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <h3>No scheduled posts</h3>
+              <p class="text-muted">Approved posts waiting to be published will appear here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Posted Section -->
+        <div class="posts-section" id="posts-section-posted">
+          <div id="posts-posted-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9z"/>
+              </svg>
+              <h3>No published posts</h3>
+              <p class="text-muted">Successfully published posts will appear here with engagement metrics.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Failed Section -->
+        <div class="posts-section" id="posts-section-failed">
+          <div id="posts-failed-list">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <h3>No failed posts</h3>
+              <p class="text-muted">Posts that fail to publish will appear here with retry options.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Earnings Page -->
+      <div id="page-earnings" class="page">
+        <div class="page-header">
+          <h1>Earnings</h1>
+          <button class="btn btn-primary" id="btn-refresh-earnings" onclick="window.refreshEarnings()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="earnings-summary-grid">
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="earnings-balance">$0.00</span>
+              <span class="stat-label">Available Balance</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="earnings-total">$0.00</span>
+              <span class="stat-label">Total Earned</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="earnings-pending">$0.00</span>
+              <span class="stat-label">Pending</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Withdraw Button -->
+        <div class="earnings-withdraw-row">
+          <button class="btn btn-primary" id="btn-withdraw" disabled onclick="window.openWithdrawModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Withdraw
+          </button>
+          <span class="withdraw-hint" id="withdraw-hint">Minimum withdrawal: $10.00</span>
+        </div>
+
+        <!-- Per-Campaign Breakdown -->
+        <div class="card earnings-card">
+          <div class="card-header">
+            <h2>Per-Campaign Breakdown</h2>
+          </div>
+          <div class="card-body" id="earnings-per-campaign">
+            <div class="empty-state compact">
+              <p class="text-muted">No campaign earnings yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-Platform Breakdown -->
+        <div class="card earnings-card">
+          <div class="card-header">
+            <h2>Per-Platform Breakdown</h2>
+          </div>
+          <div class="card-body" id="earnings-per-platform">
+            <div class="empty-state compact">
+              <p class="text-muted">No platform earnings yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payout History -->
+        <div class="card earnings-card">
+          <div class="card-header">
+            <h2>Payout History</h2>
+          </div>
+          <div class="card-body" id="earnings-payout-history">
+            <div class="empty-state compact">
+              <p class="text-muted">No payouts yet. Request a withdrawal when your balance exceeds $10.00.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Withdraw Modal -->
+      <div id="withdraw-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Withdraw Earnings</h3>
+            <button class="modal-close" onclick="window.closeWithdrawModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p>Withdraw your available balance to your linked payment method.</p>
+            <div class="modal-amount">
+              <span class="modal-amount-label">Amount</span>
+              <span class="modal-amount-value" id="withdraw-amount">$0.00</span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeWithdrawModal()">Cancel</button>
+            <button class="btn btn-primary" id="btn-confirm-withdraw" onclick="window.confirmWithdraw()">Confirm Withdrawal</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Container -->
+      <div id="toast-container"></div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page">
+        <div class="page-header">
+          <h1>Settings</h1>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">Statistics</h2>
+          <div class="stats-overview-grid">
+            <div class="stat-card-lg">
+              <div class="stat-lg-label">Trust Score</div>
+              <div class="stat-lg-value" id="settings-trust-score">--</div>
+              <div class="stat-lg-hint" id="settings-trust-hint">Calculated from post quality and platform engagement</div>
+            </div>
+            <div class="stat-card-lg">
+              <div class="stat-lg-label">Campaign Completion</div>
+              <div class="stat-lg-value" id="settings-campaign-completion">--</div>
+              <div class="stat-lg-hint" id="settings-campaign-hint">Completed / Total campaigns</div>
+            </div>
+            <div class="stat-card-lg">
+              <div class="stat-lg-label">Best Platform</div>
+              <div class="stat-lg-value" id="settings-best-platform">--</div>
+              <div class="stat-lg-hint" id="settings-best-platform-hint">Highest average engagement rate</div>
+            </div>
+          </div>
+
+          <!-- Engagement per platform -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h2>Engagement Rate by Platform</h2>
+            </div>
+            <div class="card-body" id="settings-engagement-rates">
+              <div class="empty-state compact">
+                <p class="text-muted">No engagement data yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Post success rate -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h2>Post Success Rate</h2>
+            </div>
+            <div class="card-body" id="settings-post-success">
+              <div class="empty-state compact">
+                <p class="text-muted">No post data yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 30-day earnings sparkline -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h2>Earnings Trend (30 days)</h2>
+            </div>
+            <div class="card-body">
+              <div class="sparkline-container" id="settings-earnings-sparkline">
+                <div class="empty-state compact">
+                  <p class="text-muted">No earnings data yet.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Operating Mode -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">Operating Mode</h2>
+          <div class="card settings-card">
+            <div class="card-body">
+              <div class="mode-options" id="settings-mode-options">
+                <label class="mode-option">
+                  <input type="radio" name="operating-mode" value="semi_auto" checked>
+                  <div class="mode-option-content">
+                    <div class="mode-option-title">Semi-Auto <span class="mode-recommended">Recommended</span></div>
+                    <div class="mode-option-desc">AI generates content, you review and edit before posting.</div>
+                  </div>
+                </label>
+                <label class="mode-option">
+                  <input type="radio" name="operating-mode" value="full_auto">
+                  <div class="mode-option-content">
+                    <div class="mode-option-title">Full Auto</div>
+                    <div class="mode-option-desc">AI generates and posts automatically. No review needed.</div>
+                  </div>
+                </label>
+                <label class="mode-option">
+                  <input type="radio" name="operating-mode" value="manual">
+                  <div class="mode-option-content">
+                    <div class="mode-option-title">Manual</div>
+                    <div class="mode-option-desc">You write your own content from the campaign brief.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connected Platforms -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">Connected Platforms</h2>
+          <div class="card settings-card">
+            <div class="card-body" id="settings-platforms">
+              <div class="empty-state compact">
+                <p class="text-muted">Loading platforms...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Summary -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">Profile Summary</h2>
+          <div class="card settings-card">
+            <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+              <h2>Scraped Profile Data</h2>
+              <button class="btn btn-secondary btn-sm" id="btn-refresh-profile" onclick="window.refreshAllProfiles()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Refresh Profile
+              </button>
+            </div>
+            <div class="card-body" id="settings-profile-summary">
+              <div class="empty-state compact">
+                <p class="text-muted">No profile data yet. Connect platforms to scrape.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">Notifications</h2>
+          <div class="card settings-card">
+            <div class="card-body">
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <div class="toggle-label">New campaign invitations</div>
+                  <div class="toggle-desc">Get notified when matched to a new campaign</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-invitations" checked onchange="window.saveNotification('invitations', this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <div class="toggle-label">Post failures</div>
+                  <div class="toggle-desc">Alert when a post fails to publish</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-failures" checked onchange="window.saveNotification('failures', this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <div class="toggle-label">Earnings received</div>
+                  <div class="toggle-desc">Notify when new earnings are credited</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-earnings" checked onchange="window.saveNotification('earnings', this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">Account</h2>
+          <div class="card settings-card">
+            <div class="card-body">
+              <div class="account-row">
+                <div class="account-info">
+                  <div class="account-label">Email</div>
+                  <div class="account-value" id="settings-email">--</div>
+                </div>
+              </div>
+              <div class="account-row">
+                <div class="account-info">
+                  <div class="account-label">Password</div>
+                  <div class="account-value">--------</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="window.showToast('Password change coming soon.', 'info')">Change Password</button>
+              </div>
+              <div class="account-row account-danger-zone">
+                <div class="account-info">
+                  <div class="account-label" style="color: var(--error);">Delete Account</div>
+                  <div class="account-value" style="color: var(--text-muted);">Permanently delete your account and all data</div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="window.confirmDeleteAccount()">Delete Account</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirm Delete Account Modal -->
+      <div id="delete-account-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Delete Account</h3>
+            <button class="modal-close" onclick="window.closeDeleteAccountModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="color: var(--error); font-weight: 500;">This action is permanent and cannot be undone.</p>
+            <p>All your data, campaigns, posts, and earnings will be permanently deleted.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeDeleteAccountModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="window.executeDeleteAccount()">Yes, Delete My Account</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disconnect Platform Confirmation Modal -->
+      <div id="disconnect-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Disconnect Platform</h3>
+            <button class="modal-close" onclick="window.closeDisconnectModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to disconnect <strong id="disconnect-platform-name"></strong>?</p>
+            <p>You will need to re-authenticate to use this platform again.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeDisconnectModal()">Cancel</button>
+            <button class="btn btn-danger" id="btn-confirm-disconnect" onclick="window.executeDisconnect()">Disconnect</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Status Bar -->
+    <footer id="status-bar">
+      <div class="status-left">
+        <span class="status-indicator" id="connection-indicator">
+          <span class="status-dot unknown" id="connection-dot"></span>
+          <span id="connection-text">Connecting...</span>
+        </span>
+      </div>
+      <div class="status-right">
+        <span id="status-version">Amplifier v2.0.0</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
