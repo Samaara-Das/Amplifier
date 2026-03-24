@@ -48,6 +48,17 @@ _MIGRATION_SQL = [
     "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS rejected_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS expired_count INTEGER NOT NULL DEFAULT 0",
 
+    # ── campaigns: screening, alerts, versioning (Tasks 4+5) ──────
+    "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS screening_status VARCHAR(20) NOT NULL DEFAULT 'pending'",
+    "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS budget_alert_sent BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS campaign_version INTEGER NOT NULL DEFAULT 1",
+
+    # Backfill screening_status for existing campaigns (treat as approved)
+    "UPDATE campaigns SET screening_status = 'approved' WHERE screening_status = 'pending' AND status != 'draft'",
+
+    # ── content_screening_log: add reviewed_at if missing ───────
+    "ALTER TABLE content_screening_log ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ",
+
     # Backfill invitation counts for existing campaigns
     """UPDATE campaigns SET
         invitation_count = (
