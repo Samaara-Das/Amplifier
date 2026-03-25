@@ -90,12 +90,23 @@ async def _call_gemini(prompt: str) -> str:
     from google import genai
 
     client = genai.Client(api_key=api_key)
-    response = await asyncio.to_thread(
-        client.models.generate_content,
-        model="gemini-2.5-flash-lite",
-        contents=prompt,
-    )
-    return response.text.strip()
+
+    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
+    last_err = None
+    for model in models:
+        try:
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=model,
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            last_err = e
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                continue
+            raise
+    raise last_err
 
 
 # ── AI Relevance Scoring ─────────────────────────────────────────

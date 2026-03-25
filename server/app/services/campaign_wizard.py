@@ -154,9 +154,9 @@ async def _scrape_single_url(client: httpx.AsyncClient, url: str) -> dict:
 
 
 GEMINI_MODELS = [
-    "gemini-2.0-flash",           # Higher free-tier limit (15 RPM, 1500 RPD)
-    "gemini-2.0-flash-lite",      # Fallback
-    "gemini-2.5-flash-lite",      # Original model
+    "gemini-2.5-flash",           # Best quality, separate quota bucket
+    "gemini-2.0-flash",           # Fallback
+    "gemini-2.5-flash-lite",      # Lightweight fallback
 ]
 
 
