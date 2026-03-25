@@ -18,6 +18,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse, urlunparse
 
 from playwright.async_api import async_playwright, Page, BrowserContext
 
@@ -332,6 +333,221 @@ async def scrape_x_profile(playwright) -> dict:
     return result
 
 
+# ── LinkedIn Body-Text Parsers ────────────────────────────────────
+
+
+def _parse_linkedin_experience_body(body: str) -> list[dict]:
+    """Parse experience entries from LinkedIn /details/experience/ page body text.
+
+    The page renders one job per card. Body text has no reliable CSS anchors
+    (obfuscated classes), so we use the known structural pattern:
+
+    Job block (loosely):
+        <Title>
+        <Company> · <Employment type>       (dot-separated, optional type)
+        <Duration>  (contains month/year + "·" + "X yrs Y mos")
+        <Location>  (optional, "City · On-site / Hybrid / Remote")
+        <description paragraphs>
+        <Skills: "Skills: ...">
+
+    Blocks are separated by the "Show credential" / next-job signals.
+    We walk line-by-line and group into jobs using date-range lines as anchors.
+    """
+    jobs = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    # Date-range pattern: "MMM YYYY - MMM YYYY" or "MMM YYYY - Present"
+    DATE_RE = re.compile(
+        r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}'
+        r'\s*[-–]\s*'
+        r'(?:(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}|Present)',
+        re.IGNORECASE,
+    )
+    # Employment type keywords
+    EMP_TYPES = {"full-time", "part-time", "self-employed", "freelance",
+                 "contract", "internship", "apprenticeship", "seasonal"}
+    # Navigation noise to skip
+    NOISE = {
+        "experience", "add experience", "edit", "save", "cancel", "back",
+        "show all", "see more", "see less", "skip to main", "linkedin",
+        "home", "my network", "jobs", "messaging", "notifications",
+    }
+    # Location suffixes
+    LOCATION_MODES = {"on-site", "hybrid", "remote"}
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        low = line.lower()
+
+        # Skip nav noise and short lines
+        if low in NOISE or len(line) < 3:
+            i += 1
+            continue
+
+        # Detect a date-range line — this is the anchor for a new job block
+        if DATE_RE.match(line):
+            # The job title is 1-2 lines BEFORE the date line
+            title = None
+            company = None
+            emp_type = None
+            if i >= 1:
+                prev = lines[i - 1]
+                if prev.lower() not in NOISE and len(prev) > 2:
+                    # Could be "Company · Part-time" or just company
+                    if "·" in prev:
+                        parts = [p.strip() for p in prev.split("·")]
+                        company = parts[0]
+                        for p in parts[1:]:
+                            if p.lower().strip() in EMP_TYPES:
+                                emp_type = p.strip()
+                    else:
+                        company = prev
+            if i >= 2:
+                prev2 = lines[i - 2]
+                if prev2.lower() not in NOISE and len(prev2) > 2:
+                    if company and prev2 != company:
+                        title = prev2
+                    elif not company:
+                        title = prev2
+
+            # Duration is the date-range line itself, may continue on next line
+            duration = line
+            if i + 1 < len(lines) and "·" in lines[i + 1] and "yr" in lines[i + 1].lower():
+                duration = line + " · " + lines[i + 1].split("·")[-1].strip()
+                i += 1
+
+            # Next line may be location
+            location = None
+            if i + 1 < len(lines):
+                nxt = lines[i + 1]
+                if any(m in nxt.lower() for m in LOCATION_MODES) or (
+                    "," in nxt and not DATE_RE.match(nxt) and len(nxt) < 60
+                ):
+                    location = nxt
+                    i += 1
+
+            # Collect description lines until next date block or skills line or noise
+            desc_lines = []
+            skills = None
+            i += 1
+            while i < len(lines):
+                nxt = lines[i]
+                nxt_low = nxt.lower()
+                if DATE_RE.match(nxt):
+                    break
+                if nxt_low in NOISE:
+                    i += 1
+                    continue
+                if nxt_low.startswith("skills:") or nxt_low.startswith("skills :"):
+                    skills = nxt.split(":", 1)[-1].strip()
+                    i += 1
+                    break
+                if len(nxt) > 3:
+                    desc_lines.append(nxt)
+                i += 1
+
+            description = " ".join(desc_lines).strip() if desc_lines else None
+
+            if title or company:
+                jobs.append({
+                    "title": title,
+                    "company": company,
+                    "employment_type": emp_type,
+                    "duration": duration,
+                    "location": location,
+                    "description": description,
+                    "skills": skills,
+                })
+            continue
+
+        i += 1
+
+    return jobs
+
+
+def _parse_linkedin_education_body(body: str) -> list[dict]:
+    """Parse education entries from LinkedIn /details/education/ page body text.
+
+    Each education block has the pattern:
+        <School name>
+        <Degree> · <Field of study>     (optional)
+        <Year range>                    (YYYY - YYYY or similar)
+        <Activities / Grade / Description lines>
+    """
+    schools = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    YEAR_RE = re.compile(r'^\d{4}\s*[-–]\s*(\d{4}|Present)', re.IGNORECASE)
+    NOISE = {
+        "education", "add education", "edit", "save", "cancel", "back",
+        "show all", "see more", "see less", "skip to main", "linkedin",
+        "home", "my network", "jobs", "messaging", "notifications",
+    }
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        low = line.lower()
+
+        if low in NOISE or len(line) < 3:
+            i += 1
+            continue
+
+        # Year-range line is the anchor
+        if YEAR_RE.match(line):
+            year_range = line
+            school = None
+            degree = None
+            field = None
+
+            # School is typically 1-2 lines before year
+            if i >= 1 and lines[i - 1].lower() not in NOISE:
+                candidate = lines[i - 1]
+                if "\u00b7" in candidate or " · " in candidate:
+                    # "Bachelor of Technology · Computer Science" pattern
+                    parts = [p.strip() for p in re.split(r'\s*\u00b7\s*', candidate, maxsplit=1)]
+                    degree = parts[0]
+                    field = parts[1] if len(parts) > 1 else None
+                    # School is one more line back
+                    if i >= 2 and lines[i - 2].lower() not in NOISE and len(lines[i - 2]) > 3:
+                        school = lines[i - 2]
+                else:
+                    # No separator — could be school or degree
+                    if i >= 2 and lines[i - 2].lower() not in NOISE and len(lines[i - 2]) > 3:
+                        school = lines[i - 2]
+                        degree = candidate
+                    else:
+                        school = candidate
+
+            # Collect extra description lines
+            desc_lines = []
+            i += 1
+            while i < len(lines):
+                nxt = lines[i]
+                if YEAR_RE.match(nxt) or nxt.lower() in NOISE:
+                    break
+                if len(nxt) > 3:
+                    desc_lines.append(nxt)
+                i += 1
+
+            description = " ".join(desc_lines).strip() if desc_lines else None
+
+            if school or degree:
+                schools.append({
+                    "school": school,
+                    "degree": degree,
+                    "field": field,
+                    "year_range": year_range,
+                    "description": description,
+                })
+            continue
+
+        i += 1
+
+    return schools
+
+
 # ── LinkedIn Profile Scraper ─────────────────────────────────────
 
 
@@ -363,6 +579,11 @@ async def scrape_linkedin_profile(playwright) -> dict:
         "recent_posts": [],
         "engagement_rate": 0.0,
         "posting_frequency": 0.0,
+        # Extended profile fields
+        "location": None,
+        "about": None,
+        "experience": [],
+        "education": [],
     }
 
     context = None
@@ -500,9 +721,104 @@ async def scrape_linkedin_profile(playwright) -> dict:
             if pic_url:
                 result["profile_pic_url"] = pic_url
 
+        # ── Extended profile data: location, about, experience, education ──
+
+        # Extract location from profile page body text.
+        # It appears right below the follower/connection count line — typically
+        # a city/region line shorter than the headline and not a number.
+        try:
+            body = await page.inner_text("body")
+            body_lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+            # Location: line that looks like "City, State, Country" — contains comma,
+            # no digits at start, under 60 chars, positioned after the bio/headline.
+            if result["bio"] and not result["location"]:
+                try:
+                    bio_idx = body_lines.index(result["bio"])
+                except ValueError:
+                    bio_idx = -1
+
+                search_start = max(0, bio_idx) if bio_idx >= 0 else 0
+                for line in body_lines[search_start:search_start + 20]:
+                    if line == result["bio"]:
+                        continue
+                    # Location lines typically: "City, Region, Country" or "City, Country"
+                    if ("," in line and len(line) < 60
+                            and not line[0].isdigit()
+                            and "follower" not in line.lower()
+                            and "connection" not in line.lower()
+                            and "·" not in line
+                            and "linkedin" not in line.lower()):
+                        result["location"] = line
+                        logger.info("LinkedIn: location=%s", line)
+                        break
+
+            # About section: text after "About" header in the body.
+            # LinkedIn renders "About" as a section heading; the content follows.
+            about_match = re.search(r'\bAbout\b\n+([\s\S]+?)(?=\n(?:Experience|Education|Skills|Licenses|Featured|Activity|More profiles|You might also know)\b)', body)
+            if about_match:
+                about_text = about_match.group(1).strip()
+                # Remove "…see more" / "see less" suffixes
+                about_text = re.sub(r'\s*…?see\s+(more|less)\s*$', '', about_text, flags=re.IGNORECASE).strip()
+                if about_text and len(about_text) > 20:
+                    result["about"] = about_text
+                    logger.info("LinkedIn: about (len=%d)", len(about_text))
+        except Exception as e:
+            logger.debug("LinkedIn: body parse for location/about failed: %s", e)
+
+        # Experience — navigate to the details page for clean structured HTML
+        try:
+            parsed_now = urlparse(page.url)
+            clean_base = urlunparse((parsed_now.scheme, parsed_now.netloc, parsed_now.path.rstrip("/"), "", "", ""))
+            exp_url = clean_base + "/details/experience/"
+            logger.info("LinkedIn: navigating to experience page: %s", exp_url)
+            await page.goto(exp_url, wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(3000)
+
+            # Scroll to load lazy content
+            for _ in range(3):
+                await page.mouse.wheel(0, 600)
+                await page.wait_for_timeout(1000)
+
+            # Parse body text — structured format on details page:
+            # Each job block is separated by whitespace/dividers.
+            # Lines follow a pattern: title → company/type → duration → location → description → skills
+            exp_body = await page.inner_text("body")
+            result["experience"] = _parse_linkedin_experience_body(exp_body)
+            logger.info("LinkedIn: extracted %d experience entries", len(result["experience"]))
+        except Exception as e:
+            logger.debug("LinkedIn: experience scraping failed: %s", e)
+
+        # Education — navigate to details page
+        try:
+            parsed_now = urlparse(page.url)
+            clean_base = urlunparse((parsed_now.scheme, parsed_now.netloc, parsed_now.path.rstrip("/"), "", "", ""))
+            # Back to profile base before appending education path
+            # page.url after experience page is already .../details/experience/
+            # Strip /details/* to get back to profile base
+            profile_base = re.sub(r'/details/.*', '', clean_base)
+            edu_url = profile_base + "/details/education/"
+            logger.info("LinkedIn: navigating to education page: %s", edu_url)
+            await page.goto(edu_url, wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(3000)
+
+            for _ in range(2):
+                await page.mouse.wheel(0, 600)
+                await page.wait_for_timeout(1000)
+
+            edu_body = await page.inner_text("body")
+            result["education"] = _parse_linkedin_education_body(edu_body)
+            logger.info("LinkedIn: extracted %d education entries", len(result["education"]))
+        except Exception as e:
+            logger.debug("LinkedIn: education scraping failed: %s", e)
+
+        # Navigate back to profile page before going to activity
+        logger.info("LinkedIn: navigating back to profile for activity scrape")
+        await page.goto(LI_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(2000)
+
         # Navigate to activity page for recent posts
         # Strip query params (e.g., ?isSelfProfile=true) before appending suffix
-        from urllib.parse import urlparse, urlunparse
         parsed_profile = urlparse(page.url)
         clean_profile_url = urlunparse((parsed_profile.scheme, parsed_profile.netloc, parsed_profile.path.rstrip("/"), "", "", ""))
         activity_url = clean_profile_url + LI_ACTIVITY_SUFFIX
@@ -1016,6 +1332,14 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
                 results[platform] = data
 
                 # Store in local DB
+                # Pack extended fields (location, about, experience, education)
+                # into a JSON blob — only populated for LinkedIn right now
+                profile_data_dict = {}
+                for ext_key in ("location", "about", "experience", "education"):
+                    if ext_key in data:
+                        profile_data_dict[ext_key] = data[ext_key]
+                profile_data_json = json.dumps(profile_data_dict) if profile_data_dict else None
+
                 upsert_scraped_profile(
                     platform=platform,
                     follower_count=data.get("follower_count", 0),
@@ -1027,6 +1351,7 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
                     engagement_rate=data.get("engagement_rate", 0.0),
                     posting_frequency=data.get("posting_frequency", 0.0),
                     ai_niches="[]",  # Filled later by AI niche classification
+                    profile_data=profile_data_json,
                 )
                 logger.info(
                     "%s: stored profile — followers=%d, posts=%d, engagement=%.4f",

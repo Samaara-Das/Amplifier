@@ -187,6 +187,8 @@ def init_db() -> None:
         "ALTER TABLE local_campaign ADD COLUMN invited_at TEXT",
         "ALTER TABLE local_campaign ADD COLUMN expires_at TEXT",
         "ALTER TABLE local_campaign ADD COLUMN responded_at TEXT",
+        # v3: extended profile data (location, about, experience, education) as JSON blob
+        "ALTER TABLE scraped_profile ADD COLUMN profile_data TEXT",
     ]
     for stmt in _safe_alter_columns:
         try:
@@ -488,16 +490,21 @@ def upsert_scraped_profile(platform: str, follower_count: int = 0,
                             display_name: str = None, profile_pic_url: str = None,
                             recent_posts: str = "[]", engagement_rate: float = 0.0,
                             posting_frequency: float = 0.0,
-                            ai_niches: str = "[]") -> None:
-    """Insert or update a scraped profile for a platform."""
+                            ai_niches: str = "[]",
+                            profile_data: str = None) -> None:
+    """Insert or update a scraped profile for a platform.
+
+    profile_data — JSON string with extended fields: location, about,
+    experience (list of jobs), education (list of entries). LinkedIn only for now.
+    """
     conn = _get_db()
     now = datetime.now(timezone.utc).isoformat()
     conn.execute("""
         INSERT INTO scraped_profile
         (platform, follower_count, following_count, bio, display_name,
          profile_pic_url, recent_posts, engagement_rate, posting_frequency,
-         ai_niches, scraped_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ai_niches, profile_data, scraped_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(platform) DO UPDATE SET
             follower_count=excluded.follower_count,
             following_count=excluded.following_count,
@@ -508,10 +515,11 @@ def upsert_scraped_profile(platform: str, follower_count: int = 0,
             engagement_rate=excluded.engagement_rate,
             posting_frequency=excluded.posting_frequency,
             ai_niches=excluded.ai_niches,
+            profile_data=excluded.profile_data,
             scraped_at=excluded.scraped_at
     """, (platform, follower_count, following_count, bio, display_name,
           profile_pic_url, recent_posts, engagement_rate, posting_frequency,
-          ai_niches, now))
+          ai_niches, profile_data, now))
     conn.commit()
     conn.close()
 
