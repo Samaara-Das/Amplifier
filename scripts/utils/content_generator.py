@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -245,6 +246,102 @@ def _pil_fallback_image(campaign_title: str, output_path: str) -> str:
         return output_path
 
 
+# ── Webcrawler helpers ───────────────────────────────────────────
+
+WEBCRAWLER_PATH = "C:/Users/dassa/Work/webcrawler/crawl.py"
+
+
+def _scrape_url_deep(url: str) -> dict:
+    """Deep scrape a URL using the webcrawler CLI.
+
+    Returns dict with keys: title, url, content (markdown), metadata (OG tags).
+    Returns {} on failure.
+    """
+    try:
+        result = subprocess.run(
+            ["python", WEBCRAWLER_PATH, "--json", "fetch", url],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout)
+            if "error" not in data:
+                return data
+        return {}
+    except Exception as e:
+        logger.debug("Webcrawler fetch failed for %s: %s", url, e)
+        return {}
+
+
+def _scrape_images(url: str) -> list[dict]:
+    """Extract images from a URL via webcrawler CLI.
+
+    Returns list of {url, alt} dicts. Returns [] on failure.
+    """
+    try:
+        result = subprocess.run(
+            ["python", WEBCRAWLER_PATH, "--json", "images", url],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout)
+            return data.get("images", [])
+        return []
+    except Exception as e:
+        logger.debug("Webcrawler images failed for %s: %s", url, e)
+        return []
+
+
+def _build_research_brief(scrape_results: list[dict]) -> str:
+    """Combine multiple URL scrapes into a compact research brief for the prompt.
+
+    Caps total length to ~3000 chars to avoid overshooting the prompt budget.
+    """
+    if not scrape_results:
+        return ""
+
+    sections = []
+    char_budget = 3000
+
+    for data in scrape_results:
+        if not data:
+            continue
+        url = data.get("url", "")
+        title = data.get("title", "")
+        content = data.get("content", "")
+        metadata = data.get("metadata", {})
+
+        description = (
+            metadata.get("og:description")
+            or metadata.get("description")
+            or ""
+        )
+
+        # First 800 chars of page content usually contains the product pitch
+        content_snippet = content[:800].strip() if content else ""
+
+        parts = []
+        if title:
+            parts.append(f"Page: {title}")
+        if url:
+            parts.append(f"URL: {url}")
+        if description:
+            parts.append(f"Description: {description}")
+        if content_snippet:
+            parts.append(f"Content:\n{content_snippet}")
+
+        if parts:
+            section = "\n".join(parts)
+            current_total = len("\n\n---\n\n".join(sections))
+            if current_total + len(section) > char_budget:
+                break
+            sections.append(section)
+
+    if not sections:
+        return ""
+
+    return "── RESEARCH (scraped from company URLs) ──\n" + "\n\n---\n\n".join(sections)
+
+
 # ── Main class ───────────────────────────────────────────────────
 
 
@@ -339,6 +436,92 @@ class ContentGenerator:
                 logger.warning("%s failed: %s. Trying next provider...", provider.name, e)
 
         raise RuntimeError(f"All text providers failed. Last error: {last_error}")
+
+    async def research_and_generate(
+        self,
+        campaign: dict,
+        enabled_platforms: list[str] = None,
+        day_number: int = None,
+        previous_hooks: list[str] = None,
+    ) -> dict:
+        """Generate content with a research phase that scrapes company URLs first.
+
+        1. Extract company URLs from campaign assets or scraped_data fields.
+        2. Deep scrape each URL via webcrawler CLI (best-effort, no crash on failure).
+        3. Build a research brief and inject it into the assets field.
+        4. Call generate() with the enriched campaign data.
+
+        Falls back transparently to generate() if no URLs are found or all scrapes fail.
+        The existing generate() method is NOT modified.
+        """
+        # Collect URLs to scrape
+        assets = campaign.get("assets") or {}
+        if isinstance(assets, str):
+            try:
+                assets = json.loads(assets)
+            except (json.JSONDecodeError, TypeError):
+                assets = {}
+
+        company_urls: list[str] = []
+
+        # assets.company_urls list
+        raw_urls = assets.get("company_urls") or assets.get("urls") or []
+        if isinstance(raw_urls, list):
+            company_urls.extend(u for u in raw_urls if isinstance(u, str) and u.startswith("http"))
+
+        # scraped_data may also carry URLs
+        scraped_data = campaign.get("scraped_data") or {}
+        if isinstance(scraped_data, str):
+            try:
+                scraped_data = json.loads(scraped_data)
+            except (json.JSONDecodeError, TypeError):
+                scraped_data = {}
+        extra_urls = scraped_data.get("urls") or []
+        if isinstance(extra_urls, list):
+            company_urls.extend(u for u in extra_urls if isinstance(u, str) and u.startswith("http"))
+
+        # Deduplicate, limit to 3 URLs to keep latency reasonable
+        seen: set[str] = set()
+        unique_urls: list[str] = []
+        for u in company_urls:
+            if u not in seen:
+                seen.add(u)
+                unique_urls.append(u)
+            if len(unique_urls) >= 3:
+                break
+
+        if not unique_urls:
+            logger.info("research_and_generate: no URLs found, falling back to generate()")
+            return await self.generate(campaign, enabled_platforms, day_number, previous_hooks)
+
+        # Scrape URLs
+        logger.info("research_and_generate: scraping %d URL(s): %s", len(unique_urls), unique_urls)
+        scrape_results: list[dict] = []
+        for url in unique_urls:
+            data = _scrape_url_deep(url)
+            if data:
+                scrape_results.append(data)
+                logger.debug("Scraped %s — %d chars", url, len(data.get("content", "")))
+            else:
+                logger.debug("Scrape returned nothing for %s", url)
+
+        if not scrape_results:
+            logger.info("research_and_generate: all scrapes failed, falling back to generate()")
+            return await self.generate(campaign, enabled_platforms, day_number, previous_hooks)
+
+        # Build research brief and inject into the enriched campaign
+        research_brief = _build_research_brief(scrape_results)
+
+        # Merge existing assets string with research brief
+        existing_assets = campaign.get("assets", "")
+        if isinstance(existing_assets, dict):
+            existing_assets = json.dumps(existing_assets)
+        enriched_assets = f"{existing_assets}\n\n{research_brief}".strip() if existing_assets else research_brief
+
+        enriched_campaign = {**campaign, "assets": enriched_assets}
+        logger.info("research_and_generate: enriched prompt with %d chars of research", len(research_brief))
+
+        return await self.generate(enriched_campaign, enabled_platforms, day_number, previous_hooks)
 
     async def generate_image(self, prompt: str, platform: str = "default") -> str | None:
         """Generate image for campaign. Returns path to image file or None."""

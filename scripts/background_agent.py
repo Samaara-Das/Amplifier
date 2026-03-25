@@ -121,21 +121,20 @@ async def generate_daily_content() -> dict:
             unique_dates = set(d.get('created_at', '')[:10] for d in previous if d.get('created_at'))
             day_number = len(unique_dates) + 1
 
-            # Generate content
+            # Generate content (with research phase if URLs available)
+            campaign_data = {
+                "campaign_id": campaign.get("server_id"),
+                "title": campaign.get("title", ""),
+                "brief": campaign.get("brief", ""),
+                "content_guidance": campaign.get("content_guidance", ""),
+                "assets": campaign.get("assets", {}),
+                "scraped_data": campaign.get("scraped_data", {}),
+            }
             try:
                 result = await asyncio.to_thread(
-                    lambda c=campaign, dn=day_number, ph=previous_hooks: asyncio.run(gen.generate(
-                        {
-                            "campaign_id": c.get("server_id"),
-                            "title": c.get("title", ""),
-                            "brief": c.get("brief", ""),
-                            "content_guidance": c.get("content_guidance", ""),
-                            "assets": c.get("assets", {}),
-                        },
-                        enabled_platforms=platforms,
-                        day_number=dn,
-                        previous_hooks=ph,
-                    ))
+                    lambda c=campaign_data, dn=day_number, ph=previous_hooks: asyncio.run(
+                        gen.research_and_generate(c, enabled_platforms=platforms, day_number=dn, previous_hooks=ph)
+                    )
                 )
 
                 if result:
