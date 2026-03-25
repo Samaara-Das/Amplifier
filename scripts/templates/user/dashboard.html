@@ -1,0 +1,92 @@
+{% extends "user/base.html" %}
+
+{% block content %}
+<div id="page-dashboard" class="page active">
+  <div class="page-header">
+    <h1>Dashboard</h1>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+      Refresh
+    </a>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ active_campaigns }}</span>
+        <span class="stat-label">Active Campaigns</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon amber">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ invitation_count }}</span>
+        <span class="stat-label">Pending Invitations</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ post_count }}</span>
+        <span class="stat-label">Posts This Month</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">${{ "%.2f"|format(total_earned) }}</span>
+        <span class="stat-label">Earnings</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <div class="card">
+      <div class="card-header">
+        <h2>Platform Health</h2>
+      </div>
+      <div class="card-body">
+        {% set platform_names = {'x': 'X (Twitter)', 'linkedin': 'LinkedIn', 'facebook': 'Facebook', 'reddit': 'Reddit'} %}
+        {% for key in ['x', 'linkedin', 'facebook', 'reddit'] %}
+          {% set p = platforms.get(key, {}) %}
+          <div class="platform-row">
+            <div class="platform-info">
+              <span class="platform-name">{{ platform_names[key] }}</span>
+            </div>
+            <div class="platform-status">
+              <span class="status-dot {{ 'green' if p.get('connected') else 'red' }}"></span>
+              <span class="platform-status-label {{ '' if p.get('connected') else 'muted' }}">{{ 'Connected' if p.get('connected') else 'Not connected' }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Recent Activity</h2>
+      </div>
+      <div class="card-body">
+        <div class="empty-state compact">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <p>No recent activity yet.</p>
+          <p class="text-muted">Activity will appear here once you start accepting campaigns.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

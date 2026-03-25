@@ -1,0 +1,263 @@
+{% extends "user/base.html" %}
+
+{% block content %}
+<div id="page-campaign-detail" class="page active">
+  <!-- Back link -->
+  <div style="margin-bottom: 16px;">
+    <a href="{{ url_for('campaigns') }}" class="btn btn-secondary btn-sm" style="text-decoration:none;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back to Campaigns
+    </a>
+  </div>
+
+  <!-- Campaign Header -->
+  <div class="page-header" style="margin-bottom: 16px;">
+    <h1>{{ campaign.get('title', 'Campaign') }}</h1>
+    {% set status = campaign.get('status', 'assigned') %}
+    <span class="status-badge {{ status }}" style="font-size: 14px; padding: 5px 14px;">
+      <span class="status-badge-dot"></span>
+      {{ status|replace('_', ' ')|title }}
+    </span>
+  </div>
+
+  <!-- Status Pipeline -->
+  {% set stages = ['assigned', 'content_generated', 'approved', 'posted'] %}
+  {% set stage_labels = {'assigned': 'Assigned', 'content_generated': 'Generated', 'approved': 'Approved', 'posted': 'Posted'} %}
+  {% set current_idx = stages.index(status) if status in stages else 0 %}
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-body" style="padding: 20px;">
+      <div class="pipeline-container">
+        <div class="status-pipeline">
+          {% for stage in stages %}
+            <div class="pipeline-stage">
+              <div class="pipeline-dot {{ 'completed' if loop.index0 < current_idx else ('current' if loop.index0 == current_idx else 'pending') }}">
+                {% if loop.index0 < current_idx %}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                {% endif %}
+              </div>
+              {% if not loop.last %}
+                <div class="pipeline-line {{ 'completed' if loop.index0 < current_idx else '' }}"></div>
+              {% endif %}
+              <span class="pipeline-stage-label {{ 'completed' if loop.index0 < current_idx else ('current' if loop.index0 == current_idx else '') }}">{{ stage_labels[stage] }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaign Brief -->
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-header">
+      <h2>Campaign Brief</h2>
+    </div>
+    <div class="card-body">
+      <p style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">{{ campaign.get('brief', 'No brief provided.') }}</p>
+
+      {% if campaign.get('content_guidance') %}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Content Guidance</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">{{ campaign.get('content_guidance', '') }}</p>
+        </div>
+      {% endif %}
+
+      {% if campaign.get('payout_rules') %}
+        {% set payout_rules = campaign.get('payout_rules', '{}') %}
+        {% if payout_rules is string %}
+          {% set payout_rules = payout_rules|tojson %}
+        {% endif %}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Payout Rules</h3>
+          <div class="payout-rates">
+            <span class="payout-rate">{{ payout_rules }}</span>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+      <h2>Content</h2>
+      {% if status == 'assigned' %}
+        <form method="post" action="{{ url_for('generate_content', campaign_id=campaign.get('server_id', 0)) }}" style="margin:0;">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            Generate Content
+          </button>
+        </form>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      {% if status == 'assigned' %}
+        <div class="empty-state compact">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+          <p>No content generated yet.</p>
+          <p class="text-muted">Click "Generate Content" to create AI-powered posts for each platform.</p>
+        </div>
+
+      {% elif status == 'content_generated' %}
+        <!-- Editable per-platform content -->
+        <form method="post" action="{{ url_for('approve_content', campaign_id=campaign.get('server_id', 0)) }}" id="content-form">
+          {% set platform_names = {'x': 'X (Twitter)', 'linkedin': 'LinkedIn', 'facebook': 'Facebook', 'reddit': 'Reddit'} %}
+          {% set platform_icons = {
+            'x': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+            'linkedin': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+            'facebook': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+            'reddit': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>'
+          } %}
+          {% set char_limits = {'x': 280, 'linkedin': 3000, 'facebook': 63206, 'reddit': 40000} %}
+
+          {% for platform in platforms %}
+            {% set p_content = content.get(platform, '') %}
+            {% set is_reddit = platform == 'reddit' %}
+            {% if is_reddit %}
+              {% set reddit_data = {} %}
+              {% if p_content is string %}
+                {% if p_content.startswith('{') %}
+                  {# JSON string for reddit: {"title": "...", "body": "..."} #}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+
+            <div style="margin-bottom: 20px; {% if not loop.first %}padding-top: 20px; border-top: 1px solid var(--border);{% endif %}">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <span class="platform-badge {{ platform }}">{{ platform_icons[platform]|safe }} {{ platform_names.get(platform, platform) }}</span>
+              </div>
+
+              {% if is_reddit %}
+                {# Reddit: separate title + body fields #}
+                {% set reddit_title = '' %}
+                {% set reddit_body = '' %}
+                {% if p_content is string and p_content.startswith('{') %}
+                  {# Will be parsed by JS below #}
+                {% elif p_content is mapping %}
+                  {% set reddit_title = p_content.get('title', '') %}
+                  {% set reddit_body = p_content.get('body', '') %}
+                {% else %}
+                  {% set reddit_body = p_content %}
+                {% endif %}
+
+                <div class="ob-field" style="margin-bottom: 8px;">
+                  <label style="font-size: 13px; font-weight: 500;">Reddit Title</label>
+                  <input type="text" name="content_{{ platform }}_title" value="{{ reddit_title }}"
+                         class="ob-select" style="width: 100%;" placeholder="Post title for Reddit"
+                         id="reddit-title-input" data-raw="{{ p_content if p_content is string else '' }}" />
+                </div>
+                <textarea name="content_{{ platform }}" class="content-edit-area visible" style="display:block;"
+                          placeholder="Reddit post body..." id="reddit-body-input"
+                          oninput="updateCharCount(this, {{ char_limits.get(platform, 40000) }})">{{ reddit_body }}</textarea>
+              {% else %}
+                <textarea name="content_{{ platform }}" class="content-edit-area visible" style="display:block;"
+                          placeholder="Content for {{ platform_names.get(platform, platform) }}..."
+                          oninput="updateCharCount(this, {{ char_limits.get(platform, 3000) }})">{{ p_content }}</textarea>
+              {% endif %}
+
+              <div class="char-count" id="char-count-{{ platform }}">
+                {% if is_reddit %}
+                  {{ reddit_body|length }} / {{ char_limits.get(platform, 40000) }}
+                {% else %}
+                  {{ p_content|length }} / {{ char_limits.get(platform, 3000) }}
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+
+          <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border);">
+            <form method="post" action="{{ url_for('skip_campaign', campaign_id=campaign.get('server_id', 0)) }}" style="margin:0;">
+              <button type="submit" class="btn btn-ghost btn-sm">Skip Campaign</button>
+            </form>
+            <button type="submit" class="btn btn-success">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              Approve & Queue
+            </button>
+          </div>
+        </form>
+
+      {% elif status == 'approved' %}
+        <!-- Read-only approved content -->
+        {% set platform_names = {'x': 'X (Twitter)', 'linkedin': 'LinkedIn', 'facebook': 'Facebook', 'reddit': 'Reddit'} %}
+        {% for platform in platforms %}
+          {% set p_content = content.get(platform, '') %}
+          {% if p_content %}
+            <div style="margin-bottom: 16px; {% if not loop.first %}padding-top: 16px; border-top: 1px solid var(--border);{% endif %}">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span class="platform-badge {{ platform }}">{{ platform_names.get(platform, platform) }}</span>
+              </div>
+              <div class="content-preview">{{ p_content }}</div>
+            </div>
+          {% endif %}
+        {% endfor %}
+        <div style="padding: 16px; background: var(--primary-light); border-radius: var(--radius); text-align: center; color: var(--primary); font-weight: 500;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -3px; margin-right: 6px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Content approved and queued for posting. The campaign runner will post this automatically.
+        </div>
+
+      {% elif status == 'posted' %}
+        <!-- Posted content with links -->
+        {% set platform_names = {'x': 'X (Twitter)', 'linkedin': 'LinkedIn', 'facebook': 'Facebook', 'reddit': 'Reddit'} %}
+        {% for platform in platforms %}
+          {% set p_content = content.get(platform, '') %}
+          {% if p_content %}
+            <div style="margin-bottom: 16px; {% if not loop.first %}padding-top: 16px; border-top: 1px solid var(--border);{% endif %}">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span class="platform-badge {{ platform }}">{{ platform_names.get(platform, platform) }}</span>
+                <span class="status-badge live"><span class="status-badge-dot"></span> Posted</span>
+              </div>
+              <div class="content-preview">{{ p_content }}</div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+      {% elif status == 'skipped' %}
+        <div class="empty-state compact">
+          <p>This campaign was skipped.</p>
+        </div>
+
+      {% else %}
+        <div class="empty-state compact">
+          <p>Campaign status: {{ status }}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function updateCharCount(textarea, limit) {
+    var platform = textarea.name.replace('content_', '');
+    var counter = document.getElementById('char-count-' + platform);
+    if (counter) {
+      var len = textarea.value.length;
+      counter.textContent = len + ' / ' + limit;
+      if (len > limit) {
+        counter.classList.add('over-limit');
+      } else {
+        counter.classList.remove('over-limit');
+      }
+    }
+  }
+
+  // Parse Reddit JSON content if stored as string
+  (function() {
+    var titleInput = document.getElementById('reddit-title-input');
+    var bodyInput = document.getElementById('reddit-body-input');
+    if (titleInput && bodyInput && titleInput.dataset.raw) {
+      try {
+        var data = JSON.parse(titleInput.dataset.raw);
+        if (data && typeof data === 'object') {
+          if (data.title && !titleInput.value) titleInput.value = data.title;
+          if (data.body && !bodyInput.value) bodyInput.value = data.body;
+        }
+      } catch(e) {
+        // Not JSON, leave as-is
+      }
+    }
+  })();
+</script>
+{% endblock %}

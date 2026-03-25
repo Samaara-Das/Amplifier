@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amplifier — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}" />
+</head>
+<body>
+  <div class="onboarding-overlay" style="display:flex;">
+    <div class="onboarding-container">
+      <!-- Logo -->
+      <div class="onboarding-header">
+        <div class="onboarding-logo">
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" fill="#2563eb"/>
+            <text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="700" font-family="DM Sans, sans-serif">A</text>
+          </svg>
+          <span class="onboarding-logo-text">Amplifier</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Register / Login -->
+      <div class="onboarding-step active" style="display:block;">
+        <div class="ob-step-content">
+          <h2>Welcome to Amplifier</h2>
+          <p class="ob-subtitle">Create an account or log in to get started earning money from social media campaigns.</p>
+
+          <div class="ob-auth-toggle">
+            <button class="ob-auth-tab {{ 'active' if not action or action == 'register' else '' }}" id="ob-tab-register" onclick="switchAuth('register')">Register</button>
+            <button class="ob-auth-tab {{ 'active' if action == 'login' else '' }}" id="ob-tab-login" onclick="switchAuth('login')">Login</button>
+          </div>
+
+          {% if error %}
+            <div class="ob-field-error ob-global-error" style="display:block; margin-bottom: 12px;">{{ error }}</div>
+          {% endif %}
+
+          <!-- Register Form -->
+          <form class="ob-auth-form" id="ob-form-register" method="post" action="{{ url_for('login_page') }}" style="{{ 'display:none;' if action == 'login' else '' }}">
+            <input type="hidden" name="action" value="register" />
+            <div class="ob-field">
+              <label for="ob-reg-email">Email</label>
+              <input type="email" id="ob-reg-email" name="email" placeholder="you@example.com" required autocomplete="email" value="{{ email or '' }}" />
+            </div>
+            <div class="ob-field">
+              <label for="ob-reg-password">Password</label>
+              <input type="password" id="ob-reg-password" name="password" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" />
+            </div>
+            <div class="ob-field">
+              <label for="ob-reg-confirm">Confirm Password</label>
+              <input type="password" id="ob-reg-confirm" name="confirm_password" placeholder="Re-enter password" required minlength="8" autocomplete="new-password" />
+            </div>
+            <button type="submit" class="btn btn-primary ob-submit-btn">Create Account</button>
+          </form>
+
+          <!-- Login Form -->
+          <form class="ob-auth-form" id="ob-form-login" method="post" action="{{ url_for('login_page') }}" style="{{ '' if action == 'login' else 'display:none;' }}">
+            <input type="hidden" name="action" value="login" />
+            <div class="ob-field">
+              <label for="ob-login-email">Email</label>
+              <input type="email" id="ob-login-email" name="email" placeholder="you@example.com" required autocomplete="email" value="{{ email or '' }}" />
+            </div>
+            <div class="ob-field">
+              <label for="ob-login-password">Password</label>
+              <input type="password" id="ob-login-password" name="password" placeholder="Your password" required autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn btn-primary ob-submit-btn">Log In</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchAuth(mode) {
+      var regForm = document.getElementById('ob-form-register');
+      var loginForm = document.getElementById('ob-form-login');
+      var regTab = document.getElementById('ob-tab-register');
+      var loginTab = document.getElementById('ob-tab-login');
+
+      if (mode === 'register') {
+        regForm.style.display = '';
+        loginForm.style.display = 'none';
+        regTab.classList.add('active');
+        loginTab.classList.remove('active');
+      } else {
+        regForm.style.display = 'none';
+        loginForm.style.display = '';
+        regTab.classList.remove('active');
+        loginTab.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>

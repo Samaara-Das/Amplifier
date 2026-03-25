@@ -1,0 +1,204 @@
+{% extends "user/base.html" %}
+
+{% block content %}
+<div id="page-campaigns" class="page active">
+  <div class="page-header">
+    <h1>Campaigns</h1>
+    <form method="post" action="{{ url_for('campaigns_poll') }}" style="margin:0;">
+      <button type="submit" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Poll for Campaigns
+      </button>
+    </form>
+  </div>
+
+  <!-- Sub-tab navigation -->
+  <div class="campaigns-tabs">
+    <button class="campaigns-tab active" data-tab="invitations" onclick="switchCampaignsTab('invitations')">
+      <span>Invitations</span>
+      <span class="campaigns-tab-count">{{ invitations|length }}</span>
+    </button>
+    <button class="campaigns-tab" data-tab="active" onclick="switchCampaignsTab('active')">
+      <span>Active</span>
+      <span class="campaigns-tab-count">{{ active_campaigns|length }}</span>
+    </button>
+    <button class="campaigns-tab" data-tab="completed" onclick="switchCampaignsTab('completed')">
+      <span>Completed</span>
+      <span class="campaigns-tab-count">{{ completed_campaigns|length }}</span>
+    </button>
+  </div>
+
+  <!-- Invitations Section -->
+  <div class="campaigns-section active" id="campaigns-section-invitations">
+    {% if invitations %}
+      {% for inv in invitations %}
+        <div class="invitation-card">
+          <div class="invitation-card-header">
+            <span class="invitation-card-title">{{ inv.get('campaign_title', inv.get('title', 'Campaign')) }}</span>
+            {% if inv.get('expires_at') %}
+              <span class="invitation-card-expiry normal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Expires {{ inv.get('expires_at', '')[:10] }}
+              </span>
+            {% endif %}
+          </div>
+
+          <div class="invitation-card-brief">
+            {{ inv.get('campaign_brief', inv.get('brief', 'No description available.'))|truncate(200) }}
+          </div>
+
+          {% if inv.get('payout_rules') %}
+            <div class="invitation-card-details">
+              <div class="payout-rates">
+                {% set rules = inv.get('payout_rules', {}) %}
+                {% if rules is mapping %}
+                  {% for metric, rate in rules.items() %}
+                    <span class="payout-rate">{{ metric }}: <span class="rate-value">${{ rate }}</span></span>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="invitation-card-footer">
+            <div class="invitation-card-meta">
+              {% if inv.get('platforms') %}
+                <div class="platform-badges">
+                  {% for p in inv.get('platforms', []) %}
+                    <span class="platform-badge {{ p }}">{{ p|upper }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+            <div class="invitation-card-actions">
+              <form method="post" action="{{ url_for('reject_invitation', assignment_id=inv.get('assignment_id', inv.get('id', 0))) }}" style="margin:0; display:inline;">
+                <button type="submit" class="btn btn-reject btn-sm">Reject</button>
+              </form>
+              <form method="post" action="{{ url_for('accept_invitation', assignment_id=inv.get('assignment_id', inv.get('id', 0))) }}" style="margin:0; display:inline;">
+                <button type="submit" class="btn btn-accept btn-sm">Accept</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <h3>No new campaign invitations</h3>
+        <p class="text-muted">Campaign invitations will appear here when you are matched to new campaigns. Try polling for campaigns.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Active Section -->
+  <div class="campaigns-section" id="campaigns-section-active">
+    {% if active_campaigns %}
+      {% for c in active_campaigns %}
+        <div class="active-campaign-card">
+          <a href="{{ url_for('campaign_detail', campaign_id=c.get('server_id', 0)) }}" class="active-campaign-card-main" style="text-decoration:none; display:block;">
+            <div class="active-campaign-card-header">
+              <span class="active-campaign-card-title">{{ c.get('title', 'Campaign') }}</span>
+              {% set status = c.get('status', 'assigned') %}
+              <span class="status-badge {{ status }}">
+                <span class="status-badge-dot"></span>
+                {{ status|replace('_', ' ')|title }}
+              </span>
+            </div>
+            <div class="active-campaign-card-brief">
+              {{ c.get('brief', '')|truncate(120) }}
+            </div>
+
+            <!-- Status Pipeline -->
+            {% set stages = ['assigned', 'content_generated', 'approved', 'posted'] %}
+            {% set stage_labels = {'assigned': 'Assigned', 'content_generated': 'Generated', 'approved': 'Approved', 'posted': 'Posted'} %}
+            {% set current_idx = stages.index(status) if status in stages else 0 %}
+            <div class="pipeline-container">
+              <div class="status-pipeline">
+                {% for stage in stages %}
+                  <div class="pipeline-stage">
+                    <div class="pipeline-dot {{ 'completed' if loop.index0 < current_idx else ('current' if loop.index0 == current_idx else 'pending') }}">
+                      {% if loop.index0 < current_idx %}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                      {% endif %}
+                    </div>
+                    {% if not loop.last %}
+                      <div class="pipeline-line {{ 'completed' if loop.index0 < current_idx else '' }}"></div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </a>
+          <div class="active-campaign-card-footer">
+            <a href="{{ url_for('campaign_detail', campaign_id=c.get('server_id', 0)) }}" class="btn btn-primary btn-sm">View Details</a>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h3>No active campaigns</h3>
+        <p class="text-muted">Accept a campaign invitation to get started.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Completed Section -->
+  <div class="campaigns-section" id="campaigns-section-completed">
+    {% if completed_campaigns %}
+      {% for c in completed_campaigns %}
+        <div class="completed-campaign-card">
+          <div class="completed-campaign-top">
+            <span class="completed-campaign-title">{{ c.get('title', 'Campaign') }}</span>
+            <span class="status-badge {{ c.get('status', 'posted') }}">
+              <span class="status-badge-dot"></span>
+              {{ c.get('status', 'posted')|replace('_', ' ')|title }}
+            </span>
+          </div>
+          <div class="completed-campaign-dates">
+            {{ c.get('created_at', '')[:10] if c.get('created_at') else '' }}
+            {% if c.get('updated_at') %} &mdash; {{ c.get('updated_at', '')[:10] }}{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h3>No completed campaigns</h3>
+        <p class="text-muted">Completed campaigns with final metrics and earnings will appear here.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchCampaignsTab(tab) {
+    // Update tab buttons
+    var tabs = document.querySelectorAll('.campaigns-tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.remove('active');
+      if (tabs[i].getAttribute('data-tab') === tab) {
+        tabs[i].classList.add('active');
+      }
+    }
+
+    // Show/hide sections
+    var sections = document.querySelectorAll('.campaigns-section');
+    for (var i = 0; i < sections.length; i++) {
+      sections[i].classList.remove('active');
+    }
+    var target = document.getElementById('campaigns-section-' + tab);
+    if (target) target.classList.add('active');
+  }
+</script>
+{% endblock %}
