@@ -40,21 +40,34 @@ with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
 # ── Browser Launch ────────────────────────────────────────────────
 
 
-HEADED_PLATFORMS = {"reddit"}  # Platforms that block headless browsers
+# Stealth args to bypass headless detection (Reddit, etc.)
+STEALTH_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--no-sandbox",
+    "--disable-infobars",
+    "--disable-dev-shm-usage",
+    "--disable-browser-side-navigation",
+    "--disable-gpu",
+    "--lang=en-US,en",
+]
+
+# Script injected into every page to hide automation fingerprints
+STEALTH_INIT_SCRIPT = 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
 
 
 async def _launch_context(pw, platform: str) -> BrowserContext:
-    """Launch persistent browser context for scraping (reuses posting profiles)."""
+    """Launch persistent browser context for scraping (reuses posting profiles).
+
+    All platforms run headless with stealth flags to bypass automation detection.
+    """
     profile_dir = ROOT / "profiles" / f"{platform}-profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    headless = platform not in HEADED_PLATFORMS
-
     kwargs = dict(
         user_data_dir=str(profile_dir),
-        headless=headless,
+        headless=True,
         viewport={"width": 1280, "height": 800},
-        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        args=STEALTH_ARGS,
     )
 
     proxy_url = PLATFORMS.get(platform, {}).get("proxy")
@@ -62,10 +75,14 @@ async def _launch_context(pw, platform: str) -> BrowserContext:
         logger.info("Using proxy for %s: %s", platform, proxy_url)
         kwargs["proxy"] = {"server": proxy_url}
 
-    if not headless:
-        logger.info("Using headed mode for %s (headless blocked)", platform)
+    context = await pw.chromium.launch_persistent_context(**kwargs)
 
-    return await pw.chromium.launch_persistent_context(**kwargs)
+    # Inject stealth script to hide navigator.webdriver
+    for page in context.pages:
+        await page.add_init_script(STEALTH_INIT_SCRIPT)
+    context.on("page", lambda page: page.add_init_script(STEALTH_INIT_SCRIPT))
+
+    return context
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -398,37 +415,56 @@ async def scrape_linkedin_profile(playwright) -> dict:
 
                 # Name: usually appears after "Skip to main content" or nav items
                 # It's the first non-navigation line that isn't a number
-                nav_keywords = {"home", "my network", "jobs", "messaging", "notifications",
-                                "me", "for business", "skip to", "search", "notification",
-                                "off", "sales nav", "premium", "try premium", "get ",
-                                "enhance profile", "add section", "open to", "contact info"}
                 if not result["display_name"]:
-                    # Look for the name pattern: it appears twice in the body
-                    # (once in the profile card, once in the about section)
-                    # Find a line that appears more than once — that's the name
-                    from collections import Counter
-                    line_counts = Counter(lines)
-                    for line, count in line_counts.most_common():
-                        low = line.lower()
-                        if count < 2:
-                            break  # No more duplicates
-                        if any(kw in low for kw in nav_keywords):
-                            continue
-                        if len(line) < 3 or line.isdigit() or line.endswith("+"):
-                            continue
-                        result["display_name"] = line
-                        logger.info("LinkedIn: display_name (from body, appeared %dx)=%s", count, line)
-                        break
+                    # LinkedIn profile URL contains the name slug
+                    # e.g. /in/samaara-das/ → "Samaara Das"
+                    url_match = re.search(r'/in/([^/?]+)', page.url)
+                    if url_match:
+                        slug = url_match.group(1).replace('-', ' ').replace('?', '')
+                        # Find the line in body that matches the slug (case-insensitive)
+                        slug_lower = slug.lower()
+                        for line in lines:
+                            if line.lower().replace('\xa0', ' ').strip() == slug_lower:
+                                result["display_name"] = line
+                                break
+                            # Partial match — slug is "samaara das", line is "Samaara Das"
+                            if slug_lower in line.lower() and len(line) < 40:
+                                result["display_name"] = line
+                                break
 
-                # Bio/headline: the line that appears twice AND follows the name
+                    # Fallback: first line that appears exactly 2x and looks like a name
+                    if not result["display_name"]:
+                        from collections import Counter
+                        line_counts = Counter(lines)
+                        noise = {"show all", "connect", "view", "link", "follow", "more",
+                                 "see all", "home", "jobs", "messaging", "notifications",
+                                 "enhance profile", "add section", "open to", "me",
+                                 "for business", "people you may know"}
+                        for line, count in line_counts.most_common():
+                            if count != 2:
+                                continue
+                            low = line.lower().strip()
+                            if low in noise or len(line) < 3 or len(line) > 40:
+                                continue
+                            if line.isdigit() or line.endswith("+"):
+                                continue
+                            # Skip lines with special chars that aren't names
+                            if any(c in line for c in ['@', '#', '/', '\\', '{', '}']):
+                                continue
+                            result["display_name"] = line
+                            break
+
+                    if result["display_name"]:
+                        logger.info("LinkedIn: display_name (from body)=%s", result["display_name"])
+
+                # Bio/headline: line right after the name, must be longer (a headline)
                 if result["display_name"] and not result["bio"]:
                     try:
                         idx = lines.index(result["display_name"])
                         if idx + 1 < len(lines):
                             candidate = lines[idx + 1]
-                            low = candidate.lower()
-                            if (len(candidate) > 10 and not candidate.isdigit()
-                                    and not any(kw in low for kw in nav_keywords)):
+                            # Must look like a headline (> 15 chars, not a UI element)
+                            if len(candidate) > 15 and not candidate.isdigit():
                                 result["bio"] = candidate
                     except (ValueError, IndexError):
                         pass
