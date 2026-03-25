@@ -263,8 +263,10 @@ def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[
     Uses cumulative tiers — scrapes the next due tier regardless of when
     the scraper runs. No rigid time windows that can be missed.
 
-    Tiers: T+1h, T+6h, T+24h, T+72h
-    existing_scrape_count tells us which tiers have been completed.
+    Early tiers: T+1h, T+6h, T+24h, T+72h (high frequency early on)
+    After T+72h: every 24h indefinitely while campaign is active.
+    is_final is always False — scraping continues while the campaign lives.
+    Billing uses the latest metric snapshot.
 
     Returns (should_scrape, is_final).
     """
@@ -279,23 +281,31 @@ def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[
 
     hours_since = (now - posted_at).total_seconds() / 3600
 
-    # Scrape tiers in order — each tier unlocks after enough time has passed
-    tiers = [1, 6, 24, 72]
+    # Early tiers (first 72 hours — scrape frequently)
+    early_tiers = [1, 6, 24, 72]
 
-    # Which tier should we be at based on time elapsed?
-    due_tier_index = -1
-    for i, threshold in enumerate(tiers):
-        if hours_since >= threshold:
-            due_tier_index = i
+    if existing_scrape_count < len(early_tiers):
+        # Still in early tier phase
+        due_tier_index = -1
+        for i, threshold in enumerate(early_tiers):
+            if hours_since >= threshold:
+                due_tier_index = i
 
-    # How many tiers have been completed?
-    # existing_scrape_count = number of metric records for this post
-    completed_tiers = min(existing_scrape_count, len(tiers))
+        if due_tier_index >= existing_scrape_count:
+            return True, False  # Never final — keep scraping
+        return False, False
 
-    # If there are uncompleted tiers that are due, scrape
-    if due_tier_index >= completed_tiers:
-        is_final = (due_tier_index >= len(tiers) - 1)  # T+72h tier
-        return True, is_final
+    # Past early tiers — scrape every 24h indefinitely
+    # Calculate how many 24h cycles should have happened since T+72h
+    hours_since_72h = hours_since - 72
+    if hours_since_72h < 0:
+        return False, False
+
+    recurring_scrapes_due = int(hours_since_72h / 24) + 1
+    recurring_scrapes_done = existing_scrape_count - len(early_tiers)
+
+    if recurring_scrapes_due > recurring_scrapes_done:
+        return True, False  # Never final — keep scraping
 
     return False, False
 

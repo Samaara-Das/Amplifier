@@ -178,18 +178,15 @@
           <!-- AI-detected niches -->
           <div style="margin-bottom: 16px;">
             <label style="font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">Content Niches</label>
+            {% if detected_niches %}
+              <p style="font-size: 13px; color: var(--success); margin-bottom: 8px;">AI detected these niches from your posts. Adjust as needed.</p>
+            {% endif %}
             <div class="ob-niche-grid" id="ob-niche-grid">
               {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
-              {% set detected_niches = [] %}
-              {% for sp in scraped_profiles.values() %}
-                {% if sp.get('ai_niches') %}
-                  {% for n in sp.get('ai_niches', '[]')|tojson|default('[]', true) %}
-                  {% endfor %}
-                {% endif %}
-              {% endfor %}
               {% for niche in all_niches %}
-                <label class="ob-niche-item" onclick="this.classList.toggle('selected')">
-                  <input type="checkbox" name="niches" value="{{ niche }}" style="display:none;" />
+                {% set is_detected = niche in detected_niches %}
+                <label class="ob-niche-item {{ 'selected' if is_detected else '' }}" onclick="this.classList.toggle('selected'); this.querySelector('input').checked = this.classList.contains('selected');">
+                  <input type="checkbox" name="niches" value="{{ niche }}" style="display:none;" {{ 'checked' if is_detected else '' }} />
                   <div class="ob-niche-checkbox">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>

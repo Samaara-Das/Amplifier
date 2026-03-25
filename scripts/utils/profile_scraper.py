@@ -351,6 +351,9 @@ async def scrape_linkedin_profile(playwright) -> dict:
         await page.goto(LI_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
+        # Try CSS selectors first, then fall back to body text parsing.
+        # LinkedIn frequently changes CSS classes, so body text is more reliable.
+
         # Extract display name
         name_text = await _safe_text(page.locator(LI_DISPLAY_NAME))
         if name_text:
@@ -367,20 +370,87 @@ async def scrape_linkedin_profile(playwright) -> dict:
         if pic_url:
             result["profile_pic_url"] = pic_url
 
-        # Extract connections/follower count
+        # Extract connections/follower count via selectors
         connections_el = page.locator(LI_CONNECTIONS)
         connections_text = await _safe_text(connections_el)
         if connections_text:
             result["follower_count"] = _parse_number(connections_text)
-            logger.info("LinkedIn: connections=%d", result["follower_count"])
 
-        # Also try the follower count displayed separately
         follower_el = page.locator('span:has-text("follower")')
         follower_text = await _safe_text(follower_el, timeout=3000)
         if follower_text:
             count = _parse_number(follower_text)
             if count > result["follower_count"]:
                 result["follower_count"] = count
+
+        # ── Body text fallback (LinkedIn changes CSS classes frequently) ──
+        if not result["display_name"] or result["follower_count"] == 0:
+            try:
+                body = await page.inner_text("body")
+                lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+                # Name: usually appears after "Skip to main content" or nav items
+                # It's the first non-navigation line that isn't a number
+                nav_keywords = {"home", "my network", "jobs", "messaging", "notifications",
+                                "me", "for business", "skip to", "search", "notification",
+                                "off", "sales nav", "premium", "try premium", "get ",
+                                "enhance profile", "add section", "open to", "contact info"}
+                if not result["display_name"]:
+                    # Look for the name pattern: it appears twice in the body
+                    # (once in the profile card, once in the about section)
+                    # Find a line that appears more than once — that's the name
+                    from collections import Counter
+                    line_counts = Counter(lines)
+                    for line, count in line_counts.most_common():
+                        low = line.lower()
+                        if count < 2:
+                            break  # No more duplicates
+                        if any(kw in low for kw in nav_keywords):
+                            continue
+                        if len(line) < 3 or line.isdigit() or line.endswith("+"):
+                            continue
+                        result["display_name"] = line
+                        logger.info("LinkedIn: display_name (from body, appeared %dx)=%s", count, line)
+                        break
+
+                # Bio/headline: the line that appears twice AND follows the name
+                if result["display_name"] and not result["bio"]:
+                    try:
+                        idx = lines.index(result["display_name"])
+                        if idx + 1 < len(lines):
+                            candidate = lines[idx + 1]
+                            low = candidate.lower()
+                            if (len(candidate) > 10 and not candidate.isdigit()
+                                    and not any(kw in low for kw in nav_keywords)):
+                                result["bio"] = candidate
+                    except (ValueError, IndexError):
+                        pass
+
+                # Follower count from body text
+                if result["follower_count"] == 0:
+                    follower_matches = re.findall(r'([\d,]+)\s*followers?', body)
+                    if follower_matches:
+                        # Take the first match (user's own followers)
+                        result["follower_count"] = _parse_number(follower_matches[0])
+
+                # Connections count
+                conn_matches = re.findall(r'([\d,]+)\+?\s*connections?', body)
+                if conn_matches:
+                    conn_count = _parse_number(conn_matches[0])
+                    if conn_count > result["follower_count"]:
+                        result["follower_count"] = conn_count
+
+                logger.info("LinkedIn: body fallback — name=%s, followers=%d",
+                            result["display_name"], result["follower_count"])
+            except Exception as e:
+                logger.debug("LinkedIn: body text fallback failed: %s", e)
+
+        # Profile pic fallback — look for any profile-related image
+        if not result["profile_pic_url"]:
+            pic = page.locator('img[src*="profile-displayphoto"], img[alt*="photo"]')
+            pic_url = await _safe_attr(pic, "src")
+            if pic_url:
+                result["profile_pic_url"] = pic_url
 
         # Navigate to activity page for recent posts
         profile_url = page.url.rstrip("/")
