@@ -231,6 +231,13 @@ async def scrape_x_profile(playwright) -> dict:
                 try:
                     article = articles.nth(i)
 
+                    # Skip retweets — only count original posts
+                    social_ctx = article.locator('span[data-testid="socialContext"]')
+                    if await social_ctx.count() > 0:
+                        ctx_text = (await social_ctx.first.inner_text()).lower()
+                        if "repost" in ctx_text or "retweeted" in ctx_text:
+                            continue
+
                     # Get tweet text
                     tweet_text_el = article.locator(X_TWEET_TEXT)
                     tweet_text = ""
@@ -654,7 +661,13 @@ async def scrape_facebook_profile(playwright) -> dict:
             body_text = await page.inner_text("body")
             intro_match = re.search(r'Intro\s*\n(.*?)(?:\n\n|\nDetails|\nFeatured)', body_text, re.DOTALL)
             if intro_match:
-                result["bio"] = intro_match.group(1).strip()[:500]
+                bio_text = intro_match.group(1).strip()
+                # Filter out UI artifacts
+                ui_noise = ["add bio", "edit details", "add featured", "add hobbies"]
+                bio_lines = [l.strip() for l in bio_text.split("\n")
+                             if l.strip() and l.strip().lower() not in ui_noise]
+                if bio_lines:
+                    result["bio"] = "\n".join(bio_lines)[:500]
         except Exception:
             pass
 
