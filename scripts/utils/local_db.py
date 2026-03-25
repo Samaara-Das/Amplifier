@@ -53,6 +53,7 @@ def init_db() -> None:
             content TEXT,
             content_hash TEXT,
             posted_at TEXT,
+            status TEXT DEFAULT 'posted',
             server_post_id INTEGER,
             synced INTEGER DEFAULT 0,
             FOREIGN KEY (campaign_server_id) REFERENCES local_campaign(server_id)
@@ -189,6 +190,10 @@ def init_db() -> None:
         "ALTER TABLE local_campaign ADD COLUMN responded_at TEXT",
         # v3: extended profile data (location, about, experience, education) as JSON blob
         "ALTER TABLE scraped_profile ADD COLUMN profile_data TEXT",
+        # v3: local_post status column
+        "ALTER TABLE local_post ADD COLUMN status TEXT DEFAULT 'posted'",
+        # v3: scraped_data for content research
+        "ALTER TABLE local_campaign ADD COLUMN scraped_data TEXT DEFAULT '{}'",
     ]
     for stmt in _safe_alter_columns:
         try:
