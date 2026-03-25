@@ -501,8 +501,11 @@ async def scrape_linkedin_profile(playwright) -> dict:
                 result["profile_pic_url"] = pic_url
 
         # Navigate to activity page for recent posts
-        profile_url = page.url.rstrip("/")
-        activity_url = profile_url + LI_ACTIVITY_SUFFIX
+        # Strip query params (e.g., ?isSelfProfile=true) before appending suffix
+        from urllib.parse import urlparse, urlunparse
+        parsed_profile = urlparse(page.url)
+        clean_profile_url = urlunparse((parsed_profile.scheme, parsed_profile.netloc, parsed_profile.path.rstrip("/"), "", "", ""))
+        activity_url = clean_profile_url + LI_ACTIVITY_SUFFIX
         logger.info("LinkedIn: navigating to activity: %s", activity_url)
         await page.goto(activity_url, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(5000)  # LinkedIn needs extra time to render posts
