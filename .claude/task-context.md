@@ -1,181 +1,190 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-24 (Session 18)
+**Last Updated**: 2026-03-25 (Session 19)
 
 ## Current Task
-- **Branch: `main`** — Amplifier v2 built (29 tasks, 588 tests). UAT testing in progress.
-- Company dashboard: 7/7 core features verified working on Vercel
-- User app (Tauri): sidecar connection fixed, real data showing, testing accept/reject/approve flows
-- Active bugs: accept/reject campaigns and approve/skip content failing in user app (server_client functions added, needs testing)
+- **Branch: `flask-user-app`** — Rebuilt user app as Flask web app (replaced buggy Tauri desktop app)
+- All 8 pages built and working: Login, Dashboard, Onboarding, Campaigns, Campaign Detail, Posts, Earnings, Settings
+- Daily content generation system implemented (1 post/platform/campaign/day)
+- Background agent running: polls campaigns, generates content, schedules posts, scrapes metrics
+- **Currently testing**: approved drafts being posted by background agent (6 posts scheduled for today)
+- **Known bugs**: Niche tag checkboxes don't toggle on onboarding page (low priority)
 
-## Project Overview
-Two-sided marketplace:
-1. **Company Dashboard** (Web, Vercel) — Companies create campaigns, monitor performance, manage budgets
-2. **User App** (Tauri Desktop) — Users earn money by posting campaign content to social media
-3. **Admin Dashboard** (Web, Vercel) — Platform management, fraud detection, payouts
-4. **Server API** (FastAPI, Vercel + Supabase PostgreSQL) — 82 routes, 10 models, matching, billing, trust
+## Critical Decision: Tauri → Flask (Session 19)
 
-## Amplifier v2 — Build Summary (Session 18)
+The Tauri desktop app had fundamental state management bugs (auth leaks, shared platform profiles, stuck UI states) caused by its 3-layer architecture (JS → Rust → Python sidecar). After discovering multiple bugs during UAT, decided to **replace Tauri with a direct Flask web app** that calls Python functions with zero bridge layers.
 
-### What Was Built (29 tasks, all complete)
-**Phase 1: Server Foundation (Tasks 1-6)**
-- [x] DB schema migration (invitation states, scraped profiles, screening log, invitation log)
-- [x] Campaign invitation system (replace auto-assign with accept/reject, 3-day expiry, max 5)
-- [x] Removed payout multiplier (earnings = pure metrics)
-- [x] Prohibited content screening (6 categories, admin review queue)
-- [x] Campaign management (clone, delete, budget top-up, auto-pause/complete, $50 min, edit propagation)
-- [x] Fixed user earnings endpoint (real per-campaign/platform breakdown, payout withdrawal)
+**Why Flask won**: All backend code (posting, scraping, AI generation, server API) is Python. Flask calls it directly. No Rust, no JSON-RPC, no sidecar. Single process, single language, testable.
 
-**Phase 2: Profile Scraping (Tasks 7-8)**
-- [x] Profile scraping system (X, LinkedIn, Facebook, Reddit scrapers)
-- [x] AI niche classification (Gemini classifies from scraped posts)
+**The Tauri code is preserved on `main` branch** — `flask-user-app` branch has the new Flask app.
 
-**Phase 3: AI Features (Tasks 9-12)**
-- [x] AI campaign creation wizard (URL scraping, Gemini generation, reach estimation)
-- [x] AI-powered matching (LLM relevance scoring + caching)
-- [x] Content quality improvements (brief adherence scoring)
-- [x] CSV export for campaign reports
+## Flask User App — Architecture
 
-**Phase 4: Tauri Desktop App (Tasks 13-22)**
-- [x] Tauri project setup + Python sidecar (JSON-RPC over stdin/stdout)
-- [x] 7-step onboarding wizard
-- [x] Home dashboard (stat cards, platform health, activity feed)
-- [x] Campaigns tab (invitations, active pipeline, completed)
-- [x] Posts tab (per-platform editing/regeneration, scheduled, posted, failed)
-- [x] Earnings tab (breakdown, platform bars, withdraw modal)
-- [x] Settings tab (mode, platforms, profile, stats, notifications)
-- [x] Post scheduling engine (region-based, 30-min spacing)
-- [x] Session health monitoring
-- [x] Background agent (polling, posting, scraping, health checks, notifications)
+```
+scripts/user_app.py              # Flask app, port 5222, ~800 lines
+scripts/templates/user/          # 9 Jinja2 templates
+  base.html                      # Sidebar layout (matches Tauri theme)
+  login.html                     # Standalone register/login
+  onboarding.html                # 4-step wizard
+  dashboard.html                 # Stats, platform health, activity
+  campaigns.html                 # Invitations + Active + Completed tabs
+  campaign_detail.html           # Daily drafts: approve/reject/edit per platform
+  posts.html                     # All posts with metrics table
+  earnings.html                  # Balance, breakdown, withdraw
+  settings.html                  # Mode, platforms, profile, API key
+scripts/static/css/user.css      # Copied from Tauri (blue/white theme)
+scripts/static/js/user.js        # Status polling, browser notifications
+```
 
-**Phase 5-7: Dashboards + Integration (Tasks 23-29)**
-- [x] AI campaign wizard UI (4-step wizard with AI generation)
-- [x] Enhanced campaign detail page (invitation stats, per-user table, ROI, edit modal)
-- [x] Company dashboard improvements (clone, delete, top-up, stats page, export)
-- [x] Admin review queue + platform stats + blue theme
-- [x] Blue/white theme across all apps
-- [x] E2E integration tests (26 tests covering full lifecycle)
-- [x] Bug fix and polish pass (588 tests, 0 failures)
+**Direct Python calls** (no bridge):
+- `server_client.py` → Server API (register, login, poll, accept, reject, report)
+- `local_db.py` → Local SQLite (campaigns, drafts, posts, metrics, settings)
+- `content_generator.py` → Gemini AI content generation
+- `profile_scraper.py` → Playwright profile scraping
+- `background_agent.py` → Daemon thread for automation
 
-### Production Bugs Found & Fixed During UAT
-1. **Jinja2Templates crash on Vercel** — Switched company pages to raw Jinja2 (same as admin)
-2. **pgbouncer prepared statement error** — Added `statement_cache_size=0`
-3. **Payout FK constraint** — Made `campaign_id` nullable for aggregate payouts
-4. **bcrypt crash on Vercel Lambda** — Switched to PBKDF2-SHA256 (pure Python)
-5. **Missing Campaign columns on Supabase** — Migration endpoint didn't include Task 4+5 columns
-6. **Admin password reset** — `ADMIN_PASSWORD` env var was wrong on Vercel
-7. **AI wizard "Session expired"** — Cookie was httpOnly, JS couldn't read it. Added server-side proxy
-8. **AI wizard not generating** — `google-genai` missing from server requirements.txt
-9. **AI wizard wrong args** — `run_campaign_wizard()` called with positional args instead of kwargs
-10. **Draft blocked by $0 balance** — Removed balance check for drafts, only check on activation
-11. **Sidecar not connected** — `withGlobalTauri` missing, 14/28 Rust commands unregistered, `onboarding_done` use-after-close bug
-12. **Accept/reject/approve failing** — `accept_invitation()`, `reject_invitation()` missing from server_client.py (JUST FIXED, needs testing)
+## Session 19 — What Was Done (Chronological)
 
-### Key Decisions (Session 18)
-- **No payout multiplier** — Earnings = pure engagement metrics. Mode only affects workflow.
-- **Amplifier provides API keys** — Users don't need to create Gemini keys
-- **Campaign invitations** — Users accept/reject (not auto-assigned). 3-day expiry. Max 5 active.
-- **AI matching is core** — Campaign brief + user profile fed to LLM for relevance scoring
-- **Draft without balance** — Companies can save drafts with $0, only need balance to activate
-- **Post timing = campaign region** — Not hardcoded US timezone
-- **30-min minimum spacing** between posts
-- **Personal brand engine is separate** — Not part of the user-facing Amplifier app
-- **Tauri over Flask+pystray** — Full desktop app, not a workaround
-- **Blue/white theme** — Primary #2563eb, replaces emerald green
+### Phase 1: UAT Testing of Tauri App
+- Tested 12 core user flows against server API + sidecar handlers
+- Found 10 bugs in scrapers, selectors, and state management
+- Fixed: double browser on connect, Reddit headless blocked, LinkedIn/Facebook/X selector issues
+- Verified: Register, login, invitations, accept/reject, content generation, earnings, withdraw all work via API
 
-## Core Features for Testing
+### Phase 2: Decision to Replace Tauri
+- User found more Tauri bugs: stale auth, shared profiles across users, stuck buttons
+- Diagnosed root cause: 3-layer architecture (JS → Rust → Python) with no state reset boundaries
+- Decided: Flask web app, not rebuild Tauri. Ship today, not rebuild for 2 weeks.
 
-### User App Core
-1. Register + login
-2. Connect platforms (browser login)
-3. Profile scraping (followers, bio, engagement)
-4. AI niche detection
-5. Receive campaign invitations (AI matched)
-6. Accept/reject invitations (3-day expiry, max 5)
-7. Content generated per platform
-8. Review + edit content per platform, approve
-9. Post scheduled and executed (headless, region-based)
-10. Metrics scraped and synced
-11. Earnings visible (balance, per-campaign)
-12. Withdraw earnings
+### Phase 3: Built Flask User App (5 phases)
+1. **Skeleton + Auth** — base.html, login.html, dashboard.html, before_request auth guard
+2. **Onboarding** — 4-step wizard (connect platforms, profile/niches, mode, summary)
+3. **Campaigns + Content Review** — invitations, accept/reject, content generation, per-platform editing
+4. **Posts + Earnings + Settings** — all remaining pages with full data
+5. **Background Agent** — daemon thread integration, auto content generation
 
-### Company Dashboard Core
-1. Register + login ✅
-2. Create campaign (form with targeting) ✅
-3. Campaign lifecycle (draft → active → pause) ✅
-4. Campaign list with stats ✅
-5. Campaign detail with per-user data ✅
-6. Billing (balance, add funds) ✅
-7. Edit active campaign ✅
+### Phase 4: Scraper Fixes
+- **All 4 scrapers now run headless** with stealth flags (navigator.webdriver override)
+- Reddit stealth works — no more headed browser window
+- LinkedIn: body text parsing fallback (CSS selectors keep breaking). Name extracted from URL slug.
+- X: retweet filtering — skips `socialContext="You reposted"`, only counts original posts
+- Facebook: bio filters UI noise ("Add Bio", "Edit details")
+- Following count now scraped for all 4 platforms (was only X before)
+- Removed `clicks` from metric scraping (not available via browser scraping)
+- Added impressions/views: X (aria-label), LinkedIn (body text), Reddit (body text), Facebook (video views only)
+
+### Phase 5: Daily Content Generation System
+- **Changed from one-time to daily**: 1 unique post per platform per campaign per day
+- Background agent generates content every 2 minutes for campaigns without today's drafts
+- AI prompt includes `day_number` and previous hooks to avoid repetition
+- Drafts stored in `agent_draft` table (not `local_campaign.content`)
+- Users approve/reject/edit individual drafts per platform
+- Approved drafts → `post_schedule` → background agent posts at scheduled time
+- **Removed manual mode** — only semi_auto and full_auto remain
+
+### Phase 6: Posting Pipeline Connection
+- **Critical bug found**: approved drafts were NOT being scheduled for posting
+- Fix: `_schedule_draft()` inserts into `post_schedule` when draft is approved
+- Batch approve also schedules all drafts with 30-min spacing
+- Full-auto mode auto-schedules after generation
+
+### Phase 7: Additional Features
+- Restore rejected drafts (undo accidental reject)
+- Browser notifications (Notification API) when new content is generated
+- Auto-scrape + AI niche classification after platform connect
+- Scraping blocks Next button on onboarding until complete
+- Metric scraping continues while campaign is active (removed 72h cutoff)
+
+## Key Decisions (Session 19)
+- **Flask over Tauri** — Direct Python calls, no bridge layers. Ship fast.
+- **Daily content generation** — 1 post/platform/campaign/day (not one-time)
+- **No manual mode** — Only semi_auto (review before post) and full_auto (auto-post)
+- **Stealth headless** — All scrapers run headless with anti-detection flags
+- **Body text fallback** — LinkedIn/Reddit scrapers use body text parsing when CSS selectors fail
+- **Continuous metric scraping** — No 72h cutoff, scrape while campaign active
+- **Draft-based content** — `agent_draft` table replaces `local_campaign.content` for recurring content
+
+## Lessons Learned
+1. **Read the product spec before implementing** — Implemented AI niche detection wrong because assumed its purpose instead of reading docs
+2. **3-layer architectures multiply bugs** — Tauri (JS→Rust→Python) made every bug 3x harder to debug
+3. **CSS selectors are fragile** — LinkedIn changes DOM frequently. Body text parsing is more resilient.
+4. **Kill zombie processes** — Flask 500 errors were caused by 20+ old Flask processes on the same port
+5. **Stealth flags work** — `navigator.webdriver` override + `AutomationControlled` disable bypasses Reddit's headless detection
+6. **Auto-scrape after connect** — Don't make users click extra buttons. Scrape automatically when they close the login browser.
+7. **Retweets inflate engagement** — X profile shows reposts as part of the timeline. Must filter by `socialContext` to get accurate engagement rates.
+
+## Pending / Known Issues
+- [ ] Niche tag checkboxes don't toggle on onboarding (label/div onclick conflict — partially fixed but needs verification)
+- [ ] 6 posts scheduled for today — need to verify they actually post
+- [ ] Content generator needs GEMINI_API_KEY in config/.env (load_dotenv added)
+- [ ] Gemini free tier rate limits (20 requests/day/model) — may need paid key for production
+- [ ] Facebook doesn't expose impressions on personal profiles (only pages)
+- [ ] Posts tab shows old campaign_runner posts from testing — may need cleanup
 
 ## Deployed URLs
 - **Company**: https://server-five-omega-23.vercel.app/company/login
 - **Admin**: https://server-five-omega-23.vercel.app/admin/login (password: admin)
 - **Swagger**: https://server-five-omega-23.vercel.app/docs
-
-## Test Accounts
-- **Company**: `testcorp@gmail.com` / `TestPass123!`
-- **User**: `testuser_e2e@gmail.com` / `TestPass123!`
-- **Admin**: password `admin`
+- **User App**: `python scripts/user_app.py` → http://localhost:5222
 
 ## Key Reference Files
 
-### Tauri App
-- `tauri-app/src/index.html` — Frontend (onboarding + all tabs)
-- `tauri-app/src/main.js` — Frontend logic (~3000 lines)
-- `tauri-app/src/styles.css` — Blue/white theme (~1500 lines)
-- `tauri-app/src-tauri/src/lib.rs` — App setup, 28 commands registered
-- `tauri-app/src-tauri/src/sidecar.rs` — Python sidecar manager (JSON-RPC)
-- `tauri-app/src-tauri/src/commands/` — Rust command handlers
-- `scripts/sidecar_main.py` — Python sidecar (34 handlers)
+### Flask User App (NEW — branch: flask-user-app)
+- `scripts/user_app.py` — Flask app (~800 lines, 25+ routes)
+- `scripts/templates/user/` — 9 Jinja2 templates
+- `scripts/static/css/user.css` — Blue/white theme (from Tauri)
+- `scripts/static/js/user.js` — Status polling, notifications
 
-### Server
+### Backend (unchanged, used by Flask directly)
+- `scripts/utils/server_client.py` — Server API (14 functions)
+- `scripts/utils/local_db.py` — Local SQLite (13 tables, 30+ functions)
+- `scripts/utils/content_generator.py` — Gemini content generation (with daily variation support)
+- `scripts/utils/profile_scraper.py` — 4 platform scrapers (all headless with stealth)
+- `scripts/utils/metric_scraper.py` — Post metric scraping (continuous, not 72h cutoff)
+- `scripts/utils/niche_classifier.py` — AI niche classification
+- `scripts/utils/post_scheduler.py` — Region-based scheduling + execution
+- `scripts/background_agent.py` — Daemon thread: poll, generate, post, scrape, health check
+
+### Server (deployed on Vercel)
 - `server/app/main.py` — 82 routes
-- `server/app/routers/invitations.py` — Campaign invitation endpoints
-- `server/app/routers/campaigns.py` — Campaign CRUD + clone/delete/export/wizard
-- `server/app/routers/company_pages.py` — Company web dashboard
-- `server/app/services/campaign_wizard.py` — AI wizard (Gemini)
-- `server/app/services/matching.py` — AI matching (Gemini relevance scoring)
-- `server/app/services/billing.py` — Earnings calculation (pure metrics)
-- `server/app/services/content_screening.py` — Prohibited content detection
-
-### New Modules
-- `scripts/utils/profile_scraper.py` — 4 platform scrapers
-- `scripts/utils/niche_classifier.py` — Gemini niche detection
-- `scripts/utils/post_scheduler.py` — Region-based scheduling
-- `scripts/utils/session_health.py` — Platform session monitoring
-- `scripts/utils/content_quality.py` — Brief adherence scoring
-- `scripts/background_agent.py` — Always-running automation
-
-### Tests (588 total)
-- `tests/test_schema_v2.py` (71), `tests/test_invitations.py` (43), `tests/test_billing_v2.py` (12)
-- `tests/test_screening.py` (24), `tests/test_campaign_mgmt.py` (26), `tests/test_earnings_v2.py` (19)
-- `tests/test_profile_scraper.py` (35), `tests/test_niche_classifier.py` (39)
-- `tests/test_ai_wizard.py` (57), `tests/test_ai_matching.py` (34)
-- `tests/test_scheduling.py` (41), `tests/test_session_health.py` (30)
-- `tests/test_background_agent.py` (43), `tests/test_content_quality.py` (22)
-- `tests/test_export.py` (10), `tests/test_e2e_integration.py` (26)
+- `server/app/services/matching.py` — AI matching (Gemini scoring + hard filters + trust/engagement bonus)
+- `server/app/services/billing.py` — Earnings calculation from metrics
 
 ## Test Commands
 ```bash
-# Run all tests
-cd C:/Users/dassa/Work/Auto-Posting-System && python -m pytest tests/ -v
+# Run Flask user app
+cd C:/Users/dassa/Work/Auto-Posting-System && python scripts/user_app.py
 
-# Run Tauri app
-cd tauri-app && $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH" && npm run tauri dev
+# Run all tests
+python -m pytest tests/ -v
 
 # Deploy to Vercel
 vercel deploy --yes --prod --cwd server
 
-# Run v2 migration on Supabase
-curl -X POST https://server-five-omega-23.vercel.app/api/admin/run-v2-migration
+# Test scrapers
+cd scripts && python -c "
+import asyncio, sys; sys.path.insert(0, '.')
+from utils.profile_scraper import *
+from playwright.async_api import async_playwright
+async def t():
+    async with async_playwright() as pw:
+        for n, s in [('X', scrape_x_profile), ('LI', scrape_linkedin_profile), ('FB', scrape_facebook_profile), ('RD', scrape_reddit_profile)]:
+            d = await s(pw); print(f'{n}: {d[\"display_name\"]}, {d[\"follower_count\"]} followers')
+asyncio.run(t())
+"
 ```
 
-## Noted for Later (Post-MVP)
-- Campaign exclusivity (competing brands)
-- Influencer/company search & discovery (both sides find each other)
-- Dynamic niche evolution tracking (AI monitors content shifts)
-- Stripe payment integration
-- Web dashboard split (separate from desktop app)
-- TikTok and Instagram posting
-- Auto-update mechanism for desktop app
+## Content Generation Pipeline
+```
+Campaign accepted → status: assigned
+  ↓ (background agent, every 2 min)
+Daily content generated → 1 draft per platform in agent_draft table
+  ↓ (semi_auto: user reviews; full_auto: auto-approved)
+Draft approved → inserted into post_schedule with 30-min spacing
+  ↓ (background agent, every 60s checks due posts)
+Post executed → headless Playwright posts to platform
+  ↓ (post_url captured)
+local_post created → metric scraping begins
+  ↓ (T+1h, 6h, 24h, 72h, then every 24h while campaign active)
+Metrics scraped → synced to server → earnings calculated
+```
