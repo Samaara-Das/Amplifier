@@ -273,10 +273,12 @@ Generate a JSON response with these fields:
 Return ONLY valid JSON, no markdown fences, no extra text."""
 
     # Step 3: Call AI
+    ai_error = None
     try:
         ai_response = await _call_gemini(prompt)
         generated = _parse_json_response(ai_response)
     except Exception as e:
+        ai_error = str(e)
         logger.warning("AI generation failed: %s. Using defaults.", e)
         generated = _generate_defaults(product_name, product_description, product_features, target_niches)
 
@@ -295,11 +297,14 @@ Return ONLY valid JSON, no markdown fences, no extra text."""
     except Exception as e:
         logger.warning("Reach estimation failed: %s", e)
 
-    return {
+    result = {
         **generated,
         "reach_estimate": reach,
         "scraped_data": scraped_data,
     }
+    if ai_error:
+        result["ai_error"] = ai_error
+    return result
 
 
 def _generate_defaults(
