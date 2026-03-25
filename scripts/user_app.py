@@ -644,12 +644,60 @@ def skip_campaign(campaign_id):
     return redirect(url_for("campaigns"))
 
 
+# ── Draft scheduling helper ──────────────────────────────────────
+
+
+def _schedule_draft(draft: dict):
+    """Schedule an approved draft into post_schedule for the background agent to execute."""
+    from utils.local_db import add_scheduled_post, get_scheduled_posts
+    from datetime import datetime, timedelta
+    import random
+
+    campaign_id = draft.get("campaign_id")
+    platform = draft.get("platform", "")
+    content = draft.get("draft_text", "")
+    draft_id = draft.get("id")
+
+    # Check if already scheduled
+    existing = get_scheduled_posts("queued")
+    for e in existing:
+        if e.get("draft_id") == draft_id:
+            return  # Already scheduled
+
+    # Calculate scheduled time: next available slot with 30-min spacing
+    now = datetime.now()
+    # Find the latest scheduled time for any platform
+    latest = now
+    for e in existing:
+        try:
+            t = datetime.fromisoformat(e.get("scheduled_at", ""))
+            if t > latest:
+                latest = t
+        except (ValueError, TypeError):
+            pass
+
+    # Schedule at least 5 min from now, 30 min after the last scheduled post
+    earliest = max(now + timedelta(minutes=5), latest + timedelta(minutes=30))
+    # Add random jitter (0-10 min)
+    jitter = random.randint(0, 10)
+    scheduled_at = earliest + timedelta(minutes=jitter)
+
+    add_scheduled_post(
+        campaign_server_id=campaign_id,
+        platform=platform,
+        scheduled_at=scheduled_at.isoformat(),
+        content=content,
+        draft_id=draft_id,
+    )
+    logger.info("Scheduled draft %d for %s at %s", draft_id, platform, scheduled_at.isoformat())
+
+
 # ── Draft routes (daily content) ─────────────────────────────────
 
 
 @app.route("/drafts/<int:draft_id>/approve", methods=["POST"])
 def approve_single_draft(draft_id):
-    from utils.local_db import approve_draft, get_draft
+    from utils.local_db import approve_draft, get_draft, add_scheduled_post
 
     draft = get_draft(draft_id)
     if not draft:
@@ -657,7 +705,8 @@ def approve_single_draft(draft_id):
         return redirect(url_for("campaigns"))
 
     approve_draft(draft_id)
-    flash("Draft approved!", "success")
+    _schedule_draft(draft)
+    flash("Draft approved and scheduled for posting!", "success")
     return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
 
 
@@ -724,10 +773,12 @@ def approve_all_drafts(campaign_id):
             edited_text = request.form.get(f"draft_text_{draft['id']}", "").strip()
             if edited_text and edited_text != draft.get("draft_text", ""):
                 update_draft_text(draft["id"], edited_text)
+                draft["draft_text"] = edited_text
             approve_draft(draft["id"])
+            _schedule_draft(draft)
             approved_count += 1
 
-    flash(f"Approved {approved_count} draft(s) for today!", "success")
+    flash(f"Approved and scheduled {approved_count} draft(s) for posting!", "success")
     return redirect(url_for("campaign_detail", campaign_id=campaign_id))
 
 

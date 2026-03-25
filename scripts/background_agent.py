@@ -164,9 +164,27 @@ async def generate_daily_content() -> dict:
 
                     # Full auto mode: auto-approve all drafts and schedule them
                     if mode == "full_auto" and draft_ids:
+                        from utils.local_db import get_draft as _get_draft
+                        from datetime import datetime as _dt, timedelta as _td
+                        import random as _rnd
+
                         for did in draft_ids:
                             approve_draft(did)
-                        logger.info("Full-auto: approved %d drafts for campaign %s", len(draft_ids), campaign_id)
+
+                        # Schedule approved drafts with 30-min spacing
+                        base_time = _dt.now() + _td(minutes=5)
+                        for i, did in enumerate(draft_ids):
+                            draft_data = _get_draft(did)
+                            if draft_data:
+                                sched_time = base_time + _td(minutes=30 * i + _rnd.randint(0, 10))
+                                add_scheduled_post(
+                                    campaign_server_id=campaign_id,
+                                    platform=draft_data.get("platform", ""),
+                                    scheduled_at=sched_time.isoformat(),
+                                    content=draft_data.get("draft_text", ""),
+                                    draft_id=did,
+                                )
+                        logger.info("Full-auto: approved + scheduled %d drafts for campaign %s", len(draft_ids), campaign_id)
 
             except Exception as e:
                 logger.error("Daily content gen failed for campaign %s: %s", campaign_id, e)
