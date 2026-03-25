@@ -10,7 +10,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.campaign import Campaign
@@ -269,7 +269,63 @@ def _passes_hard_filters(campaign: Campaign, user: User) -> bool:
         if user_region != "global" and user_region not in target_regions:
             return False
 
+    # Minimum engagement rate
+    min_engagement = targeting.get("min_engagement", 0)
+    if min_engagement > 0:
+        user_engagement = _get_user_engagement_rate(user)
+        if user_engagement < min_engagement:
+            return False
+
+    # Max users cap
+    max_users = getattr(campaign, "max_users", None)
+    if max_users is not None:
+        if (campaign.accepted_count or 0) >= max_users:
+            return False
+
     return True
+
+
+# ── Helper: return existing assignments ───────────────────────────
+
+
+async def _get_existing_assignments(
+    user: User, db: AsyncSession, exclude_ids: set[int]
+) -> list[CampaignBrief]:
+    """Return existing non-completed assignments for a user."""
+    existing_query = (
+        select(CampaignAssignment)
+        .join(Campaign)
+        .where(
+            and_(
+                CampaignAssignment.user_id == user.id,
+                CampaignAssignment.status.in_(
+                    ["pending_invitation", "accepted", "content_generated"]
+                ),
+                Campaign.status == "active",
+            )
+        )
+    )
+    existing_result = await db.execute(existing_query)
+    existing_assignments = existing_result.scalars().all()
+
+    result = []
+    for assignment in existing_assignments:
+        if assignment.id in exclude_ids:
+            continue
+        campaign = assignment.campaign
+        result.append(
+            CampaignBrief(
+                campaign_id=campaign.id,
+                assignment_id=assignment.id,
+                title=campaign.title,
+                brief=campaign.brief,
+                assets=campaign.assets,
+                content_guidance=campaign.content_guidance,
+                payout_rules=campaign.payout_rules,
+                payout_multiplier=1.0,
+            )
+        )
+    return result
 
 
 # ── Main Matching Function ────────────────────────────────────────
@@ -292,6 +348,19 @@ async def get_matched_campaigns(
     5. Sort by score, take top 10, create invitations
     """
 
+    # Check if user already has 3+ active campaigns — skip matching if so
+    MAX_ACTIVE_FOR_MATCHING = 3
+    active_statuses = ("accepted", "content_generated", "posted", "metrics_collected")
+    active_count_result = await db.execute(
+        select(func.count(CampaignAssignment.id)).where(
+            and_(
+                CampaignAssignment.user_id == user.id,
+                CampaignAssignment.status.in_(active_statuses),
+            )
+        )
+    )
+    active_campaign_count = active_count_result.scalar() or 0
+
     # Get campaigns already assigned to this user
     existing_result = await db.execute(
         select(CampaignAssignment.campaign_id).where(
@@ -299,6 +368,13 @@ async def get_matched_campaigns(
         )
     )
     existing_campaign_ids = set(existing_result.scalars().all())
+
+    # If at max active campaigns, skip new matching — only return existing
+    if active_campaign_count >= MAX_ACTIVE_FOR_MATCHING:
+        logger.info("User %d has %d active campaigns (max %d), skipping matching",
+                     user.id, active_campaign_count, MAX_ACTIVE_FOR_MATCHING)
+        # Jump to returning existing assignments only
+        return await _get_existing_assignments(user, db, set())
 
     # Get all active campaigns
     result = await db.execute(
@@ -397,37 +473,7 @@ async def get_matched_campaigns(
 
     # Also return existing non-completed assignments (exclude ones we just created)
     newly_created_ids = {a.assignment_id for a in new_assignments}
-    existing_query = (
-        select(CampaignAssignment)
-        .join(Campaign)
-        .where(
-            and_(
-                CampaignAssignment.user_id == user.id,
-                CampaignAssignment.status.in_(
-                    ["pending_invitation", "accepted", "content_generated"]
-                ),
-                Campaign.status == "active",
-            )
-        )
-    )
-    existing_result = await db.execute(existing_query)
-    existing_assignments = existing_result.scalars().all()
-
-    for assignment in existing_assignments:
-        if assignment.id in newly_created_ids:
-            continue  # Already included from new matches above
-        campaign = assignment.campaign
-        new_assignments.append(
-            CampaignBrief(
-                campaign_id=campaign.id,
-                assignment_id=assignment.id,
-                title=campaign.title,
-                brief=campaign.brief,
-                assets=campaign.assets,
-                content_guidance=campaign.content_guidance,
-                payout_rules=campaign.payout_rules,
-                payout_multiplier=1.0,  # v2: multiplier always 1.0
-            )
-        )
+    existing = await _get_existing_assignments(user, db, newly_created_ids)
+    new_assignments.extend(existing)
 
     return new_assignments

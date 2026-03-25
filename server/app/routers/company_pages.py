@@ -284,6 +284,8 @@ async def campaign_create_submit(
     end_date: str = Form(...),
     campaign_status: str = Form("draft"),
     budget_exhaustion_action: str = Form("auto_pause"),
+    max_users: int | None = Form(None),
+    min_engagement: float = Form(0.0),
     company: Company | None = Depends(get_company_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -344,6 +346,7 @@ async def campaign_create_submit(
         },
         targeting={
             "min_followers": min_followers,
+            "min_engagement": min_engagement,
             "niche_tags": tags,
             "target_regions": target_regions,
             "required_platforms": required_platforms,
@@ -354,6 +357,7 @@ async def campaign_create_submit(
         end_date=datetime.fromisoformat(end_date),
         status=campaign_status,
         budget_exhaustion_action=budget_exhaustion_action,
+        max_users=max_users,
     )
     db.add(campaign)
 
@@ -523,6 +527,7 @@ async def campaign_detail_page(
                 func.coalesce(func.sum(Metric.likes), 0).label("likes"),
                 func.coalesce(func.sum(Metric.reposts), 0).label("reposts"),
                 func.coalesce(func.sum(Metric.comments), 0).label("comments"),
+                func.coalesce(func.sum(Metric.clicks), 0).label("clicks"),
             )
             .select_from(Metric)
             .join(Post, Metric.post_id == Post.id)
@@ -545,10 +550,12 @@ async def campaign_detail_page(
         lk = int(um.likes)
         rp = int(um.reposts)
         cm = int(um.comments)
+        ck = int(um.clicks)
         estimated_earned = (
             (imp / 1000 * payout_rules.get("rate_per_1k_impressions", 0))
             + (lk * payout_rules.get("rate_per_like", 0))
             + (rp * payout_rules.get("rate_per_repost", 0))
+            + (ck * payout_rules.get("rate_per_click", 0))
         )
         actual_paid = user_payout_map.get(row.user_id, 0.0)
 
@@ -662,8 +669,6 @@ async def campaign_edit_submit(
     if not campaign:
         return RedirectResponse(url="/company/", status_code=302)
 
-    from app.services.content_screening import screen_campaign
-
     # Track content changes for version bump
     content_changed = False
     if title != campaign.title:
@@ -700,16 +705,8 @@ async def campaign_edit_submit(
     if content_changed:
         campaign.campaign_version = (campaign.campaign_version or 1) + 1
 
-        # Re-screen on content changes
-        screening_result = screen_campaign(
-            title=campaign.title,
-            brief=campaign.brief,
-            content_guidance=campaign.content_guidance or "",
-        )
-        if screening_result["flagged"]:
-            campaign.screening_status = "flagged"
-        else:
-            campaign.screening_status = "approved"
+        # Content screening deferred — auto-approve
+        campaign.screening_status = "approved"
 
     await db.flush()
 

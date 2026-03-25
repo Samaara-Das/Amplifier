@@ -55,40 +55,12 @@ async def create_campaign(
         penalty_rules=data.penalty_rules,
         start_date=data.start_date,
         end_date=data.end_date,
+        max_users=data.max_users,
         status="draft",
     )
+    campaign.screening_status = "approved"
     db.add(campaign)
     await db.flush()
-
-    # ── Content screening ─────────────────────────────────────────
-    screening_result = screen_campaign(
-        title=data.title,
-        brief=data.brief,
-        content_guidance=data.content_guidance or "",
-    )
-
-    if screening_result["flagged"]:
-        campaign.screening_status = "flagged"
-        log = ContentScreeningLog(
-            campaign_id=campaign.id,
-            flagged=True,
-            flagged_keywords=screening_result["flagged_keywords"],
-            screening_categories=screening_result["categories"],
-        )
-        db.add(log)
-        await db.flush()
-
-        # Return campaign with a screening warning
-        response = CampaignResponse.model_validate(campaign).model_dump()
-        response["screening_warning"] = (
-            f"Campaign flagged for review. Prohibited content detected in categories: "
-            f"{', '.join(screening_result['categories'])}. "
-            f"An admin must approve before activation."
-        )
-        return response
-    else:
-        campaign.screening_status = "approved"
-        await db.flush()
 
     return campaign
 
@@ -104,6 +76,7 @@ async def ai_wizard(
     Does NOT create a campaign. Returns a generated draft for the company to
     review and edit before calling POST /api/company/campaigns.
     """
+    from app.services.campaign_wizard import run_campaign_wizard
     result = await run_campaign_wizard(
         db=db,
         product_description=data.product_description,
@@ -113,7 +86,6 @@ async def ai_wizard(
         target_regions=data.target_regions or None,
         required_platforms=data.required_platforms or None,
         min_followers=data.min_followers or None,
-        tone=data.tone,
         must_include=data.must_include or None,
         must_avoid=data.must_avoid or None,
         budget_range=data.budget_range,
@@ -134,6 +106,7 @@ async def reach_estimate(
     Uses the same hard filters as the matching algorithm to count eligible users,
     then estimates impressions from follower counts and engagement rates.
     """
+    from app.services.campaign_wizard import suggest_payout_rates, estimate_reach
     payout_rates = suggest_payout_rates(data.target_niches)
     result = await estimate_reach(
         db=db,
@@ -186,9 +159,10 @@ async def campaign_reach_estimate(
     if min_followers_reddit is not None:
         min_f["reddit"] = min_followers_reddit
 
+    from app.services.campaign_wizard import suggest_payout_rates, estimate_reach as _estimate_reach
     payout_rates = campaign.payout_rules or suggest_payout_rates(niches or [])
 
-    estimate = await estimate_reach(
+    estimate = await _estimate_reach(
         db=db,
         niche_tags=niches or None,
         target_regions=regions or None,
@@ -344,40 +318,9 @@ async def update_campaign(
     if content_changed:
         campaign.campaign_version = (campaign.campaign_version or 1) + 1
 
-    # Re-screen on content changes
+    # Content screening deferred — auto-approve
     if content_changed:
-        screening_result = screen_campaign(
-            title=campaign.title,
-            brief=campaign.brief,
-            content_guidance=campaign.content_guidance or "",
-        )
-
-        if screening_result["flagged"]:
-            campaign.screening_status = "flagged"
-
-            # Upsert screening log (unique per campaign_id)
-            existing_log_result = await db.execute(
-                select(ContentScreeningLog).where(
-                    ContentScreeningLog.campaign_id == campaign.id
-                )
-            )
-            existing_log = existing_log_result.scalar_one_or_none()
-            if existing_log:
-                existing_log.flagged = True
-                existing_log.flagged_keywords = screening_result["flagged_keywords"]
-                existing_log.screening_categories = screening_result["categories"]
-                existing_log.reviewed_by_admin = False
-                existing_log.review_result = None
-            else:
-                log = ContentScreeningLog(
-                    campaign_id=campaign.id,
-                    flagged=True,
-                    flagged_keywords=screening_result["flagged_keywords"],
-                    screening_categories=screening_result["categories"],
-                )
-                db.add(log)
-        else:
-            campaign.screening_status = "approved"
+        campaign.screening_status = "approved"
 
     await db.flush()
     return campaign

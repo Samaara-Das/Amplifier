@@ -68,6 +68,9 @@ class Campaign(Base):
     rejected_count: Mapped[int] = mapped_column(Integer, default=0)
     expired_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    max_users: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Maximum number of users who can accept this campaign
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

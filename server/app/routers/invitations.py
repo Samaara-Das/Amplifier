@@ -25,7 +25,7 @@ router = APIRouter()
 
 # Statuses considered "active" for the 5-campaign cap
 ACTIVE_STATUSES = ("accepted", "content_generated", "posted", "metrics_collected")
-MAX_ACTIVE_CAMPAIGNS = 5
+MAX_ACTIVE_CAMPAIGNS = 3
 
 
 # ── Helpers ───────────────────────────────────────────────────────

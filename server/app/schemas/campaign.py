@@ -11,6 +11,7 @@ class PayoutRules(BaseModel):
 
 class Targeting(BaseModel):
     min_followers: dict[str, int] = {}  # {"x": 100, "linkedin": 50}
+    min_engagement: float = 0.0  # Minimum avg engagement rate (0.0 = no filter)
     niche_tags: list[str] = []
     required_platforms: list[str] = []
     target_regions: list[str] = []  # ["us", "uk", "eu", ...]
@@ -27,6 +28,7 @@ class CampaignCreate(BaseModel):
     penalty_rules: dict = {}
     start_date: datetime
     end_date: datetime
+    max_users: int | None = None
 
 
 class CampaignUpdate(BaseModel):
@@ -55,6 +57,7 @@ class CampaignResponse(BaseModel):
     created_at: datetime
     budget_alert_sent: bool = False
     campaign_version: int = 1
+    max_users: int | None = None
     screening_warning: str | None = None
 
     model_config = {"from_attributes": True}
@@ -85,12 +88,16 @@ class WizardRequest(BaseModel):
     """Input for the AI campaign creation wizard."""
     product_description: str
     campaign_goal: str  # brand_awareness | product_launch | event_promotion | lead_generation
+    product_name: str | None = None
+    product_features: str | None = None
     company_urls: list[str] = []
     target_niches: list[str] = []
     target_regions: list[str] = []
     required_platforms: list[str] = []
     min_followers: dict[str, int] = {}
-    tone: str | None = None  # professional | casual | funny | educational | inspirational
+    min_engagement: float = 0.0
+    max_users: int | None = None
+    tone: str | None = None  # Legacy — kept for backward compat, not used
     must_include: list[str] = []
     must_avoid: list[str] = []
     budget_range: dict[str, float] | None = None  # {"min": 200, "max": 500}
