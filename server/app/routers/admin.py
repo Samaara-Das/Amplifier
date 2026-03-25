@@ -10,7 +10,7 @@ from app.models.campaign import Campaign
 from app.models.company import Company
 from app.models.post import Post
 from app.models.payout import Payout
-from app.models.screening_log import ContentScreeningLog
+from app.models.penalty import Penalty
 
 router = APIRouter()
 

@@ -7,7 +7,6 @@ from app.models.metric import Metric
 from app.models.payout import Payout
 from app.models.penalty import Penalty
 from app.models.invitation_log import CampaignInvitationLog
-from app.models.screening_log import ContentScreeningLog
 
 __all__ = [
     "Company",
@@ -19,5 +18,4 @@ __all__ = [
     "Payout",
     "Penalty",
     "CampaignInvitationLog",
-    "ContentScreeningLog",
 ]

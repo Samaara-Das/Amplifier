@@ -18,7 +18,6 @@ from app.models.post import Post
 from app.models.metric import Metric
 from app.models.payout import Payout
 from app.models.penalty import Penalty
-from app.models.screening_log import ContentScreeningLog
 
 router = APIRouter()
 
