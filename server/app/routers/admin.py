@@ -1,6 +1,7 @@
+import os
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Query
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,10 +13,16 @@ from app.models.post import Post
 from app.models.payout import Payout
 from app.models.penalty import Penalty
 
-router = APIRouter()
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
-# TODO: Add admin auth dependency (separate from user/company auth)
-# For MVP, these endpoints exist but need proper admin authentication
+
+async def require_admin(admin_token: str | None = Cookie(None)):
+    """Verify admin authentication via cookie (same as admin pages)."""
+    if not admin_token or admin_token != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 @router.get("/users")

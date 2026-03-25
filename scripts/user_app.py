@@ -137,7 +137,11 @@ def dashboard():
         active_count = len(
             [c for c in campaigns if c.get("status") in ("assigned", "content_generated", "approved")]
         )
-        posts = get_all_posts()
+        all_posts = get_all_posts()
+        # Filter to current month for "Posts This Month" stat
+        from datetime import datetime
+        current_month = datetime.now().strftime("%Y-%m")
+        posts_this_month = [p for p in all_posts if (p.get("posted_at") or "").startswith(current_month)]
         earnings = get_earnings_summary()
 
         # Get invitations count
@@ -163,7 +167,7 @@ def dashboard():
             {
                 "active_campaigns": active_count,
                 "invitation_count": inv_count,
-                "post_count": len(posts),
+                "post_count": len(posts_this_month),
                 "total_earned": earnings.get("total_earned", 0),
                 "platforms": platforms,
             }
