@@ -331,9 +331,10 @@ def queue_approved_content(
 def get_due_posts() -> list[dict]:
     """Get posts that are due for execution (scheduled_at <= now, status=queued).
 
-    Returns list of scheduled posts ready to execute.
+    Uses local time for comparison since scheduled_at is stored in local time
+    (set by _schedule_draft in user_app.py using datetime.now()).
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now().isoformat()
     all_queued = get_scheduled_posts(status="queued")
 
     due = []
