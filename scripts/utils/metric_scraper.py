@@ -53,31 +53,33 @@ async def _launch_context(pw, platform: str):
 
 
 async def _scrape_x(page, post_url: str) -> dict:
-    """Scrape metrics from an X/Twitter post."""
-    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
+    """Scrape metrics from an X/Twitter post.
+
+    X exposes views, likes, reposts, replies via aria-labels on the
+    engagement button group.
+    """
+    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
 
-        # Try to get analytics from aria-labels
         for el in await page.query_selector_all('[role="group"] [aria-label]'):
             label = await el.get_attribute("aria-label") or ""
             label_lower = label.lower()
 
-            # Parse numbers from labels like "123 Likes" or "1,234 likes"
             numbers = re.findall(r'[\d,]+', label)
             if not numbers:
                 continue
             count = int(numbers[0].replace(",", ""))
 
-            if "like" in label_lower:
+            if "view" in label_lower:
+                metrics["impressions"] = count
+            elif "like" in label_lower:
                 metrics["likes"] = count
             elif "repost" in label_lower or "retweet" in label_lower:
                 metrics["reposts"] = count
             elif "repl" in label_lower or "comment" in label_lower:
                 metrics["comments"] = count
-            elif "view" in label_lower or "impression" in label_lower:
-                metrics["impressions"] = count
 
     except Exception as e:
         logger.warning("Failed to scrape X post %s: %s", post_url, e)
@@ -86,29 +88,52 @@ async def _scrape_x(page, post_url: str) -> dict:
 
 
 async def _scrape_linkedin(page, post_url: str) -> dict:
-    """Scrape metrics from a LinkedIn post."""
-    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
+    """Scrape metrics from a LinkedIn post.
+
+    LinkedIn CSS classes change frequently. Uses both CSS selectors and
+    body text parsing as fallback for reliable extraction.
+    """
+    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
 
-        # Reactions count
+        body_text = await page.inner_text("body")
+
+        # Impressions — LinkedIn shows "X impressions" for post authors
+        imp_match = re.search(r'([\d,]+)\s*(?:impressions?|views?)', body_text, re.IGNORECASE)
+        if imp_match:
+            metrics["impressions"] = _parse_number(imp_match.group(1))
+
+        # Reactions (likes) — try selector first, body text fallback
         reactions_el = page.locator(".social-details-social-counts__reactions-count")
         if await reactions_el.count() > 0:
             text = await reactions_el.first.inner_text()
             metrics["likes"] = _parse_number(text)
+        else:
+            reaction_match = re.search(r'([\d,]+)\s*reactions?', body_text, re.IGNORECASE)
+            if reaction_match:
+                metrics["likes"] = _parse_number(reaction_match.group(1))
 
-        # Comments count
+        # Comments — try selector first, body text fallback
         comments_el = page.locator("button:has-text('comment')")
         if await comments_el.count() > 0:
             text = await comments_el.first.inner_text()
             metrics["comments"] = _parse_number(text)
+        else:
+            comment_match = re.search(r'([\d,]+)\s*comments?', body_text, re.IGNORECASE)
+            if comment_match:
+                metrics["comments"] = _parse_number(comment_match.group(1))
 
         # Reposts
         reposts_el = page.locator("button:has-text('repost')")
         if await reposts_el.count() > 0:
             text = await reposts_el.first.inner_text()
             metrics["reposts"] = _parse_number(text)
+        else:
+            repost_match = re.search(r'([\d,]+)\s*reposts?', body_text, re.IGNORECASE)
+            if repost_match:
+                metrics["reposts"] = _parse_number(repost_match.group(1))
 
     except Exception as e:
         logger.warning("Failed to scrape LinkedIn post %s: %s", post_url, e)
@@ -117,26 +142,43 @@ async def _scrape_linkedin(page, post_url: str) -> dict:
 
 
 async def _scrape_facebook(page, post_url: str) -> dict:
-    """Scrape metrics from a Facebook post."""
-    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
+    """Scrape metrics from a Facebook post.
+
+    Facebook does not expose impressions/views on personal profile posts.
+    Only reactions, comments, and shares are available.
+    """
+    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
 
-        # Reactions
+        body_text = await page.inner_text("body")
+
+        # Reactions via aria-label
         reactions = page.locator('[aria-label*="reaction"]')
         if await reactions.count() > 0:
             text = await reactions.first.get_attribute("aria-label") or ""
             metrics["likes"] = _parse_number(text)
+        else:
+            # Fallback: "X people reacted" or just a number near like button
+            reaction_match = re.search(r'([\d,]+)\s*(?:people reacted|reactions?)', body_text, re.IGNORECASE)
+            if reaction_match:
+                metrics["likes"] = _parse_number(reaction_match.group(1))
 
-        # Comments and shares from text
-        body_text = await page.inner_text("body")
-        comment_match = re.search(r'(\d+)\s*comment', body_text, re.IGNORECASE)
+        # Comments
+        comment_match = re.search(r'(\d+)\s*comments?', body_text, re.IGNORECASE)
         if comment_match:
             metrics["comments"] = int(comment_match.group(1))
-        share_match = re.search(r'(\d+)\s*share', body_text, re.IGNORECASE)
+
+        # Shares
+        share_match = re.search(r'(\d+)\s*shares?', body_text, re.IGNORECASE)
         if share_match:
             metrics["reposts"] = int(share_match.group(1))
+
+        # Views (video posts only)
+        view_match = re.search(r'([\d,.]+[KkMm]?)\s*views?', body_text, re.IGNORECASE)
+        if view_match:
+            metrics["impressions"] = _parse_number(view_match.group(1))
 
     except Exception as e:
         logger.warning("Failed to scrape Facebook post %s: %s", post_url, e)
@@ -145,23 +187,43 @@ async def _scrape_facebook(page, post_url: str) -> dict:
 
 
 async def _scrape_reddit(page, post_url: str) -> dict:
-    """Scrape metrics from a Reddit post."""
-    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
+    """Scrape metrics from a Reddit post.
+
+    Reddit shows views in body text (e.g. '3.2K views'), upvotes via
+    shreddit-post 'score' attribute, and comments via 'comment-count'.
+    Reddit blocks headless browsers, so this runs in headed mode.
+    """
+    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
 
-        # Upvotes (score)
-        score_el = page.locator('[data-testid="post-unit-score"]')
-        if await score_el.count() > 0:
-            text = await score_el.first.inner_text()
-            metrics["likes"] = _parse_number(text)
+        # Views from body text (e.g. "3.2K views")
+        body_text = await page.inner_text("body")
+        view_match = re.search(r'([\d,.]+[KkMm]?)\s*views?', body_text, re.IGNORECASE)
+        if view_match:
+            metrics["impressions"] = _parse_number(view_match.group(1))
 
-        # Comments count
-        comments_el = page.locator('[data-testid="post-comment-count"]')
-        if await comments_el.count() > 0:
-            text = await comments_el.first.inner_text()
-            metrics["comments"] = _parse_number(text)
+        # Upvotes — prefer shreddit-post attribute (most reliable)
+        sp = page.locator("shreddit-post")
+        if await sp.count() > 0:
+            score = await sp.first.get_attribute("score")
+            if score:
+                metrics["likes"] = _parse_number(score)
+            comment_count = await sp.first.get_attribute("comment-count")
+            if comment_count:
+                metrics["comments"] = _parse_number(comment_count)
+        else:
+            # Fallback to data-testid selectors
+            score_el = page.locator('[data-testid="post-unit-score"]')
+            if await score_el.count() > 0:
+                text = await score_el.first.inner_text()
+                metrics["likes"] = _parse_number(text)
+
+            comments_el = page.locator('[data-testid="post-comment-count"]')
+            if await comments_el.count() > 0:
+                text = await comments_el.first.inner_text()
+                metrics["comments"] = _parse_number(text)
 
     except Exception as e:
         logger.warning("Failed to scrape Reddit post %s: %s", post_url, e)
@@ -171,7 +233,7 @@ async def _scrape_reddit(page, post_url: str) -> dict:
 
 async def _scrape_tiktok(page, post_url: str) -> dict:
     """Scrape metrics from a TikTok post."""
-    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
+    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
@@ -200,7 +262,7 @@ async def _scrape_tiktok(page, post_url: str) -> dict:
 
 async def _scrape_instagram(page, post_url: str) -> dict:
     """Scrape metrics from an Instagram post."""
-    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
+    metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
@@ -374,7 +436,7 @@ async def scrape_all_posts():
                     likes=metrics.get("likes", 0),
                     reposts=metrics.get("reposts", 0),
                     comments=metrics.get("comments", 0),
-                    clicks=metrics.get("clicks", 0),
+                    clicks=0,
                     is_final=is_final,
                 )
                 logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d%s",
@@ -425,7 +487,7 @@ async def scrape_all_posts():
                         likes=metrics.get("likes", 0),
                         reposts=metrics.get("reposts", 0),
                         comments=metrics.get("comments", 0),
-                        clicks=metrics.get("clicks", 0),
+                        clicks=0,
                         is_final=is_final,
                     )
                     logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d%s",
@@ -456,7 +518,7 @@ def sync_metrics_to_server():
             "likes": m["likes"],
             "reposts": m["reposts"],
             "comments": m["comments"],
-            "clicks": m["clicks"],
+            "clicks": 0,
             "scraped_at": m["scraped_at"],
             "is_final": bool(m["is_final"]),
         })
