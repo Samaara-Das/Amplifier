@@ -61,15 +61,15 @@
         </div>
       {% endif %}
 
-      {% if campaign.get('payout_rules') %}
-        {% set payout_rules = campaign.get('payout_rules', '{}') %}
-        {% if payout_rules is string %}
-          {% set payout_rules = payout_rules|tojson %}
-        {% endif %}
+      {% if payout_rules %}
         <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
           <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Payout Rules</h3>
-          <div class="payout-rates">
-            <span class="payout-rate">{{ payout_rules }}</span>
+          <div class="payout-rates" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            {% for key, value in payout_rules.items() %}
+              <span class="payout-rate" style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                ${{ "%.3f"|format(value) }}/{{ key.replace('rate_per_', '').replace('_', ' ') }}
+              </span>
+            {% endfor %}
           </div>
         </div>
       {% endif %}

@@ -389,10 +389,20 @@ def campaign_detail(campaign_id):
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Parse payout_rules from JSON string to dict
+    payout_rules = {}
+    if campaign.get("payout_rules"):
+        try:
+            pr = campaign["payout_rules"]
+            payout_rules = json.loads(pr) if isinstance(pr, str) else pr
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     ctx.update(
         {
             "campaign": campaign,
             "content": content,
+            "payout_rules": payout_rules,
             "platforms": ["x", "linkedin", "facebook", "reddit"],
         }
     )
@@ -495,22 +505,197 @@ def skip_campaign(campaign_id):
     return redirect(url_for("campaigns"))
 
 
-# ── Placeholder routes (posts, earnings, settings — later phases) ─
+# ── Posts routes ──────────────────────────────────────────────────
 
 
 @app.route("/posts")
 def posts():
-    return render_template("user/dashboard.html", **_base_context("posts"))
+    ctx = _base_context("posts")
+    try:
+        from utils.local_db import get_all_posts
+
+        all_posts = get_all_posts()
+        ctx["posts"] = all_posts
+    except Exception as e:
+        logger.error("Posts route error: %s", e)
+        ctx["posts"] = []
+    return render_template("user/posts.html", **ctx)
+
+
+# ── Earnings routes ──────────────────────────────────────────────
 
 
 @app.route("/earnings")
 def earnings():
-    return render_template("user/dashboard.html", **_base_context("earnings"))
+    ctx = _base_context("earnings")
+    try:
+        from utils.server_client import get_earnings
+
+        server_earnings = get_earnings()
+    except Exception as e:
+        logger.error("Failed to get server earnings: %s", e)
+        server_earnings = {
+            "total_earned": 0,
+            "current_balance": 0,
+            "pending": 0,
+            "per_campaign": [],
+            "per_platform": {},
+            "payout_history": [],
+        }
+
+    ctx.update(
+        {
+            "total_earned": server_earnings.get("total_earned", 0),
+            "current_balance": server_earnings.get("current_balance", 0),
+            "pending": server_earnings.get("pending", 0),
+            "per_campaign": server_earnings.get("per_campaign", []),
+            "per_platform": server_earnings.get("per_platform", {}),
+            "payout_history": server_earnings.get("payout_history", []),
+        }
+    )
+    return render_template("user/earnings.html", **ctx)
+
+
+@app.route("/earnings/withdraw", methods=["POST"])
+def withdraw():
+    amount = float(request.form.get("amount", 0))
+    try:
+        from utils.server_client import request_payout
+
+        request_payout(amount)
+        flash(f"Withdrawal of ${amount:.2f} requested!", "success")
+    except Exception as e:
+        flash(f"Withdrawal failed: {e}", "error")
+    return redirect(url_for("earnings"))
+
+
+# ── Settings routes ──────────────────────────────────────────────
 
 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
-    return render_template("user/dashboard.html", **_base_context("settings"))
+    if request.method == "POST":
+        mode = request.form.get("mode")
+        region = request.form.get("region")
+        niches = request.form.getlist("niches") or [
+            n.strip()
+            for n in request.form.get("niche_tags", "").split(",")
+            if n.strip()
+        ]
+
+        if mode:
+            set_setting("mode", mode)
+        if region:
+            set_setting("audience_region", region)
+
+        # Save Gemini API key if provided
+        gemini_key = request.form.get("gemini_api_key", "").strip()
+        if gemini_key:
+            set_setting("gemini_api_key", gemini_key)
+
+        # Sync to server
+        try:
+            from utils.server_client import update_profile
+
+            platforms_dict = {}
+            follower_counts = {}
+            for p in ["x", "linkedin", "facebook", "reddit"]:
+                profile_dir = ROOT / "profiles" / f"{p}-profile"
+                if profile_dir.exists() and any(profile_dir.iterdir()):
+                    platforms_dict[p] = True
+                    fc = request.form.get(f"followers_{p}", "0")
+                    follower_counts[p] = int(fc) if fc.isdigit() else 0
+
+            update_profile(
+                platforms=platforms_dict,
+                follower_counts=follower_counts,
+                niche_tags=niches,
+                audience_region=region,
+                mode=mode,
+            )
+            flash("Settings saved.", "success")
+        except Exception as e:
+            logger.error("Failed to sync settings: %s", e)
+            flash(f"Settings saved locally. Server sync failed: {e}", "error")
+
+        return redirect(url_for("settings"))
+
+    # GET
+    ctx = _base_context("settings")
+
+    # Platform connections
+    platforms = {}
+    for p in ["x", "linkedin", "facebook", "reddit"]:
+        profile_dir = ROOT / "profiles" / f"{p}-profile"
+        platforms[p] = (
+            profile_dir.exists() and any(profile_dir.iterdir())
+            if profile_dir.exists()
+            else False
+        )
+
+    # Scraped profiles
+    scraped_profiles = {}
+    try:
+        from utils.local_db import get_all_scraped_profiles
+
+        for sp in get_all_scraped_profiles():
+            scraped_profiles[sp["platform"]] = sp
+    except Exception:
+        pass
+
+    # Current settings from server
+    try:
+        profile = get_profile()
+    except Exception:
+        profile = {}
+
+    ctx.update(
+        {
+            "platforms": platforms,
+            "scraped_profiles": scraped_profiles,
+            "mode": get_setting("mode", "semi_auto") or "semi_auto",
+            "region": get_setting("audience_region", "global") or "global",
+            "niche_tags": profile.get("niche_tags", []) or [],
+            "follower_counts": profile.get("follower_counts", {}) or {},
+            "gemini_api_key": get_setting("gemini_api_key", ""),
+        }
+    )
+    return render_template("user/settings.html", **ctx)
+
+
+@app.route("/settings/connect/<platform>", methods=["POST"])
+def settings_connect(platform):
+    import subprocess
+
+    subprocess.Popen(
+        [sys.executable, str(ROOT / "scripts" / "login_setup.py"), platform],
+        cwd=str(ROOT),
+    )
+    flash(
+        f"Browser opened for {platform}. Log in and close the browser when done.",
+        "info",
+    )
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/scrape", methods=["POST"])
+def settings_scrape():
+    import asyncio
+
+    from utils.profile_scraper import scrape_all_profiles
+
+    connected = [
+        p
+        for p in ["x", "linkedin", "facebook", "reddit"]
+        if (ROOT / "profiles" / f"{p}-profile").exists()
+        and any((ROOT / "profiles" / f"{p}-profile").iterdir())
+    ]
+    try:
+        asyncio.run(scrape_all_profiles(connected))
+        flash("Profiles refreshed!", "success")
+    except Exception as e:
+        flash(f"Scraping error: {e}", "error")
+    return redirect(url_for("settings"))
 
 
 # ── Entry point ───────────────────────────────────────────────────
