@@ -440,8 +440,13 @@ async def scrape_linkedin_profile(playwright) -> dict:
                     if conn_count > result["follower_count"]:
                         result["follower_count"] = conn_count
 
-                logger.info("LinkedIn: body fallback — name=%s, followers=%d",
-                            result["display_name"], result["follower_count"])
+                # Following/connections count
+                conn_matches = re.findall(r'([\d,]+)\+?\s*connections?', body)
+                if conn_matches and result["following_count"] == 0:
+                    result["following_count"] = _parse_number(conn_matches[0])
+
+                logger.info("LinkedIn: body fallback — name=%s, followers=%d, following=%d",
+                            result["display_name"], result["follower_count"], result["following_count"])
             except Exception as e:
                 logger.debug("LinkedIn: body text fallback failed: %s", e)
 
@@ -630,6 +635,20 @@ async def scrape_facebook_profile(playwright) -> dict:
             result["follower_count"] = _parse_number(friends_text)
             logger.info("Facebook: friends=%d", result["follower_count"])
 
+        # Friends count from body text fallback
+        if result["follower_count"] == 0:
+            try:
+                body_text = await page.inner_text("body")
+                friends_matches = re.findall(r'([\d,]+)\s*friends?', body_text, re.IGNORECASE)
+                if friends_matches:
+                    result["follower_count"] = _parse_number(friends_matches[0])
+                    # Also store as following_count (Facebook friends = mutual follow)
+                    result["following_count"] = result["follower_count"]
+            except Exception:
+                pass
+        else:
+            result["following_count"] = result["follower_count"]
+
         # Try to extract bio/intro from the intro section
         try:
             body_text = await page.inner_text("body")
@@ -790,6 +809,16 @@ async def scrape_reddit_profile(playwright) -> dict:
                     result["follower_count"] = _parse_number(karma_match.group(1))
             except Exception:
                 pass
+
+        # Extract follower count (Reddit shows "X followers" on profile)
+        try:
+            body_text = await page.inner_text("body") if 'body_text' not in dir() else body_text
+            follower_match = re.findall(r'([\d,]+)\s*followers?', body_text, re.IGNORECASE)
+            if follower_match:
+                result["following_count"] = _parse_number(follower_match[0])
+                logger.info("Reddit: followers=%d", result["following_count"])
+        except Exception:
+            pass
 
         # Extract cake day
         try:
