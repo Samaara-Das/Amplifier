@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 LOOP_INTERVAL = 60            # Main loop sleeps 60s between iterations
 POLL_INTERVAL = 600           # 10 minutes
+CONTENT_GEN_INTERVAL = 120    # 2 minutes — check for campaigns needing content
 HEALTH_CHECK_INTERVAL = 1800  # 30 minutes
 PROFILE_REFRESH_INTERVAL = 604800  # 7 days
 
@@ -64,6 +65,67 @@ async def poll_campaigns() -> dict:
     except Exception as e:
         logger.error("Campaign poll failed: %s", e)
         return {"success": False, "error": str(e), "total": 0, "new": 0}
+
+
+async def generate_pending_content() -> dict:
+    """Auto-generate content for accepted campaigns that don't have content yet.
+
+    Finds local campaigns with status='assigned' and no content, generates
+    per-platform content via ContentGenerator, stores in local_db.
+    """
+    from utils.local_db import get_campaigns, update_campaign_status, get_setting
+    from utils.content_generator import ContentGenerator
+    import json as _json
+
+    try:
+        all_campaigns = get_campaigns()
+        pending = [c for c in all_campaigns
+                   if c.get("status") == "assigned" and not c.get("content")]
+
+        if not pending:
+            return {"success": True, "generated": 0}
+
+        gen = ContentGenerator()
+        generated_count = 0
+
+        for campaign in pending:
+            campaign_id = campaign.get("server_id")
+            try:
+                result = await asyncio.to_thread(
+                    lambda c=campaign: asyncio.run(gen.generate(
+                        {
+                            "campaign_id": c.get("server_id"),
+                            "title": c.get("title", ""),
+                            "brief": c.get("brief", ""),
+                            "content_guidance": c.get("content_guidance", ""),
+                            "assets": c.get("assets", {}),
+                        },
+                        enabled_platforms=["x", "linkedin", "facebook", "reddit"],
+                    ))
+                )
+
+                if result:
+                    content = result.get("content", result)
+                    update_campaign_status(campaign_id, "content_generated", _json.dumps(content))
+                    generated_count += 1
+                    logger.info("Auto-generated content for campaign %s", campaign_id)
+
+                    # Update server assignment status
+                    try:
+                        from utils.server_client import update_assignment
+                        assignment_id = campaign.get("assignment_id")
+                        if assignment_id:
+                            update_assignment(assignment_id, "content_generated")
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error("Content generation failed for campaign %s: %s", campaign_id, e)
+
+        return {"success": True, "generated": generated_count}
+
+    except Exception as e:
+        logger.error("Content generation task failed: %s", e)
+        return {"success": False, "error": str(e), "generated": 0}
 
 
 async def execute_due_posts() -> dict:
@@ -363,6 +425,7 @@ class BackgroundAgent:
         self.running = True
         self.paused = False
         self.last_poll = 0.0
+        self.last_content_gen = 0.0
         self.last_health_check = 0.0
         self.last_profile_refresh = 0.0
         self.last_metric_scrape = 0.0
@@ -395,6 +458,15 @@ class BackgroundAgent:
                         logger.error("Campaign poll crashed: %s", e)
                         results["campaigns"] = {"success": False, "error": str(e)}
                     self.last_poll = now
+
+                # Every 2min: auto-generate content for accepted campaigns
+                if now - self.last_content_gen >= CONTENT_GEN_INTERVAL:
+                    try:
+                        results["content_gen"] = await generate_pending_content()
+                    except Exception as e:
+                        logger.error("Content generation crashed: %s", e)
+                        results["content_gen"] = {"success": False, "error": str(e)}
+                    self.last_content_gen = now
 
                 # Every 30min: check session health
                 if now - self.last_health_check >= HEALTH_CHECK_INTERVAL:

@@ -414,8 +414,12 @@
               hint.style.fontWeight = '600';
             }
             if (nextBtn) nextBtn.disabled = true;
+            var backBtn = document.getElementById('ob-btn-back');
+            if (backBtn) backBtn.disabled = true;
           } else {
             if (nextBtn) nextBtn.disabled = false;
+            var backBtn = document.getElementById('ob-btn-back');
+            if (backBtn) backBtn.disabled = false;
             if (wasScraping && hint) {
               // Scraping just finished — reload page to show updated data
               window.location.reload();
