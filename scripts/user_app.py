@@ -224,6 +224,15 @@ def onboarding_page():
     )
 
 
+_scraping_platforms = set()  # Track which platforms are currently being scraped
+
+
+@app.route("/api/scraping-status")
+def api_scraping_status():
+    """JSON endpoint: which platforms are currently being scraped."""
+    return jsonify({"scraping": list(_scraping_platforms)})
+
+
 @app.route("/onboarding/connect/<platform>", methods=["POST"])
 def onboarding_connect(platform):
     """Launch browser login, then auto-scrape when user closes it."""
@@ -235,13 +244,16 @@ def onboarding_connect(platform):
             [sys.executable, str(ROOT / "scripts" / "login_setup.py"), platform],
             cwd=str(ROOT),
         )
-        # Browser closed — scrape this platform, then run niche classification
+        # Browser closed — scrape this platform
+        _scraping_platforms.add(platform)
         try:
             from utils.profile_scraper import scrape_all_profiles
             aio.run(scrape_all_profiles([platform]))
             logger.info("Auto-scraped %s after connect", platform)
         except Exception as e:
             logger.error("Auto-scrape failed for %s: %s", platform, e)
+        finally:
+            _scraping_platforms.discard(platform)
 
         # Run AI niche classification on all scraped profiles
         try:

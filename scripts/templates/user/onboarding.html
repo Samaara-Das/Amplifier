@@ -185,13 +185,13 @@
               {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
               {% for niche in all_niches %}
                 {% set is_detected = niche in detected_niches %}
-                <label class="ob-niche-item {{ 'selected' if is_detected else '' }}" onclick="this.classList.toggle('selected'); this.querySelector('input').checked = this.classList.contains('selected');">
+                <div class="ob-niche-item {{ 'selected' if is_detected else '' }}" onclick="toggleNiche(this)">
                   <input type="checkbox" name="niches" value="{{ niche }}" style="display:none;" {{ 'checked' if is_detected else '' }} />
                   <div class="ob-niche-checkbox">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                   <span class="ob-niche-label">{{ niche }}</span>
-                </label>
+                </div>
               {% endfor %}
             </div>
           </div>
@@ -303,6 +303,12 @@
   </div>
 
   <script>
+    function toggleNiche(el) {
+      el.classList.toggle('selected');
+      var cb = el.querySelector('input[type="checkbox"]');
+      cb.checked = el.classList.contains('selected');
+    }
+
     var currentStep = 1;
     var totalSteps = 4;
 
@@ -362,17 +368,23 @@
       }
     }
 
+    var scrapingInProgress = false;
+
     function canProceed() {
       if (currentStep === 1) {
+        if (scrapingInProgress) return false;
         return getConnectedCount() > 0;
       }
       return true;
     }
 
     function obGoNext() {
+      var hint = document.getElementById('ob-platforms-hint');
       if (!canProceed()) {
-        var hint = document.getElementById('ob-platforms-hint');
         if (hint) {
+          if (scrapingInProgress) {
+            hint.textContent = 'Profile scraping in progress... please wait.';
+          }
           hint.style.color = 'var(--error)';
           hint.style.fontWeight = '600';
         }
@@ -383,6 +395,46 @@
         showStep(currentStep);
       }
     }
+
+    // Poll for scraping status every 3 seconds while on step 1
+    function pollScrapingStatus() {
+      fetch('/api/scraping-status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var wasScraping = scrapingInProgress;
+          scrapingInProgress = data.scraping && data.scraping.length > 0;
+
+          var hint = document.getElementById('ob-platforms-hint');
+          var nextBtn = document.getElementById('ob-btn-next');
+
+          if (scrapingInProgress) {
+            if (hint) {
+              hint.textContent = 'Scraping ' + data.scraping.join(', ') + '... please wait.';
+              hint.style.color = 'var(--warning)';
+              hint.style.fontWeight = '600';
+            }
+            if (nextBtn) nextBtn.disabled = true;
+          } else {
+            if (nextBtn) nextBtn.disabled = false;
+            if (wasScraping && hint) {
+              // Scraping just finished — reload page to show updated data
+              window.location.reload();
+              return;
+            }
+          }
+
+          // Keep polling while on step 1
+          if (currentStep === 1) {
+            setTimeout(pollScrapingStatus, 3000);
+          }
+        })
+        .catch(function() {
+          setTimeout(pollScrapingStatus, 5000);
+        });
+    }
+
+    // Start polling
+    pollScrapingStatus();
 
     function obGoBack() {
       if (currentStep === 1) {
