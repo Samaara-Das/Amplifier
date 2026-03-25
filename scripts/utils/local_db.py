@@ -362,13 +362,18 @@ def mark_posts_synced(post_ids: list[int], server_post_ids: dict = None) -> None
 
 
 def get_posts_for_scraping() -> list[dict]:
-    """Get posts that need metric scraping (have URLs, posted within last 72h)."""
+    """Get posts that need metric scraping (have URLs, campaign still active).
+
+    No time cutoff — scraping continues while the campaign is live.
+    The _should_scrape() function in metric_scraper.py decides the schedule.
+    """
     conn = _get_db()
     rows = conn.execute("""
-        SELECT * FROM local_post
-        WHERE post_url IS NOT NULL
-        AND posted_at > datetime('now', '-3 days')
-        ORDER BY posted_at ASC
+        SELECT lp.* FROM local_post lp
+        JOIN local_campaign lc ON lp.campaign_server_id = lc.server_id
+        WHERE lp.post_url IS NOT NULL
+        AND lc.status NOT IN ('skipped', 'cancelled')
+        ORDER BY lp.posted_at ASC
     """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
