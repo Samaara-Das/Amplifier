@@ -463,7 +463,7 @@ def _build_notifications(results: dict) -> list[dict]:
 
 
 def _store_notifications(notifications: list[dict]) -> None:
-    """Persist notifications to local_db."""
+    """Persist notifications to local_db AND send desktop notifications."""
     from utils.local_db import add_notification
 
     for n in notifications:
@@ -476,6 +476,13 @@ def _store_notifications(notifications: list[dict]) -> None:
             )
         except Exception as e:
             logger.error("Failed to store notification: %s", e)
+
+        # Also send desktop notification for important events
+        try:
+            from utils.tray import send_notification
+            send_notification(n["title"], n["message"])
+        except Exception:
+            pass  # Tray not available — silent
 
 
 # ── Background Agent class ───────────────────────────────────────────

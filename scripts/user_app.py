@@ -1135,6 +1135,22 @@ def api_status():
 if __name__ == "__main__":
     init_db()
 
+    # Start system tray icon
+    try:
+        from utils.tray import start_tray, stop_tray, send_notification
+
+        def _on_quit():
+            """Called when user clicks Quit in tray menu."""
+            try:
+                stop_agent()
+            except Exception:
+                pass
+            os._exit(0)
+
+        start_tray(port=PORT, on_quit=_on_quit)
+    except Exception as e:
+        logger.warning("System tray not available: %s", e)
+
     # Start background agent if user is logged in and onboarded
     if is_logged_in() and get_setting("onboarding_done") == "true":
         try:
@@ -1143,4 +1159,6 @@ if __name__ == "__main__":
             logger.error("Failed to start background agent: %s", e)
 
     threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+    print(f"\n  Amplifier is running at http://localhost:{PORT}")
+    print("  The app is in your system tray — keep it running for campaigns to work.\n")
     app.run(host="127.0.0.1", port=PORT, debug=False)
