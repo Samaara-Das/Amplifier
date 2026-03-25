@@ -171,18 +171,25 @@ async def post_to_x(draft: dict, pw) -> str | None:
         await post_btn.dispatch_event("click")
         await human_delay(3, 5)
 
-        # Extract post URL — go to home and grab the first tweet's permalink
-        await page.goto(PLATFORMS["x"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
-        await page.wait_for_load_state("domcontentloaded")
-        await human_delay(2, 3)
+        # Extract post URL — go to OWN profile and grab the first tweet's permalink
         post_url = None
         try:
-            link = page.locator('a[href*="/status/"]').first
-            if await link.count() > 0:
-                href = await link.get_attribute("href")
-                if href:
-                    post_url = f"https://x.com{href}" if href.startswith("/") else href
-                    logger.info("X: captured post URL: %s", post_url)
+            # Find profile link from sidebar
+            profile_link = page.locator('a[data-testid="AppTabBar_Profile_Link"]')
+            if await profile_link.count() > 0:
+                profile_href = await profile_link.get_attribute("href")
+                profile_url = f"https://x.com{profile_href}" if profile_href.startswith("/") else profile_href
+                await page.goto(profile_url, timeout=PAGE_LOAD_TIMEOUT)
+                await page.wait_for_load_state("domcontentloaded")
+                await human_delay(2, 3)
+
+                # First status link on own profile = just-posted tweet
+                link = page.locator('article[data-testid="tweet"] a[href*="/status/"]').first
+                if await link.count() > 0:
+                    href = await link.get_attribute("href")
+                    if href:
+                        post_url = f"https://x.com{href}" if href.startswith("/") else href
+                        logger.info("X: captured post URL: %s", post_url)
         except Exception as e:
             logger.warning("X: could not extract post URL: %s", e)
 
@@ -299,12 +306,14 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
         await post_btn.click()
         await human_delay(3, 5)
 
-        # Extract post URL — go to home and grab the latest activity link
-        await page.goto(PLATFORMS["linkedin"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
-        await page.wait_for_load_state("domcontentloaded")
-        await human_delay(2, 3)
+        # Extract post URL — go to own recent activity to find the just-posted content
         post_url = None
         try:
+            await page.goto("https://www.linkedin.com/in/me/recent-activity/all/", timeout=PAGE_LOAD_TIMEOUT)
+            await page.wait_for_load_state("domcontentloaded")
+            await human_delay(3, 5)
+
+            # First activity update link = just-posted content
             link = page.locator('a[href*="/feed/update/"]').first
             if await link.count() > 0:
                 href = await link.get_attribute("href")
@@ -431,13 +440,14 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
         await page.click(FB_POST_BUTTON, timeout=COMPOSE_TIMEOUT)
         await human_delay(3, 5)
 
-        # Extract post URL — go to home and grab the latest post link
-        await page.goto(PLATFORMS["facebook"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
-        await page.wait_for_load_state("domcontentloaded")
-        await human_delay(2, 3)
+        # Extract post URL — go to own profile to find the just-posted content
         post_url = None
         try:
-            # Facebook post permalinks contain /posts/ or story_fbid
+            await page.goto("https://www.facebook.com/me", timeout=PAGE_LOAD_TIMEOUT)
+            await page.wait_for_load_state("domcontentloaded")
+            await human_delay(3, 5)
+
+            # First post permalink on own profile = just-posted content
             link = page.locator('a[href*="/posts/"], a[href*="story_fbid"]').first
             if await link.count() > 0:
                 href = await link.get_attribute("href")
