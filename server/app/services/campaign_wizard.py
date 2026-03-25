@@ -153,8 +153,18 @@ async def _scrape_single_url(client: httpx.AsyncClient, url: str) -> dict:
 # ── Gemini AI Call ───────────────────────────────────────────────
 
 
+GEMINI_MODELS = [
+    "gemini-2.0-flash",       # Higher free-tier limit (15 RPM, 1500 RPD)
+    "gemini-2.0-flash-lite",  # Fallback
+    "gemini-1.5-flash",       # Another fallback
+]
+
+
 async def _call_gemini(prompt: str) -> str:
-    """Call Gemini API and return raw text response."""
+    """Call Gemini API with model fallback chain.
+
+    Tries multiple models in order — if one hits rate limits, tries the next.
+    """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY not set")
@@ -162,12 +172,25 @@ async def _call_gemini(prompt: str) -> str:
     from google import genai
 
     client = genai.Client(api_key=api_key)
-    response = await asyncio.to_thread(
-        client.models.generate_content,
-        model="gemini-2.5-flash-lite",
-        contents=prompt,
-    )
-    return response.text.strip()
+    last_error = None
+
+    for model in GEMINI_MODELS:
+        try:
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=model,
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            last_error = e
+            error_str = str(e)
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                logger.warning("Gemini model %s rate limited, trying next...", model)
+                continue
+            raise  # Non-rate-limit error, don't retry
+
+    raise last_error  # All models exhausted
 
 
 def _parse_json_response(text: str) -> dict:
