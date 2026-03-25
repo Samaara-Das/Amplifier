@@ -675,6 +675,25 @@ def reject_single_draft(draft_id):
     return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
 
 
+@app.route("/drafts/<int:draft_id>/restore", methods=["POST"])
+def restore_single_draft(draft_id):
+    from utils.local_db import get_draft
+
+    draft = get_draft(draft_id)
+    if not draft:
+        flash("Draft not found.", "error")
+        return redirect(url_for("campaigns"))
+
+    # Set approved back to 0 (pending)
+    conn = __import__("sqlite3").connect(str(ROOT / "data" / "local.db"))
+    conn.execute("UPDATE agent_draft SET approved = 0 WHERE id = ?", (draft_id,))
+    conn.commit()
+    conn.close()
+
+    flash("Draft restored to pending review.", "success")
+    return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
+
+
 @app.route("/drafts/<int:draft_id>/edit", methods=["POST"])
 def edit_single_draft(draft_id):
     from utils.local_db import update_draft_text, get_draft
@@ -965,11 +984,17 @@ def stop_agent():
 
 @app.route("/api/status")
 def api_status():
-    """JSON endpoint for agent status (polled by frontend)."""
+    """JSON endpoint for agent status + pending draft count (polled by frontend)."""
     from background_agent import get_agent
+    from utils.local_db import get_pending_drafts
+
     agent = get_agent()
     status = "running" if agent and agent.running else "stopped"
-    return jsonify({"agent_status": status})
+    pending = get_pending_drafts()
+    return jsonify({
+        "agent_status": status,
+        "pending_drafts": len(pending),
+    })
 
 
 # ── Entry point ───────────────────────────────────────────────────

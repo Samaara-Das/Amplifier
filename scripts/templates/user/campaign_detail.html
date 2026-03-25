@@ -115,8 +115,15 @@
                     <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('draft-form-{{ draft['id'] }}').submit();">Save Edit</button>
                   </div>
                 {% else %}
-                  {# Read-only draft #}
+                  {# Read-only draft (approved or rejected) #}
                   <div class="content-preview" style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--text-primary); background: var(--bg-secondary); padding: 12px; border-radius: var(--radius);">{{ draft.get('draft_text', '') }}</div>
+                  {% if draft.get('approved') == -1 %}
+                    <div style="margin-top: 8px;">
+                      <form method="post" action="{{ url_for('restore_single_draft', draft_id=draft['id']) }}" style="margin:0; display:inline;">
+                        <button type="submit" class="btn btn-secondary btn-sm">Restore</button>
+                      </form>
+                    </div>
+                  {% endif %}
                 {% endif %}
               {% else %}
                 <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 14px;">
