@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True
+    server_url: str = "http://localhost:8000"
+
+    # Stripe (optional — test mode)
+    stripe_secret_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

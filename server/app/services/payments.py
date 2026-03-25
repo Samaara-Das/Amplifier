@@ -27,7 +27,7 @@ def _get_stripe():
     if _stripe is None:
         try:
             import stripe
-            stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+            stripe.api_key = settings.stripe_secret_key or os.getenv("STRIPE_SECRET_KEY", "")
             if stripe.api_key:
                 _stripe = stripe
             else:
@@ -46,6 +46,7 @@ async def create_company_checkout(company_id: int, amount_cents: int, db: AsyncS
     if not stripe:
         return None
 
+    base_url = settings.server_url
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -58,13 +59,39 @@ async def create_company_checkout(company_id: int, amount_cents: int, db: AsyncS
                 "quantity": 1,
             }],
             mode="payment",
-            success_url=f"{os.getenv('SERVER_URL', 'http://localhost:8000')}/api/company/dashboard?payment=success",
-            cancel_url=f"{os.getenv('SERVER_URL', 'http://localhost:8000')}/api/company/dashboard?payment=cancelled",
+            success_url=f"{base_url}/company/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/company/billing?cancelled=1",
             metadata={"company_id": str(company_id)},
         )
         return session.url
     except Exception as e:
         logger.error("Failed to create checkout session: %s", e)
+        return None
+
+
+async def verify_checkout_session(session_id: str) -> dict | None:
+    """Retrieve a completed Stripe Checkout session and return payment details.
+
+    Returns dict with {company_id, amount_cents, payment_status} or None on failure.
+    """
+    stripe = _get_stripe()
+    if not stripe:
+        return None
+
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        if session.payment_status != "paid":
+            return None
+        company_id = session.metadata.get("company_id")
+        if not company_id:
+            return None
+        return {
+            "company_id": int(company_id),
+            "amount_cents": session.amount_total,
+            "payment_status": session.payment_status,
+        }
+    except Exception as e:
+        logger.error("Failed to retrieve checkout session %s: %s", session_id, e)
         return None
 
 

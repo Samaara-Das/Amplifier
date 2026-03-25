@@ -944,6 +944,9 @@ async def campaign_export_csv_web(
 @router.get("/billing", response_class=HTMLResponse)
 async def billing_page(
     request: Request,
+    success: str | None = None,
+    error: str | None = None,
+    cancelled: str | None = None,
     company: Company | None = Depends(get_company_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -970,7 +973,26 @@ async def billing_page(
             }
         )
 
-    return _render("company/billing.html", company=company, allocations=allocations, active="billing")
+    stripe_configured = bool(settings.stripe_secret_key or os.getenv("STRIPE_SECRET_KEY"))
+
+    flash_success = None
+    flash_error = None
+    if success:
+        flash_success = success
+    elif cancelled:
+        flash_error = "Payment was cancelled. No funds were added."
+    elif error:
+        flash_error = error
+
+    return _render(
+        "company/billing.html",
+        company=company,
+        allocations=allocations,
+        active="billing",
+        stripe_configured=stripe_configured,
+        flash_success=flash_success,
+        flash_error=flash_error,
+    )
 
 
 @router.post("/billing/topup")
@@ -984,13 +1006,60 @@ async def billing_topup(
         return _login_redirect()
 
     if amount <= 0:
-        return RedirectResponse(url="/company/billing", status_code=302)
+        return RedirectResponse(url="/company/billing?error=Amount+must+be+greater+than+zero", status_code=302)
 
-    # Placeholder: in production this would go through Stripe
+    amount_cents = int(round(amount * 100))
+
+    from app.services.payments import create_company_checkout
+    checkout_url = await create_company_checkout(company.id, amount_cents, db)
+
+    if not checkout_url:
+        # Stripe not configured — fall back to instant credit (dev/test only)
+        company.balance = float(company.balance) + amount
+        await db.flush()
+        return RedirectResponse(
+            url=f"/company/billing?success=Added+%24{amount:.2f}+to+your+balance+(test+mode)",
+            status_code=302,
+        )
+
+    return RedirectResponse(url=checkout_url, status_code=302)
+
+
+@router.get("/billing/success", response_class=HTMLResponse)
+async def billing_success(
+    request: Request,
+    session_id: str,
+    company: Company | None = Depends(get_company_from_cookie),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stripe redirects here after a successful payment. Verifies session and credits balance."""
+    if not company:
+        return _login_redirect()
+
+    from app.services.payments import verify_checkout_session
+    result = await verify_checkout_session(session_id)
+
+    if not result:
+        return RedirectResponse(
+            url="/company/billing?error=Payment+verification+failed.+Contact+support.",
+            status_code=302,
+        )
+
+    if result["company_id"] != company.id:
+        return RedirectResponse(
+            url="/company/billing?error=Session+mismatch.",
+            status_code=302,
+        )
+
+    # Credit the balance
+    amount = result["amount_cents"] / 100.0
     company.balance = float(company.balance) + amount
     await db.flush()
 
-    return RedirectResponse(url="/company/billing", status_code=302)
+    return RedirectResponse(
+        url=f"/company/billing?success=Successfully+added+%24{amount:.2f}+to+your+balance.",
+        status_code=302,
+    )
 
 
 # ── Statistics ─────────────────────────────────────────────────────
