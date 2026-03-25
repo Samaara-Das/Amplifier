@@ -86,10 +86,11 @@ async def submit_metrics(
         db.add(metric)
         accepted += 1
 
-    # Trigger billing for any final metrics just submitted
+    # Trigger billing on every metric submission (not just final)
+    # Metrics grow over time as posts gain engagement, so billing
+    # should run incrementally on the latest metrics.
     billing_result = None
-    has_final = any(m.is_final for m in data.metrics)
-    if has_final and accepted > 0:
+    if accepted > 0:
         try:
             from app.services.billing import run_billing_cycle
             billing_result = await run_billing_cycle(db)

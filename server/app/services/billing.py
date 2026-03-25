@@ -51,20 +51,14 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
 
     Returns summary: {posts_processed, total_earned, total_deducted_from_budgets}
     """
-    # Find final metrics that haven't been billed yet
-    # A metric is "billed" if a payout record references it in the breakdown
-    # We track billed metric IDs via a JSON field in the payout breakdown
+    # Find metrics that haven't been billed yet.
+    # Billing is incremental: each metric submission gets billed based on the
+    # latest engagement numbers. We track billed metric IDs to avoid double-billing.
     result = await db.execute(
         select(Metric, Post, CampaignAssignment, Campaign)
         .join(Post, Metric.post_id == Post.id)
         .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
         .join(Campaign, CampaignAssignment.campaign_id == Campaign.id)
-        .where(
-            and_(
-                Metric.is_final == True,
-                Post.status == "live",
-            )
-        )
     )
     rows = result.all()
 
