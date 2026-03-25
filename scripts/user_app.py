@@ -213,6 +213,19 @@ def onboarding_page():
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Auto-detect region (default to "global" for now)
+    detected_region = get_setting("audience_region", "global") or "global"
+    region_labels = {
+        "global": "Global",
+        "us": "United States",
+        "uk": "United Kingdom",
+        "india": "India",
+        "eu": "European Union",
+        "latam": "Latin America",
+        "sea": "Southeast Asia",
+    }
+    detected_region_label = region_labels.get(detected_region, detected_region.title())
+
     return render_template(
         "user/onboarding.html",
         email=auth.get("email", ""),
@@ -220,7 +233,8 @@ def onboarding_page():
         scraped_profiles=scraped_profiles,
         detected_niches=list(detected_niches),
         current_mode=get_setting("mode", "semi_auto") or "semi_auto",
-        current_region=get_setting("audience_region", "global") or "global",
+        detected_region=detected_region,
+        detected_region_label=detected_region_label,
     )
 
 
@@ -231,6 +245,65 @@ _scraping_platforms = set()  # Track which platforms are currently being scraped
 def api_scraping_status():
     """JSON endpoint: which platforms are currently being scraped."""
     return jsonify({"scraping": list(_scraping_platforms)})
+
+
+@app.route("/api/test-api-key", methods=["POST"])
+def api_test_api_key():
+    """Test an AI provider API key by making a minimal API call."""
+    data = request.get_json(silent=True) or {}
+    provider = data.get("provider", "").lower()
+    key = data.get("key", "").strip()
+
+    if not provider or not key:
+        return jsonify({"valid": False, "error": "Missing provider or key"})
+
+    try:
+        if provider == "gemini":
+            from google import genai
+
+            client = genai.Client(api_key=key)
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents="Say 'ok' in one word.",
+            )
+            _ = response.text
+            return jsonify({"valid": True})
+
+        elif provider == "mistral":
+            from mistralai import Mistral
+
+            client = Mistral(api_key=key)
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[{"role": "user", "content": "Say 'ok' in one word."}],
+            )
+            _ = response.choices[0].message.content
+            return jsonify({"valid": True})
+
+        elif provider == "groq":
+            from groq import Groq
+
+            client = Groq(api_key=key)
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": "Say 'ok' in one word."}],
+            )
+            _ = response.choices[0].message.content
+            return jsonify({"valid": True})
+
+        else:
+            return jsonify({"valid": False, "error": f"Unknown provider: {provider}"})
+
+    except Exception as e:
+        error_msg = str(e)
+        # Shorten common error messages
+        if "401" in error_msg or "Unauthorized" in error_msg or "invalid" in error_msg.lower():
+            error_msg = "Invalid API key"
+        elif "403" in error_msg or "Forbidden" in error_msg:
+            error_msg = "Access denied — check your key"
+        elif len(error_msg) > 100:
+            error_msg = error_msg[:100] + "..."
+        return jsonify({"valid": False, "error": error_msg})
 
 
 @app.route("/onboarding/connect/<platform>", methods=["POST"])
@@ -317,6 +390,12 @@ def onboarding_save():
     mode = request.form.get("mode", "semi_auto")
     if mode not in ("semi_auto", "full_auto"):
         mode = "semi_auto"
+
+    # Save API keys to local_db
+    for key_name in ("gemini_api_key", "mistral_api_key", "groq_api_key"):
+        key_val = request.form.get(key_name, "").strip()
+        if key_val:
+            set_setting(key_name, key_val)
 
     # Save locally
     set_setting("mode", mode)
@@ -867,10 +946,11 @@ def settings():
         if region:
             set_setting("audience_region", region)
 
-        # Save Gemini API key if provided
-        gemini_key = request.form.get("gemini_api_key", "").strip()
-        if gemini_key:
-            set_setting("gemini_api_key", gemini_key)
+        # Save API keys if provided
+        for key_name in ("gemini_api_key", "mistral_api_key", "groq_api_key"):
+            key_val = request.form.get(key_name, "").strip()
+            if key_val:
+                set_setting(key_name, key_val)
 
         # Sync to server
         try:
@@ -937,6 +1017,8 @@ def settings():
             "niche_tags": profile.get("niche_tags", []) or [],
             "follower_counts": profile.get("follower_counts", {}) or {},
             "gemini_api_key": get_setting("gemini_api_key", ""),
+            "mistral_api_key": get_setting("mistral_api_key", ""),
+            "groq_api_key": get_setting("groq_api_key", ""),
         }
     )
     return render_template("user/settings.html", **ctx)

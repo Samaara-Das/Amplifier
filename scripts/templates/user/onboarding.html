@@ -29,6 +29,8 @@
           <span class="step-dot" id="step-dot-3">3</span>
           <span class="step-line" id="step-line-3"></span>
           <span class="step-dot" id="step-dot-4">4</span>
+          <span class="step-line" id="step-line-4"></span>
+          <span class="step-dot" id="step-dot-5">5</span>
         </div>
       </div>
 
@@ -179,14 +181,15 @@
           <div style="margin-bottom: 16px;">
             <label style="font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">Content Niches</label>
             {% if detected_niches %}
-              <p style="font-size: 13px; color: var(--success); margin-bottom: 8px;">AI detected these niches from your posts. Adjust as needed.</p>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; background: #f0f4ff; padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--primary);">
+                Based on your profile, you might be interested in: <strong>{{ detected_niches|join(', ') }}</strong>
+              </p>
             {% endif %}
             <div class="ob-niche-grid" id="ob-niche-grid">
               {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
               {% for niche in all_niches %}
-                {% set is_detected = niche in detected_niches %}
-                <div class="ob-niche-item {{ 'selected' if is_detected else '' }}" onclick="toggleNiche(this)">
-                  <input type="checkbox" name="niches" value="{{ niche }}" style="display:none;" {{ 'checked' if is_detected else '' }} />
+                <div class="ob-niche-item" onclick="toggleNiche(this)">
+                  <input type="checkbox" name="niches" value="{{ niche }}" style="display:none;" />
                   <div class="ob-niche-checkbox">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
@@ -196,18 +199,14 @@
             </div>
           </div>
 
-          <!-- Audience Region -->
+          <!-- Audience Region (auto-detected) -->
           <div class="ob-field ob-region-field" style="margin-top: 20px;">
-            <label for="ob-region-select">Primary audience location</label>
-            <select id="ob-region-select" class="ob-select" name="region">
-              <option value="global" {{ 'selected' if current_region == 'global' else '' }}>Global</option>
-              <option value="us" {{ 'selected' if current_region == 'us' else '' }}>United States</option>
-              <option value="uk" {{ 'selected' if current_region == 'uk' else '' }}>United Kingdom</option>
-              <option value="india" {{ 'selected' if current_region == 'india' else '' }}>India</option>
-              <option value="eu" {{ 'selected' if current_region == 'eu' else '' }}>European Union</option>
-              <option value="latam" {{ 'selected' if current_region == 'latam' else '' }}>Latin America</option>
-              <option value="sea" {{ 'selected' if current_region == 'sea' else '' }}>Southeast Asia</option>
-            </select>
+            <label>Primary audience location</label>
+            <div style="padding: 10px 14px; background: var(--bg-secondary, #f8f9fa); border: 1px solid var(--border, #e5e7eb); border-radius: 8px; font-size: 14px; color: var(--text-primary);">
+              Auto-detected: <strong id="ob-region-display">{{ detected_region_label }}</strong>
+              <input type="hidden" id="ob-region-select" name="region" value="{{ detected_region }}" />
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">You can change this later in Settings.</p>
           </div>
         </div>
       </div>
@@ -238,8 +237,65 @@
         </div>
       </div>
 
-      <!-- Step 4: Summary + Done -->
+      <!-- Step 4: API Keys -->
       <div class="onboarding-step" id="ob-step-4">
+        <div class="ob-step-content">
+          <h2>API Keys</h2>
+          <p class="ob-subtitle">Amplifier uses free AI APIs to generate content on your device. Your keys stay local — never sent to our servers.</p>
+
+          <div style="margin-bottom: 20px;">
+            <!-- Gemini -->
+            <div class="ob-api-key-row" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Gemini API Key</label>
+                <a href="https://aistudio.google.com/apikey" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">Get your free key &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="ob-gemini-key" placeholder="AIza..."
+                       class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testApiKey('gemini')" id="ob-test-gemini" style="white-space: nowrap;">Test</button>
+              </div>
+              <div id="ob-gemini-status" style="font-size: 12px; margin-top: 4px; min-height: 18px;"></div>
+            </div>
+
+            <!-- Mistral -->
+            <div class="ob-api-key-row" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Mistral API Key <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                <a href="https://console.mistral.ai" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">Get your free key &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="ob-mistral-key" placeholder="Paste Mistral key..."
+                       class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testApiKey('mistral')" id="ob-test-mistral" style="white-space: nowrap;">Test</button>
+              </div>
+              <div id="ob-mistral-status" style="font-size: 12px; margin-top: 4px; min-height: 18px;"></div>
+            </div>
+
+            <!-- Groq -->
+            <div class="ob-api-key-row" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Groq API Key <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                <a href="https://console.groq.com" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">Get your free key &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="ob-groq-key" placeholder="Paste Groq key..."
+                       class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testApiKey('groq')" id="ob-test-groq" style="white-space: nowrap;">Test</button>
+              </div>
+              <div id="ob-groq-status" style="font-size: 12px; margin-top: 4px; min-height: 18px;"></div>
+            </div>
+          </div>
+
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #166534;">
+            <strong>Each key is free.</strong> More keys = better reliability. Your keys stay on your device — never sent to our servers.
+          </div>
+          <p class="ob-hint" id="ob-apikeys-hint" style="margin-top: 12px;">At least 1 working API key is required to continue.</p>
+        </div>
+      </div>
+
+      <!-- Step 5: Summary + Done -->
+      <div class="onboarding-step" id="ob-step-5">
         <div class="ob-step-content">
           <h2>You're All Set</h2>
           <p class="ob-subtitle">Here's a summary of your profile. You can change any of these settings later.</p>
@@ -265,14 +321,21 @@
               <span class="ob-summary-label">Operating Mode</span>
               <span class="ob-summary-value" id="ob-summary-mode">--</span>
             </div>
+            <div class="ob-summary-row">
+              <span class="ob-summary-label">AI Providers</span>
+              <span class="ob-summary-value" id="ob-summary-keys">--</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Hidden form for final save (submitted on step 4) -->
+      <!-- Hidden form for final save (submitted on step 5) -->
       <form id="ob-save-form" method="post" action="{{ url_for('onboarding_save') }}" style="display:none;">
         <input type="hidden" name="region" id="ob-save-region" />
         <input type="hidden" name="mode" id="ob-save-mode" />
+        <input type="hidden" name="gemini_api_key" id="ob-save-gemini" />
+        <input type="hidden" name="mistral_api_key" id="ob-save-mistral" />
+        <input type="hidden" name="groq_api_key" id="ob-save-groq" />
         <!-- Niches appended dynamically -->
       </form>
 
@@ -303,7 +366,8 @@
     }
 
     var currentStep = 1;
-    var totalSteps = 4;
+    var totalSteps = 5;
+    var validatedKeys = {};  // Track which keys have been tested and are valid
 
     // Platform connection data from server
     var platformsConnected = {{ platforms|tojson }};
@@ -355,31 +419,51 @@
       // Update step dots
       updateStepDots();
 
-      // If we're on step 4 (summary), populate it
-      if (step === 4) {
+      // If we're on step 5 (summary), populate it
+      if (step === 5) {
         populateSummary();
       }
     }
 
     var scrapingInProgress = false;
 
+    function hasAtLeastOneValidKey() {
+      // Check if at least one key field has a value (tested or not)
+      var gemini = document.getElementById('ob-gemini-key').value.trim();
+      var mistral = document.getElementById('ob-mistral-key').value.trim();
+      var groq = document.getElementById('ob-groq-key').value.trim();
+      return gemini.length > 0 || mistral.length > 0 || groq.length > 0;
+    }
+
     function canProceed() {
       if (currentStep === 1) {
         if (scrapingInProgress) return false;
         return getConnectedCount() > 0;
       }
+      if (currentStep === 4) {
+        return hasAtLeastOneValidKey();
+      }
       return true;
     }
 
     function obGoNext() {
-      var hint = document.getElementById('ob-platforms-hint');
       if (!canProceed()) {
-        if (hint) {
-          if (scrapingInProgress) {
-            hint.textContent = 'Profile scraping in progress... please wait.';
+        if (currentStep === 1) {
+          var hint = document.getElementById('ob-platforms-hint');
+          if (hint) {
+            if (scrapingInProgress) {
+              hint.textContent = 'Profile scraping in progress... please wait.';
+            }
+            hint.style.color = 'var(--error)';
+            hint.style.fontWeight = '600';
           }
-          hint.style.color = 'var(--error)';
-          hint.style.fontWeight = '600';
+        } else if (currentStep === 4) {
+          var apiHint = document.getElementById('ob-apikeys-hint');
+          if (apiHint) {
+            apiHint.textContent = 'Please enter at least 1 API key to continue.';
+            apiHint.style.color = 'var(--error)';
+            apiHint.style.fontWeight = '600';
+          }
         }
         return;
       }
@@ -473,8 +557,8 @@
     }
 
     function getSelectedRegion() {
-      var sel = document.getElementById('ob-region-select');
-      return sel ? sel.value : 'global';
+      var el = document.getElementById('ob-region-select');
+      return el ? el.value : 'global';
     }
 
     var regionLabels = {
@@ -509,6 +593,55 @@
       // Mode
       var mode = getSelectedMode();
       document.getElementById('ob-summary-mode').textContent = modeLabels[mode] || mode;
+
+      // API Keys
+      var providers = [];
+      if (document.getElementById('ob-gemini-key').value.trim()) providers.push('Gemini');
+      if (document.getElementById('ob-mistral-key').value.trim()) providers.push('Mistral');
+      if (document.getElementById('ob-groq-key').value.trim()) providers.push('Groq');
+      document.getElementById('ob-summary-keys').textContent = providers.length > 0 ? providers.join(', ') : 'None';
+    }
+
+    function testApiKey(provider) {
+      var inputId = 'ob-' + provider + '-key';
+      var statusId = 'ob-' + provider + '-status';
+      var btnId = 'ob-test-' + provider;
+      var key = document.getElementById(inputId).value.trim();
+      var statusEl = document.getElementById(statusId);
+      var btn = document.getElementById(btnId);
+
+      if (!key) {
+        statusEl.innerHTML = '<span style="color: var(--error);">Please enter a key first.</span>';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Testing...';
+      statusEl.innerHTML = '<span style="color: var(--text-muted);">Verifying...</span>';
+
+      fetch('/api/test-api-key', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({provider: provider, key: key})
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.valid) {
+          statusEl.innerHTML = '<span style="color: var(--success);">&#10003; Key is valid</span>';
+          validatedKeys[provider] = true;
+        } else {
+          statusEl.innerHTML = '<span style="color: var(--error);">&#10007; ' + (data.error || 'Invalid key') + '</span>';
+          validatedKeys[provider] = false;
+        }
+      })
+      .catch(function(err) {
+        statusEl.innerHTML = '<span style="color: var(--error);">&#10007; Test failed: ' + err.message + '</span>';
+        validatedKeys[provider] = false;
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = 'Test';
+      });
     }
 
     function obFinish() {
@@ -517,6 +650,11 @@
       // Set hidden fields
       document.getElementById('ob-save-region').value = getSelectedRegion();
       document.getElementById('ob-save-mode').value = getSelectedMode();
+
+      // Set API key hidden fields
+      document.getElementById('ob-save-gemini').value = document.getElementById('ob-gemini-key').value.trim();
+      document.getElementById('ob-save-mistral').value = document.getElementById('ob-mistral-key').value.trim();
+      document.getElementById('ob-save-groq').value = document.getElementById('ob-groq-key').value.trim();
 
       // Remove old niche inputs
       var oldNiches = form.querySelectorAll('input[name="niches"]');
