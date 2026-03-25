@@ -67,32 +67,64 @@ async def poll_campaigns() -> dict:
         return {"success": False, "error": str(e), "total": 0, "new": 0}
 
 
-async def generate_pending_content() -> dict:
-    """Auto-generate content for accepted campaigns that don't have content yet.
+async def generate_daily_content() -> dict:
+    """Generate today's content for all active campaigns that don't have today's drafts yet.
 
-    Finds local campaigns with status='assigned' and no content, generates
-    per-platform content via ContentGenerator, stores in local_db.
+    Runs daily: checks each active campaign, generates per-platform drafts into the
+    agent_draft table, and auto-approves in full_auto mode. Replaces the old one-time
+    generate_pending_content().
     """
-    from utils.local_db import get_campaigns, update_campaign_status, get_setting
+    from utils.local_db import (
+        get_campaigns, update_campaign_status, get_setting,
+        get_todays_draft_count, add_draft, get_all_drafts, approve_draft,
+        add_scheduled_post, get_todays_drafts,
+    )
     from utils.content_generator import ContentGenerator
     import json as _json
 
     try:
         all_campaigns = get_campaigns()
-        pending = [c for c in all_campaigns
-                   if c.get("status") == "assigned" and not c.get("content")]
+        active_statuses = ('assigned', 'content_generated', 'approved', 'posted', 'active')
+        active = [c for c in all_campaigns if c.get('status') in active_statuses]
 
-        if not pending:
+        if not active:
             return {"success": True, "generated": 0}
 
         gen = ContentGenerator()
         generated_count = 0
+        platforms = ['x', 'linkedin', 'facebook', 'reddit']
+        mode = get_setting("mode", "semi_auto") or "semi_auto"
 
-        for campaign in pending:
+        for campaign in active:
             campaign_id = campaign.get("server_id")
+
+            # Check if we already generated today's drafts for all platforms
+            needs_generation = False
+            for platform in platforms:
+                if get_todays_draft_count(campaign_id, platform) == 0:
+                    needs_generation = True
+                    break
+
+            if not needs_generation:
+                continue
+
+            # Get previous drafts for anti-repetition
+            previous = get_all_drafts(campaign_id)
+            previous_hooks = []
+            for d in previous[:12]:  # Most recent 12 drafts (~3 days worth, ordered DESC)
+                text = d.get('draft_text', '')
+                if text:
+                    first_line = text.split('\n')[0][:80]
+                    previous_hooks.append(first_line)
+
+            # Calculate day number from unique dates in draft history
+            unique_dates = set(d.get('created_at', '')[:10] for d in previous if d.get('created_at'))
+            day_number = len(unique_dates) + 1
+
+            # Generate content
             try:
                 result = await asyncio.to_thread(
-                    lambda c=campaign: asyncio.run(gen.generate(
+                    lambda c=campaign, dn=day_number, ph=previous_hooks: asyncio.run(gen.generate(
                         {
                             "campaign_id": c.get("server_id"),
                             "title": c.get("title", ""),
@@ -100,31 +132,49 @@ async def generate_pending_content() -> dict:
                             "content_guidance": c.get("content_guidance", ""),
                             "assets": c.get("assets", {}),
                         },
-                        enabled_platforms=["x", "linkedin", "facebook", "reddit"],
+                        enabled_platforms=platforms,
+                        day_number=dn,
+                        previous_hooks=ph,
                     ))
                 )
 
                 if result:
-                    content = result.get("content", result)
-                    update_campaign_status(campaign_id, "content_generated", _json.dumps(content))
+                    content = result.get("content", result) if isinstance(result, dict) else result
+                    draft_ids = []
+                    for platform in platforms:
+                        text = content.get(platform, '')
+                        if text:
+                            if isinstance(text, dict):
+                                text = _json.dumps(text)
+                            did = add_draft(campaign_id, platform, str(text), iteration=day_number)
+                            draft_ids.append(did)
                     generated_count += 1
-                    logger.info("Auto-generated content for campaign %s", campaign_id)
+                    logger.info("Daily content generated for campaign %s (day %d)", campaign_id, day_number)
 
-                    # Update server assignment status
-                    try:
-                        from utils.server_client import update_assignment
-                        assignment_id = campaign.get("assignment_id")
-                        if assignment_id:
-                            update_assignment(assignment_id, "content_generated")
-                    except Exception:
-                        pass
+                    # Update campaign status if it was 'assigned'
+                    if campaign.get('status') == 'assigned':
+                        update_campaign_status(campaign_id, 'content_generated')
+                        try:
+                            from utils.server_client import update_assignment
+                            assignment_id = campaign.get("assignment_id")
+                            if assignment_id:
+                                update_assignment(assignment_id, "content_generated")
+                        except Exception:
+                            pass
+
+                    # Full auto mode: auto-approve all drafts and schedule them
+                    if mode == "full_auto" and draft_ids:
+                        for did in draft_ids:
+                            approve_draft(did)
+                        logger.info("Full-auto: approved %d drafts for campaign %s", len(draft_ids), campaign_id)
+
             except Exception as e:
-                logger.error("Content generation failed for campaign %s: %s", campaign_id, e)
+                logger.error("Daily content gen failed for campaign %s: %s", campaign_id, e)
 
         return {"success": True, "generated": generated_count}
 
     except Exception as e:
-        logger.error("Content generation task failed: %s", e)
+        logger.error("Daily content generation task failed: %s", e)
         return {"success": False, "error": str(e), "generated": 0}
 
 
@@ -459,12 +509,12 @@ class BackgroundAgent:
                         results["campaigns"] = {"success": False, "error": str(e)}
                     self.last_poll = now
 
-                # Every 2min: auto-generate content for accepted campaigns
+                # Every 2min: generate daily content for active campaigns
                 if now - self.last_content_gen >= CONTENT_GEN_INTERVAL:
                     try:
-                        results["content_gen"] = await generate_pending_content()
+                        results["content_gen"] = await generate_daily_content()
                     except Exception as e:
-                        logger.error("Content generation crashed: %s", e)
+                        logger.error("Daily content generation crashed: %s", e)
                         results["content_gen"] = {"success": False, "error": str(e)}
                     self.last_content_gen = now
 

@@ -284,8 +284,15 @@ class ContentGenerator:
         if not self.text_providers:
             logger.error("No AI providers available. Set GEMINI_API_KEY in config/.env")
 
-    async def generate(self, campaign: dict, enabled_platforms: list[str] = None) -> dict:
+    async def generate(self, campaign: dict, enabled_platforms: list[str] = None,
+                       day_number: int = None, previous_hooks: list[str] = None) -> dict:
         """Generate per-platform content from campaign brief.
+
+        Args:
+            campaign: Campaign data dict with title, brief, content_guidance, assets.
+            enabled_platforms: List of platform names to generate for.
+            day_number: Optional day number of this campaign (for daily variation).
+            previous_hooks: Optional list of first lines from previous drafts (for anti-repetition).
 
         Returns: {
             "x": "tweet text",
@@ -308,6 +315,18 @@ class ContentGenerator:
             assets=campaign.get("assets", ""),
             platforms=", ".join(enabled_platforms),
         )
+
+        # Add daily variation context if provided
+        if day_number is not None and day_number > 1:
+            variation_section = f"\n\n── DAILY VARIATION (CRITICAL) ──\nThis is day {day_number} of this campaign. You MUST write completely fresh content."
+            if previous_hooks:
+                hooks_list = "\n".join(f"  - {h}" for h in previous_hooks)
+                variation_section += (
+                    f"\nPrevious posts started with:\n{hooks_list}\n"
+                    "Write something COMPLETELY DIFFERENT. Use a different angle, different hook emotion, "
+                    "different structure. Do NOT repeat or rephrase any of the above openings."
+                )
+            prompt += variation_section
 
         last_error = None
         for provider in self.text_providers:

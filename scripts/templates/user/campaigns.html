@@ -112,26 +112,11 @@
               {{ c.get('brief', '')|truncate(120) }}
             </div>
 
-            <!-- Status Pipeline -->
-            {% set stages = ['assigned', 'content_generated', 'approved', 'posted'] %}
-            {% set stage_labels = {'assigned': 'Assigned', 'content_generated': 'Generated', 'approved': 'Approved', 'posted': 'Posted'} %}
-            {% set current_idx = stages.index(status) if status in stages else 0 %}
-            <div class="pipeline-container">
-              <div class="status-pipeline">
-                {% for stage in stages %}
-                  <div class="pipeline-stage">
-                    <div class="pipeline-dot {{ 'completed' if loop.index0 < current_idx else ('current' if loop.index0 == current_idx else 'pending') }}">
-                      {% if loop.index0 < current_idx %}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                      {% endif %}
-                    </div>
-                    {% if not loop.last %}
-                      <div class="pipeline-line {{ 'completed' if loop.index0 < current_idx else '' }}"></div>
-                    {% endif %}
-                  </div>
-                {% endfor %}
+            {% if c.get('today_summary') %}
+              <div style="margin-top: 8px; font-size: 13px; font-weight: 500; color: var(--primary);">
+                {{ c.get('today_summary') }}
               </div>
-            </div>
+            {% endif %}
           </a>
           <div class="active-campaign-card-footer">
             <a href="{{ url_for('campaign_detail', campaign_id=c.get('server_id', 0)) }}" class="btn btn-primary btn-sm">View Details</a>

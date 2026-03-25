@@ -233,13 +233,6 @@
                 <div class="ob-mode-option-desc">AI generates and posts automatically. No review needed.</div>
               </div>
             </label>
-            <label class="ob-mode-option {{ 'selected' if current_mode == 'manual' else '' }}" onclick="selectMode(this)">
-              <input type="radio" name="mode" value="manual" {{ 'checked' if current_mode == 'manual' else '' }} />
-              <div class="ob-mode-option-body">
-                <div class="ob-mode-option-title">Manual</div>
-                <div class="ob-mode-option-desc">You write your own content from the campaign brief.</div>
-              </div>
-            </label>
           </div>
           <p class="ob-hint">Earnings depend on engagement, not mode.</p>
         </div>
@@ -490,7 +483,7 @@
     };
 
     var modeLabels = {
-      'semi_auto': 'Semi-Auto', 'full_auto': 'Full Auto', 'manual': 'Manual'
+      'semi_auto': 'Semi-Auto', 'full_auto': 'Full Auto'
     };
 
     var platformLabels = {

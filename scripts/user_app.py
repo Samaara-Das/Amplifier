@@ -315,6 +315,8 @@ def onboarding_save():
     niches = request.form.getlist("niches")
     region = request.form.get("region", "global")
     mode = request.form.get("mode", "semi_auto")
+    if mode not in ("semi_auto", "full_auto"):
+        mode = "semi_auto"
 
     # Save locally
     set_setting("mode", mode)
@@ -381,17 +383,37 @@ def _campaigns_impl():
         logger.error("Failed to get invitations: %s", e)
 
     # Get local campaigns by status
-    from utils.local_db import get_campaigns
+    from utils.local_db import get_campaigns, get_todays_drafts
 
     all_campaigns = get_campaigns()
     active = [
         c
         for c in all_campaigns
-        if c.get("status") in ("assigned", "content_generated", "approved")
+        if c.get("status") in ("assigned", "content_generated", "approved", "active")
     ]
     completed = [
         c for c in all_campaigns if c.get("status") in ("posted", "skipped")
     ]
+
+    # Add today's draft summary to each active campaign
+    platforms = ["x", "linkedin", "facebook", "reddit"]
+    for c in active:
+        today_drafts = get_todays_drafts(c.get("server_id"))
+        pending_count = sum(1 for d in today_drafts if d.get("approved") == 0)
+        approved_count = sum(1 for d in today_drafts if d.get("approved") == 1)
+        posted_count = sum(1 for d in today_drafts if d.get("posted") == 1)
+        total_platforms = len(platforms)
+
+        if not today_drafts:
+            c["today_summary"] = "Generating content..."
+        elif posted_count > 0:
+            c["today_summary"] = f"Today: {posted_count}/{total_platforms} posted"
+        elif approved_count == len(today_drafts) and approved_count > 0:
+            c["today_summary"] = "Today: all approved"
+        elif pending_count > 0:
+            c["today_summary"] = f"Today: {pending_count}/{total_platforms} pending review"
+        else:
+            c["today_summary"] = f"Today: {approved_count} approved"
 
     ctx.update(
         {
@@ -446,14 +468,17 @@ def reject_invitation(assignment_id):
 def campaign_detail(campaign_id):
     ctx = _base_context("campaigns")
 
-    from utils.local_db import get_campaign
+    from utils.local_db import (
+        get_campaign, get_pending_drafts, get_all_drafts,
+        get_todays_drafts, get_posts_for_campaign,
+    )
 
     campaign = get_campaign(campaign_id)
     if not campaign:
         flash("Campaign not found.", "error")
         return redirect(url_for("campaigns"))
 
-    # Parse content JSON
+    # Parse content JSON (backward compat for old campaigns)
     content = {}
     if campaign.get("content"):
         try:
@@ -470,12 +495,54 @@ def campaign_detail(campaign_id):
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Get drafts from agent_draft table
+    all_drafts = get_all_drafts(campaign_id)
+    today_drafts = get_todays_drafts(campaign_id)
+    pending_drafts = get_pending_drafts(campaign_id)
+
+    # Group today's drafts by platform
+    today_by_platform = {}
+    for d in today_drafts:
+        today_by_platform[d.get("platform", "")] = d
+
+    # Group past drafts by date (excluding today)
+    from datetime import datetime as _dt
+    today_str = _dt.now().strftime('%Y-%m-%d')
+    past_by_date = {}
+    for d in all_drafts:
+        date_str = (d.get("created_at") or "")[:10]
+        if date_str == today_str:
+            continue
+        if date_str not in past_by_date:
+            past_by_date[date_str] = []
+        past_by_date[date_str].append(d)
+
+    # Sort dates descending
+    sorted_past_dates = sorted(past_by_date.keys(), reverse=True)
+
+    # Get posts for this campaign (for post URLs in past drafts)
+    campaign_posts = get_posts_for_campaign(campaign_id)
+    posts_by_platform_date = {}
+    for p in campaign_posts:
+        key = f"{p.get('platform', '')}_{(p.get('posted_at') or '')[:10]}"
+        posts_by_platform_date[key] = p
+
+    # Determine if this is a new-style (draft-based) or old-style (content-based) campaign
+    use_drafts = len(all_drafts) > 0
+
     ctx.update(
         {
             "campaign": campaign,
             "content": content,
             "payout_rules": payout_rules,
             "platforms": ["x", "linkedin", "facebook", "reddit"],
+            "use_drafts": use_drafts,
+            "today_by_platform": today_by_platform,
+            "past_by_date": past_by_date,
+            "sorted_past_dates": sorted_past_dates,
+            "pending_drafts": pending_drafts,
+            "today_str": today_str,
+            "posts_by_platform_date": posts_by_platform_date,
         }
     )
     return render_template("user/campaign_detail.html", **ctx)
@@ -577,6 +644,74 @@ def skip_campaign(campaign_id):
     return redirect(url_for("campaigns"))
 
 
+# ── Draft routes (daily content) ─────────────────────────────────
+
+
+@app.route("/drafts/<int:draft_id>/approve", methods=["POST"])
+def approve_single_draft(draft_id):
+    from utils.local_db import approve_draft, get_draft
+
+    draft = get_draft(draft_id)
+    if not draft:
+        flash("Draft not found.", "error")
+        return redirect(url_for("campaigns"))
+
+    approve_draft(draft_id)
+    flash("Draft approved!", "success")
+    return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
+
+
+@app.route("/drafts/<int:draft_id>/reject", methods=["POST"])
+def reject_single_draft(draft_id):
+    from utils.local_db import reject_draft, get_draft
+
+    draft = get_draft(draft_id)
+    if not draft:
+        flash("Draft not found.", "error")
+        return redirect(url_for("campaigns"))
+
+    reject_draft(draft_id)
+    flash("Draft rejected.", "info")
+    return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
+
+
+@app.route("/drafts/<int:draft_id>/edit", methods=["POST"])
+def edit_single_draft(draft_id):
+    from utils.local_db import update_draft_text, get_draft
+
+    draft = get_draft(draft_id)
+    if not draft:
+        flash("Draft not found.", "error")
+        return redirect(url_for("campaigns"))
+
+    new_text = request.form.get("draft_text", "").strip()
+    if new_text:
+        update_draft_text(draft_id, new_text)
+        flash("Draft updated.", "success")
+
+    return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
+
+
+@app.route("/campaigns/<int:campaign_id>/approve-all", methods=["POST"])
+def approve_all_drafts(campaign_id):
+    from utils.local_db import get_todays_drafts, approve_draft, update_draft_text
+
+    today_drafts = get_todays_drafts(campaign_id)
+    approved_count = 0
+
+    for draft in today_drafts:
+        if draft.get("approved") == 0:
+            # Check if user edited the text via form
+            edited_text = request.form.get(f"draft_text_{draft['id']}", "").strip()
+            if edited_text and edited_text != draft.get("draft_text", ""):
+                update_draft_text(draft["id"], edited_text)
+            approve_draft(draft["id"])
+            approved_count += 1
+
+    flash(f"Approved {approved_count} draft(s) for today!", "success")
+    return redirect(url_for("campaign_detail", campaign_id=campaign_id))
+
+
 # ── Posts routes ──────────────────────────────────────────────────
 
 
@@ -656,6 +791,8 @@ def settings():
         ]
 
         if mode:
+            if mode not in ("semi_auto", "full_auto"):
+                mode = "semi_auto"
             set_setting("mode", mode)
         if region:
             set_setting("audience_region", region)

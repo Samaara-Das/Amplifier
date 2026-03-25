@@ -707,6 +707,95 @@ def mark_draft_posted(draft_id: int) -> None:
     conn.close()
 
 
+def get_todays_drafts(campaign_id: int) -> list[dict]:
+    """Get all drafts created today for a campaign."""
+    today = datetime.now().strftime('%Y-%m-%d')
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT * FROM agent_draft WHERE campaign_id = ? AND created_at LIKE ?",
+        (campaign_id, f"{today}%"),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_todays_draft_count(campaign_id: int, platform: str) -> int:
+    """Count how many drafts were generated today for this campaign+platform."""
+    today = datetime.now().strftime('%Y-%m-%d')
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) as cnt FROM agent_draft WHERE campaign_id = ? AND platform = ? AND created_at LIKE ?",
+        (campaign_id, platform, f"{today}%"),
+    ).fetchone()
+    conn.close()
+    return row["cnt"] if row else 0
+
+
+def get_pending_drafts(campaign_id: int = None) -> list[dict]:
+    """Get unapproved drafts (approved=0). If campaign_id given, filter by it."""
+    conn = _get_db()
+    if campaign_id:
+        rows = conn.execute(
+            "SELECT * FROM agent_draft WHERE approved = 0 AND campaign_id = ? ORDER BY created_at DESC",
+            (campaign_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM agent_draft WHERE approved = 0 ORDER BY created_at DESC"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def reject_draft(draft_id: int) -> None:
+    """Mark a draft as rejected (approved=-1)."""
+    conn = _get_db()
+    conn.execute("UPDATE agent_draft SET approved = -1 WHERE id = ?", (draft_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_draft(draft_id: int) -> dict | None:
+    """Get a single draft by ID."""
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT * FROM agent_draft WHERE id = ?", (draft_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_draft_text(draft_id: int, new_text: str) -> None:
+    """Update draft text (user edited it)."""
+    conn = _get_db()
+    conn.execute("UPDATE agent_draft SET draft_text = ? WHERE id = ?", (new_text, draft_id))
+    conn.commit()
+    conn.close()
+
+
+def get_all_drafts(campaign_id: int = None) -> list[dict]:
+    """Get all drafts, optionally filtered by campaign. Include campaign title via JOIN."""
+    conn = _get_db()
+    if campaign_id:
+        rows = conn.execute(
+            """SELECT d.*, c.title as campaign_title
+               FROM agent_draft d
+               LEFT JOIN local_campaign c ON d.campaign_id = c.server_id
+               WHERE d.campaign_id = ?
+               ORDER BY d.created_at DESC""",
+            (campaign_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT d.*, c.title as campaign_title
+               FROM agent_draft d
+               LEFT JOIN local_campaign c ON d.campaign_id = c.server_id
+               ORDER BY d.created_at DESC"""
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 # ── Agent Pipeline: Content Insights ──────────────────────────────
 
 
