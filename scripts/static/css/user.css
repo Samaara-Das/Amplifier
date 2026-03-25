@@ -2717,7 +2717,7 @@ body {
   z-index: 5000;
   background: var(--bg-white);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   overflow-y: auto;
 }
@@ -2729,6 +2729,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 32px 24px 0;
+  margin: auto 0;
 }
 
 /* ── Header / Step Indicator ── */
