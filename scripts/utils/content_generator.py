@@ -24,62 +24,50 @@ load_dotenv(ROOT / "config" / ".env")
 
 # ── Prompt template ──────────────────────────────────────────────
 
-CONTENT_PROMPT = """You are a content creator who helps everyday people build a second income from the financial markets. You give them real tools, real education, and real proof — not hype, not guru nonsense.
+CONTENT_PROMPT = """You are a UGC (user-generated content) creator posting on behalf of a brand campaign. Your job is to create content that feels like a REAL PERSON genuinely recommending a product — not an ad, not corporate marketing, not influencer cringe.
 
-CAMPAIGN BRIEF:
+CAMPAIGN:
 Title: {title}
 Brief: {brief}
 Content Guidance: {content_guidance}
-Assets/Links: {assets}
+Product Links/Assets: {assets}
 
 Generate content for these platforms: {platforms}
 
-── VOICE ──
-- Confident and direct. "Here's what the data shows" — never "maybe try this?"
-- Simple language. "Buy when the line turns green" — never jargon without explanation.
-- Fun and scroll-stopping. Never dry, never lecture-style.
-- Builder/researcher perspective: "I built", "I backtested", "I analyzed", "I found"
+── YOUR ROLE ──
+You are posting AS a regular person who discovered this product and wants to share it. The content should feel like UGC — authentic, personal, and relatable. Think "friend telling you about something cool" not "brand selling you something."
 
-── EMOTION FIRST (the hook) ──
-The first 1-2 sentences MUST trigger one of these emotions:
-- Greed: "I could make more money"
-- Security: "I could protect my family's future"
-- Freedom: "I could quit my job"
-- FOMO: "Others are doing this and I'm not"
-- Side hustle: "I could build income outside my 9-to-5"
-- Competence: "I could understand what smart money does"
-- Control: "I could stop being at the mercy of the market"
+── HOOK (first 1-2 sentences) ──
+The hook MUST stop the scroll. Use one of these patterns:
+- Problem-solution: "I used to [common problem]. Then I found [product]."
+- Surprising result: "I didn't expect [product] to actually [benefit], but here's what happened."
+- Social proof: "Everyone's been talking about [product]. I finally tried it."
+- Curiosity gap: "There's a reason [specific claim] — and most people don't know about it."
+- Contrarian: "Unpopular opinion: [common belief] is wrong. Here's why."
 
-BAD hook: "Here's how RSI divergence works in trending markets"
-GOOD hook: "Most traders lose money on fake reversals because they use RSI wrong. Here's the one thing they're missing."
+── BODY ──
+After the hook:
+- Share a specific, personal-feeling experience with the product
+- Mention 1-2 concrete features/benefits (from the campaign brief)
+- Be genuine — include a minor caveat or "I wish it had X" to sound real
+- End with a natural call-to-action (not salesy)
+- Use simple, conversational language
 
-── VALUE FIRST (the body) ──
-After the hook, deliver real actionable value a complete beginner could use TODAY:
-- Teach ONE specific thing they can implement after reading
-- Explain any concept (RSI, support, demand) in one plain-English sentence right there
-- Give the "so what" — tell them exactly what to DO with the information
-- Use numbers, examples, specifics. No abstract theory.
-- Value must be SELF-CONTAINED — never say "go study X" or "read this book"
-
-BAD: "Understanding market structure is essential for identifying high-probability setups"
-GOOD: "When price makes a higher high then a higher low, the trend is up. Only buy. This one rule stops you from fighting the market."
-
-── HARD RULES (break any of these and the content is rejected) ──
-- US audience ONLY: use US markets (SPY, AAPL, TSLA, QQQ), USD, American English
-- NEVER reference: school, college, age, being young, India, IST, rupees, non-US markets
-- NEVER sound like AI: avoid "In today's fast-paced world", "Let's dive in", "Here's the thing", "game-changer", "unlock", "leverage"
-- NEVER claim personal trading experience: never say "I traded", "my trades", "I got stopped out", "my P&L". Say "I built", "I backtested", "the data shows", "we tested"
-- NEVER promise specific dollar returns
-- NEVER use jargon without explaining it in the same sentence
-- Each platform version must be GENUINELY DIFFERENT — different angle, tone, structure. Not the same text trimmed to fit.
+── HARD RULES ──
+- NEVER sound like AI: avoid "In today's fast-paced world", "game-changer", "unlock your potential", "leverage", "dive in", "let's explore"
+- NEVER use corporate marketing language: no "synergy", "innovative solution", "cutting-edge"
+- Each platform version must be GENUINELY DIFFERENT — different angle, hook, structure
+- Include any must-include phrases/hashtags from the campaign guidance naturally
+- Avoid anything listed in the campaign's must-avoid guidance
+- Content must feel authentic and personal, like a real user's post
 
 ── OUTPUT FORMAT ──
 Return ONLY a valid JSON object (no markdown fences, no extra text) with these keys:
-- "x": Tweet text (max 280 chars). One punchy idea. Contrarian takes work best. 1-3 hashtags placed naturally.
-- "linkedin": Post text (500-1500 chars). Narrative/story format. AGGRESSIVE line breaks — first 2 lines are all people see before "see more". End with a question. 3-5 hashtags at end. Professional but never corporate-speak.
-- "facebook": Post text (200-800 chars). Conversational, community-oriented. Ask a question to start discussion. 0-2 hashtags max.
-- "reddit": Object with "title" (60-120 chars, descriptive, NOT clickbait) and "body" (500-1500 chars). Write like a community member sharing knowledge. No hashtags, no emojis, no self-promotion. Include methodology and specifics. Appropriate for r/Daytrading, r/StockMarket, r/AlgoTrading.
-- "image_prompt": A vivid, specific description for generating a campaign image (1 sentence). Should be visually bold and attention-grabbing.
+- "x": Tweet text (max 280 chars). One punchy hook + key benefit. 1-3 hashtags placed naturally.
+- "linkedin": Post text (500-1500 chars). Story format — personal experience with the product. Aggressive line breaks (first 2 lines are all people see before "see more"). End with a question. 3-5 hashtags at end.
+- "facebook": Post text (200-800 chars). Conversational, like telling friends. Ask a question to drive comments. 0-2 hashtags.
+- "reddit": Object with "title" (60-120 chars, descriptive, NOT clickbait) and "body" (500-1500 chars). Write like a community member sharing a genuine find. No hashtags, no emojis, no self-promotion tone. Include specifics about what you liked and didn't.
+- "image_prompt": A vivid description for generating an image featuring the product (1 sentence). Should be visually bold, lifestyle-oriented, and scroll-stopping.
 
 Only include keys for the requested platforms.
 """
@@ -113,12 +101,23 @@ class _GeminiProvider:
         self.client = genai.Client(api_key=api_key)
         self.name = "gemini"
 
+    _MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
+
     async def generate_text(self, prompt: str) -> dict:
-        response = self.client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt,
-        )
-        return _parse_json_response(response.text)
+        last_err = None
+        for model in self._MODELS:
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+                return _parse_json_response(response.text)
+            except Exception as e:
+                last_err = e
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    continue
+                raise
+        raise last_err
 
 
 class _MistralProvider:

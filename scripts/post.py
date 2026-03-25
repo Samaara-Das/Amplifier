@@ -18,8 +18,23 @@ sys.path.insert(0, str(ROOT / "scripts"))
 load_dotenv(ROOT / "config" / ".env")
 os.environ.setdefault("AUTO_POSTER_ROOT", str(ROOT))
 
-from utils.draft_manager import get_next_draft, mark_failed, mark_posted
-from utils.human_behavior import browse_feed, human_delay, human_type
+# draft_manager and human_behavior removed — campaign posting managed by background_agent
+# Stubs for any remaining references in platform functions
+def human_delay(min_ms=500, max_ms=2000):
+    """Minimal delay between actions."""
+    import time
+    time.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
+
+async def human_type(page, selector, text, **kwargs):
+    """Type text character by character with small delays."""
+    el = page.locator(selector)
+    await el.fill("")
+    for char in text:
+        await el.press_sequentially(char, delay=random.randint(30, 80))
+
+async def browse_feed(page, platform, **kwargs):
+    """Minimal feed browsing — just wait briefly."""
+    await page.wait_for_timeout(random.randint(1000, 3000))
 
 # Logging setup
 LOG_DIR = ROOT / "logs"
