@@ -184,13 +184,23 @@
         <div class="card-title">Content direction</div>
         <div class="form-group">
             <label for="mustInclude">Must-include phrases, links, or hashtags</label>
-            <textarea id="mustInclude" class="form-control" placeholder="e.g. #FinanceFriday, https://app.example.com/signup, mention free trial..." rows="3"></textarea>
-            <div class="form-help">One per line or comma-separated. These will appear in every post.</div>
+            <div class="chip-input-container" id="mustIncludeChips" onclick="this.querySelector('.chip-input').focus()">
+                <div class="chip-list" id="mustIncludeList"></div>
+                <input type="text" class="chip-input" placeholder="Type and press Enter to add"
+                       onkeydown="handleChipInput(event, 'mustInclude')">
+            </div>
+            <input type="hidden" id="mustInclude" name="mustInclude">
+            <div class="form-help">Type and press Enter to add tags. These will appear in every post.</div>
         </div>
         <div class="form-group">
             <label for="mustAvoid">Anything to avoid?</label>
-            <textarea id="mustAvoid" class="form-control" placeholder="e.g. Don't mention competitors by name, avoid medical claims..." rows="3"></textarea>
-            <div class="form-help">Topics, phrases, or claims creators should stay away from.</div>
+            <div class="chip-input-container" id="mustAvoidChips" onclick="this.querySelector('.chip-input').focus()">
+                <div class="chip-list" id="mustAvoidList"></div>
+                <input type="text" class="chip-input" placeholder="Type and press Enter to add"
+                       onkeydown="handleChipInput(event, 'mustAvoid')">
+            </div>
+            <input type="hidden" id="mustAvoid" name="mustAvoid">
+            <div class="form-help">Type and press Enter to add tags. Topics, phrases, or claims creators should stay away from.</div>
         </div>
     </div>
     <div class="wizard-actions">
@@ -546,6 +556,62 @@
         color-scheme: dark;
     }
 
+    /* Chip tag inputs */
+    .chip-input-container {
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        background: #0f172a;
+        min-height: 44px;
+        cursor: text;
+        align-items: flex-start;
+    }
+    .chip-input-container:focus-within {
+        border-color: #2563eb;
+    }
+    .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .chip-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        font-size: 13px;
+        color: #e2e8f0;
+        white-space: nowrap;
+    }
+    .chip-tag .chip-remove {
+        cursor: pointer;
+        color: #94a3b8;
+        font-size: 16px;
+        line-height: 1;
+    }
+    .chip-tag .chip-remove:hover {
+        color: #ef4444;
+    }
+    .chip-input {
+        border: none;
+        outline: none;
+        background: transparent;
+        color: #e2e8f0;
+        font-size: 14px;
+        flex: 1;
+        min-width: 120px;
+        padding: 2px 0;
+    }
+    .chip-input::placeholder {
+        color: #475569;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
         .radio-group { grid-template-columns: 1fr; }
@@ -689,6 +755,40 @@
         return null;
     }
 
+    // ── Chip tag input helpers ──────────────────────────────────
+    function handleChipInput(event, fieldId) {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
+            var input = event.target;
+            var value = input.value.trim().replace(/,$/, '').trim();
+            if (!value) return;
+            addChip(fieldId, value);
+            input.value = '';
+        }
+    }
+
+    function addChip(fieldId, value) {
+        var list = document.getElementById(fieldId + 'List');
+        var chip = document.createElement('span');
+        chip.className = 'chip-tag';
+        chip.dataset.value = value;
+        chip.innerHTML = value + ' <span class="chip-remove" onclick="removeChip(this, \'' + fieldId + '\')">&times;</span>';
+        list.appendChild(chip);
+        syncChipValues(fieldId);
+    }
+
+    function removeChip(btn, fieldId) {
+        btn.parentElement.remove();
+        syncChipValues(fieldId);
+    }
+
+    function syncChipValues(fieldId) {
+        var list = document.getElementById(fieldId + 'List');
+        var chips = list.querySelectorAll('.chip-tag');
+        var values = Array.from(chips).map(function(c) { return c.dataset.value; });
+        document.getElementById(fieldId).value = values.join(', ');
+    }
+
     // ── Collect wizard data ─────────────────────────────────────
     function collectWizardData() {
         var urls = [];
@@ -720,10 +820,10 @@
         });
 
         var mustIncludeRaw = $('#mustInclude').value.trim();
-        var mustInclude = mustIncludeRaw ? mustIncludeRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+        var mustInclude = mustIncludeRaw ? mustIncludeRaw.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
 
         var mustAvoidRaw = $('#mustAvoid').value.trim();
-        var mustAvoid = mustAvoidRaw ? mustAvoidRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+        var mustAvoid = mustAvoidRaw ? mustAvoidRaw.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
 
         var goalEl = document.querySelector('input[name="campaignGoal"]:checked');
         var minEng = parseFloat($('#minEngagement').value) || 0;
