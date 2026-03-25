@@ -35,7 +35,7 @@
           </div>
 
           {% if error %}
-            <div class="ob-field-error ob-global-error" style="display:block; margin-bottom: 12px;">{{ error }}</div>
+            <div class="ob-field-error ob-global-error" id="global-error" style="display:block; margin-bottom: 12px;">{{ error }}</div>
           {% endif %}
 
           <!-- Register Form -->
@@ -81,6 +81,9 @@
       var regTab = document.getElementById('ob-tab-register');
       var loginTab = document.getElementById('ob-tab-login');
 
+      // Clear error when switching tabs
+      clearError();
+
       if (mode === 'register') {
         regForm.style.display = '';
         loginForm.style.display = 'none';
@@ -93,6 +96,75 @@
         loginTab.classList.add('active');
       }
     }
+
+    function clearError() {
+      var err = document.getElementById('global-error');
+      if (err) err.style.display = 'none';
+      // Remove red border from all inputs
+      document.querySelectorAll('input.input-error').forEach(function(el) {
+        el.classList.remove('input-error');
+      });
+    }
+
+    // Clear error when user types in any input
+    document.querySelectorAll('input[type="email"], input[type="password"]').forEach(function(input) {
+      input.addEventListener('input', clearError);
+    });
+
+    // Client-side validation before submit
+    document.getElementById('ob-form-register').addEventListener('submit', function(e) {
+      var pw = document.getElementById('ob-reg-password').value;
+      var confirm = document.getElementById('ob-reg-confirm').value;
+      var email = document.getElementById('ob-reg-email').value;
+
+      if (!email) {
+        e.preventDefault();
+        showError('Please enter your email address.');
+        document.getElementById('ob-reg-email').classList.add('input-error');
+        return;
+      }
+      if (pw.length < 8) {
+        e.preventDefault();
+        showError('Password must be at least 8 characters.');
+        document.getElementById('ob-reg-password').classList.add('input-error');
+        return;
+      }
+      if (pw !== confirm) {
+        e.preventDefault();
+        showError('Passwords do not match.');
+        document.getElementById('ob-reg-confirm').classList.add('input-error');
+        return;
+      }
+
+      // Show loading state
+      var btn = this.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Creating Account...';
+    });
+
+    document.getElementById('ob-form-login').addEventListener('submit', function() {
+      var btn = this.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Logging in...';
+    });
+
+    function showError(msg) {
+      var err = document.getElementById('global-error');
+      if (!err) {
+        err = document.createElement('div');
+        err.id = 'global-error';
+        err.className = 'ob-field-error ob-global-error';
+        err.style.display = 'block';
+        err.style.marginBottom = '12px';
+        var toggle = document.querySelector('.ob-auth-toggle');
+        toggle.parentNode.insertBefore(err, toggle.nextSibling);
+      }
+      err.textContent = msg;
+      err.style.display = 'block';
+    }
   </script>
+  <style>
+    input.input-error { border-color: var(--error) !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+  </style>
 </body>
 </html>

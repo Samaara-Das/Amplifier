@@ -52,7 +52,7 @@ def handle_exception(e):
 @app.before_request
 def check_auth():
     try:
-        allowed = ["/login", "/static", "/favicon.ico"]
+        allowed = ["/login", "/logout", "/static", "/favicon.ico"]
         if any(request.path.startswith(p) for p in allowed):
             return
         if not is_logged_in():

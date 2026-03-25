@@ -62,7 +62,9 @@
                 <span class="ob-platform-card-status">{{ 'Connected' if platforms.get('x') else 'Not connected' }}</span>
               </div>
               {% if platforms.get('x') %}
-                <span class="btn btn-sm ob-connect-btn connected">Connected</span>
+                <form method="post" action="{{ url_for('onboarding_connect', platform='x') }}" style="margin:0;">
+                  <button type="submit" class="btn btn-sm ob-connect-btn connected" title="Click to reconnect with a different account">Reconnect</button>
+                </form>
               {% else %}
                 <form method="post" action="{{ url_for('onboarding_connect', platform='x') }}" style="margin:0;">
                   <button type="submit" class="btn btn-primary btn-sm ob-connect-btn">Connect</button>
@@ -80,7 +82,9 @@
                 <span class="ob-platform-card-status">{{ 'Connected' if platforms.get('linkedin') else 'Not connected' }}</span>
               </div>
               {% if platforms.get('linkedin') %}
-                <span class="btn btn-sm ob-connect-btn connected">Connected</span>
+                <form method="post" action="{{ url_for('onboarding_connect', platform='linkedin') }}" style="margin:0;">
+                  <button type="submit" class="btn btn-sm ob-connect-btn connected" title="Click to reconnect with a different account">Reconnect</button>
+                </form>
               {% else %}
                 <form method="post" action="{{ url_for('onboarding_connect', platform='linkedin') }}" style="margin:0;">
                   <button type="submit" class="btn btn-primary btn-sm ob-connect-btn">Connect</button>
@@ -98,7 +102,9 @@
                 <span class="ob-platform-card-status">{{ 'Connected' if platforms.get('facebook') else 'Not connected' }}</span>
               </div>
               {% if platforms.get('facebook') %}
-                <span class="btn btn-sm ob-connect-btn connected">Connected</span>
+                <form method="post" action="{{ url_for('onboarding_connect', platform='facebook') }}" style="margin:0;">
+                  <button type="submit" class="btn btn-sm ob-connect-btn connected" title="Click to reconnect with a different account">Reconnect</button>
+                </form>
               {% else %}
                 <form method="post" action="{{ url_for('onboarding_connect', platform='facebook') }}" style="margin:0;">
                   <button type="submit" class="btn btn-primary btn-sm ob-connect-btn">Connect</button>
@@ -116,7 +122,9 @@
                 <span class="ob-platform-card-status">{{ 'Connected' if platforms.get('reddit') else 'Not connected' }}</span>
               </div>
               {% if platforms.get('reddit') %}
-                <span class="btn btn-sm ob-connect-btn connected">Connected</span>
+                <form method="post" action="{{ url_for('onboarding_connect', platform='reddit') }}" style="margin:0;">
+                  <button type="submit" class="btn btn-sm ob-connect-btn connected" title="Click to reconnect with a different account">Reconnect</button>
+                </form>
               {% else %}
                 <form method="post" action="{{ url_for('onboarding_connect', platform='reddit') }}" style="margin:0;">
                   <button type="submit" class="btn btn-primary btn-sm ob-connect-btn">Connect</button>
@@ -280,7 +288,7 @@
 
       <!-- Bottom Navigation -->
       <div class="onboarding-footer">
-        <button class="btn btn-secondary" id="ob-btn-back" onclick="obGoBack()" style="display:none;">
+        <button class="btn btn-secondary" id="ob-btn-back" onclick="obGoBack()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
           Back
         </button>
@@ -343,8 +351,8 @@
       var target = document.getElementById('ob-step-' + step);
       if (target) target.classList.add('active');
 
-      // Update buttons
-      document.getElementById('ob-btn-back').style.display = step > 1 ? '' : 'none';
+      // Update buttons — back always visible (step 1 goes to login)
+      document.getElementById('ob-btn-back').style.display = '';
       document.getElementById('ob-btn-next').style.display = step < totalSteps ? '' : 'none';
       document.getElementById('ob-btn-finish').style.display = step === totalSteps ? '' : 'none';
 
@@ -380,10 +388,17 @@
     }
 
     function obGoBack() {
-      if (currentStep > 1) {
-        currentStep--;
-        showStep(currentStep);
+      if (currentStep === 1) {
+        // Go back to login page via POST logout
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("logout") }}';
+        document.body.appendChild(form);
+        form.submit();
+        return;
       }
+      currentStep--;
+      showStep(currentStep);
     }
 
     function selectMode(el) {

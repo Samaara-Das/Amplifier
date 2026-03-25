@@ -2999,7 +2999,11 @@ body {
 .ob-connect-btn.connected {
   background: var(--success);
   border-color: var(--success);
-  pointer-events: none;
+  cursor: pointer;
+}
+.ob-connect-btn.connected:hover {
+  background: #059669;
+  border-color: #059669;
 }
 
 .ob-connect-btn.connecting {
