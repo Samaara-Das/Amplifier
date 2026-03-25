@@ -727,7 +727,7 @@ def mark_draft_posted(draft_id: int) -> None:
 
 def get_todays_drafts(campaign_id: int) -> list[dict]:
     """Get all drafts created today for a campaign."""
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     conn = _get_db()
     rows = conn.execute(
         "SELECT * FROM agent_draft WHERE campaign_id = ? AND created_at LIKE ?",
@@ -739,7 +739,7 @@ def get_todays_drafts(campaign_id: int) -> list[dict]:
 
 def get_todays_draft_count(campaign_id: int, platform: str) -> int:
     """Count how many drafts were generated today for this campaign+platform."""
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     conn = _get_db()
     row = conn.execute(
         "SELECT COUNT(*) as cnt FROM agent_draft WHERE campaign_id = ? AND platform = ? AND created_at LIKE ?",

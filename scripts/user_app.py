@@ -10,6 +10,7 @@ from pathlib import Path
 
 from flask import (
     Flask,
+    Response,
     flash,
     jsonify,
     redirect,
@@ -69,7 +70,7 @@ def check_auth():
 
 @app.route("/favicon.ico")
 def favicon():
-    return "", 204
+    return Response(status=204)
 
 
 # ── Helpers ───────────────────────────────────────────────────────
