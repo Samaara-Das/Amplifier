@@ -421,8 +421,8 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
             image_path=post.get("image_path"),
         )
 
-        if post_url:
-            # Create local_post record
+        if post_url is not None:
+            # Platform function returned a URL (may be real URL or fallback placeholder)
             local_post_id = add_post(
                 campaign_server_id=post["campaign_server_id"],
                 assignment_id=0,  # will be resolved by sync
@@ -438,12 +438,27 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
             )
             return True
         else:
-            update_schedule_status(
-                schedule_id, "failed",
-                error_message="Platform function returned None (no URL)",
+            # Platform function raised no exception but returned None — post likely sent,
+            # URL capture failed. Store with placeholder so we don't lose the post record.
+            placeholder_url = f"posted_but_url_unknown:{post['platform']}:{schedule_id}"
+            local_post_id = add_post(
+                campaign_server_id=post["campaign_server_id"],
+                assignment_id=0,
+                platform=post["platform"],
+                post_url=placeholder_url,
+                content=post.get("content", ""),
+                content_hash="",
             )
-            logger.warning("Post to %s returned no URL for schedule_id=%d", post["platform"], schedule_id)
-            return False
+            update_schedule_status(
+                schedule_id, "posted_no_url",
+                local_post_id=local_post_id,
+                error_message="Post sent but URL capture failed — metric scraper will retry",
+            )
+            logger.warning(
+                "Post to %s sent but URL unknown for schedule_id=%d (local_post_id=%d)",
+                post["platform"], schedule_id, local_post_id,
+            )
+            return True  # Post was sent — treat as success for campaign runner
 
     except Exception as e:
         error_msg = str(e)

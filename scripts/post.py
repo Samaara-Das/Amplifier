@@ -184,7 +184,8 @@ async def post_to_x(draft: dict, pw) -> str | None:
         post_btn = page.locator(X_POST_BUTTON)
         await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
         await post_btn.dispatch_event("click")
-        await human_delay(3, 5)
+        logger.info("X: post button clicked, waiting for post to appear...")
+        await human_delay(5, 8)
 
         # Extract post URL — go to OWN profile and grab the first tweet's permalink
         post_url = None
@@ -194,17 +195,30 @@ async def post_to_x(draft: dict, pw) -> str | None:
             if await profile_link.count() > 0:
                 profile_href = await profile_link.get_attribute("href")
                 profile_url = f"https://x.com{profile_href}" if profile_href.startswith("/") else profile_href
+                logger.info("X: navigating to profile %s", profile_url)
                 await page.goto(profile_url, timeout=PAGE_LOAD_TIMEOUT)
                 await page.wait_for_load_state("domcontentloaded")
-                await human_delay(2, 3)
 
-                # First status link on own profile = just-posted tweet
-                link = page.locator('article[data-testid="tweet"] a[href*="/status/"]').first
-                if await link.count() > 0:
-                    href = await link.get_attribute("href")
-                    if href:
-                        post_url = f"https://x.com{href}" if href.startswith("/") else href
-                        logger.info("X: captured post URL: %s", post_url)
+                # Wait for tweets to actually load in the DOM
+                try:
+                    await page.locator('article[data-testid="tweet"]').first.wait_for(timeout=10000)
+                except Exception:
+                    logger.warning("X: timed out waiting for tweet articles to load")
+
+                # Retry loop: scroll down if no status link found
+                for attempt in range(3):
+                    link = page.locator('article[data-testid="tweet"] a[href*="/status/"]').first
+                    if await link.count() > 0:
+                        href = await link.get_attribute("href")
+                        if href:
+                            post_url = f"https://x.com{href}" if href.startswith("/") else href
+                            logger.info("X: captured post URL (attempt %d): %s", attempt + 1, post_url)
+                            break
+                    logger.info("X: no status link on attempt %d, scrolling and retrying...", attempt + 1)
+                    await page.mouse.wheel(0, 300)
+                    await page.wait_for_timeout(3000)
+            else:
+                logger.warning("X: profile link not found in sidebar")
         except Exception as e:
             logger.warning("X: could not extract post URL: %s", e)
 
@@ -319,22 +333,34 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
         post_btn = page.get_by_role("button", name="Post", exact=True)
         await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
         await post_btn.click()
-        await human_delay(3, 5)
+        logger.info("LinkedIn: post button clicked, waiting for post to appear...")
+        await human_delay(5, 8)
 
         # Extract post URL — go to own recent activity to find the just-posted content
         post_url = None
         try:
             await page.goto("https://www.linkedin.com/in/me/recent-activity/all/", timeout=PAGE_LOAD_TIMEOUT)
             await page.wait_for_load_state("domcontentloaded")
-            await human_delay(3, 5)
+            logger.info("LinkedIn: navigated to recent activity page")
 
-            # First activity update link = just-posted content
-            link = page.locator('a[href*="/feed/update/"]').first
-            if await link.count() > 0:
-                href = await link.get_attribute("href")
-                if href:
-                    post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
-                    logger.info("LinkedIn: captured post URL: %s", post_url)
+            # Wait for activity feed items to load
+            try:
+                await page.locator('a[href*="/feed/update/"]').first.wait_for(timeout=10000)
+            except Exception:
+                logger.warning("LinkedIn: timed out waiting for activity feed items")
+
+            # Retry loop: scroll if no update link found
+            for attempt in range(3):
+                link = page.locator('a[href*="/feed/update/"]').first
+                if await link.count() > 0:
+                    href = await link.get_attribute("href")
+                    if href:
+                        post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
+                        logger.info("LinkedIn: captured post URL (attempt %d): %s", attempt + 1, post_url)
+                        break
+                logger.info("LinkedIn: no activity link on attempt %d, scrolling and retrying...", attempt + 1)
+                await page.mouse.wheel(0, 300)
+                await page.wait_for_timeout(3000)
         except Exception as e:
             logger.warning("LinkedIn: could not extract post URL: %s", e)
 

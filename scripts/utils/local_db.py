@@ -595,6 +595,14 @@ def update_schedule_status(schedule_id: int, status: str,
                WHERE id = ?""",
             (status, local_post_id, schedule_id),
         )
+    elif status == "posted_no_url":
+        conn.execute(
+            """UPDATE post_schedule
+               SET status = ?, actual_posted_at = datetime('now'),
+                   local_post_id = ?, error_message = ?
+               WHERE id = ?""",
+            (status, local_post_id, error_message, schedule_id),
+        )
     elif status == "failed":
         conn.execute(
             "UPDATE post_schedule SET status = ?, error_message = ? WHERE id = ?",
