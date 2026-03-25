@@ -52,6 +52,9 @@ def handle_exception(e):
 @app.before_request
 def check_auth():
     try:
+        # Ensure DB tables exist — recreate if DB was deleted while app was running
+        init_db()
+
         allowed = ["/login", "/logout", "/static", "/favicon.ico", "/api/"]
         if any(request.path.startswith(p) for p in allowed):
             return
@@ -62,6 +65,11 @@ def check_auth():
     except Exception as e:
         logger.error("before_request error: %s", e, exc_info=True)
         return redirect(url_for("login_page"))
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
 
 
 # ── Helpers ───────────────────────────────────────────────────────
