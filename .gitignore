@@ -46,3 +46,7 @@ data/
 tauri-app/src-tauri/target/
 tauri-app/src-tauri/gen/
 tauri-app/node_modules/
+.playwright-cli/
+scripts/.claude/
+.claude/scheduled_tasks.lock
+.claude/codebase-analysis-*.md
