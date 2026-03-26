@@ -250,8 +250,13 @@
                 4. Paste it below and click Test
               </div>
               <div style="display: flex; gap: 8px;">
-                <input type="password" id="ob-gemini-key" placeholder="AIza..."
-                       class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
+                <div style="flex:1; position:relative;">
+                  <input type="password" id="ob-gemini-key" placeholder="AIza..."
+                         class="ob-select" style="width:100%; padding:8px 36px 8px 12px; font-size:13px;" />
+                  <button type="button" onclick="toggleKeyVis('ob-gemini-key', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:2px;" title="Show/hide key">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                  </button>
+                </div>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="testApiKey('gemini')" id="ob-test-gemini" style="white-space: nowrap;">Test</button>
               </div>
               <div id="ob-gemini-status" style="font-size: 12px; margin-top: 4px; min-height: 18px;"></div>
@@ -269,8 +274,13 @@
                 3. Click "Create new key", copy it, and paste below
               </div>
               <div style="display: flex; gap: 8px;">
-                <input type="password" id="ob-mistral-key" placeholder="Paste Mistral key..."
-                       class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
+                <div style="flex:1; position:relative;">
+                  <input type="password" id="ob-mistral-key" placeholder="Paste Mistral key..."
+                         class="ob-select" style="width:100%; padding:8px 36px 8px 12px; font-size:13px;" />
+                  <button type="button" onclick="toggleKeyVis('ob-mistral-key', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:2px;" title="Show/hide key">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                  </button>
+                </div>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="testApiKey('mistral')" id="ob-test-mistral" style="white-space: nowrap;">Test</button>
               </div>
               <div id="ob-mistral-status" style="font-size: 12px; margin-top: 4px; min-height: 18px;"></div>
@@ -288,8 +298,13 @@
                 3. Click "Create API Key", copy it, and paste below
               </div>
               <div style="display: flex; gap: 8px;">
-                <input type="password" id="ob-groq-key" placeholder="Paste Groq key..."
-                       class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
+                <div style="flex:1; position:relative;">
+                  <input type="password" id="ob-groq-key" placeholder="Paste Groq key..."
+                         class="ob-select" style="width:100%; padding:8px 36px 8px 12px; font-size:13px;" />
+                  <button type="button" onclick="toggleKeyVis('ob-groq-key', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:2px;" title="Show/hide key">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                  </button>
+                </div>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="testApiKey('groq')" id="ob-test-groq" style="white-space: nowrap;">Test</button>
               </div>
               <div id="ob-groq-status" style="font-size: 12px; margin-top: 4px; min-height: 18px;"></div>
@@ -642,6 +657,17 @@
       document.getElementById('ob-summary-keys').textContent = providers.length > 0 ? providers.join(', ') : 'None';
     }
 
+    function toggleKeyVis(inputId, btn) {
+      var inp = document.getElementById(inputId);
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        btn.style.color = '#2563eb';
+      } else {
+        inp.type = 'password';
+        btn.style.color = '#64748b';
+      }
+    }
+
     function testApiKey(provider) {
       var inputId = 'ob-' + provider + '-key';
       var statusId = 'ob-' + provider + '-status';
@@ -667,7 +693,11 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.valid) {
-          statusEl.innerHTML = '<span style="color: var(--success);">&#10003; Key is valid</span>';
+          if (data.warning) {
+            statusEl.innerHTML = '<span style="color: var(--warning);">&#10003; ' + data.warning + '</span>';
+          } else {
+            statusEl.innerHTML = '<span style="color: var(--success);">&#10003; Key is valid</span>';
+          }
           validatedKeys[provider] = true;
         } else {
           statusEl.innerHTML = '<span style="color: var(--error);">&#10007; ' + (data.error || 'Invalid key') + '</span>';

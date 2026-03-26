@@ -325,7 +325,10 @@ def api_test_api_key():
 
     except Exception as e:
         error_msg = str(e)
-        # Shorten common error messages
+        # Rate limit / quota errors = key is valid, just temporarily exhausted
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "quota" in error_msg.lower() or "rate" in error_msg.lower():
+            return jsonify({"valid": True, "warning": "Key valid (quota temporarily exceeded — will work when quota resets)"})
+        # Auth errors = invalid key
         if "401" in error_msg or "Unauthorized" in error_msg or "invalid" in error_msg.lower():
             error_msg = "Invalid API key"
         elif "403" in error_msg or "Forbidden" in error_msg:
