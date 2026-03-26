@@ -56,17 +56,24 @@ STEALTH_ARGS = [
 STEALTH_INIT_SCRIPT = 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
 
 
+    # Platforms that block headless browsers entirely — must run headed
+_HEADED_PLATFORMS = {"reddit"}
+
+
 async def _launch_context(pw, platform: str) -> BrowserContext:
     """Launch persistent browser context for scraping (reuses posting profiles).
 
-    All platforms run headless with stealth flags to bypass automation detection.
+    Most platforms run headless. Reddit blocks headless entirely ("blocked by
+    network security"), so it runs headed (visible browser window).
     """
     profile_dir = ROOT / "profiles" / f"{platform}-profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
 
+    use_headless = platform not in _HEADED_PLATFORMS
+
     kwargs = dict(
         user_data_dir=str(profile_dir),
-        headless=True,
+        headless=use_headless,
         viewport={"width": 1280, "height": 800},
         args=STEALTH_ARGS,
     )
@@ -1040,26 +1047,33 @@ async def scrape_facebook_profile(playwright) -> dict:
             if lang_match:
                 details["language"] = lang_match.group(1).strip()
 
-            # Work — look for company + title pattern
+            # Work — extract from "Work" section
             work_entries = []
-            work_matches = re.finditer(
-                r'(?:^|\n)(.+?)\n([\w\s]+(?:Engineer|Developer|Manager|Designer|Director|CEO|CTO|Founder|Analyst|Consultant|Officer|Lead|Head|VP|President|Assistant|Coordinator|Specialist|Intern).*?)(?:\n|$)',
-                about_text, re.IGNORECASE
-            )
-            for m in work_matches:
-                work_entries.append({"company": m.group(1).strip(), "title": m.group(2).strip()})
+            work_section = re.search(r'Work\n([\s\S]*?)(?:\nEducation\b|\nLinks\b|\nContact info\b|\nBasic info\b|\nPlaces lived\b|$)', about_text)
+            if work_section:
+                work_lines = [l.strip() for l in work_section.group(1).split("\n") if l.strip() and len(l.strip()) > 3]
+                # Filter out UI noise
+                ui_noise = {"shared with public", "shared with friends", "add a workplace", "edit", "highlights", "·"}
+                work_lines = [l for l in work_lines if l.lower() not in ui_noise and not l.startswith("·")]
+                for line in work_lines[:5]:
+                    work_entries.append(line)
             if work_entries:
-                details["work"] = work_entries[:3]
+                details["work"] = work_entries
 
-            # Education
+            # Education — extract from "Education" section
             edu_entries = []
-            # Look for known education keywords
-            edu_section = re.search(r'Education\n([\s\S]*?)(?:\nLinks\b|\nContact info\b|\nBasic info\b|\nWork\b|$)', about_text)
+            edu_section = re.search(r'Education\n([\s\S]*?)(?:\nLinks\b|\nContact info\b|\nBasic info\b|\nWork\b|\nPlaces lived\b|$)', about_text)
             if edu_section:
                 edu_lines = [l.strip() for l in edu_section.group(1).split("\n") if l.strip() and len(l.strip()) > 3]
-                for line in edu_lines[:3]:
-                    if "see more" not in line.lower() and "edit" not in line.lower():
-                        edu_entries.append(line)
+                ui_noise = {"see more education", "see more", "edit", "add", "highlights",
+                            "add highlights", "shared with public", "shared with friends",
+                            "friends", "see all friends", "·"}
+                edu_lines = [l for l in edu_lines
+                             if l.lower() not in ui_noise
+                             and not l.startswith("·")
+                             and not re.match(r'^\d+ friends?$', l, re.IGNORECASE)]
+                for line in edu_lines[:5]:
+                    edu_entries.append(line)
             if edu_entries:
                 details["education"] = edu_entries
 
@@ -1091,60 +1105,81 @@ async def scrape_facebook_profile(playwright) -> dict:
         except Exception as e:
             logger.debug("Facebook: personal details scraping failed: %s", e)
 
-        # Scrape recent posts
+        # Scrape recent posts using body text parsing.
+        # Facebook's DOM is heavily obfuscated — role="article" no longer works.
+        # Instead, parse body text and find posts by the "Comment as {name}" marker.
+        # Pattern: [noise] → "Shared with ..." → [post content] → Like → Comment → Share → "Comment as ..."
         posts = []
         seen_texts = set()
 
         for scroll_round in range(8):
-            articles = page.locator('[role="article"]')
-            count = await articles.count()
+            if len(posts) >= 30:
+                break
 
-            for i in range(count):
-                if len(posts) >= 30:
-                    break
-                try:
-                    article = articles.nth(i)
-                    article_text = (await article.inner_text()).strip()
+            try:
+                body_text = await page.inner_text("body")
+                lines = [l.strip() for l in body_text.split("\n") if l.strip()]
 
-                    # Extract meaningful text content (skip very short or navigation text)
-                    if len(article_text) < 20:
+                # Find all "Comment as" markers — each one ends a post block
+                for idx, line in enumerate(lines):
+                    if len(posts) >= 30:
+                        break
+                    if not line.startswith("Comment as"):
                         continue
 
-                    # Take first 500 chars as post text
-                    post_text = article_text[:500]
-                    text_key = post_text[:100]  # dedup on first 100 chars
+                    # Walk backwards from "Comment as" to find post content
+                    # Structure: ... "Shared with ..." → content lines → "Like" → "Comment" → "Share" → "Comment as ..."
+                    content_lines = []
+                    shared_with = None
+                    for back_idx in range(idx - 1, max(0, idx - 20), -1):
+                        back_line = lines[back_idx]
+                        if back_line in ("Like", "Comment", "Share"):
+                            continue
+                        if back_line.startswith("Shared with"):
+                            shared_with = back_line
+                            break
+                        # Skip noise (single chars, garbled text)
+                        if len(back_line) <= 2:
+                            continue
+                        # Skip common UI elements
+                        if back_line in ("Facebook", "·"):
+                            continue
+                        content_lines.insert(0, back_line)
+
+                    if not content_lines:
+                        continue
+
+                    post_text = "\n".join(content_lines)[:500]
+                    text_key = post_text[:80]
                     if text_key in seen_texts:
                         continue
                     seen_texts.add(text_key)
 
-                    # Extract reactions from article text
+                    # Extract engagement counts from lines near the post
                     likes = 0
-                    comments = 0
+                    comments_count = 0
                     shares = 0
-
-                    # Look for reaction counts in aria-labels within the article
-                    reaction_el = article.locator('[aria-label*="reaction"], [aria-label*="like"]')
-                    if await reaction_el.count() > 0:
-                        reaction_label = await reaction_el.first.get_attribute("aria-label") or ""
-                        likes = _parse_number(reaction_label)
-
-                    # Comment/share counts from text
-                    comment_match = re.search(r'(\d+)\s*comment', article_text, re.IGNORECASE)
-                    if comment_match:
-                        comments = int(comment_match.group(1))
-                    share_match = re.search(r'(\d+)\s*share', article_text, re.IGNORECASE)
-                    if share_match:
-                        shares = int(share_match.group(1))
+                    for near_idx in range(max(0, idx - 5), min(len(lines), idx + 3)):
+                        near = lines[near_idx]
+                        like_match = re.search(r'^(\d+)\s*$', near)  # Standalone number before "Like"
+                        if like_match and near_idx < idx:
+                            likes = int(like_match.group(1))
+                        c_match = re.search(r'(\d+)\s*comment', near, re.IGNORECASE)
+                        if c_match:
+                            comments_count = int(c_match.group(1))
+                        s_match = re.search(r'(\d+)\s*share', near, re.IGNORECASE)
+                        if s_match:
+                            shares = int(s_match.group(1))
 
                     posts.append({
                         "text": post_text,
                         "likes": likes,
-                        "comments": comments,
+                        "comments": comments_count,
                         "shares": shares,
                     })
 
-                except Exception as e:
-                    logger.debug("Facebook: error parsing post %d: %s", i, e)
+            except Exception as e:
+                logger.debug("Facebook: error parsing posts from body text: %s", e)
 
             if len(posts) >= 30:
                 break
@@ -1242,27 +1277,31 @@ async def scrape_reddit_profile(playwright) -> dict:
                 result["follower_count"] = _parse_number(follower_match.group(1))
                 logger.info("Reddit: followers=%d", result["follower_count"])
 
-            # Karma
-            karma_match = re.search(r'([\d,]+)\s*\n?\s*Karma', body_text)
-            if karma_match:
-                result["karma"] = _parse_number(karma_match.group(1))
-                logger.info("Reddit: karma=%d", result["karma"])
+            # Parse sidebar fields — numbers appear on separate lines before labels
+            body_lines = [l.strip() for l in body_text.split("\n") if l.strip()]
 
-            # Contributions
-            contrib_match = re.search(r'([\d,]+)\s*\n?\s*Contributions?', body_text)
-            if contrib_match:
-                result["contributions"] = _parse_number(contrib_match.group(1))
+            for i, line in enumerate(body_lines):
+                prev = body_lines[i - 1] if i > 0 else ""
 
-            # Reddit Age (e.g., "3 y", "11 mo", "2 y")
-            age_match = re.search(r'([\d]+\s*[ymo]+)\s*\n?\s*Reddit Age', body_text)
-            if age_match:
-                result["reddit_age"] = age_match.group(1).strip()
-                logger.info("Reddit: age=%s", result["reddit_age"])
-
-            # Active communities (e.g., "Active in > 2" or shows community icons)
-            active_match = re.search(r'Active in\s*>?\s*([\d]+)', body_text)
-            if active_match:
-                result["active_communities"] = int(active_match.group(1))
+                if line == "Karma" and prev:
+                    result["karma"] = _parse_number(prev)
+                    logger.info("Reddit: karma=%d", result["karma"])
+                elif line == "Contributions" and prev:
+                    result["contributions"] = _parse_number(prev)
+                elif line == "Reddit Age" and prev:
+                    result["reddit_age"] = prev.strip()
+                    logger.info("Reddit: age=%s", result["reddit_age"])
+                elif line.startswith("Active in"):
+                    # "Active in >" with number on next or previous line
+                    if i + 1 < len(body_lines):
+                        next_line = body_lines[i + 1]
+                        num = _parse_number(next_line)
+                        if num > 0:
+                            result["active_communities"] = num
+                    # Or try extracting from the line itself "Active in > 2"
+                    active_match = re.search(r'>?\s*(\d+)', line)
+                    if active_match:
+                        result["active_communities"] = int(active_match.group(1))
 
             # Cake day
             cake_match = re.search(r'Cake day\s*[:\-]?\s*(\w+\s+\d+,?\s*\d{4})', body_text, re.IGNORECASE)

@@ -246,7 +246,7 @@
         "id": "17",
         "title": "Explain: User Onboarding + Scraping",
         "description": "Walk through how user onboarding and profile/metric scraping currently works — registration, platform connections, API key setup, LinkedIn scraping, niche selection, region detection. If the user finds it's not implemented the way they want, fix it.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -255,13 +255,13 @@
           "explain"
         ],
         "subtasks": [],
-        "updatedAt": "2026-03-26T07:40:12.783Z"
+        "updatedAt": "2026-03-26T12:42:46.892Z"
       },
       {
         "id": "18",
         "title": "Verify: User Onboarding + Scraping",
         "description": "Ask the user what the acceptance criteria is for onboarding and profile scraping so that we know when it's fully done. Then test against those criteria.\n\nMUST TEST: Profile scraping works for each platform (X, LinkedIn, Facebook, Reddit) after the user logs in. Verify that display_name, follower_count, bio, recent_posts, and engagement_rate are scraped correctly for each connected platform.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "17"
@@ -271,7 +271,8 @@
           "user",
           "verify"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-03-26T12:43:02.463Z"
       },
       {
         "id": "19",
@@ -780,9 +781,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-03-26T07:40:12.783Z",
+      "lastModified": "2026-03-26T12:43:02.464Z",
       "taskCount": 50,
-      "completedCount": 16,
+      "completedCount": 17,
       "tags": [
         "master"
       ]
