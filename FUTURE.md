@@ -155,8 +155,19 @@ Deferred features that are designed but not yet implemented. The backend/model s
 
 **Key principle**: Local-first (FLUX, LTX, Stable Diffusion) for zero marginal cost. Cloud APIs (Nano Banana, Kling, Veo) as premium fallbacks for higher quality.
 
+**IMPORTANT: Do NOT lock in tools now.** The AI image/video landscape changes every 2-3 months. Tools listed above are a snapshot as of March 2026. Before implementing:
+1. Re-research the best tools at implementation time — what's cheapest, fastest, highest quality
+2. **Build for where models will be in 3-6 months**, not where they are today. Trends:
+   - Models are getting dramatically cheaper and faster every quarter
+   - On-device inference is coming — some models already run on phones (Gemini Nano, Phi-3, FLUX Schnell quantized)
+   - Local GPU inference costs will approach zero as consumer GPUs get better
+   - Cloud API costs will drop 5-10x in the next 6 months (competition between Google, OpenAI, Meta, Stability)
+3. Design the architecture to be **model-agnostic** — swap providers without changing the content pipeline
+4. Prefer models with open weights that can run locally over proprietary APIs
+
 **Implementation approach**:
 1. Add media type selection to campaign creation (image, video, meme, carousel)
 2. Content generator picks the right tool based on campaign goal + platform
 3. Generated media stored locally, attached to drafts before posting
 4. Train LoRAs per-user for face/style consistency (one-time, runs locally)
+5. Abstract the model layer — pluggable providers so we can swap in better/cheaper models as they emerge

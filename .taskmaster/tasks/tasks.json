@@ -795,7 +795,7 @@
       {
         "id": "52",
         "title": "Sophisticated AI content generation -- images, videos, memes for campaign goals",
-        "description": "Replace basic text-only content generation with rich media UGC. Content should be tailored to campaign goals (viral views, lead gen, brand awareness, FOMO, hype). Use ultra-cheap AI tools: FLUX.2 locally for images, LTX+TTS for videos, Supermeme.ai for memes, Canva/CapCut for polish. Train LoRAs per-user for face/style consistency. See FUTURE.md for full tool comparison and pipeline design.",
+        "description": "Replace basic text-only content generation with rich media UGC. Content should be tailored to campaign goals (viral views, lead gen, brand awareness, FOMO, hype). Use ultra-cheap AI tools: FLUX.2 locally for images, LTX+TTS for videos, Supermeme.ai for memes, Canva/CapCut for polish. Train LoRAs per-user for face/style consistency. See FUTURE.md for full tool comparison and pipeline design.\n\nCRITICAL: Do NOT lock in specific tools now. Re-research at implementation time. Build for where models will be in 3-6 months: cheaper, faster, running on phones. Architecture must be model-agnostic (pluggable providers). Prefer open-weight models that run locally over proprietary APIs.",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
