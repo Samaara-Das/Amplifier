@@ -338,9 +338,22 @@ def api_test_api_key():
 @app.route("/onboarding/connect/<platform>", methods=["POST"])
 def onboarding_connect(platform):
     """Launch browser login, then auto-scrape when user closes it."""
+    # If this platform is currently being scraped, wait for it to finish
+    if platform in _scraping_platforms:
+        flash(f"{platform} is still being scraped from the previous login. Please wait a moment and try again.", "warning")
+        return redirect(url_for("onboarding_page"))
+
     def _connect_scrape_classify():
         import subprocess as sp
         import asyncio as aio
+        import time
+
+        # Wait for any ongoing scrape of this platform to finish (safety)
+        for _ in range(30):
+            if platform not in _scraping_platforms:
+                break
+            time.sleep(1)
+
         # Block until user closes the browser
         sp.run(
             [sys.executable, str(ROOT / "scripts" / "login_setup.py"), platform],
@@ -356,8 +369,6 @@ def onboarding_connect(platform):
             logger.error("Auto-scrape failed for %s: %s", platform, e)
         finally:
             _scraping_platforms.discard(platform)
-
-        # AI niche classification removed — user selects niches manually in Step 2
 
     threading.Thread(target=_connect_scrape_classify, daemon=True).start()
     flash(f"Browser opened for {platform}. Log in and close the browser — profile will be scraped automatically.", "info")
