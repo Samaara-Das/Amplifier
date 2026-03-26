@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Stripe (optional — test mode)
     stripe_secret_key: str = ""
 
+    # Supabase Storage (for campaign asset uploads)
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

@@ -20,6 +20,18 @@
     <a href="/company/campaigns/new" class="btn btn-primary">+ Create Campaign</a>
 </div>
 
+{% if error %}
+<div style="padding:20px 24px; background:linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); border:2px solid rgba(239,68,68,0.4); border-radius:12px; margin-bottom:20px; display:flex; align-items:center; gap:14px;">
+    <div style="width:44px; height:44px; border-radius:50%; background:rgba(239,68,68,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+    </div>
+    <div>
+        <div style="color:#fca5a5; font-size:16px; font-weight:600; margin-bottom:2px;">{{ error }}</div>
+        <a href="/company/billing" style="color:#3b82f6; font-size:13px; text-decoration:underline;">Go to Billing &rarr;</a>
+    </div>
+</div>
+{% endif %}
+
 {% if campaigns %}
 <div class="card">
     <table>

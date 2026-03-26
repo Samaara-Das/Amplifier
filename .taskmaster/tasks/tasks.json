@@ -8,7 +8,10 @@
         "status": "done",
         "priority": "high",
         "dependencies": [],
-        "tags": ["slice-1", "company"],
+        "tags": [
+          "slice-1",
+          "company"
+        ],
         "subtasks": []
       },
       {
@@ -17,8 +20,13 @@
         "description": "DONE. Hard filters (platforms, followers, engagement, region, max_users, 3-campaign limit). AI scoring via Gemini with fallback. Combined score formula. Code written and deployed.",
         "status": "done",
         "priority": "high",
-        "dependencies": ["1"],
-        "tags": ["slice-1", "server"],
+        "dependencies": [
+          "1"
+        ],
+        "tags": [
+          "slice-1",
+          "server"
+        ],
         "subtasks": []
       },
       {
@@ -27,8 +35,14 @@
         "description": "DONE. Stats cards, per-platform breakdown, influencer table, invitation funnel, budget management. Clicks bug fixed. 19 unit tests passing.",
         "status": "done",
         "priority": "high",
-        "dependencies": ["1", "2"],
-        "tags": ["slice-1", "company"],
+        "dependencies": [
+          "1",
+          "2"
+        ],
+        "tags": [
+          "slice-1",
+          "company"
+        ],
         "subtasks": []
       },
       {
@@ -38,7 +52,10 @@
         "status": "done",
         "priority": "high",
         "dependencies": [],
-        "tags": ["slice-2", "user"],
+        "tags": [
+          "slice-2",
+          "user"
+        ],
         "subtasks": []
       },
       {
@@ -47,8 +64,13 @@
         "description": "Dedicated AI agent for UGC content creation.\n\nAcceptance: accept a campaign → agent generates distinct content per platform → content feels like real UGC.\n\nINTEGRATION TEST (Slice 2):\n1. Go to Campaigns tab → see Nike: Stay Fit invitation\n2. Accept the campaign\n3. Wait for background agent to generate content (runs every 2 min)\n4. Go to campaign detail → see today's drafts per platform (X, LinkedIn, Facebook, Reddit)\n5. Each draft should be UGC-style, platform-native, genuinely different per platform\n6. Drafts reference the product (Nike) and include must-include hashtags\n\nDONE: 116 drafts generated across 3 campaigns. UGC style verified — authentic per-platform content. Research phase working.",
         "status": "done",
         "priority": "high",
-        "dependencies": ["4"],
-        "tags": ["slice-2", "user"],
+        "dependencies": [
+          "4"
+        ],
+        "tags": [
+          "slice-2",
+          "user"
+        ],
         "subtasks": []
       },
       {
@@ -57,8 +79,13 @@
         "description": "Semi-auto review flow.\n\nUAT PASSED 7/7: approve, reject, restore, edit all work. Approve All works after UTC fix. Post scheduled on approve. UTC/local time bug (BUG-01) fixed.",
         "status": "done",
         "priority": "high",
-        "dependencies": ["5"],
-        "tags": ["slice-2", "user"],
+        "dependencies": [
+          "5"
+        ],
+        "tags": [
+          "slice-2",
+          "user"
+        ],
         "subtasks": []
       },
       {
@@ -67,8 +94,13 @@
         "description": "Posting pipeline verification.\n\nINTEGRATION TEST (Slice 2):\n1. Approved drafts appear in post_schedule with scheduled times\n2. Background agent picks up due posts (every 60s)\n3. Playwright opens browser, posts content to platform\n4. Post URL captured by navigating to own profile\n5. local_post record created with correct post_url\n6. Post synced to server (check /api/posts)\n7. Desktop notification: 'Posted to [platform] for [campaign]'\n8. Test on at least 1 platform (X or LinkedIn) end-to-end\n9. IMPORTANT: Do NOT like or repost during pre/post browsing. Just browse and click around.\n\nPOSTING WORKS: LinkedIn post sent successfully (posted_no_url status). URL capture still fails but post is delivered. Retry logic added with 3 attempts + scroll. Graceful fallback creates local_post with placeholder URL. User should verify the post actually appeared on LinkedIn.",
         "status": "done",
         "priority": "high",
-        "dependencies": ["6"],
-        "tags": ["slice-2", "user"],
+        "dependencies": [
+          "6"
+        ],
+        "tags": [
+          "slice-2",
+          "user"
+        ],
         "subtasks": []
       },
       {
@@ -77,19 +109,30 @@
         "description": "Desktop presence.\n\nINTEGRATION TEST (Slice 2):\n1. On app launch: tray icon appears in Windows taskbar\n2. Right-click tray → menu shows: Open Dashboard, Agent status, Pause/Resume Agent, Quit\n3. Click Open Dashboard → browser opens to localhost:5222\n4. Close browser tab → app keeps running (tray still visible)\n5. Click Quit → app fully exits\n6. Desktop notifications appear for: new campaign invitations, drafts ready for review, post succeeded/failed\n\nCODE DONE. UAT confirms tray icon is created (likely in Windows overflow area). Menu code correct. Desktop notifications wired. User should verify visually.",
         "status": "done",
         "priority": "medium",
-        "dependencies": ["4"],
-        "tags": ["slice-2", "user"],
+        "dependencies": [
+          "4"
+        ],
+        "tags": [
+          "slice-2",
+          "user"
+        ],
         "subtasks": []
       },
       {
         "id": "9",
         "title": "Metric scraping captures all data needed for billing",
         "description": "Metric scraping verification.\n\nINTEGRATION TEST (Slice 3):\n1. After a post goes live, wait for T+1h scrape (or trigger manually)\n2. Check local_metric table → impressions, likes, reposts, comments captured\n3. Compare scraped values to actual platform numbers\n4. Metrics synced to server → check /api/metrics\n5. Billing triggered on submission → check payout records created\n6. Repeat for at least 2 platforms\n\nBLOCKER: LinkedIn post didn't actually land (Playwright typed content but post didn't appear on profile). Need user to debug with headed browser. Metric scraping code is ready but needs a real post URL to test against.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
-        "dependencies": ["7"],
-        "tags": ["slice-3", "money"],
-        "subtasks": []
+        "dependencies": [
+          "7"
+        ],
+        "tags": [
+          "slice-3",
+          "money"
+        ],
+        "subtasks": [],
+        "updatedAt": "2026-03-26T04:21:08.729Z"
       },
       {
         "id": "10",
@@ -97,8 +140,13 @@
         "description": "Billing verification. 19 unit tests passing — formula, platform cut, budget cap, CPM/CPE, zero-division all verified. Integration test with real metrics blocked by #9.\n\nUnit tests cover: earnings formula, 20% platform cut, budget capping, CPM/CPE calculations, zero-division handling, payout rate suggestions.",
         "status": "done",
         "priority": "high",
-        "dependencies": ["9"],
-        "tags": ["slice-3", "money"],
+        "dependencies": [
+          "9"
+        ],
+        "tags": [
+          "slice-3",
+          "money"
+        ],
         "subtasks": []
       },
       {
@@ -107,8 +155,13 @@
         "description": "CODE COMPLETE: Stripe checkout session, success verification, balance crediting. Fallback instant-credit for dev without Stripe key. Needs STRIPE_SECRET_KEY on Vercel for live test.\n\nINTEGRATION TEST (Slice 3):\n1. Company billing page → enter test card 4242 4242 4242 4242\n2. Balance increases by charged amount\n3. Activate campaign → balance deducted\n4. Delete draft campaign → balance refunded\n5. Payment history shows on billing page",
         "status": "done",
         "priority": "medium",
-        "dependencies": ["1"],
-        "tags": ["slice-3", "company"],
+        "dependencies": [
+          "1"
+        ],
+        "tags": [
+          "slice-3",
+          "company"
+        ],
         "subtasks": []
       },
       {
@@ -117,8 +170,13 @@
         "description": "Earnings page loads correctly (UAT TC-010 PASS). Shows $0.00 totals (no real earnings yet — blocked by metric scraping). Withdrawal route exists. Full integration test with real earnings blocked by #9.",
         "status": "done",
         "priority": "medium",
-        "dependencies": ["10"],
-        "tags": ["slice-3", "user"],
+        "dependencies": [
+          "10"
+        ],
+        "tags": [
+          "slice-3",
+          "user"
+        ],
         "subtasks": []
       },
       {
@@ -127,8 +185,14 @@
         "description": "Polish fixes.\n\nDONE:\n1. Posts This Month — fixed to filter by current month\n2. Admin API auth — added cookie-based auth via router dependency\n3. API keys — config/.env not tracked in git\n4. 3-campaign limit — enforced in matching (code) and invitations (cap=3)\n\nREMAINING:\n5. Full-auto mode verification — needs posting to work\n6. Styled error pages — nice-to-have\n\nMost items complete. Remaining items are low priority.",
         "status": "done",
         "priority": "medium",
-        "dependencies": ["7", "10"],
-        "tags": ["slice-4", "polish"],
+        "dependencies": [
+          "7",
+          "10"
+        ],
+        "tags": [
+          "slice-4",
+          "polish"
+        ],
         "subtasks": []
       },
       {
@@ -137,17 +201,589 @@
         "description": "DONE: Tag-style chip inputs for must-include/must-avoid in campaign wizard. Type + Enter to add pill tags with X to remove. Dark theme consistent.",
         "status": "done",
         "priority": "low",
-        "dependencies": ["13"],
-        "tags": ["slice-4", "polish"],
+        "dependencies": [
+          "13"
+        ],
+        "tags": [
+          "slice-4",
+          "polish"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "15",
+        "title": "Explain: Company AI Wizard",
+        "description": "Walk through how the campaign AI wizard currently works. Fix issues found by user.\n\nIMPLEMENTED:\n1. IMAGE UPLOADS: Drag-and-drop upload to Supabase Storage, thumbnails preview, stored in Campaign.assets.image_urls\n2. DEEP WEB CRAWLING: BFS crawler (httpx+BS4) follows same-domain links up to 10 pages, depth 2. Replaces shallow single-page scrape.\n3. FILE UPLOADS: PDF/DOCX/TXT upload to Supabase Storage with text extraction (PyPDF2, python-docx). Stored in Campaign.assets.file_contents.\n4. AI GENERATION FIX: Enhanced Gemini prompt uses all sources (deep-scraped content, uploaded files, images, product info). Fallback clearly marks [AI generation failed]. Error response now shows actual error.\n5. BALANCE GATE: Companies with <$50 balance blocked from wizard.\n\nKEY INSIGHT: The detailed campaign brief IS the single content source for amplifiers (users). It must contain everything needed to create posts: product details, scraped knowledge, file contents, images, must-include/avoid, content direction.",
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": [],
+        "tags": [
+          "tier-1",
+          "company",
+          "explain"
+        ],
+        "subtasks": [],
+        "updatedAt": "2026-03-26T04:30:59.347Z"
+      },
+      {
+        "id": "16",
+        "title": "Verify: Company AI Wizard",
+        "description": "Ask the user what the acceptance criteria is for the AI wizard so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "15"
+        ],
+        "tags": [
+          "tier-1",
+          "company",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "17",
+        "title": "Explain: User Onboarding + Scraping",
+        "description": "Walk through how user onboarding and profile/metric scraping currently works — registration, platform connections, API key setup, LinkedIn scraping, niche selection, region detection. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "tags": [
+          "tier-1",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "18",
+        "title": "Verify: User Onboarding + Scraping",
+        "description": "Ask the user what the acceptance criteria is for onboarding and profile scraping so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "17"
+        ],
+        "tags": [
+          "tier-1",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "19",
+        "title": "Explain: Campaign Matching",
+        "description": "Walk through how campaign-to-user matching currently works — hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "15"
+        ],
+        "tags": [
+          "tier-2",
+          "company",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "20",
+        "title": "Verify: Campaign Matching",
+        "description": "Ask the user what the acceptance criteria is for campaign matching so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "19"
+        ],
+        "tags": [
+          "tier-2",
+          "company",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "21",
+        "title": "Explain: Campaign Polling (User Side)",
+        "description": "Walk through how the user app polls the server for matched campaigns — polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "17"
+        ],
+        "tags": [
+          "tier-2",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "22",
+        "title": "Verify: Campaign Polling (User Side)",
+        "description": "Ask the user what the acceptance criteria is for campaign polling so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "21"
+        ],
+        "tags": [
+          "tier-2",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "23",
+        "title": "Explain: AI Content Generation",
+        "description": "Walk through how AI content generation currently works — prompt design, UGC style, platform-native formatting, research phase with webcrawler, Gemini model fallback chain, generation triggers, draft storage. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Content generation must use ALL available sources from the campaign:\n1. PRODUCT IMAGES: Company-uploaded product images (from wizard Step 1) — use in posts where the platform supports images.\n2. DEEP-SCRAPED KNOWLEDGE: The full product understanding built from deep crawling company URLs (not just surface metadata — full site content, subpages, product details).\n3. UPLOADED FILES: Any PDFs, docs, or other files the company uploaded about their product — extract key info and use as source material.\n4. PRODUCT DESCRIPTIONS: The product name, description, features, brief, and content guidance from the campaign.\n\nMUST-INCLUDE ITEMS: The must-include phrases, links, and hashtags should be woven naturally into posts where relevant — they do NOT need to appear in EVERY post. The AI should use judgment about when and where they fit naturally.\n\nMUST-AVOID ITEMS: These should never appear in any post.\n\nThe AI should synthesize all these sources to create informed, specific, authentic UGC content — not generic posts based on a one-line description.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "21"
+        ],
+        "tags": [
+          "tier-2",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "24",
+        "title": "Verify: AI Content Generation",
+        "description": "Ask the user what the acceptance criteria is for AI content generation so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "23"
+        ],
+        "tags": [
+          "tier-2",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "25",
+        "title": "Explain: Content Review/Approval",
+        "description": "Walk through how the content review and approval flow currently works — draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "23"
+        ],
+        "tags": [
+          "tier-2",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "26",
+        "title": "Verify: Content Review/Approval",
+        "description": "Ask the user what the acceptance criteria is for content review/approval so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "25"
+        ],
+        "tags": [
+          "tier-2",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "27",
+        "title": "Explain: Scheduled Posting",
+        "description": "Walk through how scheduled posting currently works — post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "25"
+        ],
+        "tags": [
+          "tier-3",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "28",
+        "title": "Verify: Scheduled Posting",
+        "description": "Ask the user what the acceptance criteria is for scheduled posting so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "27"
+        ],
+        "tags": [
+          "tier-3",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "29",
+        "title": "Explain: Metric Scraping",
+        "description": "Walk through how metric scraping currently works — scraping schedule (T+1h/6h/24h/72h), per-platform scraping methods (API vs browser), data captured (impressions, likes, reposts, comments), server sync. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "27"
+        ],
+        "tags": [
+          "tier-3",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "30",
+        "title": "Verify: Metric Scraping",
+        "description": "Ask the user what the acceptance criteria is for metric scraping so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "29"
+        ],
+        "tags": [
+          "tier-3",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "31",
+        "title": "Explain: Billing",
+        "description": "Walk through how billing/earnings calculation currently works — per-metric rates (CPM/CPE), platform cut (20%), budget capping, deduplication, payout creation, earning triggers. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "29"
+        ],
+        "tags": [
+          "tier-4",
+          "company",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "32",
+        "title": "Verify: Billing",
+        "description": "Ask the user what the acceptance criteria is for billing so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "31"
+        ],
+        "tags": [
+          "tier-4",
+          "company",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "33",
+        "title": "Explain: Earnings/Stats",
+        "description": "Walk through how the earnings and statistics display currently works — total earnings, pending/paid breakdown, per-campaign earnings, withdrawal flow, stats calculations on user dashboard. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "31"
+        ],
+        "tags": [
+          "tier-4",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "34",
+        "title": "Verify: Earnings/Stats",
+        "description": "Ask the user what the acceptance criteria is for earnings and statistics so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "33"
+        ],
+        "tags": [
+          "tier-4",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "35",
+        "title": "Explain: Stripe Top-up",
+        "description": "Walk through how company Stripe top-up currently works — checkout session creation, success verification, balance crediting, fallback instant-credit for dev, payment history. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "15"
+        ],
+        "tags": [
+          "tier-4",
+          "company",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "36",
+        "title": "Verify: Stripe Top-up",
+        "description": "Ask the user what the acceptance criteria is for Stripe top-up so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "35"
+        ],
+        "tags": [
+          "tier-4",
+          "company",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "37",
+        "title": "Explain: Campaign Detail Page",
+        "description": "Walk through how the campaign detail page currently works — stats cards, per-platform breakdown, influencer table, invitation funnel, budget display, post performance. If the user finds it's not implemented the way they want, fix it.\n\nNEEDED: Add image and file upload capability to the Edit Campaign modal on the campaign detail page. Companies should be able to upload additional product images and files AFTER the campaign is created (same Supabase Storage upload as the wizard). Also remove Rate/Click from the edit modal (matches wizard change).",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "19"
+        ],
+        "tags": [
+          "tier-4",
+          "company",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "38",
+        "title": "Verify: Campaign Detail Page",
+        "description": "Ask the user what the acceptance criteria is for the campaign detail page so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "37"
+        ],
+        "tags": [
+          "tier-4",
+          "company",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "39",
+        "title": "Explain: System Tray + Notifications",
+        "description": "Walk through how the system tray and desktop notifications currently work — tray icon, right-click menu, dashboard launch, notification triggers, background agent integration. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "17"
+        ],
+        "tags": [
+          "tier-5",
+          "user",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "40",
+        "title": "Verify: System Tray + Notifications",
+        "description": "Ask the user what the acceptance criteria is for system tray and notifications so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "39"
+        ],
+        "tags": [
+          "tier-5",
+          "user",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "41",
+        "title": "Explain: Company Dashboard Stats",
+        "description": "Walk through how company dashboard statistics currently work — overview metrics, campaign counts, total spend, active users, recent activity. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "15"
+        ],
+        "tags": [
+          "tier-5",
+          "company",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "42",
+        "title": "Verify: Company Dashboard Stats",
+        "description": "Ask the user what the acceptance criteria is for company dashboard stats so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "41"
+        ],
+        "tags": [
+          "tier-5",
+          "company",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "43",
+        "title": "Explain: Admin Overview",
+        "description": "Walk through how the admin overview dashboard currently works — system stats, user counts, campaign counts, revenue metrics, recent activity. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "tags": [
+          "tier-6",
+          "admin",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "44",
+        "title": "Verify: Admin Overview",
+        "description": "Ask the user what the acceptance criteria is for the admin overview so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "43"
+        ],
+        "tags": [
+          "tier-6",
+          "admin",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "45",
+        "title": "Explain: Admin Users",
+        "description": "Walk through how admin user management currently works — user list, user details, trust scores, platform connections, ban/suspend actions. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "tags": [
+          "tier-6",
+          "admin",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "46",
+        "title": "Verify: Admin Users",
+        "description": "Ask the user what the acceptance criteria is for admin user management so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "45"
+        ],
+        "tags": [
+          "tier-6",
+          "admin",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "47",
+        "title": "Explain: Admin Campaigns",
+        "description": "Walk through how admin campaign management currently works — campaign list, campaign details, approval/rejection, status management, company association. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "tags": [
+          "tier-6",
+          "admin",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "48",
+        "title": "Verify: Admin Campaigns",
+        "description": "Ask the user what the acceptance criteria is for admin campaign management so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "47"
+        ],
+        "tags": [
+          "tier-6",
+          "admin",
+          "verify"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "49",
+        "title": "Explain: Admin Payouts",
+        "description": "Walk through how admin payout management currently works — payout list, payout approval, payment processing, payout history, user earnings summary. If the user finds it's not implemented the way they want, fix it.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "tags": [
+          "tier-6",
+          "admin",
+          "explain"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "50",
+        "title": "Verify: Admin Payouts",
+        "description": "Ask the user what the acceptance criteria is for admin payouts so that we know when it's fully done. Then test against those criteria.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "49"
+        ],
+        "tags": [
+          "tier-6",
+          "admin",
+          "verify"
+        ],
         "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-03-25T16:30:00.000Z",
-      "taskCount": 14,
-      "completedCount": 3,
-      "tags": ["master"]
+      "lastModified": "2026-03-26T04:30:59.348Z",
+      "taskCount": 50,
+      "completedCount": 14,
+      "tags": [
+        "master"
+      ]
     }
   }
 }

@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+from collections import deque
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -21,36 +22,111 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 SCRAPE_TIMEOUT = 15
+MAX_CRAWL_PAGES = 10
+MAX_CRAWL_DEPTH = 2
+
+# File extensions to skip during crawling
+_SKIP_EXTS = {
+    ".pdf", ".zip", ".tar", ".gz", ".jpg", ".jpeg", ".png", ".gif", ".svg",
+    ".mp4", ".mp3", ".wav", ".avi", ".mov", ".css", ".js", ".woff", ".woff2",
+    ".ttf", ".eot", ".ico", ".xml", ".rss", ".json",
+}
 
 
-# ── URL Scraping ─────────────────────────────────────────────────
+# ── Deep URL Crawling ────────────────────────────────────────────
 
 
-async def scrape_urls(urls: list[str]) -> dict:
-    """Scrape company product URLs for content, images, and metadata.
+async def deep_crawl_urls(urls: list[str], max_pages: int = MAX_CRAWL_PAGES, max_depth: int = MAX_CRAWL_DEPTH) -> dict:
+    """Deep crawl company URLs using BFS — follows same-domain links.
 
-    Lightweight server-side scrape using httpx + BeautifulSoup.
-    Works on Vercel (no subprocess/filesystem needed).
+    Starts from each seed URL, follows internal links up to max_depth hops,
+    scraping up to max_pages total. Produces a comprehensive picture of the
+    product from all linked pages.
 
-    Returns: {"pages": [{"url", "title", "content", "images", "metadata", "nav_links"}]}
+    Works on Vercel serverless (httpx + BeautifulSoup, no browser needed).
+
+    Returns: {"pages": [...], "total_pages_crawled": int}
     """
-    pages = []
+    all_pages = []
+    visited = set()
 
     async with httpx.AsyncClient(
         timeout=SCRAPE_TIMEOUT,
         follow_redirects=True,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; Amplifier/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"},
     ) as client:
-        for url in urls:
-            try:
-                page_data = await _scrape_single_url(client, url)
-                if page_data:
-                    pages.append(page_data)
-            except Exception as e:
-                logger.warning("Failed to scrape %s: %s", url, e)
-                pages.append({"url": url, "error": str(e)})
+        for seed_url in urls:
+            if len(all_pages) >= max_pages:
+                break
+            seed_parsed = urlparse(seed_url)
+            seed_domain = seed_parsed.netloc
 
-    return {"pages": pages}
+            # BFS queue: (url, depth)
+            queue = deque([(seed_url, 0)])
+
+            while queue and len(all_pages) < max_pages:
+                current_url, depth = queue.popleft()
+
+                # Normalize URL (remove fragment, trailing slash)
+                current_parsed = urlparse(current_url)
+                normalized = f"{current_parsed.scheme}://{current_parsed.netloc}{current_parsed.path.rstrip('/')}"
+                if normalized in visited:
+                    continue
+                visited.add(normalized)
+
+                # Skip non-HTTP, different domain, or file extensions
+                if current_parsed.scheme not in ("http", "https"):
+                    continue
+                if current_parsed.netloc != seed_domain:
+                    continue
+                ext = os.path.splitext(current_parsed.path)[1].lower()
+                if ext in _SKIP_EXTS:
+                    continue
+
+                try:
+                    page_data = await _scrape_single_url(client, current_url)
+                    if page_data:
+                        all_pages.append(page_data)
+
+                        # If we haven't reached max depth, enqueue discovered links
+                        if depth < max_depth:
+                            for link in _extract_same_domain_links(page_data.get("_html", ""), current_url, seed_domain):
+                                link_normalized = urlparse(link)
+                                link_key = f"{link_normalized.scheme}://{link_normalized.netloc}{link_normalized.path.rstrip('/')}"
+                                if link_key not in visited:
+                                    queue.append((link, depth + 1))
+
+                except Exception as e:
+                    logger.warning("Failed to scrape %s (depth %d): %s", current_url, depth, e)
+
+    # Strip internal _html field from results
+    for page in all_pages:
+        page.pop("_html", None)
+
+    return {"pages": all_pages, "total_pages_crawled": len(all_pages)}
+
+
+def _extract_same_domain_links(html: str, base_url: str, domain: str) -> list[str]:
+    """Extract same-domain links from HTML for BFS crawling."""
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    seen = set()
+    for a in soup.find_all("a", href=True):
+        href = urljoin(base_url, a["href"])
+        parsed = urlparse(href)
+        # Same domain, no fragment, no skip extensions
+        if parsed.netloc != domain:
+            continue
+        clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
+        ext = os.path.splitext(parsed.path)[1].lower()
+        if ext in _SKIP_EXTS:
+            continue
+        if clean not in seen:
+            seen.add(clean)
+            links.append(href)
+    return links
 
 
 async def _scrape_single_url(client: httpx.AsyncClient, url: str) -> dict:
@@ -147,6 +223,7 @@ async def _scrape_single_url(client: httpx.AsyncClient, url: str) -> dict:
         "images": images[:30],  # Cap at 30 images
         "metadata": metadata,
         "nav_links": nav_links[:20],  # Cap at 20 nav links
+        "_html": resp.text,  # Raw HTML for BFS link extraction (stripped before returning)
     }
 
 
@@ -225,28 +302,37 @@ async def run_campaign_wizard(
     budget_range: dict | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-    # New fields
     product_name: str | None = None,
     product_features: str | None = None,
+    # New: uploaded assets
+    image_urls: list[str] | None = None,
+    file_contents: list[dict] | None = None,
     # Legacy (kept for backward compat, ignored)
     tone: str | None = None,
     **kwargs,
 ) -> dict:
-    """Generate a campaign draft using AI.
+    """Generate a comprehensive campaign draft using AI.
 
-    1. Scrape company URLs for product info
-    2. Build Gemini prompt with all context
-    3. Parse structured response
+    1. Deep crawl company URLs (BFS, up to 10 pages)
+    2. Combine all sources: product info, scraped data, uploaded files, images
+    3. Generate detailed brief via Gemini
     4. Estimate reach
     5. Return full campaign draft
+
+    The generated brief is THE content source for amplifiers (users) —
+    it must contain everything needed to create great posts.
     """
-    # Step 1: Scrape URLs
+    # Step 1: Deep crawl URLs
     scraped_data = {}
     if company_urls:
-        try:
-            scraped_data = await scrape_urls(company_urls)
-        except Exception as e:
-            logger.warning("URL scraping failed: %s", e)
+        clean_urls = [u.strip() for u in company_urls if u.strip()]
+        if clean_urls:
+            try:
+                scraped_data = await deep_crawl_urls(clean_urls)
+                logger.info("Deep crawled %d pages from %d seed URLs",
+                            scraped_data.get("total_pages_crawled", 0), len(clean_urls))
+            except Exception as e:
+                logger.warning("Deep crawling failed: %s", e)
 
     # Build scraped context for the prompt
     scraped_context = ""
@@ -254,14 +340,31 @@ async def run_campaign_wizard(
         for page in scraped_data["pages"]:
             if page.get("error"):
                 continue
-            scraped_context += f"\n--- Scraped from {page['url']} ---\n"
-            if page.get("title"):
-                scraped_context += f"Page title: {page['title']}\n"
+            scraped_context += f"\n--- Page: {page.get('title', 'Untitled')} ({page['url']}) ---\n"
             if page.get("metadata"):
                 for k, v in page["metadata"].items():
                     scraped_context += f"{k}: {v}\n"
             if page.get("content"):
-                scraped_context += f"\nContent:\n{page['content'][:2000]}\n"
+                # Give more content per page since we're building a comprehensive brief
+                scraped_context += f"\n{page['content'][:3000]}\n"
+
+    # Cap total scraped context to avoid blowing up the prompt
+    scraped_context = scraped_context[:20000]
+
+    # Build file contents context
+    file_context = ""
+    if file_contents:
+        for fc in file_contents:
+            fname = fc.get("filename", "unknown")
+            text = fc.get("extracted_text", "")
+            if text:
+                file_context += f"\n--- From uploaded file: {fname} ---\n{text[:5000]}\n"
+    file_context = file_context[:15000]
+
+    # Build image context
+    image_context = ""
+    if image_urls:
+        image_context = f"\nThe company has uploaded {len(image_urls)} product image(s). Creators should use these images in their posts where possible."
 
     # Normalize must_include/must_avoid
     if isinstance(must_include, list):
@@ -269,29 +372,53 @@ async def run_campaign_wizard(
     if isinstance(must_avoid, list):
         must_avoid = ", ".join(must_avoid)
 
-    # Step 2: Build Gemini prompt
-    prompt = f"""You are a campaign strategist for Amplifier, a platform where companies pay social media creators to post about their products.
+    # Step 2: Build comprehensive Gemini prompt
+    prompt = f"""You are a campaign strategist for Amplifier, a platform where companies pay social media creators (called "amplifiers") to post about their products.
 
-Generate a complete campaign brief based on the following information.
+Your job: Generate a COMPREHENSIVE, DETAILED campaign brief that will be the SOLE source of information for creators making posts. The brief must contain EVERYTHING a creator needs to know — product details, key selling points, audience angles, content direction.
 
+== PRODUCT INFORMATION ==
 PRODUCT NAME: {product_name or 'Not provided'}
 PRODUCT DESCRIPTION: {product_description}
 PRODUCT FEATURES & BENEFITS: {product_features or 'Not provided'}
+
+== CAMPAIGN SETTINGS ==
 CAMPAIGN GOAL: {campaign_goal}
 TARGET NICHES: {', '.join(target_niches or ['general'])}
 TARGET REGIONS: {', '.join(target_regions or ['global'])}
 REQUIRED PLATFORMS: {', '.join(required_platforms or ['any'])}
-MUST INCLUDE IN POSTS: {must_include or 'None'}
-MUST AVOID IN POSTS: {must_avoid or 'None'}
+MUST INCLUDE IN POSTS: {must_include or 'None specified'}
+MUST AVOID IN POSTS: {must_avoid or 'None specified'}
+{image_context}
 
-{f'SCRAPED PRODUCT INFO:{scraped_context}' if scraped_context else ''}
+{f'== SCRAPED FROM COMPANY WEBSITE ({scraped_data.get("total_pages_crawled", 0)} pages) =={scraped_context}' if scraped_context else ''}
+
+{f'== UPLOADED COMPANY DOCUMENTS =={file_context}' if file_context else ''}
 
 Generate a JSON response with these fields:
-- "title": Campaign title (max 60 chars, catchy and clear)
-- "brief": Detailed campaign brief for creators (200-500 words). Explain what the product is, why it matters, what angle to take, what the audience cares about. Be specific and actionable.
-- "content_guidance": Instructions for creators — tone, key messages, dos/don'ts, hashtag suggestions, call-to-action ideas. (100-300 words)
-- "payout_rules": Object with "rate_per_1k_impressions" (float), "rate_per_like" (float), "rate_per_repost" (float), "rate_per_click" (float). Suggest rates based on the niche and campaign goal.
-- "suggested_budget": Recommended total budget in USD (number). Consider the goal and niche.
+
+- "title": Campaign title (max 60 chars, catchy and actionable)
+
+- "brief": A COMPREHENSIVE campaign brief (500-1000 words). This is the MOST IMPORTANT field — it's the only thing creators read before making posts. Include:
+  * What the product is and what problem it solves
+  * Key features and benefits (be specific, use data from scraped pages)
+  * Target audience and why they'd care
+  * Unique selling points vs competitors (if discoverable from scraped data)
+  * Suggested content angles (3-5 different angles creators can take)
+  * Key talking points and phrases that resonate
+  * Any testimonials, stats, or proof points found in the scraped data
+
+- "content_guidance": Detailed instructions for creators (200-400 words). Include:
+  * Tone and voice (casual, professional, enthusiastic, etc.)
+  * Must-include elements (hashtags, links, phrases)
+  * Things to avoid
+  * Platform-specific tips (what works on X vs LinkedIn vs Reddit)
+  * Call-to-action suggestions
+  * Do's and don'ts
+
+- "payout_rules": Object with "rate_per_1k_impressions" (float), "rate_per_like" (float), "rate_per_repost" (float), "rate_per_click" (float). Suggest competitive rates based on the niche and goal.
+
+- "suggested_budget": Recommended total budget in USD (number). Factor in the goal, niche, and expected creator count.
 
 Return ONLY valid JSON, no markdown fences, no extra text."""
 
@@ -302,7 +429,7 @@ Return ONLY valid JSON, no markdown fences, no extra text."""
         generated = _parse_json_response(ai_response)
     except Exception as e:
         ai_error = str(e)
-        logger.warning("AI generation failed: %s. Using defaults.", e)
+        logger.error("AI generation failed: %s", e)
         generated = _generate_defaults(product_name, product_description, product_features, target_niches)
 
     # Step 4: Estimate reach
@@ -336,16 +463,16 @@ def _generate_defaults(
     product_features: str | None,
     target_niches: list[str] | None,
 ) -> dict:
-    """Fallback when AI generation fails."""
-    title = (product_name or product_description)[:60]
-    brief = product_description
+    """Fallback when AI generation fails — clearly marks as needing manual edit."""
+    title = f"[EDIT] {(product_name or product_description)[:50]}"
+    brief = f"[AI generation failed — please edit this brief manually]\n\n{product_description}"
     if product_features:
         brief += f"\n\nKey features and benefits:\n{product_features}"
 
     return {
         "title": title,
         "brief": brief,
-        "content_guidance": "Create authentic, engaging content about this product. Focus on real benefits and personal experience.",
+        "content_guidance": "[AI generation failed] Create authentic, engaging content about this product. Focus on real benefits and personal experience.",
         "payout_rules": suggest_payout_rates(target_niches or []),
         "suggested_budget": 100,
     }

@@ -109,6 +109,29 @@
                 </div>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" id="addUrlBtn" style="margin-top:8px;">+ Add another URL</button>
+            <div class="form-help" style="margin-top:4px;">We deep-crawl these sites (up to 10 pages per URL) to understand your product thoroughly.</div>
+        </div>
+        <div class="form-group">
+            <label>Product images <span style="color:#64748b; font-weight:400;">(optional)</span></label>
+            <div class="form-help" style="margin-bottom:8px;">Upload product images. Creators will use these in their posts.</div>
+            <div class="upload-zone" id="imageUploadZone" onclick="document.getElementById('imageFileInput').click()">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"/></svg>
+                <span>Click to upload images (JPEG, PNG, WebP, GIF)</span>
+                <small>Max 4MB per image</small>
+            </div>
+            <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display:none" onchange="handleImageUpload(this.files)">
+            <div id="imagePreviewGrid" class="image-preview-grid"></div>
+        </div>
+        <div class="form-group">
+            <label>Product files <span style="color:#64748b; font-weight:400;">(optional)</span></label>
+            <div class="form-help" style="margin-bottom:8px;">Upload PDFs, documents, or text files about your product. We extract the content to make the campaign brief more detailed.</div>
+            <div class="upload-zone" id="fileUploadZone" onclick="document.getElementById('docFileInput').click()">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+                <span>Click to upload documents (PDF, DOCX, TXT)</span>
+                <small>Max 4MB per file, up to 5 files</small>
+            </div>
+            <input type="file" id="docFileInput" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple style="display:none" onchange="handleFileUpload(this.files)">
+            <div id="fileList" class="file-list"></div>
         </div>
     </div>
     <div class="wizard-actions">
@@ -167,7 +190,7 @@
             </div>
             <div class="form-group">
                 <label for="maxUsers">Maximum creators</label>
-                <input type="number" id="maxUsers" class="form-control" min="1" step="1" placeholder="e.g. 50">
+                <input type="number" id="maxUsers" class="form-control" min="1" step="1" placeholder="e.g. 50" required>
                 <div class="form-help">How many creators can accept this campaign.</div>
             </div>
         </div>
@@ -190,17 +213,12 @@
                        onkeydown="handleChipInput(event, 'mustInclude')">
             </div>
             <input type="hidden" id="mustInclude" name="mustInclude">
-            <div class="form-help">Type and press Enter to add tags. These will appear in every post.</div>
+            <div class="form-help">Type and press Enter to add tags. Creators will weave these naturally into their posts where relevant.</div>
         </div>
         <div class="form-group">
             <label for="mustAvoid">Anything to avoid?</label>
-            <div class="chip-input-container" id="mustAvoidChips" onclick="this.querySelector('.chip-input').focus()">
-                <div class="chip-list" id="mustAvoidList"></div>
-                <input type="text" class="chip-input" placeholder="Type and press Enter to add"
-                       onkeydown="handleChipInput(event, 'mustAvoid')">
-            </div>
-            <input type="hidden" id="mustAvoid" name="mustAvoid">
-            <div class="form-help">Type and press Enter to add tags. Topics, phrases, or claims creators should stay away from.</div>
+            <textarea id="mustAvoid" name="mustAvoid" class="form-control" rows="3" placeholder="e.g. Don't mention competitors, avoid medical claims, no pricing comparisons..."></textarea>
+            <div class="form-help">Topics, phrases, or claims creators should stay away from.</div>
         </div>
     </div>
     <div class="wizard-actions">
@@ -271,10 +289,6 @@
                         <label for="genRateRepost">Per Repost ($)</label>
                         <input type="number" id="genRateRepost" name="rate_per_repost" class="form-control" min="0" step="0.01">
                     </div>
-                    <div class="form-group">
-                        <label for="genRateClick">Per Click ($)</label>
-                        <input type="number" id="genRateClick" name="rate_per_click" class="form-control" min="0" step="0.01">
-                    </div>
                 </div>
             </div>
 
@@ -305,13 +319,17 @@
                 </div>
             </div>
 
-            <!-- Hidden fields for targeting data (populated by JS) -->
+            <!-- Hidden fields for targeting + assets (populated by JS) -->
             <input type="hidden" name="min_followers_json" id="hiddenMinFollowers" value="{}">
             <input type="hidden" name="niche_tags" id="hiddenNicheTags" value="">
             <input type="hidden" name="target_regions" id="hiddenTargetRegions" value="">
             <input type="hidden" name="required_platforms" id="hiddenRequiredPlatforms" value="">
             <input type="hidden" name="max_users" id="hiddenMaxUsers" value="">
             <input type="hidden" name="min_engagement" id="hiddenMinEngagement" value="0">
+            <input type="hidden" name="image_urls_json" id="hiddenImageUrls" value="[]">
+            <input type="hidden" name="file_urls_json" id="hiddenFileUrls" value="[]">
+            <input type="hidden" name="file_contents_json" id="hiddenFileContents" value="[]">
+            <input type="hidden" name="scraped_knowledge_json" id="hiddenScrapedKnowledge" value="">
 
             <div class="wizard-actions">
                 <button type="button" class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
@@ -518,6 +536,90 @@
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
+
+    /* Upload zones */
+    .upload-zone {
+        border: 2px dashed #334155;
+        border-radius: 10px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .upload-zone:hover {
+        border-color: #2563eb;
+        background: rgba(37, 99, 235, 0.04);
+    }
+    .upload-zone svg { color: #64748b; }
+    .upload-zone span { color: #94a3b8; font-size: 14px; }
+    .upload-zone small { color: #64748b; font-size: 12px; }
+    .upload-zone.uploading {
+        border-color: #2563eb;
+        background: rgba(37, 99, 235, 0.08);
+        pointer-events: none;
+    }
+
+    .image-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .image-preview-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        aspect-ratio: 1;
+        background: #1e293b;
+    }
+    .image-preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .image-preview-item .remove-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.7);
+        color: #f87171;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
+
+    .file-list { margin-top: 8px; }
+    .file-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: #1e293b;
+        border-radius: 8px;
+        margin-bottom: 6px;
+    }
+    .file-item svg { color: #64748b; flex-shrink: 0; }
+    .file-item .file-name { color: #cbd5e1; font-size: 13px; flex: 1; }
+    .file-item .file-status { color: #16a34a; font-size: 12px; }
+    .file-item .file-error { color: #f87171; font-size: 12px; }
+    .file-item .remove-btn {
+        background: none;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        padding: 4px;
+    }
+    .file-item .remove-btn:hover { color: #f87171; }
 
     /* Reach banner */
     .reach-banner {
@@ -751,12 +853,14 @@
             if (niches.length === 0) return 'Please select at least one category.';
             var platforms = $$('input[name="requiredPlatform"]:checked');
             if (platforms.length === 0) return 'Please select at least one platform.';
+            var maxUsers = parseInt($('#maxUsers').value);
+            if (!maxUsers || maxUsers < 1) return 'Please set the maximum number of creators.';
         }
         return null;
     }
 
     // ── Chip tag input helpers ──────────────────────────────────
-    function handleChipInput(event, fieldId) {
+    window.handleChipInput = function(event, fieldId) {
         if (event.key === 'Enter' || event.key === ',') {
             event.preventDefault();
             var input = event.target;
@@ -767,7 +871,7 @@
         }
     }
 
-    function addChip(fieldId, value) {
+    window.addChip = function(fieldId, value) {
         var list = document.getElementById(fieldId + 'List');
         var chip = document.createElement('span');
         chip.className = 'chip-tag';
@@ -777,17 +881,145 @@
         syncChipValues(fieldId);
     }
 
-    function removeChip(btn, fieldId) {
+    window.removeChip = function(btn, fieldId) {
         btn.parentElement.remove();
         syncChipValues(fieldId);
     }
 
-    function syncChipValues(fieldId) {
+    window.syncChipValues = function(fieldId) {
         var list = document.getElementById(fieldId + 'List');
         var chips = list.querySelectorAll('.chip-tag');
         var values = Array.from(chips).map(function(c) { return c.dataset.value; });
         document.getElementById(fieldId).value = values.join(', ');
     }
+
+    // ── Upload state ──────────────────────────────────────────────
+    var uploadedImages = [];   // [{url, filename}]
+    var uploadedFiles = [];    // [{url, filename, extracted_text}]
+
+    window.handleImageUpload = function(files) {
+        var zone = $('#imageUploadZone');
+        Array.from(files).forEach(function(file) {
+            if (file.size > 4 * 1024 * 1024) {
+                showError(file.name + ' is too large (max 4MB)');
+                return;
+            }
+            zone.classList.add('uploading');
+            zone.querySelector('span').textContent = 'Uploading ' + file.name + '...';
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/company/campaigns/upload-asset', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData
+            })
+            .then(function(resp) { return resp.json(); })
+            .then(function(data) {
+                zone.classList.remove('uploading');
+                zone.querySelector('span').textContent = 'Click to upload images (JPEG, PNG, WebP, GIF)';
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                uploadedImages.push({url: data.url, filename: data.filename});
+                renderImagePreviews();
+            })
+            .catch(function(err) {
+                zone.classList.remove('uploading');
+                zone.querySelector('span').textContent = 'Click to upload images (JPEG, PNG, WebP, GIF)';
+                showError('Upload failed: ' + err.message);
+            });
+        });
+    };
+
+    function renderImagePreviews() {
+        var grid = $('#imagePreviewGrid');
+        grid.innerHTML = '';
+        uploadedImages.forEach(function(img, i) {
+            var item = document.createElement('div');
+            item.className = 'image-preview-item';
+            item.innerHTML = '<img src="' + img.url + '" alt="' + img.filename + '">' +
+                '<button class="remove-btn" onclick="removeImage(' + i + ')">&times;</button>';
+            grid.appendChild(item);
+        });
+    }
+
+    window.removeImage = function(index) {
+        uploadedImages.splice(index, 1);
+        renderImagePreviews();
+    };
+
+    window.handleFileUpload = function(files) {
+        var zone = $('#fileUploadZone');
+        if (uploadedFiles.length + files.length > 5) {
+            showError('Maximum 5 files allowed.');
+            return;
+        }
+        Array.from(files).forEach(function(file) {
+            if (file.size > 4 * 1024 * 1024) {
+                showError(file.name + ' is too large (max 4MB)');
+                return;
+            }
+            // Add placeholder
+            var tempIndex = uploadedFiles.length;
+            uploadedFiles.push({url: '', filename: file.name, extracted_text: '', uploading: true});
+            renderFileList();
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/company/campaigns/upload-asset', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData
+            })
+            .then(function(resp) { return resp.json(); })
+            .then(function(data) {
+                if (data.error) {
+                    uploadedFiles[tempIndex].uploading = false;
+                    uploadedFiles[tempIndex].error = data.error;
+                    renderFileList();
+                    return;
+                }
+                uploadedFiles[tempIndex] = {
+                    url: data.url,
+                    filename: data.filename,
+                    extracted_text: data.extracted_text || '',
+                    uploading: false
+                };
+                renderFileList();
+            })
+            .catch(function(err) {
+                uploadedFiles[tempIndex].uploading = false;
+                uploadedFiles[tempIndex].error = err.message;
+                renderFileList();
+            });
+        });
+    };
+
+    function renderFileList() {
+        var list = $('#fileList');
+        list.innerHTML = '';
+        uploadedFiles.forEach(function(f, i) {
+            var item = document.createElement('div');
+            item.className = 'file-item';
+            var statusHtml = f.uploading ? '<span class="file-status">Uploading...</span>' :
+                             f.error ? '<span class="file-error">' + f.error + '</span>' :
+                             '<span class="file-status">Uploaded</span>';
+            item.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>' +
+                '<span class="file-name">' + f.filename + '</span>' +
+                statusHtml +
+                '<button class="remove-btn" onclick="removeFile(' + i + ')">&times;</button>';
+            list.appendChild(item);
+        });
+    }
+
+    window.removeFile = function(index) {
+        uploadedFiles.splice(index, 1);
+        renderFileList();
+    };
 
     // ── Collect wizard data ─────────────────────────────────────
     function collectWizardData() {
@@ -835,14 +1067,20 @@
             product_features: $('#productFeatures').value.trim(),
             campaign_goal: goalEl ? goalEl.value : '',
             company_urls: urls,
-            target_niches: niches,
-            target_regions: regions,
-            required_platforms: platforms,
-            min_followers: minFollowers,
-            min_engagement: minEng,
+            targeting: {
+                niche_tags: niches,
+                target_regions: regions,
+                required_platforms: platforms,
+                min_followers: minFollowers,
+                min_engagement: minEng,
+            },
             max_users: maxU,
             must_include: mustInclude,
-            must_avoid: mustAvoid
+            must_avoid: mustAvoid,
+            image_urls: uploadedImages.map(function(img) { return img.url; }),
+            file_contents: uploadedFiles.filter(function(f) { return !f.uploading && !f.error; }).map(function(f) {
+                return {filename: f.filename, extracted_text: f.extracted_text, url: f.url};
+            })
         };
     }
 
@@ -944,7 +1182,7 @@
         $('#genRateCpm').value = payout.rate_per_1k_impressions || 0.50;
         $('#genRateLike').value = payout.rate_per_like || 0.01;
         $('#genRateRepost').value = payout.rate_per_repost || 0.05;
-        $('#genRateClick').value = payout.rate_per_click || 0.10;
+        // rate_per_click removed from UI (can't track clicks yet — see FUTURE.md)
 
         // Budget
         $('#genBudget').value = c.suggested_budget || c.budget_total || 50;
@@ -991,14 +1229,26 @@
 
         // Populate hidden fields from the wizard data we collected (not from AI response)
         var wizardData = collectWizardData();
-        $('#hiddenMinFollowers').value = JSON.stringify(wizardData.min_followers || {});
+        var targeting = wizardData.targeting || {};
+        $('#hiddenMinFollowers').value = JSON.stringify(targeting.min_followers || {});
         $('#hiddenMaxUsers').value = wizardData.max_users || '';
-        $('#hiddenMinEngagement').value = wizardData.min_engagement || 0;
+        $('#hiddenMinEngagement').value = targeting.min_engagement || 0;
 
         // For multi-value hidden fields, create multiple hidden inputs
-        setHiddenMulti('niche_tags', wizardData.target_niches || []);
-        setHiddenMulti('target_regions', wizardData.target_regions || []);
-        setHiddenMulti('required_platforms', wizardData.required_platforms || []);
+        setHiddenMulti('niche_tags', targeting.niche_tags || []);
+        setHiddenMulti('target_regions', targeting.target_regions || []);
+        setHiddenMulti('required_platforms', targeting.required_platforms || []);
+
+        // Asset hidden fields
+        $('#hiddenImageUrls').value = JSON.stringify(wizardData.image_urls || []);
+        var fileUrls = (wizardData.file_contents || []).map(function(f) { return f.url; });
+        $('#hiddenFileUrls').value = JSON.stringify(fileUrls);
+        $('#hiddenFileContents').value = JSON.stringify(wizardData.file_contents || []);
+
+        // Scraped knowledge from AI response
+        if (result.scraped_data) {
+            $('#hiddenScrapedKnowledge').value = JSON.stringify(result.scraped_data);
+        }
     }
 
     function populateStep4Defaults(data) {
@@ -1027,12 +1277,17 @@
         $('#genStartDate').value = toLocalDatetime(tomorrow);
         $('#genEndDate').value = toLocalDatetime(in30);
 
-        $('#hiddenMinFollowers').value = JSON.stringify(data.min_followers || {});
+        var targeting = data.targeting || {};
+        $('#hiddenMinFollowers').value = JSON.stringify(targeting.min_followers || {});
         $('#hiddenMaxUsers').value = data.max_users || '';
-        $('#hiddenMinEngagement').value = data.min_engagement || 0;
-        setHiddenMulti('niche_tags', data.target_niches || []);
-        setHiddenMulti('target_regions', data.target_regions || []);
-        setHiddenMulti('required_platforms', data.required_platforms || []);
+        $('#hiddenMinEngagement').value = targeting.min_engagement || 0;
+        setHiddenMulti('niche_tags', targeting.niche_tags || []);
+        setHiddenMulti('target_regions', targeting.target_regions || []);
+        setHiddenMulti('required_platforms', targeting.required_platforms || []);
+        $('#hiddenImageUrls').value = JSON.stringify(data.image_urls || []);
+        var fileUrls = (data.file_contents || []).map(function(f) { return f.url; });
+        $('#hiddenFileUrls').value = JSON.stringify(fileUrls);
+        $('#hiddenFileContents').value = JSON.stringify(data.file_contents || []);
 
         // Show default reach text
         $('#reachMatchCount').textContent = '--';

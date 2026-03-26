@@ -4,8 +4,8 @@ import csv
 import io
 import os
 
-from fastapi import APIRouter, Cookie, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi import APIRouter, Cookie, Depends, Form, Request, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -142,6 +142,7 @@ async def logout():
 @router.get("/", response_class=HTMLResponse)
 async def campaigns_page(
     request: Request,
+    error: str | None = None,
     company: Company | None = Depends(get_company_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -202,10 +203,77 @@ async def campaigns_page(
             }
         )
 
-    return _render("company/campaigns.html", company=company, campaigns=campaign_data, active="campaigns")
+    return _render("company/campaigns.html", company=company, campaigns=campaign_data, active="campaigns", error=error)
 
 
 # ── Create Campaign ────────────────────────────────────────────────
+
+
+# ── Asset Upload ────────────────────────────────────────────────
+
+
+MAX_IMAGE_SIZE = 4 * 1024 * 1024  # 4 MB (Vercel serverless body limit is 4.5MB)
+MAX_FILE_SIZE = 4 * 1024 * 1024   # 4 MB
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_FILE_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+}
+
+
+@router.post("/campaigns/upload-asset")
+async def upload_campaign_asset(
+    file: UploadFile = File(...),
+    company: Company | None = Depends(get_company_from_cookie),
+):
+    """Upload an image or file for a campaign. Returns the public URL and extracted text (for docs)."""
+    if not company:
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+
+    content_type = file.content_type or ""
+    filename = file.filename or "unknown"
+    is_image = content_type in ALLOWED_IMAGE_TYPES
+    is_file = content_type in ALLOWED_FILE_TYPES
+
+    if not is_image and not is_file:
+        return JSONResponse(
+            {"error": f"Unsupported file type: {content_type}. Allowed: images (JPEG/PNG/WebP/GIF) and documents (PDF/DOCX/TXT)."},
+            status_code=400,
+        )
+
+    file_bytes = await file.read()
+    max_size = MAX_IMAGE_SIZE if is_image else MAX_FILE_SIZE
+    if len(file_bytes) > max_size:
+        return JSONResponse(
+            {"error": f"File too large. Maximum size: {max_size // (1024*1024)}MB."},
+            status_code=400,
+        )
+
+    from app.services.storage import upload_file, extract_text_from_file
+
+    folder = f"company-{company.id}/images" if is_image else f"company-{company.id}/files"
+    public_url = upload_file(file_bytes, filename, content_type, folder=folder)
+
+    if not public_url:
+        return JSONResponse(
+            {"error": "Upload failed. Check that Supabase Storage is configured (SUPABASE_URL, SUPABASE_SERVICE_KEY)."},
+            status_code=500,
+        )
+
+    result = {
+        "url": public_url,
+        "filename": filename,
+        "content_type": content_type,
+        "type": "image" if is_image else "file",
+    }
+
+    # Extract text from documents for AI consumption
+    if is_file:
+        extracted = extract_text_from_file(file_bytes, filename, content_type)
+        result["extracted_text"] = extracted
+
+    return JSONResponse(result)
 
 
 @router.get("/campaigns/new", response_class=HTMLResponse)
@@ -215,6 +283,12 @@ async def campaign_create_page(
 ):
     if not company:
         return _login_redirect()
+
+    if float(company.balance) < 50.0:
+        return RedirectResponse(
+            url="/company/?error=You+need+at+least+%2450.00+in+your+balance+to+create+a+campaign.+Add+funds+on+the+Billing+page+first.",
+            status_code=302,
+        )
 
     return _render("company/campaign_wizard.html", company=company, active="create")
 
@@ -240,28 +314,31 @@ async def ai_generate_campaign(
         result = await run_campaign_wizard(
             db=db,
             product_description=body.get("product_description", ""),
+            product_name=body.get("product_name", ""),
+            product_features=body.get("product_features", ""),
             campaign_goal=body.get("campaign_goal", "brand_awareness"),
             company_urls=body.get("company_urls", []),
             target_niches=targeting.get("niche_tags") or targeting.get("target_niches", []),
             target_regions=targeting.get("target_regions", []),
             required_platforms=targeting.get("required_platforms", []),
             min_followers=targeting.get("min_followers", {}),
-            tone=body.get("tone", "professional"),
             must_include=body.get("must_include", ""),
             must_avoid=body.get("must_avoid", ""),
+            image_urls=body.get("image_urls", []),
+            file_contents=body.get("file_contents", []),
         )
         return JSONResponse(result)
     except Exception as e:
-        # Return sensible defaults on AI failure
+        import logging
+        logging.getLogger(__name__).error("AI wizard failed: %s", e, exc_info=True)
         return JSONResponse({
-            "title": body.get("product_description", "Campaign")[:60],
-            "brief": body.get("product_description", ""),
-            "content_guidance": f"Tone: {body.get('tone', 'professional')}. Create engaging content.",
+            "title": f"[EDIT] {body.get('product_name', body.get('product_description', 'Campaign'))[:50]}",
+            "brief": f"[AI generation failed: {e}]\n\nPlease edit this brief manually.\n\n{body.get('product_description', '')}",
+            "content_guidance": "Create authentic, engaging content about this product.",
             "payout_rules": {"rate_per_1k_impressions": 0.50, "rate_per_like": 0.01, "rate_per_repost": 0.05, "rate_per_click": 0.10},
             "suggested_budget": 100,
-            "targeting": body.get("targeting", {}),
             "reach_estimate": {"matching_users": 0, "estimated_impressions_low": 0, "estimated_impressions_high": 0},
-            "error": str(e)
+            "ai_error": str(e),
         })
 
 
@@ -286,6 +363,10 @@ async def campaign_create_submit(
     budget_exhaustion_action: str = Form("auto_pause"),
     max_users: int | None = Form(None),
     min_engagement: float = Form(0.0),
+    image_urls_json: str = Form("[]"),
+    file_urls_json: str = Form("[]"),
+    file_contents_json: str = Form("[]"),
+    scraped_knowledge_json: str = Form(""),
     company: Company | None = Depends(get_company_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -332,6 +413,34 @@ async def campaign_create_submit(
             error=f"Insufficient balance to activate. Current balance: ${float(company.balance):.2f}. Save as draft instead, then add funds.",
         )
 
+    # Parse uploaded asset data
+    try:
+        image_urls = json.loads(image_urls_json) if image_urls_json.strip() else []
+    except json.JSONDecodeError:
+        image_urls = []
+    try:
+        file_urls = json.loads(file_urls_json) if file_urls_json.strip() else []
+    except json.JSONDecodeError:
+        file_urls = []
+    try:
+        file_contents = json.loads(file_contents_json) if file_contents_json.strip() else []
+    except json.JSONDecodeError:
+        file_contents = []
+
+    # Build assets dict — this is the content source for amplifiers
+    assets = {
+        "image_urls": image_urls,
+        "file_urls": file_urls,
+        "file_contents": file_contents,
+        "hashtags": [],
+        "brand_guidelines": "",
+    }
+    if scraped_knowledge_json and scraped_knowledge_json.strip():
+        try:
+            assets["scraped_knowledge"] = json.loads(scraped_knowledge_json)
+        except json.JSONDecodeError:
+            pass
+
     campaign = Campaign(
         company_id=company.id,
         title=title,
@@ -351,6 +460,7 @@ async def campaign_create_submit(
             "target_regions": target_regions,
             "required_platforms": required_platforms,
         },
+        assets=assets,
         content_guidance=content_guidance or None,
         penalty_rules={},
         start_date=datetime.fromisoformat(start_date),
