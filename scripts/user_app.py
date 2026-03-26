@@ -226,8 +226,24 @@ def onboarding_page():
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # Auto-detect region (default to "global" for now)
-    detected_region = get_setting("audience_region", "global") or "global"
+    # Auto-detect region from IP geolocation
+    detected_region = get_setting("audience_region") or ""
+    if not detected_region:
+        try:
+            import httpx
+            geo = httpx.get("https://ipapi.co/json/", timeout=5).json()
+            country = (geo.get("country_code") or "").upper()
+            region_map = {
+                "US": "us", "GB": "uk", "IN": "india",
+                "DE": "eu", "FR": "eu", "IT": "eu", "ES": "eu", "NL": "eu", "BE": "eu", "AT": "eu", "PT": "eu", "IE": "eu", "SE": "eu", "FI": "eu", "DK": "eu", "PL": "eu", "CZ": "eu", "RO": "eu", "GR": "eu",
+                "BR": "latam", "MX": "latam", "AR": "latam", "CO": "latam", "CL": "latam", "PE": "latam",
+                "SG": "sea", "TH": "sea", "VN": "sea", "PH": "sea", "MY": "sea", "ID": "sea",
+            }
+            detected_region = region_map.get(country, "global")
+            logger.info("Auto-detected region: %s (country=%s)", detected_region, country)
+        except Exception as e:
+            logger.debug("Region auto-detection failed: %s", e)
+            detected_region = "global"
     region_labels = {
         "global": "Global",
         "us": "United States",

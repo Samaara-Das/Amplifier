@@ -182,16 +182,13 @@
           <div style="margin-bottom: 16px;">
             <label style="font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">Content Niches</label>
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Select the niches that match your content. Companies will match you to campaigns based on these.</p>
-            <div class="ob-niche-grid" id="ob-niche-grid">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="ob-niche-grid">
               {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
               {% for niche in all_niches %}
-                <div class="ob-niche-item" onclick="toggleNiche(this)">
-                  <input type="checkbox" name="niches" value="{{ niche }}" style="display:none;" />
-                  <div class="ob-niche-checkbox">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <span class="ob-niche-label">{{ niche }}</span>
-                </div>
+                <label style="display:flex; align-items:center; gap:10px; padding:12px 16px; border:1px solid #334155; border-radius:8px; cursor:pointer; transition:all 0.15s; user-select:none;" class="niche-label">
+                  <input type="checkbox" name="niches" value="{{ niche }}" style="width:18px; height:18px; accent-color:#2563eb; cursor:pointer;" />
+                  <span style="font-size:14px;">{{ niche|capitalize }}</span>
+                </label>
               {% endfor %}
             </div>
           </div>
@@ -372,11 +369,21 @@
   </div>
 
   <script>
-    function toggleNiche(el) {
-      el.classList.toggle('selected');
-      var cb = el.querySelector('input[type="checkbox"]');
-      cb.checked = el.classList.contains('selected');
-    }
+    // Niche checkbox styling — highlight label when checked
+    document.addEventListener('change', function(e) {
+      if (e.target.name === 'niches') {
+        var label = e.target.closest('.niche-label');
+        if (label) {
+          if (e.target.checked) {
+            label.style.borderColor = '#2563eb';
+            label.style.background = 'rgba(37, 99, 235, 0.15)';
+          } else {
+            label.style.borderColor = '#334155';
+            label.style.background = 'transparent';
+          }
+        }
+      }
+    });
 
     var currentStep = 1;
     var totalSteps = 5;
