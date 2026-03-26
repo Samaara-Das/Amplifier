@@ -278,7 +278,7 @@
         "id": "19",
         "title": "Explain: Campaign Matching",
         "description": "Walk through how campaign-to-user matching currently works â€” hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "15"
@@ -288,12 +288,13 @@
           "company",
           "explain"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-03-26T16:15:30.059Z"
       },
       {
         "id": "20",
         "title": "Verify: Campaign Matching",
-        "description": "Ask the user what the acceptance criteria is for campaign matching so that we know when it's fully done. Then test against those criteria.",
+        "description": "Ask the user what the acceptance criteria is for campaign matching so that we know when it's fully done. Then test against those criteria.\n\nTEST WITH: The Cluely campaign (AI-generated, detailed brief). Verify that the onboarded user gets matched to it based on their scraped profile data, niches, platforms, and region.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -307,9 +308,9 @@
         "subtasks": []
       },
       {
-        "id": "21",
-        "title": "Explain: Campaign Polling (User Side)",
-        "description": "Walk through how the user app polls the server for matched campaigns â€” polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.",
+        “id”: “21”,
+        “title”: “Explain: Campaign Polling (User Side)”,
+        “description”: “Walk through how the user app polls the server for matched campaigns -- polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: When a matched campaign is displayed to the user, it must be highly detailed -- show ALL info the company filled in: brief, content guidance, images, files, payout rates, must-include/avoid, campaign goal. The user should have everything they need to decide whether to accept.”,
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -809,7 +810,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-03-26T16:01:12.072Z",
+      "lastModified": "2026-03-26T16:15:30.059Z",
       "taskCount": 52,
       "completedCount": 18,
       "tags": [

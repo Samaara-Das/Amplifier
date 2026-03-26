@@ -131,20 +131,55 @@ def _get_user_engagement_rate(user: User) -> float:
 
 
 def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
-    """Build the prompt for AI relevance scoring."""
+    """Build a detailed prompt for AI relevance scoring.
+
+    Uses the full scraped profile data to help AI understand the creator's
+    content style, audience, expertise, and fit for the campaign.
+    """
     targeting = campaign.targeting or {}
 
-    # Summarize user's scraped profiles
-    bio_summary = ""
-    recent_topics = []
+    # Build detailed creator profile from scraped data
+    profile_sections = []
     profiles = user.scraped_profiles or {}
     for platform, data in profiles.items():
-        if isinstance(data, dict):
-            bio = data.get("bio", "")
-            if bio:
-                bio_summary += f"{platform}: {bio}. "
-            posts = data.get("recent_posts", [])
-            recent_topics.extend(posts[:3])  # sample up to 3 per platform
+        if not isinstance(data, dict):
+            continue
+        section = f"\n--- {platform.upper()} ---"
+        bio = data.get("bio", "")
+        if bio:
+            section += f"\nBio: {bio}"
+        followers = data.get("follower_count", 0)
+        if followers:
+            section += f"\nFollowers: {followers}"
+        engagement = data.get("avg_engagement_rate", 0)
+        if engagement:
+            section += f"\nEngagement rate: {engagement:.3f}"
+
+        # Include recent post content for style analysis
+        posts = data.get("recent_posts", [])
+        if posts:
+            section += f"\nRecent posts ({len(posts)}):"
+            for p in posts[:5]:
+                if isinstance(p, dict):
+                    text = p.get("text", p.get("title", ""))
+                    if text:
+                        section += f"\n  - {text[:150]}"
+                elif isinstance(p, str):
+                    section += f"\n  - {p[:150]}"
+
+        # Include extended profile data if available
+        profile_data = data.get("profile_data", {})
+        if isinstance(profile_data, dict):
+            about = profile_data.get("about", "")
+            if about:
+                section += f"\nAbout: {about[:300]}"
+            experience = profile_data.get("experience", [])
+            if experience:
+                section += f"\nExperience: {experience[:3]}"
+
+        profile_sections.append(section)
+
+    creator_profile = "\n".join(profile_sections) if profile_sections else "No scraped profile data available"
 
     engagement_rate = _get_user_engagement_rate(user)
     connected_platforms = [
@@ -152,21 +187,33 @@ def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
         if isinstance(v, dict) and v.get("connected")
     ]
 
-    return f"""Rate the relevance of this campaign for this social media creator on a scale of 0-100.
+    return f"""You are an expert campaign-to-creator matching system. Analyze the creator's FULL profile and determine how well they fit this campaign.
 
-CAMPAIGN:
+== CAMPAIGN ==
 Title: {campaign.title}
-Brief: {campaign.brief}
+Brief: {campaign.brief[:1000]}
+Content guidance: {campaign.content_guidance or 'None'}
 Target niches: {targeting.get('niche_tags', [])}
+Target regions: {targeting.get('target_regions', [])}
+Required platforms: {targeting.get('required_platforms', [])}
 
-CREATOR PROFILE:
-Niches: {user.ai_detected_niches or user.niche_tags or []}
-Bio: {bio_summary or 'Not available'}
-Recent post topics: {recent_topics[:5] or ['Not available']}
-Engagement rate: {engagement_rate:.3f}
-Platforms: {connected_platforms}
+== CREATOR ==
+Self-selected niches: {user.niche_tags or []}
+Connected platforms: {connected_platforms}
+Overall engagement rate: {engagement_rate:.4f}
+Region: {user.audience_region or 'global'}
 
-Consider: niche alignment, audience overlap, content style fit, engagement quality.
+{creator_profile}
+
+== SCORING CRITERIA ==
+Rate 0-100 based on:
+1. Content alignment: Does the creator's posting history match the campaign topic? (40 pts)
+2. Audience fit: Does the creator's audience (based on their content + platform) match who the campaign targets? (25 pts)
+3. Quality signals: Engagement rate, posting consistency, profile completeness (20 pts)
+4. Platform match: Does the creator post on the platforms the campaign needs? (15 pts)
+
+A score of 70+ means strong fit. 40-70 means moderate fit. Below 40 means poor fit.
+
 Return ONLY a number between 0 and 100."""
 
 
@@ -256,14 +303,14 @@ def _passes_hard_filters(campaign: Campaign, user: User) -> bool:
     """Check hard filters. Returns True if user is eligible for the campaign."""
     targeting = campaign.targeting or {}
 
-    # Required platforms
+    # Required platforms — user must have AT LEAST ONE of the required platforms
     required_platforms = targeting.get("required_platforms", [])
     if required_platforms:
         user_platforms = set(
             k for k, v in (user.platforms or {}).items()
             if isinstance(v, dict) and v.get("connected")
         )
-        if not set(required_platforms).issubset(user_platforms):
+        if not set(required_platforms) & user_platforms:
             return False
 
     # Minimum follower counts

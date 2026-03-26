@@ -543,7 +543,7 @@ async def estimate_reach(
                 k for k, v in (user.platforms or {}).items()
                 if isinstance(v, dict) and v.get("connected")
             )
-            if not set(required_platforms).issubset(user_platforms):
+            if not set(required_platforms) & user_platforms:
                 continue
 
         # Min followers check
