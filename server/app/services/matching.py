@@ -201,18 +201,25 @@ Required platforms: {targeting.get('required_platforms', [])}
 Self-selected niches: {user.niche_tags or []}
 Connected platforms: {connected_platforms}
 Overall engagement rate: {engagement_rate:.4f}
+Trust score: {user.trust_score or 50}/100
 Region: {user.audience_region or 'global'}
 
 {creator_profile}
 
-== SCORING CRITERIA ==
-Rate 0-100 based on:
-1. Content alignment: Does the creator's posting history match the campaign topic? (40 pts)
-2. Audience fit: Does the creator's audience (based on their content + platform) match who the campaign targets? (25 pts)
-3. Quality signals: Engagement rate, posting consistency, profile completeness (20 pts)
-4. Platform match: Does the creator post on the platforms the campaign needs? (15 pts)
+== YOUR TASK ==
+You are deciding whether this creator should be invited to this campaign. Read their full profile — their posts, bio, experience, engagement — and determine how well they fit.
 
-A score of 70+ means strong fit. 40-70 means moderate fit. Below 40 means poor fit.
+Think about:
+- Does this creator actually talk about topics relevant to this campaign?
+- Would their audience care about this product?
+- Does their content style match what the campaign needs?
+- Are they active enough and engaged enough to deliver results?
+- Would this feel like a natural fit, or would it seem forced/spammy?
+
+Score 80-100: Strong fit — this creator would produce great content for this campaign
+Score 50-79: Decent fit — could work but not ideal
+Score 20-49: Weak fit — mismatch in audience, content style, or relevance
+Score 0-19: Bad fit — don't invite
 
 Return ONLY a number between 0 and 100."""
 
@@ -257,25 +264,7 @@ async def ai_score_relevance(campaign: Campaign, user: User) -> float:
         return -1.0  # sentinel: caller should fall back
 
 
-# ── Combined Scoring ──────────────────────────────────────────────
-
-
-def calculate_combined_score(
-    ai_score: float, trust_score: int, engagement_rate: float
-) -> float:
-    """Combine AI relevance, trust, and engagement into a final score.
-
-    Formula:
-        final = ai_score * 0.6 + trust_score * 0.2 + min(engagement_rate * 1000, 20)
-
-    All components are capped so the maximum final score is 100.
-    """
-    trust_bonus = (trust_score or 0) * 0.2  # 0-20
-    engagement_bonus = min(engagement_rate * 1000, 20)  # 0-20
-    return ai_score * 0.6 + trust_bonus + engagement_bonus
-
-
-# ── Niche-Overlap Fallback Scoring ────────────────────────────────
+# ── Niche-Overlap Fallback Scoring (used only when AI is unavailable) ──
 
 
 def _fallback_niche_score(campaign: Campaign, user: User) -> float:
@@ -454,8 +443,7 @@ async def get_matched_campaigns(
 
         candidates.append(campaign)
 
-    # Stage 2 + 3: AI scoring + combined score
-    engagement_rate = _get_user_engagement_rate(user)
+    # Stage 2: AI-driven scoring — AI decides the fit entirely
     scored = []
 
     for campaign in candidates:
@@ -463,18 +451,9 @@ async def get_matched_campaigns(
 
         if ai_score < 0:
             # AI failed — use fallback niche-overlap scoring
-            fallback = _fallback_niche_score(campaign, user)
-            final_score = calculate_combined_score(
-                ai_score=fallback,
-                trust_score=user.trust_score or 50,
-                engagement_rate=engagement_rate,
-            )
+            final_score = _fallback_niche_score(campaign, user)
         else:
-            final_score = calculate_combined_score(
-                ai_score=ai_score,
-                trust_score=user.trust_score or 50,
-                engagement_rate=engagement_rate,
-            )
+            final_score = ai_score
 
         if final_score > 0:
             scored.append((campaign, final_score))
