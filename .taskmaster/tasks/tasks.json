@@ -275,10 +275,10 @@
         "updatedAt": "2026-03-26T16:01:12.071Z"
       },
       {
-        "id": "19",
-        "title": "Explain: Campaign Matching",
-        "description": "Walk through how campaign-to-user matching currently works â€” hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.",
-        "status": "in-progress",
+        “id”: “19”,
+        “title”: “Explain: Campaign Matching”,
+        “description”: “Walk through how campaign-to-user matching currently works -- hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.”,
+        “status”: “done”,
         "priority": "high",
         "dependencies": [
           "15"
@@ -294,8 +294,8 @@
       {
         "id": "20",
         "title": "Verify: Campaign Matching",
-        "description": "Ask the user what the acceptance criteria is for campaign matching so that we know when it's fully done. Then test against those criteria.\n\nTEST WITH: The Cluely campaign (AI-generated, detailed brief). Verify that the onboarded user gets matched to it based on their scraped profile data, niches, platforms, and region.",
-        "status": "pending",
+        "description": "Ask the user what the acceptance criteria is for campaign matching so that we know when it's fully done. Then test against those criteria.\n\nTEST WITH: The Cluely campaign (AI-generated, detailed brief). Verify that the onboarded user gets matched to it based on their scraped profile data, niches, platforms, and region.\n\nVERIFIED: User with finance/technology/ai niches and 4 platforms matched to Cluely campaign (tech/ai). Platform format bug fixed (True vs {connected:True}).",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "19"
