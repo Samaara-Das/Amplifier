@@ -183,7 +183,7 @@
             <label style="font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">Content Niches</label>
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Select the niches that match your content. Companies will match you to campaigns based on these.</p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="ob-niche-grid">
-              {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
+              {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'ai', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
               {% for niche in all_niches %}
                 <label style="display:flex; align-items:center; gap:10px; padding:12px 16px; border:1px solid #334155; border-radius:8px; cursor:pointer; transition:all 0.15s; user-select:none;" class="niche-label">
                   <input type="checkbox" name="niches" value="{{ niche }}" style="width:18px; height:18px; accent-color:#2563eb; cursor:pointer;" />
