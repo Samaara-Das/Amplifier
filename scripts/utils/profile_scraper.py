@@ -590,6 +590,9 @@ async def scrape_linkedin_profile(playwright) -> dict:
         "about": None,
         "experience": [],
         "education": [],
+        # LinkedIn analytics (from home page sidebar)
+        "profile_viewers": 0,
+        "post_impressions": 0,
     }
 
     context = None
@@ -895,6 +898,27 @@ async def scrape_linkedin_profile(playwright) -> dict:
         # Posting frequency estimate
         if posts:
             result["posting_frequency"] = round(len(posts) / 30, 2)
+
+        # Scrape profile viewers + post impressions from home page sidebar
+        try:
+            logger.info("LinkedIn: navigating to home for analytics sidebar")
+            await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(3000)
+
+            home_body = await page.inner_text("body")
+
+            # "Profile viewers" and "Post impressions" appear in the left sidebar
+            pv_match = re.search(r'Profile viewers?\s*\n?\s*([\d,]+)', home_body)
+            if pv_match:
+                result["profile_viewers"] = _parse_number(pv_match.group(1))
+                logger.info("LinkedIn: profile_viewers=%d", result["profile_viewers"])
+
+            pi_match = re.search(r'Post impressions?\s*\n?\s*([\d,]+)', home_body)
+            if pi_match:
+                result["post_impressions"] = _parse_number(pi_match.group(1))
+                logger.info("LinkedIn: post_impressions=%d", result["post_impressions"])
+        except Exception as e:
+            logger.debug("LinkedIn: home page analytics scraping failed: %s", e)
 
     except Exception as e:
         logger.error("LinkedIn: scraping failed: %s", e)
@@ -1471,7 +1495,8 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
                 profile_data_dict = {}
                 for ext_key in ("about", "experience", "education",
                                 "personal_details",
-                                "karma", "contributions", "reddit_age", "active_communities", "cake_day"):
+                                "karma", "contributions", "reddit_age", "active_communities", "cake_day",
+                                "profile_viewers", "post_impressions"):
                     if ext_key in data and data[ext_key]:
                         profile_data_dict[ext_key] = data[ext_key]
                 profile_data_json = json.dumps(profile_data_dict) if profile_data_dict else None
