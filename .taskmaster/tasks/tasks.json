@@ -214,7 +214,7 @@
         "id": "15",
         "title": "Explain: Company AI Wizard",
         "description": "Walk through how the campaign AI wizard currently works. Fix issues found by user.\n\nIMPLEMENTED:\n1. IMAGE UPLOADS: Drag-and-drop upload to Supabase Storage, thumbnails preview, stored in Campaign.assets.image_urls\n2. DEEP WEB CRAWLING: BFS crawler (httpx+BS4) follows same-domain links up to 10 pages, depth 2. Replaces shallow single-page scrape.\n3. FILE UPLOADS: PDF/DOCX/TXT upload to Supabase Storage with text extraction (PyPDF2, python-docx). Stored in Campaign.assets.file_contents.\n4. AI GENERATION FIX: Enhanced Gemini prompt uses all sources (deep-scraped content, uploaded files, images, product info). Fallback clearly marks [AI generation failed]. Error response now shows actual error.\n5. BALANCE GATE: Companies with <$50 balance blocked from wizard.\n\nKEY INSIGHT: The detailed campaign brief IS the single content source for amplifiers (users). It must contain everything needed to create posts: product details, scraped knowledge, file contents, images, must-include/avoid, content direction.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -223,13 +223,13 @@
           "explain"
         ],
         "subtasks": [],
-        "updatedAt": "2026-03-26T04:30:59.347Z"
+        "updatedAt": "2026-03-26T07:33:31.608Z"
       },
       {
         "id": "16",
         "title": "Verify: Company AI Wizard",
         "description": "Ask the user what the acceptance criteria is for the AI wizard so that we know when it's fully done. Then test against those criteria.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "15"
@@ -239,13 +239,14 @@
           "company",
           "verify"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-03-26T07:33:40.090Z"
       },
       {
         "id": "17",
         "title": "Explain: User Onboarding + Scraping",
         "description": "Walk through how user onboarding and profile/metric scraping currently works — registration, platform connections, API key setup, LinkedIn scraping, niche selection, region detection. If the user finds it's not implemented the way they want, fix it.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -253,12 +254,13 @@
           "user",
           "explain"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-03-26T07:40:12.783Z"
       },
       {
         "id": "18",
         "title": "Verify: User Onboarding + Scraping",
-        "description": "Ask the user what the acceptance criteria is for onboarding and profile scraping so that we know when it's fully done. Then test against those criteria.",
+        "description": "Ask the user what the acceptance criteria is for onboarding and profile scraping so that we know when it's fully done. Then test against those criteria.\n\nMUST TEST: Profile scraping works for each platform (X, LinkedIn, Facebook, Reddit) after the user logs in. Verify that display_name, follower_count, bio, recent_posts, and engagement_rate are scraped correctly for each connected platform.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -274,7 +276,7 @@
       {
         "id": "19",
         "title": "Explain: Campaign Matching",
-        "description": "Walk through how campaign-to-user matching currently works — hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how campaign-to-user matching currently works — hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -402,7 +404,7 @@
       {
         "id": "27",
         "title": "Explain: Scheduled Posting",
-        "description": "Walk through how scheduled posting currently works — post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how scheduled posting currently works — post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.\n\nCRITICAL: X (Twitter) locks user accounts when controlled by Playwright automation. Amplifier must detect when X has locked the account (e.g., by checking for lockout page/modal after login) and notify the user to log back in manually. This is a known blocker for X posting.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -418,7 +420,7 @@
       {
         "id": "28",
         "title": "Verify: Scheduled Posting",
-        "description": "Ask the user what the acceptance criteria is for scheduled posting so that we know when it's fully done. Then test against those criteria.",
+        "description": "Ask the user what the acceptance criteria is for scheduled posting so that we know when it's fully done. Then test against those criteria.\n\nMUST TEST: Both semi-auto and full-auto modes work correctly. Semi-auto: AI generates content, user reviews and approves before posting. Full-auto: AI generates and posts automatically without user review.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -778,9 +780,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-03-26T04:30:59.348Z",
+      "lastModified": "2026-03-26T07:40:12.783Z",
       "taskCount": 50,
-      "completedCount": 14,
+      "completedCount": 16,
       "tags": [
         "master"
       ]

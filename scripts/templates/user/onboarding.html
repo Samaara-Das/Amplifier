@@ -177,14 +177,10 @@
             </div>
           {% endif %}
 
-          <!-- AI-detected niches -->
+          <!-- Niche selection -->
           <div style="margin-bottom: 16px;">
             <label style="font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">Content Niches</label>
-            {% if detected_niches %}
-              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; background: #f0f4ff; padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--primary);">
-                Based on your profile, you might be interested in: <strong>{{ detected_niches|join(', ') }}</strong>
-              </p>
-            {% endif %}
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Select the niches that match your content. Companies will match you to campaigns based on these.</p>
             <div class="ob-niche-grid" id="ob-niche-grid">
               {% set all_niches = ['finance', 'trading', 'investing', 'crypto', 'technology', 'business', 'marketing', 'lifestyle', 'education', 'health', 'fitness', 'food', 'travel', 'entertainment', 'gaming', 'sports', 'fashion', 'beauty', 'parenting', 'politics'] %}
               {% for niche in all_niches %}
@@ -250,6 +246,12 @@
                 <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Gemini API Key</label>
                 <a href="https://aistudio.google.com/apikey" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">Get your free key &rarr;</a>
               </div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5;">
+                1. Click "Get your free key" above<br>
+                2. Sign in with your Google account<br>
+                3. Click "Create API key" and copy the key<br>
+                4. Paste it below and click Test
+              </div>
               <div style="display: flex; gap: 8px;">
                 <input type="password" id="ob-gemini-key" placeholder="AIza..."
                        class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
@@ -264,6 +266,11 @@
                 <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Mistral API Key <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
                 <a href="https://console.mistral.ai" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">Get your free key &rarr;</a>
               </div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5;">
+                1. Click the link above and create an account<br>
+                2. Go to API Keys in the left sidebar<br>
+                3. Click "Create new key", copy it, and paste below
+              </div>
               <div style="display: flex; gap: 8px;">
                 <input type="password" id="ob-mistral-key" placeholder="Paste Mistral key..."
                        class="ob-select" style="flex: 1; padding: 8px 12px; font-size: 13px;" />
@@ -277,6 +284,11 @@
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                 <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Groq API Key <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
                 <a href="https://console.groq.com" target="_blank" style="font-size: 12px; color: var(--primary); text-decoration: none;">Get your free key &rarr;</a>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5;">
+                1. Click the link above and create an account<br>
+                2. Go to API Keys in the left menu<br>
+                3. Click "Create API Key", copy it, and paste below
               </div>
               <div style="display: flex; gap: 8px;">
                 <input type="password" id="ob-groq-key" placeholder="Paste Groq key..."

@@ -354,16 +354,7 @@ async def refresh_profiles() -> dict:
         # Scrape stale platforms (or all if stale_platforms is None)
         results = await scrape_all_profiles(stale_platforms)
 
-        # Run niche classification if available
-        try:
-            from utils.niche_classifier import classify_and_store
-            await classify_and_store(
-                stale_platforms if stale_platforms else None
-            )
-        except ImportError:
-            logger.debug("Niche classifier not available")
-        except Exception as e:
-            logger.warning("Niche classification failed: %s", e)
+        # AI niche classification removed — user selects niches manually
 
         # Sync to server
         try:

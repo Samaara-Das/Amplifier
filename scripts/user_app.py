@@ -341,35 +341,7 @@ def onboarding_connect(platform):
         finally:
             _scraping_platforms.discard(platform)
 
-        # Run AI niche classification on all scraped profiles
-        try:
-            from utils.niche_classifier import classify_niches
-            from utils.local_db import get_all_scraped_profiles, upsert_scraped_profile
-            profiles_list = get_all_scraped_profiles()
-            scraped = {}
-            for p in profiles_list:
-                posts = json.loads(p.get("recent_posts", "[]")) if p.get("recent_posts") else []
-                scraped[p["platform"]] = {"bio": p.get("bio"), "recent_posts": posts}
-            if scraped:
-                niches = aio.run(classify_niches(scraped))
-                if niches:
-                    # Store niches in all scraped profiles
-                    for p in profiles_list:
-                        upsert_scraped_profile(
-                            platform=p["platform"],
-                            follower_count=p.get("follower_count", 0),
-                            following_count=p.get("following_count", 0),
-                            bio=p.get("bio"),
-                            display_name=p.get("display_name"),
-                            profile_pic_url=p.get("profile_pic_url"),
-                            recent_posts=p.get("recent_posts", "[]"),
-                            engagement_rate=p.get("engagement_rate", 0.0),
-                            posting_frequency=p.get("posting_frequency", 0.0),
-                            ai_niches=json.dumps(niches),
-                        )
-                    logger.info("AI niche classification: %s", niches)
-        except Exception as e:
-            logger.error("Niche classification failed: %s", e)
+        # AI niche classification removed — user selects niches manually in Step 2
 
     threading.Thread(target=_connect_scrape_classify, daemon=True).start()
     flash(f"Browser opened for {platform}. Log in and close the browser — profile will be scraped automatically.", "info")

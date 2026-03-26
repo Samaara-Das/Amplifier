@@ -579,8 +579,7 @@ async def scrape_linkedin_profile(playwright) -> dict:
         "recent_posts": [],
         "engagement_rate": 0.0,
         "posting_frequency": 0.0,
-        # Extended profile fields
-        "location": None,
+        # Extended profile fields (location removed — not needed for matching)
         "about": None,
         "experience": [],
         "education": [],
@@ -721,37 +720,11 @@ async def scrape_linkedin_profile(playwright) -> dict:
             if pic_url:
                 result["profile_pic_url"] = pic_url
 
-        # ── Extended profile data: location, about, experience, education ──
+        # ── Extended profile data: about, experience, education ──
+        # Location scraping removed — not needed for matching
 
-        # Extract location from profile page body text.
-        # It appears right below the follower/connection count line — typically
-        # a city/region line shorter than the headline and not a number.
         try:
             body = await page.inner_text("body")
-            body_lines = [l.strip() for l in body.split("\n") if l.strip()]
-
-            # Location: line that looks like "City, State, Country" — contains comma,
-            # no digits at start, under 60 chars, positioned after the bio/headline.
-            if result["bio"] and not result["location"]:
-                try:
-                    bio_idx = body_lines.index(result["bio"])
-                except ValueError:
-                    bio_idx = -1
-
-                search_start = max(0, bio_idx) if bio_idx >= 0 else 0
-                for line in body_lines[search_start:search_start + 20]:
-                    if line == result["bio"]:
-                        continue
-                    # Location lines typically: "City, Region, Country" or "City, Country"
-                    if ("," in line and len(line) < 60
-                            and not line[0].isdigit()
-                            and "follower" not in line.lower()
-                            and "connection" not in line.lower()
-                            and "·" not in line
-                            and "linkedin" not in line.lower()):
-                        result["location"] = line
-                        logger.info("LinkedIn: location=%s", line)
-                        break
 
             # About section: text after "About" header in the body.
             # LinkedIn renders "About" as a section heading; the content follows.
@@ -955,6 +928,8 @@ async def scrape_facebook_profile(playwright) -> dict:
         "recent_posts": [],
         "engagement_rate": 0.0,
         "posting_frequency": 0.0,
+        # Facebook personal details (from About tab)
+        "personal_details": {},  # location, hometown, relationship, gender, language, work, education, links, contact_info
     }
 
     context = None
@@ -1025,6 +1000,96 @@ async def scrape_facebook_profile(playwright) -> dict:
                     result["bio"] = "\n".join(bio_lines)[:500]
         except Exception:
             pass
+
+        # ── Scrape personal details from About tab ──
+        try:
+            # Navigate to the About page (personal details are under /about)
+            about_url = page.url.rstrip("/") + "/about"
+            logger.info("Facebook: navigating to about page: %s", about_url)
+            await page.goto(about_url, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(2000)
+
+            about_text = await page.inner_text("body")
+            details = {}
+
+            # Location: "Lives in ..."
+            loc_match = re.search(r'Lives in\s+(.+?)(?:\n|$)', about_text)
+            if loc_match:
+                details["location"] = loc_match.group(1).strip()
+
+            # Hometown: "From ..."
+            from_match = re.search(r'From\s+(.+?)(?:\n|$)', about_text)
+            if from_match:
+                details["hometown"] = from_match.group(1).strip()
+
+            # Relationship status: "Single", "In a relationship", "Married", etc.
+            for status in ["Single", "In a relationship", "Engaged", "Married", "Divorced",
+                           "Widowed", "In a domestic partnership", "In a civil union",
+                           "In an open relationship", "It's complicated", "Separated"]:
+                if status in about_text:
+                    details["relationship"] = status
+                    break
+
+            # Gender
+            gender_match = re.search(r'(?:^|\n)(Male|Female|Non-binary|Custom)(?:\n|$)', about_text)
+            if gender_match:
+                details["gender"] = gender_match.group(1)
+
+            # Language
+            lang_match = re.search(r'(.+?)\s+language', about_text)
+            if lang_match:
+                details["language"] = lang_match.group(1).strip()
+
+            # Work — look for company + title pattern
+            work_entries = []
+            work_matches = re.finditer(
+                r'(?:^|\n)(.+?)\n([\w\s]+(?:Engineer|Developer|Manager|Designer|Director|CEO|CTO|Founder|Analyst|Consultant|Officer|Lead|Head|VP|President|Assistant|Coordinator|Specialist|Intern).*?)(?:\n|$)',
+                about_text, re.IGNORECASE
+            )
+            for m in work_matches:
+                work_entries.append({"company": m.group(1).strip(), "title": m.group(2).strip()})
+            if work_entries:
+                details["work"] = work_entries[:3]
+
+            # Education
+            edu_entries = []
+            # Look for known education keywords
+            edu_section = re.search(r'Education\n([\s\S]*?)(?:\nLinks\b|\nContact info\b|\nBasic info\b|\nWork\b|$)', about_text)
+            if edu_section:
+                edu_lines = [l.strip() for l in edu_section.group(1).split("\n") if l.strip() and len(l.strip()) > 3]
+                for line in edu_lines[:3]:
+                    if "see more" not in line.lower() and "edit" not in line.lower():
+                        edu_entries.append(line)
+            if edu_entries:
+                details["education"] = edu_entries
+
+            # Links (github, personal websites, etc.)
+            links_section = re.search(r'Links\n([\s\S]*?)(?:\nContact info\b|\nBasic info\b|$)', about_text)
+            if links_section:
+                link_lines = [l.strip() for l in links_section.group(1).split("\n") if l.strip()]
+                # Filter to things that look like URLs or domain names
+                links = [l for l in link_lines if "." in l and len(l) < 100 and "edit" not in l.lower()]
+                if links:
+                    details["links"] = links
+
+            # Contact info (other social media handles)
+            contact_section = re.search(r'Contact info\n([\s\S]*?)(?:\nBasic info\b|\nLife events\b|$)', about_text)
+            if contact_section:
+                contact_lines = [l.strip() for l in contact_section.group(1).split("\n") if l.strip()]
+                contacts = [l for l in contact_lines if len(l) < 100 and "edit" not in l.lower() and "add" not in l.lower()]
+                if contacts:
+                    details["contact_info"] = contacts
+
+            if details:
+                result["personal_details"] = details
+                logger.info("Facebook: scraped personal details: %s", list(details.keys()))
+
+            # Navigate back to profile for post scraping
+            await page.goto(FB_PROFILE_URL, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(2000)
+
+        except Exception as e:
+            logger.debug("Facebook: personal details scraping failed: %s", e)
 
         # Scrape recent posts
         posts = []
@@ -1134,12 +1199,17 @@ async def scrape_reddit_profile(playwright) -> dict:
         "platform": "reddit",
         "display_name": None,
         "bio": None,
-        "follower_count": 0,  # karma stored as follower_count for consistency
+        "follower_count": 0,
         "following_count": 0,
         "profile_pic_url": None,
         "recent_posts": [],
         "engagement_rate": 0.0,
         "posting_frequency": 0.0,
+        # Reddit-specific extended fields
+        "karma": 0,
+        "contributions": 0,
+        "reddit_age": None,
+        "active_communities": 0,
         "cake_day": None,
     }
 
@@ -1162,40 +1232,50 @@ async def scrape_reddit_profile(playwright) -> dict:
         if name_text:
             result["display_name"] = name_text.strip()
 
-        # Extract karma — try multiple selectors
-        karma_text = await _safe_text(page.locator('[id="karma"], [data-testid="karma"]'))
-        if karma_text:
-            result["follower_count"] = _parse_number(karma_text)
-            logger.info("Reddit: karma=%d", result["follower_count"])
-
-        # Try getting karma from page body as fallback
-        if result["follower_count"] == 0:
-            try:
-                body_text = await page.inner_text("body")
-                karma_match = re.search(r'([\d,]+)\s*karma', body_text, re.IGNORECASE)
-                if karma_match:
-                    result["follower_count"] = _parse_number(karma_match.group(1))
-            except Exception:
-                pass
-
-        # Extract follower count (Reddit shows "X followers" on profile)
-        try:
-            body_text = await page.inner_text("body") if 'body_text' not in dir() else body_text
-            follower_match = re.findall(r'([\d,]+)\s*followers?', body_text, re.IGNORECASE)
-            if follower_match:
-                result["following_count"] = _parse_number(follower_match[0])
-                logger.info("Reddit: followers=%d", result["following_count"])
-        except Exception:
-            pass
-
-        # Extract cake day
+        # Parse sidebar data from body text
         try:
             body_text = await page.inner_text("body")
+
+            # Followers
+            follower_match = re.search(r'([\d,]+)\s*followers?', body_text, re.IGNORECASE)
+            if follower_match:
+                result["follower_count"] = _parse_number(follower_match.group(1))
+                logger.info("Reddit: followers=%d", result["follower_count"])
+
+            # Karma
+            karma_match = re.search(r'([\d,]+)\s*\n?\s*Karma', body_text)
+            if karma_match:
+                result["karma"] = _parse_number(karma_match.group(1))
+                logger.info("Reddit: karma=%d", result["karma"])
+
+            # Contributions
+            contrib_match = re.search(r'([\d,]+)\s*\n?\s*Contributions?', body_text)
+            if contrib_match:
+                result["contributions"] = _parse_number(contrib_match.group(1))
+
+            # Reddit Age (e.g., "3 y", "11 mo", "2 y")
+            age_match = re.search(r'([\d]+\s*[ymo]+)\s*\n?\s*Reddit Age', body_text)
+            if age_match:
+                result["reddit_age"] = age_match.group(1).strip()
+                logger.info("Reddit: age=%s", result["reddit_age"])
+
+            # Active communities (e.g., "Active in > 2" or shows community icons)
+            active_match = re.search(r'Active in\s*>?\s*([\d]+)', body_text)
+            if active_match:
+                result["active_communities"] = int(active_match.group(1))
+
+            # Cake day
             cake_match = re.search(r'Cake day\s*[:\-]?\s*(\w+\s+\d+,?\s*\d{4})', body_text, re.IGNORECASE)
             if cake_match:
                 result["cake_day"] = cake_match.group(1).strip()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Reddit: body text parsing failed: %s", e)
+
+        # Karma fallback via selector
+        if result["karma"] == 0:
+            karma_text = await _safe_text(page.locator('[id="karma"], [data-testid="karma"]'))
+            if karma_text:
+                result["karma"] = _parse_number(karma_text)
 
         # Extract profile picture
         pic_el = page.locator('img[alt*="avatar"], img[alt*="User avatar"]')
@@ -1233,10 +1313,21 @@ async def scrape_reddit_profile(playwright) -> dict:
                     # Extract timestamp
                     created = await el.get_attribute("created-timestamp") or ""
 
+                    # Try to get view count from post body text
+                    views = 0
+                    try:
+                        post_text = await el.inner_text()
+                        views_match = re.search(r'([\d,.]+[KkMm]?)\s*views?', post_text)
+                        if views_match:
+                            views = _parse_number(views_match.group(1))
+                    except Exception:
+                        pass
+
                     posts.append({
                         "title": title[:300],
                         "score": score,
                         "comments": comment_count,
+                        "views": views,
                         "subreddit": subreddit,
                         "permalink": permalink,
                         "created_at": created,
@@ -1273,11 +1364,13 @@ async def scrape_reddit_profile(playwright) -> dict:
         result["recent_posts"] = posts
         logger.info("Reddit: scraped %d posts", len(posts))
 
-        # Calculate engagement rate (score-based)
-        if posts and result["follower_count"] > 0:
+        # Calculate engagement rate (score + comments per post / followers)
+        # Use followers if available, fall back to karma
+        denominator = result["follower_count"] or result["karma"] or 1
+        if posts:
             total_score = sum(p["score"] + p["comments"] for p in posts)
             avg_score = total_score / len(posts)
-            result["engagement_rate"] = round(avg_score / result["follower_count"], 6)
+            result["engagement_rate"] = round(avg_score / denominator, 6)
 
         if posts:
             result["posting_frequency"] = round(len(posts) / 30, 2)
@@ -1332,11 +1425,15 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
                 results[platform] = data
 
                 # Store in local DB
-                # Pack extended fields (location, about, experience, education)
-                # into a JSON blob — only populated for LinkedIn right now
+                # Pack extended fields into a JSON blob
+                # LinkedIn: about, experience, education
+                # Facebook: personal_details
+                # Reddit: karma, contributions, reddit_age, active_communities, cake_day
                 profile_data_dict = {}
-                for ext_key in ("location", "about", "experience", "education"):
-                    if ext_key in data:
+                for ext_key in ("about", "experience", "education",
+                                "personal_details",
+                                "karma", "contributions", "reddit_age", "active_communities", "cake_day"):
+                    if ext_key in data and data[ext_key]:
                         profile_data_dict[ext_key] = data[ext_key]
                 profile_data_json = json.dumps(profile_data_dict) if profile_data_dict else None
 
