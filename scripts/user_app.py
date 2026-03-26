@@ -417,9 +417,10 @@ def onboarding_save():
     set_setting("audience_region", region)
     set_setting("onboarding_done", "true")
 
-    # Sync to server
+    # Sync to server — include full scraped profile data for AI matching
     try:
         from utils.server_client import update_profile
+        from utils.local_db import get_all_scraped_profiles
 
         platforms_dict = {}
         follower_counts = {}
@@ -430,13 +431,50 @@ def onboarding_save():
                 fc = request.form.get(f"followers_{p}", "0")
                 follower_counts[p] = int(fc) if fc.isdigit() else 0
 
+        # Build scraped_profiles dict with all data for server-side AI matching
+        scraped_profiles_dict = {}
+        for sp in get_all_scraped_profiles():
+            platform = sp["platform"]
+            profile_entry = {
+                "display_name": sp.get("display_name"),
+                "bio": sp.get("bio"),
+                "follower_count": sp.get("follower_count", 0),
+                "following_count": sp.get("following_count", 0),
+                "engagement_rate": sp.get("engagement_rate", 0.0),
+                "posting_frequency": sp.get("posting_frequency", 0.0),
+                "profile_pic_url": sp.get("profile_pic_url"),
+            }
+            # Parse recent_posts from JSON string
+            posts_raw = sp.get("recent_posts", "[]")
+            if isinstance(posts_raw, str):
+                try:
+                    profile_entry["recent_posts"] = json.loads(posts_raw)
+                except (json.JSONDecodeError, TypeError):
+                    profile_entry["recent_posts"] = []
+            else:
+                profile_entry["recent_posts"] = posts_raw or []
+
+            # Parse profile_data (extended fields) from JSON string
+            pd_raw = sp.get("profile_data")
+            if pd_raw and isinstance(pd_raw, str):
+                try:
+                    profile_entry["profile_data"] = json.loads(pd_raw)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            elif isinstance(pd_raw, dict):
+                profile_entry["profile_data"] = pd_raw
+
+            scraped_profiles_dict[platform] = profile_entry
+
         update_profile(
             platforms=platforms_dict,
             follower_counts=follower_counts,
             niche_tags=niches,
             audience_region=region,
             mode=mode,
+            scraped_profiles=scraped_profiles_dict,
         )
+        logger.info("Synced scraped profiles to server: %s", list(scraped_profiles_dict.keys()))
     except Exception as e:
         logger.error("Failed to sync profile: %s", e)
 

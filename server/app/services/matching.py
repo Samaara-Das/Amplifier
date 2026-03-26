@@ -131,67 +131,90 @@ def _get_user_engagement_rate(user: User) -> float:
 
 
 def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
-    """Build a detailed prompt for AI relevance scoring.
+    """Build a prompt with raw profile data for AI matching.
 
-    Uses the full scraped profile data to help AI understand the creator's
-    content style, audience, expertise, and fit for the campaign.
+    Provides ALL scraped data (bio, posts with engagement, followers, following,
+    extended profile fields) and lets AI judge the fit without pre-computed scores.
     """
     targeting = campaign.targeting or {}
+    import json as _json
 
-    # Build detailed creator profile from scraped data
+    # Build raw profile data per platform
     profile_sections = []
     profiles = user.scraped_profiles or {}
     for platform, data in profiles.items():
         if not isinstance(data, dict):
             continue
         section = f"\n--- {platform.upper()} ---"
-        bio = data.get("bio", "")
-        if bio:
-            section += f"\nBio: {bio}"
-        followers = data.get("follower_count", 0)
-        if followers:
-            section += f"\nFollowers: {followers}"
-        engagement = data.get("avg_engagement_rate", 0)
-        if engagement:
-            section += f"\nEngagement rate: {engagement:.3f}"
+        if data.get("display_name"):
+            section += f"\nDisplay name: {data['display_name']}"
+        if data.get("bio"):
+            section += f"\nBio: {data['bio']}"
+        section += f"\nFollowers: {data.get('follower_count', 0)}"
+        section += f"\nFollowing: {data.get('following_count', 0)}"
+        section += f"\nPosting frequency: ~{data.get('posting_frequency', 0)} posts/day"
 
-        # Include recent post content for style analysis
+        # Recent posts with FULL engagement details
         posts = data.get("recent_posts", [])
         if posts:
-            section += f"\nRecent posts ({len(posts)}):"
-            for p in posts[:5]:
+            section += f"\n\nRecent posts ({len(posts)} found):"
+            for p in posts[:8]:  # Show up to 8 posts
                 if isinstance(p, dict):
                     text = p.get("text", p.get("title", ""))
                     if text:
-                        section += f"\n  - {text[:150]}"
-                elif isinstance(p, str):
-                    section += f"\n  - {p[:150]}"
+                        section += f"\n  Post: {text[:200]}"
+                    # Include all available engagement metrics
+                    metrics = []
+                    for key in ("likes", "comments", "replies", "retweets", "reposts", "shares", "score", "views"):
+                        val = p.get(key)
+                        if val and val > 0:
+                            metrics.append(f"{key}={val}")
+                    if metrics:
+                        section += f"\n    Engagement: {', '.join(metrics)}"
+                    if p.get("subreddit"):
+                        section += f" | Subreddit: {p['subreddit']}"
+                    if p.get("posted_at"):
+                        section += f" | Posted: {p['posted_at']}"
+        else:
+            section += "\n\nNo recent posts found"
 
-        # Include extended profile data if available
+        # Platform-specific extended data
         profile_data = data.get("profile_data", {})
         if isinstance(profile_data, dict):
-            about = profile_data.get("about", "")
-            if about:
-                section += f"\nAbout: {about[:300]}"
-            experience = profile_data.get("experience", [])
-            if experience:
-                section += f"\nExperience: {experience[:3]}"
+            if profile_data.get("about"):
+                section += f"\n\nAbout section: {profile_data['about'][:400]}"
+            if profile_data.get("experience"):
+                section += f"\nWork experience: {_json.dumps(profile_data['experience'][:3], default=str)[:400]}"
+            if profile_data.get("education"):
+                section += f"\nEducation: {profile_data['education']}"
+            if profile_data.get("profile_viewers"):
+                section += f"\nProfile viewers (last 90 days): {profile_data['profile_viewers']}"
+            if profile_data.get("post_impressions"):
+                section += f"\nPost impressions (last 90 days): {profile_data['post_impressions']}"
+            if profile_data.get("karma"):
+                section += f"\nReddit karma: {profile_data['karma']}"
+            if profile_data.get("contributions"):
+                section += f"\nReddit contributions: {profile_data['contributions']}"
+            if profile_data.get("reddit_age"):
+                section += f"\nReddit age: {profile_data['reddit_age']}"
+            if profile_data.get("personal_details"):
+                pd = profile_data["personal_details"]
+                section += f"\nPersonal details: {_json.dumps(pd, default=str)[:300]}"
 
         profile_sections.append(section)
 
     creator_profile = "\n".join(profile_sections) if profile_sections else "No scraped profile data available"
 
-    engagement_rate = _get_user_engagement_rate(user)
     connected_platforms = [
         k for k, v in (user.platforms or {}).items()
         if isinstance(v, dict) and v.get("connected")
     ]
 
-    return f"""You are an expert campaign-to-creator matching system. Analyze the creator's FULL profile and determine how well they fit this campaign.
+    return f"""You are matching creators to brand campaigns on Amplifier, a platform where everyday social media users earn money by posting about products.
 
 == CAMPAIGN ==
 Title: {campaign.title}
-Brief: {campaign.brief[:1000]}
+Brief: {campaign.brief[:1500]}
 Content guidance: {campaign.content_guidance or 'None'}
 Target niches: {targeting.get('niche_tags', [])}
 Target regions: {targeting.get('target_regions', [])}
@@ -200,26 +223,36 @@ Required platforms: {targeting.get('required_platforms', [])}
 == CREATOR ==
 Self-selected niches: {user.niche_tags or []}
 Connected platforms: {connected_platforms}
-Overall engagement rate: {engagement_rate:.4f}
-Trust score: {user.trust_score or 50}/100
 Region: {user.audience_region or 'global'}
 
 {creator_profile}
 
+== IMPORTANT CONTEXT ==
+Most creators on Amplifier are NORMAL PEOPLE, not influencers. They typically have:
+- Fewer than 1,000 followers
+- Infrequent posting (a few times per month, not daily)
+- Low engagement numbers (single digits of likes/comments is normal)
+- Personal accounts, not professional content creator accounts
+
+This is by design — Amplifier helps normal people earn from campaigns, not just influencers. DO NOT penalize for low follower counts, infrequent posting, or low engagement numbers.
+
 == YOUR TASK ==
-You are deciding whether this creator should be invited to this campaign. Read their full profile — their posts, bio, experience, engagement — and determine how well they fit.
+Read this creator's ACTUAL profile data above — their real posts, bios, and activity across platforms. Decide if they're a good fit for this campaign.
 
-Think about:
-- Does this creator actually talk about topics relevant to this campaign?
-- Would their audience care about this product?
-- Does their content style match what the campaign needs?
-- Are they active enough and engaged enough to deliver results?
-- Would this feel like a natural fit, or would it seem forced/spammy?
+Judge ONLY on:
+1. TOPIC RELEVANCE: Do their posts, bio, or interests relate to what this campaign is about? A user with 50 followers who posts about tech is better for a tech campaign than someone with 10K followers who posts about cooking.
+2. AUDIENCE FIT: Based on their content and platforms, would their connections/followers be interested in this product?
+3. AUTHENTICITY: Would this person promoting this product feel natural, or forced?
 
-Score 80-100: Strong fit — this creator would produce great content for this campaign
-Score 50-79: Decent fit — could work but not ideal
-Score 20-49: Weak fit — mismatch in audience, content style, or relevance
-Score 0-19: Bad fit — don't invite
+DO NOT judge on:
+- Raw follower/engagement numbers (most users are normal people)
+- Posting frequency (many users post infrequently)
+- Profile completeness
+
+Score 70-100: Good fit — their interests/content align with the campaign
+Score 40-69: Possible fit — some overlap, worth inviting
+Score 10-39: Weak fit — little connection to the campaign topic
+Score 0-9: No fit — completely irrelevant
 
 Return ONLY a number between 0 and 100."""
 
