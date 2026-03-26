@@ -127,34 +127,7 @@
             </div>
           </div>
 
-          <!-- Audience Region -->
-          <div style="margin-bottom: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-            <label for="settings-region" style="font-size: 14px; font-weight: 500; color: var(--text-primary); display: block; margin-bottom: 8px;">Audience Region</label>
-            <select id="settings-region" name="region" class="ob-select" style="width: 100%; max-width: 300px;">
-              <option value="global" {{ 'selected' if region == 'global' else '' }}>Global</option>
-              <option value="us" {{ 'selected' if region == 'us' else '' }}>United States</option>
-              <option value="uk" {{ 'selected' if region == 'uk' else '' }}>United Kingdom</option>
-              <option value="india" {{ 'selected' if region == 'india' else '' }}>India</option>
-              <option value="eu" {{ 'selected' if region == 'eu' else '' }}>European Union</option>
-              <option value="latam" {{ 'selected' if region == 'latam' else '' }}>Latin America</option>
-              <option value="sea" {{ 'selected' if region == 'sea' else '' }}>Southeast Asia</option>
-            </select>
-          </div>
-
-          <!-- Follower Counts -->
-          <div style="padding-top: 16px; border-top: 1px solid var(--border);">
-            <label style="font-size: 14px; font-weight: 500; color: var(--text-primary); display: block; margin-bottom: 8px;">Follower Counts</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              {% for p in ['x', 'linkedin', 'facebook', 'reddit'] %}
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="platform-badge {{ p }}" style="font-size: 11px; padding: 2px 8px; min-width: 80px; justify-content: center;">{{ platform_names[p] }}</span>
-                  <input type="number" name="followers_{{ p }}" min="0"
-                         value="{{ follower_counts.get(p, scraped_profiles.get(p, {}).get('follower_count', 0)) }}"
-                         class="ob-select" style="width: 100px; padding: 6px 8px; font-size: 13px;" />
-                </div>
-              {% endfor %}
-            </div>
-          </div>
+          <!-- Region + Follower counts auto-detected by Amplifier — not user-editable -->
         </div>
       </div>
     </div>
