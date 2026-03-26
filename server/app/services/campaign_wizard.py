@@ -541,7 +541,7 @@ async def estimate_reach(
         if required_platforms:
             user_platforms = set(
                 k for k, v in (user.platforms or {}).items()
-                if isinstance(v, dict) and v.get("connected")
+                if v is True or (isinstance(v, dict) and v.get("connected"))
             )
             if not set(required_platforms) & user_platforms:
                 continue

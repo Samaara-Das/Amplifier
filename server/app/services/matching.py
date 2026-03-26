@@ -207,7 +207,7 @@ def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
 
     connected_platforms = [
         k for k, v in (user.platforms or {}).items()
-        if isinstance(v, dict) and v.get("connected")
+        if v is True or (isinstance(v, dict) and v.get("connected"))
     ]
 
     return f"""You are matching creators to brand campaigns on Amplifier, a platform where everyday social media users earn money by posting about products.
@@ -328,10 +328,12 @@ def _passes_hard_filters(campaign: Campaign, user: User) -> bool:
     # Required platforms — user must have AT LEAST ONE of the required platforms
     required_platforms = targeting.get("required_platforms", [])
     if required_platforms:
-        user_platforms = set(
-            k for k, v in (user.platforms or {}).items()
-            if isinstance(v, dict) and v.get("connected")
-        )
+        user_platforms = set()
+        for k, v in (user.platforms or {}).items():
+            if v is True:  # Simple format: {"x": True}
+                user_platforms.add(k)
+            elif isinstance(v, dict) and v.get("connected"):  # Dict format: {"x": {"connected": True}}
+                user_platforms.add(k)
         if not set(required_platforms) & user_platforms:
             return False
 
