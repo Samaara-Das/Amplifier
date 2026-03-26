@@ -128,10 +128,6 @@
         {% endif %}
 
         <!-- Action buttons -->
-        <form method="post" action="/company/campaigns/{{ campaign.id }}/clone" style="display:inline;">
-            <button type="submit" class="btn btn-secondary btn-sm">Clone</button>
-        </form>
-        <a href="/company/campaigns/{{ campaign.id }}/export" class="btn btn-secondary btn-sm">Export CSV</a>
         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('topupModal').classList.add('active')">Top Up Budget</button>
         <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('editModal').classList.add('active')">Edit Campaign</button>
         <a href="/company/" class="btn btn-secondary btn-sm">Back</a>
