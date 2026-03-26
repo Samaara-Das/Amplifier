@@ -814,75 +814,92 @@ async def scrape_linkedin_profile(playwright) -> dict:
             await page.mouse.wheel(0, 800)
             await page.wait_for_timeout(2000)
 
-        # Scrape recent posts
+        # Scrape recent posts using per-container inner_text parsing.
+        # LinkedIn's DOM classes change frequently, so we extract text from each
+        # feed-shared-update-v2 container and parse the structure.
         posts = []
         seen_texts = set()
 
-        for scroll_round in range(8):
-            post_containers = page.locator(LI_POST_CONTAINER)
-            count = await post_containers.count()
-
-            for i in range(count):
-                if len(posts) >= 30:
-                    break
-                try:
-                    container = post_containers.nth(i)
-
-                    # Get post text
-                    text_el = container.locator('span.break-words, div.feed-shared-update-v2__description')
-                    post_text = ""
-                    if await text_el.count() > 0:
-                        post_text = (await text_el.first.inner_text()).strip()
-
-                    if not post_text or post_text in seen_texts:
-                        continue
-                    seen_texts.add(post_text)
-
-                    # Get reactions (likes)
-                    likes = 0
-                    reactions_el = container.locator(LI_REACTIONS_COUNT)
-                    if await reactions_el.count() > 0:
-                        likes_text = await reactions_el.first.inner_text()
-                        likes = _parse_number(likes_text)
-
-                    # Get comments count
-                    comments = 0
-                    comments_el = container.locator('button[aria-label*="comment"]')
-                    if await comments_el.count() > 0:
-                        comments_label = await comments_el.first.get_attribute("aria-label") or ""
-                        comments = _parse_number(comments_label)
-
-                    # Get reposts count
-                    reposts = 0
-                    reposts_el = container.locator('button[aria-label*="repost"]')
-                    if await reposts_el.count() > 0:
-                        reposts_label = await reposts_el.first.get_attribute("aria-label") or ""
-                        reposts = _parse_number(reposts_label)
-
-                    # Get timestamp
-                    posted_at = ""
-                    time_el = container.locator('span.update-components-actor__sub-description, time')
-                    if await time_el.count() > 0:
-                        posted_at = (await time_el.first.inner_text()).strip()
-                        # Clean up: "1yr • \n..." → "1yr"
-                        posted_at = posted_at.split("•")[0].split("\n")[0].strip()
-
-                    posts.append({
-                        "text": post_text[:500],
-                        "likes": likes,
-                        "comments": comments,
-                        "reposts": reposts,
-                        "posted_at": posted_at,
-                    })
-
-                except Exception as e:
-                    logger.debug("LinkedIn: error parsing post %d: %s", i, e)
-
-            if len(posts) >= 30:
-                break
-
-            await page.mouse.wheel(0, 800)
+        # Scroll first to load more posts
+        for _ in range(5):
+            await page.mouse.wheel(0, 1000)
             await page.wait_for_timeout(2000)
+
+        post_containers = page.locator(LI_POST_CONTAINER)
+        count = await post_containers.count()
+        logger.info("LinkedIn: found %d post containers on activity page", count)
+
+        for i in range(min(count, 30)):
+            try:
+                container = post_containers.nth(i)
+                container_text = (await container.inner_text()).strip()
+
+                if not container_text or len(container_text) < 20:
+                    continue
+
+                # Parse the container text — structure is:
+                # [Author info] [timestamp] [post text] [hashtags] [reactions] [Like Comment Repost]
+                lines = [l.strip() for l in container_text.split("\n") if l.strip()]
+
+                # Find post text — skip author/meta lines, take substantial content
+                post_text = ""
+                for line in lines:
+                    # Skip short lines, buttons, meta
+                    if line in ("Like", "Comment", "Repost", "Send", "Share", "More"):
+                        continue
+                    if re.match(r'^\d+\s*(reaction|comment|repost|like)', line, re.IGNORECASE):
+                        continue
+                    if re.match(r'^\d+[hdwmo]|^\d+yr', line):  # timestamps like "1yr", "3mo"
+                        continue
+                    if len(line) < 10:
+                        continue
+                    # First substantial line is the post text
+                    if len(line) > 20:
+                        post_text = line
+                        break
+
+                if not post_text:
+                    # Fallback: join all substantial lines
+                    substantial = [l for l in lines if len(l) > 15 and l not in ("Like", "Comment", "Repost", "Send")]
+                    post_text = " ".join(substantial[:3]) if substantial else ""
+
+                if not post_text or post_text[:80] in seen_texts:
+                    continue
+                seen_texts.add(post_text[:80])
+
+                # Extract engagement from container text
+                likes = 0
+                comments_count = 0
+                reposts_count = 0
+
+                for line in lines:
+                    r_match = re.match(r'^([\d,]+)\s*reaction', line, re.IGNORECASE)
+                    if r_match:
+                        likes = _parse_number(r_match.group(1))
+                    c_match = re.match(r'^([\d,]+)\s*comment', line, re.IGNORECASE)
+                    if c_match:
+                        comments_count = _parse_number(c_match.group(1))
+                    rp_match = re.match(r'^([\d,]+)\s*repost', line, re.IGNORECASE)
+                    if rp_match:
+                        reposts_count = _parse_number(rp_match.group(1))
+
+                # Extract timestamp
+                posted_at = ""
+                for line in lines:
+                    if re.match(r'^\d+[hdwmo]|^\d+yr', line):
+                        posted_at = line.split("•")[0].strip()
+                        break
+
+                posts.append({
+                    "text": post_text[:500],
+                    "likes": likes,
+                    "comments": comments_count,
+                    "reposts": reposts_count,
+                    "posted_at": posted_at,
+                })
+
+            except Exception as e:
+                logger.debug("LinkedIn: error parsing post %d: %s", i, e)
 
         result["recent_posts"] = posts
         logger.info("LinkedIn: scraped %d posts", len(posts))

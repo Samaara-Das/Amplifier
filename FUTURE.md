@@ -2,6 +2,27 @@
 
 Deferred features that are designed but not yet implemented. The backend/model support exists — just needs UI and tracking integration.
 
+## AI-Powered Profile Scraping (MAJOR)
+
+**Status**: Not started
+**Priority**: High — this is a foundational upgrade
+
+**Current problem**: Profile scrapers use CSS selectors and regex to extract data from social media pages. These break constantly when platforms change their DOM. The scraper misses data, picks up wrong text (e.g., group names instead of post content), and can't understand context.
+
+**Goal**: Replace brittle selector-based scraping with AI-powered extraction. Send a screenshot or page text to a vision LLM (Gemini, GPT-4V) and ask it to extract structured profile data. This makes scraping:
+- **Robust**: No selectors to break. AI reads the page like a human.
+- **Insightful**: AI can understand the person's content style, niche, audience, tone — not just follower counts.
+- **Adaptive**: Works even when platforms change their UI.
+
+**Approach**:
+1. Navigate to each profile page with Playwright
+2. Take a screenshot or extract body text
+3. Send to Gemini Vision API: "Extract this person's profile data: name, bio, followers, recent posts with engagement, content themes, audience demographics"
+4. Parse the structured JSON response
+5. AI can also classify niches, detect content quality, estimate audience demographics
+
+**Cost consideration**: Gemini 2.0 Flash has free tier. One API call per platform per scrape. ~4 calls per onboarding = negligible cost.
+
 ## Per-Click Payout Rate
 
 **Status**: Backend ready, UI removed

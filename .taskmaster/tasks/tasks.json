@@ -48,7 +48,7 @@
       {
         "id": "4",
         "title": "Users can onboard: connect platforms, choose niches, set up API keys",
-        "description": "5-step onboarding flow.\n\nAcceptance: complete onboarding → profile scraped correctly → niches saved → API key tested → agent starts.\n\nINTEGRATION TEST (Slice 2):\n1. Register new account → login page works\n2. Step 1: Connect all 4 platforms → browser opens, user logs in, closes browser → scraping starts automatically\n3. Verify scraped data: each platform must have display_name, follower_count, following_count, bio, recent_posts (with engagement per post), engagement_rate > 0, profile_pic_url\n4. Step 2: Niche checkboxes NOT pre-selected. AI suggestions shown as hint text only. Region auto-detected and shown read-only.\n5. Step 3: Pick operating mode\n6. Step 4: Paste Gemini API key → click Test → green check. At least 1 key required.\n7. Step 5: Summary shows all data correctly → click Start\n8. Dashboard loads, background agent starts\n\nBLOCKER: Scrapers return zero engagement/posts for X, Facebook, Reddit. LinkedIn gets followers but no engagement. UAT PASSED 8/8. BUG-001 fixed.",
+        "description": "5-step onboarding flow.\n\nAcceptance: complete onboarding \u00e2\u2020\u2019 profile scraped correctly \u00e2\u2020\u2019 niches saved \u00e2\u2020\u2019 API key tested \u00e2\u2020\u2019 agent starts.\n\nINTEGRATION TEST (Slice 2):\n1. Register new account \u00e2\u2020\u2019 login page works\n2. Step 1: Connect all 4 platforms \u00e2\u2020\u2019 browser opens, user logs in, closes browser \u00e2\u2020\u2019 scraping starts automatically\n3. Verify scraped data: each platform must have display_name, follower_count, following_count, bio, recent_posts (with engagement per post), engagement_rate > 0, profile_pic_url\n4. Step 2: Niche checkboxes NOT pre-selected. AI suggestions shown as hint text only. Region auto-detected and shown read-only.\n5. Step 3: Pick operating mode\n6. Step 4: Paste Gemini API key \u00e2\u2020\u2019 click Test \u00e2\u2020\u2019 green check. At least 1 key required.\n7. Step 5: Summary shows all data correctly \u00e2\u2020\u2019 click Start\n8. Dashboard loads, background agent starts\n\nBLOCKER: Scrapers return zero engagement/posts for X, Facebook, Reddit. LinkedIn gets followers but no engagement. UAT PASSED 8/8. BUG-001 fixed.",
         "status": "done",
         "priority": "high",
         "dependencies": [],
@@ -61,7 +61,7 @@
       {
         "id": "5",
         "title": "Content generation agent creates researched, platform-native UGC content",
-        "description": "Dedicated AI agent for UGC content creation.\n\nAcceptance: accept a campaign → agent generates distinct content per platform → content feels like real UGC.\n\nINTEGRATION TEST (Slice 2):\n1. Go to Campaigns tab → see Nike: Stay Fit invitation\n2. Accept the campaign\n3. Wait for background agent to generate content (runs every 2 min)\n4. Go to campaign detail → see today's drafts per platform (X, LinkedIn, Facebook, Reddit)\n5. Each draft should be UGC-style, platform-native, genuinely different per platform\n6. Drafts reference the product (Nike) and include must-include hashtags\n\nDONE: 116 drafts generated across 3 campaigns. UGC style verified — authentic per-platform content. Research phase working.",
+        "description": "Dedicated AI agent for UGC content creation.\n\nAcceptance: accept a campaign \u00e2\u2020\u2019 agent generates distinct content per platform \u00e2\u2020\u2019 content feels like real UGC.\n\nINTEGRATION TEST (Slice 2):\n1. Go to Campaigns tab \u00e2\u2020\u2019 see Nike: Stay Fit invitation\n2. Accept the campaign\n3. Wait for background agent to generate content (runs every 2 min)\n4. Go to campaign detail \u00e2\u2020\u2019 see today's drafts per platform (X, LinkedIn, Facebook, Reddit)\n5. Each draft should be UGC-style, platform-native, genuinely different per platform\n6. Drafts reference the product (Nike) and include must-include hashtags\n\nDONE: 116 drafts generated across 3 campaigns. UGC style verified \u00e2\u20ac\u201d authentic per-platform content. Research phase working.",
         "status": "done",
         "priority": "high",
         "dependencies": [
@@ -106,7 +106,7 @@
       {
         "id": "8",
         "title": "System tray icon and desktop notifications",
-        "description": "Desktop presence.\n\nINTEGRATION TEST (Slice 2):\n1. On app launch: tray icon appears in Windows taskbar\n2. Right-click tray → menu shows: Open Dashboard, Agent status, Pause/Resume Agent, Quit\n3. Click Open Dashboard → browser opens to localhost:5222\n4. Close browser tab → app keeps running (tray still visible)\n5. Click Quit → app fully exits\n6. Desktop notifications appear for: new campaign invitations, drafts ready for review, post succeeded/failed\n\nCODE DONE. UAT confirms tray icon is created (likely in Windows overflow area). Menu code correct. Desktop notifications wired. User should verify visually.",
+        "description": "Desktop presence.\n\nINTEGRATION TEST (Slice 2):\n1. On app launch: tray icon appears in Windows taskbar\n2. Right-click tray \u00e2\u2020\u2019 menu shows: Open Dashboard, Agent status, Pause/Resume Agent, Quit\n3. Click Open Dashboard \u00e2\u2020\u2019 browser opens to localhost:5222\n4. Close browser tab \u00e2\u2020\u2019 app keeps running (tray still visible)\n5. Click Quit \u00e2\u2020\u2019 app fully exits\n6. Desktop notifications appear for: new campaign invitations, drafts ready for review, post succeeded/failed\n\nCODE DONE. UAT confirms tray icon is created (likely in Windows overflow area). Menu code correct. Desktop notifications wired. User should verify visually.",
         "status": "done",
         "priority": "medium",
         "dependencies": [
@@ -121,7 +121,7 @@
       {
         "id": "9",
         "title": "Metric scraping captures all data needed for billing",
-        "description": "Metric scraping verification.\n\nINTEGRATION TEST (Slice 3):\n1. After a post goes live, wait for T+1h scrape (or trigger manually)\n2. Check local_metric table → impressions, likes, reposts, comments captured\n3. Compare scraped values to actual platform numbers\n4. Metrics synced to server → check /api/metrics\n5. Billing triggered on submission → check payout records created\n6. Repeat for at least 2 platforms\n\nBLOCKER: LinkedIn post didn't actually land (Playwright typed content but post didn't appear on profile). Need user to debug with headed browser. Metric scraping code is ready but needs a real post URL to test against.",
+        "description": "Metric scraping verification.\n\nINTEGRATION TEST (Slice 3):\n1. After a post goes live, wait for T+1h scrape (or trigger manually)\n2. Check local_metric table \u00e2\u2020\u2019 impressions, likes, reposts, comments captured\n3. Compare scraped values to actual platform numbers\n4. Metrics synced to server \u00e2\u2020\u2019 check /api/metrics\n5. Billing triggered on submission \u00e2\u2020\u2019 check payout records created\n6. Repeat for at least 2 platforms\n\nBLOCKER: LinkedIn post didn't actually land (Playwright typed content but post didn't appear on profile). Need user to debug with headed browser. Metric scraping code is ready but needs a real post URL to test against.",
         "status": "done",
         "priority": "high",
         "dependencies": [
@@ -137,7 +137,7 @@
       {
         "id": "10",
         "title": "Billing correctly calculates earnings from metrics",
-        "description": "Billing verification. 19 unit tests passing — formula, platform cut, budget cap, CPM/CPE, zero-division all verified. Integration test with real metrics blocked by #9.\n\nUnit tests cover: earnings formula, 20% platform cut, budget capping, CPM/CPE calculations, zero-division handling, payout rate suggestions.",
+        "description": "Billing verification. 19 unit tests passing \u00e2\u20ac\u201d formula, platform cut, budget cap, CPM/CPE, zero-division all verified. Integration test with real metrics blocked by #9.\n\nUnit tests cover: earnings formula, 20% platform cut, budget capping, CPM/CPE calculations, zero-division handling, payout rate suggestions.",
         "status": "done",
         "priority": "high",
         "dependencies": [
@@ -152,7 +152,7 @@
       {
         "id": "11",
         "title": "Companies can add funds via Stripe (test mode)",
-        "description": "CODE COMPLETE: Stripe checkout session, success verification, balance crediting. Fallback instant-credit for dev without Stripe key. Needs STRIPE_SECRET_KEY on Vercel for live test.\n\nINTEGRATION TEST (Slice 3):\n1. Company billing page → enter test card 4242 4242 4242 4242\n2. Balance increases by charged amount\n3. Activate campaign → balance deducted\n4. Delete draft campaign → balance refunded\n5. Payment history shows on billing page",
+        "description": "CODE COMPLETE: Stripe checkout session, success verification, balance crediting. Fallback instant-credit for dev without Stripe key. Needs STRIPE_SECRET_KEY on Vercel for live test.\n\nINTEGRATION TEST (Slice 3):\n1. Company billing page \u00e2\u2020\u2019 enter test card 4242 4242 4242 4242\n2. Balance increases by charged amount\n3. Activate campaign \u00e2\u2020\u2019 balance deducted\n4. Delete draft campaign \u00e2\u2020\u2019 balance refunded\n5. Payment history shows on billing page",
         "status": "done",
         "priority": "medium",
         "dependencies": [
@@ -167,7 +167,7 @@
       {
         "id": "12",
         "title": "Users can see earnings and request withdrawal",
-        "description": "Earnings page loads correctly (UAT TC-010 PASS). Shows $0.00 totals (no real earnings yet — blocked by metric scraping). Withdrawal route exists. Full integration test with real earnings blocked by #9.",
+        "description": "Earnings page loads correctly (UAT TC-010 PASS). Shows $0.00 totals (no real earnings yet \u00e2\u20ac\u201d blocked by metric scraping). Withdrawal route exists. Full integration test with real earnings blocked by #9.",
         "status": "done",
         "priority": "medium",
         "dependencies": [
@@ -182,7 +182,7 @@
       {
         "id": "13",
         "title": "Fix bugs, edge cases, and labels",
-        "description": "Polish fixes.\n\nDONE:\n1. Posts This Month — fixed to filter by current month\n2. Admin API auth — added cookie-based auth via router dependency\n3. API keys — config/.env not tracked in git\n4. 3-campaign limit — enforced in matching (code) and invitations (cap=3)\n\nREMAINING:\n5. Full-auto mode verification — needs posting to work\n6. Styled error pages — nice-to-have\n\nMost items complete. Remaining items are low priority.",
+        "description": "Polish fixes.\n\nDONE:\n1. Posts This Month \u00e2\u20ac\u201d fixed to filter by current month\n2. Admin API auth \u00e2\u20ac\u201d added cookie-based auth via router dependency\n3. API keys \u00e2\u20ac\u201d config/.env not tracked in git\n4. 3-campaign limit \u00e2\u20ac\u201d enforced in matching (code) and invitations (cap=3)\n\nREMAINING:\n5. Full-auto mode verification \u00e2\u20ac\u201d needs posting to work\n6. Styled error pages \u00e2\u20ac\u201d nice-to-have\n\nMost items complete. Remaining items are low priority.",
         "status": "done",
         "priority": "medium",
         "dependencies": [
@@ -245,7 +245,7 @@
       {
         "id": "17",
         "title": "Explain: User Onboarding + Scraping",
-        "description": "Walk through how user onboarding and profile/metric scraping currently works — registration, platform connections, API key setup, LinkedIn scraping, niche selection, region detection. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how user onboarding and profile/metric scraping currently works \u00e2\u20ac\u201d registration, platform connections, API key setup, LinkedIn scraping, niche selection, region detection. If the user finds it's not implemented the way they want, fix it.",
         "status": "done",
         "priority": "high",
         "dependencies": [],
@@ -277,7 +277,7 @@
       {
         "id": "19",
         "title": "Explain: Campaign Matching",
-        "description": "Walk through how campaign-to-user matching currently works — hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.",
+        "description": "Walk through how campaign-to-user matching currently works \u00e2\u20ac\u201d hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -309,7 +309,7 @@
       {
         "id": "21",
         "title": "Explain: Campaign Polling (User Side)",
-        "description": "Walk through how the user app polls the server for matched campaigns — polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how the user app polls the server for matched campaigns \u00e2\u20ac\u201d polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -341,7 +341,7 @@
       {
         "id": "23",
         "title": "Explain: AI Content Generation",
-        "description": "Walk through how AI content generation currently works — prompt design, UGC style, platform-native formatting, research phase with webcrawler, Gemini model fallback chain, generation triggers, draft storage. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Content generation must use ALL available sources from the campaign:\n1. PRODUCT IMAGES: Company-uploaded product images (from wizard Step 1) — use in posts where the platform supports images.\n2. DEEP-SCRAPED KNOWLEDGE: The full product understanding built from deep crawling company URLs (not just surface metadata — full site content, subpages, product details).\n3. UPLOADED FILES: Any PDFs, docs, or other files the company uploaded about their product — extract key info and use as source material.\n4. PRODUCT DESCRIPTIONS: The product name, description, features, brief, and content guidance from the campaign.\n\nMUST-INCLUDE ITEMS: The must-include phrases, links, and hashtags should be woven naturally into posts where relevant — they do NOT need to appear in EVERY post. The AI should use judgment about when and where they fit naturally.\n\nMUST-AVOID ITEMS: These should never appear in any post.\n\nThe AI should synthesize all these sources to create informed, specific, authentic UGC content — not generic posts based on a one-line description.",
+        "description": "Walk through how AI content generation currently works \u00e2\u20ac\u201d prompt design, UGC style, platform-native formatting, research phase with webcrawler, Gemini model fallback chain, generation triggers, draft storage. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Content generation must use ALL available sources from the campaign:\n1. PRODUCT IMAGES: Company-uploaded product images (from wizard Step 1) \u00e2\u20ac\u201d use in posts where the platform supports images.\n2. DEEP-SCRAPED KNOWLEDGE: The full product understanding built from deep crawling company URLs (not just surface metadata \u00e2\u20ac\u201d full site content, subpages, product details).\n3. UPLOADED FILES: Any PDFs, docs, or other files the company uploaded about their product \u00e2\u20ac\u201d extract key info and use as source material.\n4. PRODUCT DESCRIPTIONS: The product name, description, features, brief, and content guidance from the campaign.\n\nMUST-INCLUDE ITEMS: The must-include phrases, links, and hashtags should be woven naturally into posts where relevant \u00e2\u20ac\u201d they do NOT need to appear in EVERY post. The AI should use judgment about when and where they fit naturally.\n\nMUST-AVOID ITEMS: These should never appear in any post.\n\nThe AI should synthesize all these sources to create informed, specific, authentic UGC content \u00e2\u20ac\u201d not generic posts based on a one-line description.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -373,7 +373,7 @@
       {
         "id": "25",
         "title": "Explain: Content Review/Approval",
-        "description": "Walk through how the content review and approval flow currently works — draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how the content review and approval flow currently works \u00e2\u20ac\u201d draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -405,7 +405,7 @@
       {
         "id": "27",
         "title": "Explain: Scheduled Posting",
-        "description": "Walk through how scheduled posting currently works — post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.\n\nCRITICAL: X (Twitter) locks user accounts when controlled by Playwright automation. Amplifier must detect when X has locked the account (e.g., by checking for lockout page/modal after login) and notify the user to log back in manually. This is a known blocker for X posting.",
+        "description": "Walk through how scheduled posting currently works \u00e2\u20ac\u201d post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.\n\nCRITICAL: X (Twitter) locks user accounts when controlled by Playwright automation. Amplifier must detect when X has locked the account (e.g., by checking for lockout page/modal after login) and notify the user to log back in manually. This is a known blocker for X posting.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -437,7 +437,7 @@
       {
         "id": "29",
         "title": "Explain: Metric Scraping",
-        "description": "Walk through how metric scraping currently works — scraping schedule (T+1h/6h/24h/72h), per-platform scraping methods (API vs browser), data captured (impressions, likes, reposts, comments), server sync. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how metric scraping currently works \u00e2\u20ac\u201d scraping schedule (T+1h/6h/24h/72h), per-platform scraping methods (API vs browser), data captured (impressions, likes, reposts, comments), server sync. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -469,7 +469,7 @@
       {
         "id": "31",
         "title": "Explain: Billing",
-        "description": "Walk through how billing/earnings calculation currently works — per-metric rates (CPM/CPE), platform cut (20%), budget capping, deduplication, payout creation, earning triggers. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how billing/earnings calculation currently works \u00e2\u20ac\u201d per-metric rates (CPM/CPE), platform cut (20%), budget capping, deduplication, payout creation, earning triggers. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [
@@ -501,7 +501,7 @@
       {
         "id": "33",
         "title": "Explain: Earnings/Stats",
-        "description": "Walk through how the earnings and statistics display currently works — total earnings, pending/paid breakdown, per-campaign earnings, withdrawal flow, stats calculations on user dashboard. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how the earnings and statistics display currently works \u00e2\u20ac\u201d total earnings, pending/paid breakdown, per-campaign earnings, withdrawal flow, stats calculations on user dashboard. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [
@@ -533,7 +533,7 @@
       {
         "id": "35",
         "title": "Explain: Stripe Top-up",
-        "description": "Walk through how company Stripe top-up currently works — checkout session creation, success verification, balance crediting, fallback instant-credit for dev, payment history. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how company Stripe top-up currently works \u00e2\u20ac\u201d checkout session creation, success verification, balance crediting, fallback instant-credit for dev, payment history. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [
@@ -565,7 +565,7 @@
       {
         "id": "37",
         "title": "Explain: Campaign Detail Page",
-        "description": "Walk through how the campaign detail page currently works — stats cards, per-platform breakdown, influencer table, invitation funnel, budget display, post performance. If the user finds it's not implemented the way they want, fix it.\n\nNEEDED: Add image and file upload capability to the Edit Campaign modal on the campaign detail page. Companies should be able to upload additional product images and files AFTER the campaign is created (same Supabase Storage upload as the wizard). Also remove Rate/Click from the edit modal (matches wizard change).",
+        "description": "Walk through how the campaign detail page currently works \u00e2\u20ac\u201d stats cards, per-platform breakdown, influencer table, invitation funnel, budget display, post performance. If the user finds it's not implemented the way they want, fix it.\n\nNEEDED: Add image and file upload capability to the Edit Campaign modal on the campaign detail page. Companies should be able to upload additional product images and files AFTER the campaign is created (same Supabase Storage upload as the wizard). Also remove Rate/Click from the edit modal (matches wizard change).",
         "status": "pending",
         "priority": "medium",
         "dependencies": [
@@ -597,7 +597,7 @@
       {
         "id": "39",
         "title": "Explain: System Tray + Notifications",
-        "description": "Walk through how the system tray and desktop notifications currently work — tray icon, right-click menu, dashboard launch, notification triggers, background agent integration. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how the system tray and desktop notifications currently work \u00e2\u20ac\u201d tray icon, right-click menu, dashboard launch, notification triggers, background agent integration. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "low",
         "dependencies": [
@@ -629,7 +629,7 @@
       {
         "id": "41",
         "title": "Explain: Company Dashboard Stats",
-        "description": "Walk through how company dashboard statistics currently work — overview metrics, campaign counts, total spend, active users, recent activity. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how company dashboard statistics currently work \u00e2\u20ac\u201d overview metrics, campaign counts, total spend, active users, recent activity. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "low",
         "dependencies": [
@@ -661,7 +661,7 @@
       {
         "id": "43",
         "title": "Explain: Admin Overview",
-        "description": "Walk through how the admin overview dashboard currently works — system stats, user counts, campaign counts, revenue metrics, recent activity. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how the admin overview dashboard currently works \u00e2\u20ac\u201d system stats, user counts, campaign counts, revenue metrics, recent activity. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
@@ -691,7 +691,7 @@
       {
         "id": "45",
         "title": "Explain: Admin Users",
-        "description": "Walk through how admin user management currently works — user list, user details, trust scores, platform connections, ban/suspend actions. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how admin user management currently works \u00e2\u20ac\u201d user list, user details, trust scores, platform connections, ban/suspend actions. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
@@ -721,7 +721,7 @@
       {
         "id": "47",
         "title": "Explain: Admin Campaigns",
-        "description": "Walk through how admin campaign management currently works — campaign list, campaign details, approval/rejection, status management, company association. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how admin campaign management currently works \u00e2\u20ac\u201d campaign list, campaign details, approval/rejection, status management, company association. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
@@ -751,7 +751,7 @@
       {
         "id": "49",
         "title": "Explain: Admin Payouts",
-        "description": "Walk through how admin payout management currently works — payout list, payout approval, payment processing, payout history, user earnings summary. If the user finds it's not implemented the way they want, fix it.",
+        "description": "Walk through how admin payout management currently works \u00e2\u20ac\u201d payout list, payout approval, payment processing, payout history, user earnings summary. If the user finds it's not implemented the way they want, fix it.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
@@ -777,12 +777,26 @@
           "verify"
         ],
         "subtasks": []
+      },
+      {
+        "id": "51",
+        "title": "Upgrade scrapers to use AI vision for robust profile extraction",
+        "description": "Replace brittle CSS selector-based profile scraping with AI-powered extraction. Send screenshots or page text to Gemini Vision API to extract structured profile data. AI reads pages like a human \u2014 no selectors to break. Can also extract insights: content style, niche, audience, tone. See FUTURE.md for full spec.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "tags": [
+          "future",
+          "user",
+          "scraping"
+        ],
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
       "lastModified": "2026-03-26T12:43:02.464Z",
-      "taskCount": 50,
+      "taskCount": 51,
       "completedCount": 17,
       "tags": [
         "master"
