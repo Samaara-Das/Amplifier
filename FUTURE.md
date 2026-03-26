@@ -79,3 +79,84 @@ Deferred features that are designed but not yet implemented. The backend/model s
 2. Update `post.py` platform functions to handle each format's upload flow
 3. Add format selection to campaign wizard (company can specify preferred formats)
 4. AI should pick the best format per platform based on the content and campaign goal
+
+## Sophisticated AI Content Generation (MAJOR)
+
+**Status**: Not started
+**Priority**: Critical — this is the core value proposition of Amplifier
+
+**Current problem**: Content generation produces basic text posts. To drive real campaign results (viral views, lead gen, brand awareness, FOMO, hype), Amplifier needs to generate rich media UGC — memes, short-form videos, photorealistic product shots, carousels, talking-head videos — all tailored to the campaign goal.
+
+**Campaign goal → content strategy mapping**:
+- **Viral views**: Memes, short-form video, controversial takes, trend-jacking
+- **Lead generation**: Carousels with CTAs, comparison graphics, before/after
+- **Brand awareness**: Lifestyle product shots, UGC-style "real person using product"
+- **FOMO/Hype**: Countdown graphics, limited-offer visuals, social proof collages
+- **Engagement**: Polls, questions overlaid on images, interactive carousels
+
+### Image Generation Tools (ranked by cost-effectiveness)
+
+| Tool | Pricing | Best For |
+|------|---------|----------|
+| **FLUX.2 (local via ComfyUI)** | Near-zero (run locally) | High-volume personalized images, LoRAs for brand consistency |
+| **Google Nano Banana Pro** | Free tier + $20/mo Pro | Photorealism, text rendering, character consistency across images |
+| **ChatGPT (GPT-Image 1.5/4o)** | Free tier + $20/mo | Conversational editing ("make more casual, add product") |
+| **Canva Magic Media** | Free tier + $13/mo Pro | Quick social graphics, beginners |
+| **Ideogram** | Free tier | Best text-in-images (logos, quotes, carousels) |
+| **Stable Diffusion (FLUX variants)** | Free (local) | Infinite generations, LoRAs for faces/products |
+| **InternVL-U (4B model)** | Free open-source | Image gen + editing + reasoning in one model |
+
+### Meme Generation Tools
+
+| Tool | Pricing | Best For |
+|------|---------|----------|
+| **Supermeme.ai** | Free tier + affordable Pro | Text-to-meme, 1000+ templates, multilingual, GIFs |
+| **CapCut** | Free | AI meme templates, effects, captions, TikTok/IG export |
+| **Viggle AI** | Free tier | Animated/video memes |
+| **Imgflip** | Free | Classic meme templates |
+
+### Video Generation Tools (UGC ads, talking-head, product demos)
+
+| Tool | Pricing | Best For |
+|------|---------|----------|
+| **MakeUGC** | ~$1/video | High-volume UGC ads (hundreds/day) |
+| **Arcads AI** | Premium | Ultra-realistic AI UGC ads with consistent characters |
+| **HeyGen** | Subscription | Talking-avatar videos, multilingual, 1000+ avatars |
+| **Creatify** | Subscription | Product URL → ready UGC ad |
+| **Viralco.co** | ~1/10th Arcads price | Autonomous: product link → edited video in inbox daily |
+| **LTX-2.3 + Qwen TTS** | Near-zero (local) | Fast customizable talking-head videos |
+
+### Headshot & Realistic Photo Tools
+
+| Tool | Pricing | Best For |
+|------|---------|----------|
+| **Nano Banana Pro / Gemini** | Free-$20/mo | Consistent characters across scenes |
+| **FLUX.2 + ControlNet/IP-Adapter** | Free (local) | Generate realistic variations from reference photo |
+| **HeadshotPro** | $39-79 one-time | Professional headshot packs |
+| **Canva AI Headshot** | Free | Quick studio-quality headshots |
+
+### Text Overlay & Effects Tools
+
+| Tool | Best For |
+|------|----------|
+| **Canva** | Easiest — upload → add text, effects, animations |
+| **CapCut / Photoroom** | Mobile/web, AI auto-captions |
+| **Leonardo AI Canvas** | Edit AI images, add text overlays |
+| **Adobe Firefly** | Commercial-safe, generative fill |
+
+### Recommended Pipeline for Amplifier
+
+**Ultra-cheap at scale** (for the user app):
+1. **Image**: FLUX.2 locally (near-zero cost) or Nano Banana Pro (free tier)
+2. **Video**: LTX + Qwen TTS locally OR MakeUGC at ~$1/video
+3. **Memes**: Supermeme.ai API or CapCut
+4. **Polish**: Canva API or CapCut for text overlays, branding, effects
+5. **Headshots/UGC poses**: FLUX.2 + LoRAs trained on user's photos + product images
+
+**Key principle**: Local-first (FLUX, LTX, Stable Diffusion) for zero marginal cost. Cloud APIs (Nano Banana, Kling, Veo) as premium fallbacks for higher quality.
+
+**Implementation approach**:
+1. Add media type selection to campaign creation (image, video, meme, carousel)
+2. Content generator picks the right tool based on campaign goal + platform
+3. Generated media stored locally, attached to drafts before posting
+4. Train LoRAs per-user for face/style consistency (one-time, runs locally)
