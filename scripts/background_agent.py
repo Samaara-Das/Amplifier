@@ -84,8 +84,9 @@ async def generate_daily_content() -> dict:
 
     try:
         all_campaigns = get_campaigns()
-        active_statuses = ('assigned', 'content_generated', 'approved', 'posted', 'active')
-        active = [c for c in all_campaigns if c.get('status') in active_statuses]
+        # Only generate content for campaigns the user has ACCEPTED (not pending_invitation)
+        accepted_statuses = ('assigned', 'accepted', 'content_generated', 'approved', 'posted', 'active')
+        active = [c for c in all_campaigns if c.get('status') in accepted_statuses]
 
         if not active:
             return {"success": True, "generated": 0}

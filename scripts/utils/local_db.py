@@ -248,7 +248,7 @@ def upsert_campaign(campaign: dict) -> None:
         campaign.get("content_guidance"),
         json.dumps(campaign.get("payout_rules", {})),
         campaign.get("payout_multiplier", 1.0),
-        campaign.get("status", "assigned"),
+        campaign.get("status", "pending_invitation"),
         campaign.get("invitation_status", "pending_invitation"),
         campaign.get("invited_at"),
         campaign.get("expires_at"),

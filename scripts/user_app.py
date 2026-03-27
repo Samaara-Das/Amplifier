@@ -632,9 +632,18 @@ def campaigns_poll():
 def accept_invitation(assignment_id):
     try:
         from utils.server_client import accept_invitation as server_accept
+        from utils.local_db import _get_db as get_db_connection
 
         server_accept(assignment_id)
-        flash("Campaign accepted!", "success")
+        # Update local campaign status so content generation kicks in
+        conn = get_db_connection()
+        conn.execute(
+            "UPDATE local_campaign SET status = 'assigned' WHERE assignment_id = ?",
+            (assignment_id,),
+        )
+        conn.commit()
+        conn.close()
+        flash("Campaign accepted! Content will be generated shortly.", "success")
     except Exception as e:
         flash(f"Accept failed: {e}", "error")
     return redirect(url_for("campaigns"))
@@ -644,8 +653,14 @@ def accept_invitation(assignment_id):
 def reject_invitation(assignment_id):
     try:
         from utils.server_client import reject_invitation as server_reject
+        from utils.local_db import _get_db as get_db_connection
 
         server_reject(assignment_id)
+        # Remove from local DB
+        conn = get_db_connection()
+        conn.execute("DELETE FROM local_campaign WHERE assignment_id = ?", (assignment_id,))
+        conn.commit()
+        conn.close()
         flash("Campaign rejected.", "info")
     except Exception as e:
         flash(f"Reject failed: {e}", "error")
