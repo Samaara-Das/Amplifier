@@ -151,6 +151,17 @@ async def generate_daily_content() -> dict:
                     generated_count += 1
                     logger.info("Daily content generated for campaign %s (day %d)", campaign_id, day_number)
 
+                    # Send desktop notification for THIS campaign
+                    try:
+                        from utils.tray import send_notification
+                        campaign_title = campaign.get("title", f"Campaign {campaign_id}")
+                        send_notification(
+                            "Content Ready for Review",
+                            f"{campaign_title} — {len(draft_ids)} drafts generated. Open Amplifier to review.",
+                        )
+                    except Exception:
+                        pass
+
                     # Update campaign status if it was 'assigned'
                     if campaign.get('status') == 'assigned':
                         update_campaign_status(campaign_id, 'content_generated')

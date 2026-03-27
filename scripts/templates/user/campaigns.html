@@ -236,5 +236,23 @@
     var target = document.getElementById('campaigns-section-' + tab);
     if (target) target.classList.add('active');
   }
+
+  // Auto-reload when campaign data changes (new content generated, new invitations, etc.)
+  var lastCampaignHash = '{{ campaign_hash|default("") }}';
+  function checkForUpdates() {
+    fetch('/api/campaigns-hash')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.hash && data.hash !== lastCampaignHash) {
+          // Data changed — reload page
+          window.location.reload();
+        }
+      })
+      .catch(function() {})
+      .finally(function() {
+        setTimeout(checkForUpdates, 10000);  // Check every 10 seconds
+      });
+  }
+  setTimeout(checkForUpdates, 10000);
 </script>
 {% endblock %}

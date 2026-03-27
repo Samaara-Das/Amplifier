@@ -603,14 +603,40 @@ def _campaigns_impl():
         else:
             c["today_summary"] = f"Today: {approved_count} approved"
 
+    # Generate a hash of the current state so frontend can detect changes
+    import hashlib
+    hash_input = f"{len(invitations)}:{len(active)}:{len(completed)}"
+    for c in active:
+        hash_input += f":{c.get('server_id')}:{c.get('status')}"
+        today_drafts = get_todays_drafts(c.get("server_id"))
+        hash_input += f":{len(today_drafts)}"
+    campaign_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
+
     ctx.update(
         {
             "invitations": invitations,
             "active_campaigns": active,
             "completed_campaigns": completed,
+            "campaign_hash": campaign_hash,
         }
     )
     return render_template("user/campaigns.html", **ctx)
+
+
+@app.route("/api/campaigns-hash")
+def campaigns_hash():
+    """Return a hash of current campaign state for auto-reload detection."""
+    from utils.local_db import get_campaigns, get_todays_drafts
+    import hashlib
+    all_campaigns = get_campaigns()
+    active = [c for c in all_campaigns if c.get("status") in ("assigned", "content_generated", "approved", "active")]
+    hash_input = f"{len(all_campaigns)}:{len(active)}"
+    for c in active:
+        hash_input += f":{c.get('server_id')}:{c.get('status')}"
+        today_drafts = get_todays_drafts(c.get("server_id"))
+        hash_input += f":{len(today_drafts)}"
+    campaign_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
+    return jsonify({"hash": campaign_hash})
 
 
 @app.route("/campaigns/poll", methods=["POST"])
@@ -733,6 +759,13 @@ def campaign_detail(campaign_id):
     # Determine if this is a new-style (draft-based) or old-style (content-based) campaign
     use_drafts = len(all_drafts) > 0
 
+    # Hash for auto-reload detection
+    import hashlib
+    detail_hash_input = f"{campaign.get('status')}:{len(today_drafts)}:{len(all_drafts)}"
+    for d in today_drafts:
+        detail_hash_input += f":{d.get('id')}:{d.get('approved')}"
+    detail_hash = hashlib.md5(detail_hash_input.encode()).hexdigest()[:12]
+
     ctx.update(
         {
             "campaign": campaign,
@@ -746,9 +779,26 @@ def campaign_detail(campaign_id):
             "pending_drafts": pending_drafts,
             "today_str": today_str,
             "posts_by_platform_date": posts_by_platform_date,
+            "detail_hash": detail_hash,
         }
     )
     return render_template("user/campaign_detail.html", **ctx)
+
+
+@app.route("/api/campaign-detail-hash/<int:campaign_id>")
+def campaign_detail_hash(campaign_id):
+    """Return hash of campaign detail state for auto-reload."""
+    from utils.local_db import get_campaign, get_todays_drafts, get_all_drafts
+    import hashlib
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        return jsonify({"hash": ""})
+    today_drafts = get_todays_drafts(campaign_id)
+    all_drafts = get_all_drafts(campaign_id)
+    h = f"{campaign.get('status')}:{len(today_drafts)}:{len(all_drafts)}"
+    for d in today_drafts:
+        h += f":{d.get('id')}:{d.get('approved')}"
+    return jsonify({"hash": hashlib.md5(h.encode()).hexdigest()[:12]})
 
 
 @app.route("/campaigns/<int:campaign_id>/generate", methods=["POST"])

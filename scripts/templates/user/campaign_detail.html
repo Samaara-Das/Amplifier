@@ -435,5 +435,22 @@
       }
     }
   })();
+
+  // Auto-reload when campaign data changes (content generated, status updated)
+  var lastDetailHash = '{{ detail_hash|default("") }}';
+  function checkDetailUpdates() {
+    fetch('/api/campaign-detail-hash/{{ campaign.get("server_id", 0) }}')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.hash && data.hash !== lastDetailHash) {
+          window.location.reload();
+        }
+      })
+      .catch(function() {})
+      .finally(function() {
+        setTimeout(checkDetailUpdates, 10000);
+      });
+  }
+  setTimeout(checkDetailUpdates, 10000);
 </script>
 {% endblock %}
