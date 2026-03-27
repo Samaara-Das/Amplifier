@@ -39,27 +39,40 @@ Deferred features that are designed but not yet implemented. The backend/model s
 3. Report click counts in metric scraping
 4. Re-add "Per Click ($)" field to campaign wizard Step 4
 
-## AI Image & Video Generation for UGC
+## Flux.1 Image & Video Generation
 
 **Status**: Not started
-**Why deferred**: Current content generation is text-only. Adding image/video gen is a separate feature layer.
+**Priority**: High — first media generation feature to ship
+**Cost to user**: ~$0.30 per session (vast.ai GPU rental)
 
-**Goal**: Amplifiers should be able to generate UGC images and videos for their posts — product shots, short-form video, branded visuals — across different platforms (Instagram needs square images, TikTok needs vertical video, etc.).
+**What it does**: Users opt in to Flux.1 image generation for their campaign posts. Flux.1 runs on vast.ai rented GPUs, generates high-quality UGC images (product shots, lifestyle images, branded visuals) tailored to each campaign and platform. Users pay ~$0.30 per generation session — ultra cheap for professional-quality content that drives real engagement.
 
-**Options to evaluate**:
-- **Flux 1.0 (STRONG CANDIDATE)** (https://vast.ai/model/flux.1-dev) — high-quality image gen on vast.ai GPU rental. Ultra cheap: ~$0.20-0.30/hour. Produces high-quality content at minimal cost to users. Best balance of quality and price.
-- **DALL-E** — OpenAI API, simple but costs per image
-- **Nano/Banano** — lightweight models
-- **Seedance** — video generation
-- **Local LLM on user's desktop** — no cost to amplifier, runs on their GPU. Best option if hardware supports it.
+**Why Flux.1 first**:
+- Best quality-to-cost ratio available right now
+- vast.ai GPU rental is ~$0.20-0.30/hour — one session generates multiple images
+- High-quality output that looks like real UGC, not AI slop
+- Open-weight model — no vendor lock-in
 
-**Pricing model**: Either charge amplifiers a very small fee per generation OR run a local model on their machine for free. Flux 1.0 on vast.ai is the leading option — ultra cheap ($0.20-0.30/hr) with high quality output. Local-first is preferred to keep user costs near zero.
+**User experience**:
+1. During content generation, user sees option: "Generate images for this post ($0.30)"
+2. If opted in: Flux.1 generates platform-specific images (landscape for LinkedIn/Facebook, square for Instagram, vertical for TikTok)
+3. Images attached to draft alongside the AI-generated text
+4. User can preview, swap, or remove images before approving
+5. Posting pipeline uploads the image along with text
 
-**To implement**:
-1. Evaluate which models run locally on consumer GPUs (8GB+ VRAM)
-2. Add image/video gen step to the content generation pipeline
-3. Platform-specific formats: square for Instagram, vertical for TikTok/Reels, landscape for LinkedIn/Facebook
-4. Store generated media in local storage, attach to drafts before posting
+**What changes when this ships**:
+- Content generation pipeline: add image gen step after text gen
+- Draft model: drafts need an `images` field (list of local file paths)
+- Posting pipeline: each platform's post function needs to handle image uploads (most already do — X, LinkedIn, Facebook, Reddit all have image upload code in post.py)
+- Campaign wizard: companies can specify if they want image content
+- User settings: opt-in toggle + vast.ai billing setup
+
+**Future expansion** (not part of this task):
+- Video generation via LTX + TTS, Seedance, MakeUGC
+- Meme generation via Supermeme.ai, CapCut
+- Local GPU inference for users with capable hardware (zero cost)
+- LoRA training per-user for face/style consistency
+- DALL-E, Nano Banana, Ideogram as alternative providers
 
 ## Platform-Specific Content Formats
 
@@ -171,3 +184,76 @@ Deferred features that are designed but not yet implemented. The backend/model s
 3. Generated media stored locally, attached to drafts before posting
 4. Train LoRAs per-user for face/style consistency (one-time, runs locally)
 5. Abstract the model layer — pluggable providers so we can swap in better/cheaper models as they emerge
+
+## Social Media Platform APIs for Profile Data
+
+**Status**: Not started
+**Why**: Currently scraping profiles via Playwright (brittle, gets blocked). Official APIs provide structured data reliably.
+
+Use official platform APIs (X API v2, LinkedIn API, Reddit API, Facebook Graph API) to access user profile data: posts, engagement metrics, followers, following, content themes, audience demographics. Feed all data to AI for deep user understanding. This replaces or supplements Playwright scraping.
+
+**Benefits**: More data, more reliable, no anti-bot blocks, real-time metrics, audience insights not visible on the page.
+
+**Note**: Most APIs require app review/approval. Some have costs. Evaluate per-platform.
+
+## AI Campaign Quality Gate
+
+**Status**: Not started — needs further discussion
+**Why**: Bad campaigns = bad posts = bad user experience. Garbage in, garbage out.
+
+Before a company can activate a campaign, an AI checks it for completeness and quality. The campaign must score 85%+ on a quality rubric:
+- Does the brief explain what the product actually is?
+- Are there enough details for a creator to write authentic content?
+- Are payout rates reasonable for the niche?
+- Are must-include items clear and achievable?
+- Does the content guidance give useful direction?
+
+Campaigns below 85% get specific feedback ("Add more product details", "Your brief is too vague") and cannot be activated until fixed.
+
+**Open question**: Should this block creation entirely, or just warn? Should the threshold be configurable? Discuss before implementing.
+
+## AI-Powered Profile Scraping with Browser Agents
+
+**Status**: Not started
+**Why**: Fixed CSS selector scraping breaks constantly. AI-based browsing is more robust and extracts deeper insights.
+
+Use AI browser agents (like browser-use, or Gemini Vision on screenshots) to explore user social media profiles. The AI navigates the profile like a human — scrolling through posts, reading bios, understanding content themes, extracting engagement patterns. Much deeper understanding than fixed selectors.
+
+**Advantages over current scraping**:
+- Robust: no selectors to break when platforms update their UI
+- Deeper: AI understands context, tone, audience, not just numbers
+- Better anti-detection: AI browsing patterns look more human
+- More data: extracts insights that selectors can't (content quality, posting style, audience sentiment)
+
+**Tools to evaluate**: browser-use, Playwright + Gemini Vision, AgentQL, Skyvern, or custom Playwright + LLM pipeline.
+
+## Metrics Accuracy for Billing
+
+**Status**: Not started — critical dependency
+**Why**: Earnings and billing HEAVILY depend on accurate metrics. Wrong metrics = wrong payouts = lost trust.
+
+Ensure metric scraping is accurate and reliable:
+- Cross-validate scraped metrics against platform analytics (where available)
+- Handle edge cases: deleted posts, private accounts, rate-limited scraping
+- Consider using official APIs (X API, Reddit API) for metrics instead of scraping
+- Add metric sanity checks: flag anomalies (sudden 100x engagement spike = probably fake)
+- Audit trail: log every metric scrape with timestamp, source, raw values
+
+**Priority**: Must be rock-solid before scaling. One billing error destroys trust.
+
+## Self-Learning Content Generation
+
+**Status**: Not started
+**Why**: Content quality improves over time when the AI learns from results.
+
+The content generation AI should learn and improve:
+
+1. **Learn from others**: Study what competitors, industry leaders, and trending creators post in the same niche. Understand what formats, hooks, and topics get engagement.
+
+2. **Learn from own performance**: Track which posts got high engagement vs low. Identify patterns: which hooks worked, which platforms performed best, which posting times converted.
+
+3. **Experiment + double down**: Try different content styles (stories, lists, questions, controversial takes). Measure results. Do more of what works, stop doing what doesn't.
+
+4. **Trend awareness**: Monitor social/political/cultural trends and incorporate relevant ones into content. Timely content outperforms evergreen content.
+
+**Implementation**: Store post performance data in `agent_content_insights` table (already exists). Build a feedback loop: generate → post → measure → learn → generate better.
