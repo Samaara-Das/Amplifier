@@ -493,11 +493,11 @@ async def get_matched_campaigns(
         if final_score > 0:
             scored.append((campaign, final_score))
 
-    # Sort by score descending, take top 10
+    # Sort by score descending
     scored.sort(key=lambda x: x[1], reverse=True)
-    scored = scored[:10]
 
     # Create invitation assignments for new matches
+    # Respect each campaign's max_users cap
     now = datetime.now(timezone.utc)
     new_assignments = []
     for campaign, score in scored:

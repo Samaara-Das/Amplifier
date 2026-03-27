@@ -251,25 +251,22 @@ Runs when a user polls for campaigns. Pipeline:
 1. Campaign is active and has budget remaining
 2. User not already invited to this campaign
 3. `accepted_count < max_users` for the campaign
-4. User has all required platforms connected
+4. User has at least 1 of the required platforms connected
 5. User meets min follower counts per platform
 6. User meets min engagement rate
 7. User's region matches campaign's target regions (or campaign targets "global")
 8. User has fewer than 3 active campaigns
 
-### AI Scoring (Gemini)
-- Prompt includes: campaign brief + target niches vs. user's bio + niches + recent posts + engagement rate
+### AI Scoring (fully AI-driven)
+- Gemini reads the user's full scraped profile data: bio, posts with engagement metrics, followers, following, about section, work experience, personal details — across all connected platforms
+- AI judges fit based on topic relevance, audience fit, and authenticity
+- AI is told most users are normal people (not influencers) — low follower counts and infrequent posting are normal and should not be penalized
 - Returns relevance score 0-100
 - Cached 24 hours per (campaign, user) pair
 - Fallback to niche-tag overlap if AI fails
 
-### Combined Score
-```
-final = ai_relevance * 0.6 + trust_score * 0.2 + engagement_bonus (capped at 20)
-```
-
 ### Selection
-- Sort by combined score descending
+- Sort by AI score descending
 - Invite up to `max_users - accepted_count` users
 - Create `CampaignAssignment` with status `pending_invitation` (expires in 3 days)
 
