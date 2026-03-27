@@ -125,7 +125,7 @@ class _MistralProvider:
     """Mistral AI — text only."""
 
     def __init__(self, api_key: str):
-        from mistralai import Mistral
+        from mistralai.client import Mistral
         self.client = Mistral(api_key=api_key)
         self.name = "mistral"
 

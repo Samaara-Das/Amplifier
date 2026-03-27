@@ -299,7 +299,7 @@ def api_test_api_key():
             return jsonify({"valid": True})
 
         elif provider == "mistral":
-            from mistralai import Mistral
+            from mistralai.client import Mistral
 
             client = Mistral(api_key=key)
             response = client.chat.complete(
@@ -357,11 +357,67 @@ def onboarding_connect(platform):
                 break
             time.sleep(1)
 
+        # Kill any browser process using this platform's profile directory.
+        # The background agent's session health check or a stale scraper may
+        # have locked the profile dir via Playwright persistent context.
+        # Without this, login_setup.py crashes (TargetClosedError).
+        profile_dir = ROOT / "profiles" / f"{platform}-profile"
+        lock_file = profile_dir / "SingletonLock"
+        logger.info("Connect %s: checking for profile lock at %s", platform, lock_file)
+
+        # Method 1: Remove the Chrome singleton lock file
+        if lock_file.exists():
+            try:
+                lock_file.unlink()
+                logger.info("Connect %s: removed SingletonLock file", platform)
+            except Exception as e:
+                logger.warning("Connect %s: could not remove SingletonLock: %s", platform, e)
+
+        # Method 2: Kill ALL chrome.exe processes that have this profile in their command line
+        try:
+            # Use PowerShell for more reliable process finding than wmic
+            ps_cmd = f'Get-CimInstance Win32_Process | Where-Object {{ $_.CommandLine -like "*{platform}-profile*" -and $_.Name -eq "chrome.exe" }} | Select-Object -ExpandProperty ProcessId'
+            result = sp.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=10,
+            )
+            for line in result.stdout.strip().split("\n"):
+                pid = line.strip()
+                if pid.isdigit():
+                    sp.run(["taskkill", "/F", "/T", "/PID", pid], capture_output=True, timeout=5)
+                    logger.info("Connect %s: killed chrome PID %s (tree kill)", platform, pid)
+        except Exception as e:
+            logger.debug("Connect %s: powershell process kill failed: %s", platform, e)
+
+        # Wait a moment for profile dir to be fully released
+        time.sleep(1)
+
         # Block until user closes the browser
-        sp.run(
+        proc = sp.run(
             [sys.executable, str(ROOT / "scripts" / "login_setup.py"), platform],
             cwd=str(ROOT),
         )
+        if proc.returncode != 0:
+            logger.error("login_setup.py failed for %s (exit code %d). Resetting profile and retrying...", platform, proc.returncode)
+            # Profile may be corrupted — reset it and retry once
+            import shutil
+            backup = profile_dir.parent / f"{platform}-profile-backup"
+            try:
+                if backup.exists():
+                    shutil.rmtree(backup)
+                profile_dir.rename(backup)
+                profile_dir.mkdir(parents=True, exist_ok=True)
+                logger.info("Connect %s: reset corrupted profile (backed up to %s)", platform, backup)
+                # Retry with fresh profile
+                proc = sp.run(
+                    [sys.executable, str(ROOT / "scripts" / "login_setup.py"), platform],
+                    cwd=str(ROOT),
+                )
+                if proc.returncode != 0:
+                    logger.error("login_setup.py still failed for %s after profile reset (exit code %d)", platform, proc.returncode)
+            except Exception as e:
+                logger.error("Connect %s: profile reset failed: %s", platform, e)
+
         # Browser closed — scrape this platform
         _scraping_platforms.add(platform)
         try:

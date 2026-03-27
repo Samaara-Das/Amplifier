@@ -122,7 +122,7 @@
               <div class="ob-platform-card-info">
                 <span class="ob-platform-card-name">Reddit</span>
                 <span class="ob-platform-card-status">{{ 'Connected' if platforms.get('reddit') else 'Not connected' }}</span>
-                <span style="font-size:11px; color:#94a3b8; display:block; margin-top:2px;">A visible browser window will open for Reddit (required by Reddit's security)</span>
+                <span style="font-size:11px; color:#94a3b8; display:block; margin-top:2px;">A visible browser window will open for scraping. You can minimize it and it will close by itself.</span>
               </div>
               {% if platforms.get('reddit') %}
                 <form method="post" action="{{ url_for('onboarding_connect', platform='reddit') }}" style="margin:0;">
