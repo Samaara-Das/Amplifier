@@ -939,12 +939,26 @@
           "content-generation"
         ],
         "subtasks": []
+      },
+      {
+        "id": "62",
+        "title": "Free and paid tiers for amplifiers (users) and companies",
+        "description": "Design and implement tiered pricing. Free tier: limited campaigns, basic content gen, standard features. Paid tier: unlimited campaigns, AI image/video gen, priority matching, advanced analytics. Free tier must be genuinely useful. See FUTURE.md for full spec.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "tags": [
+          "future",
+          "business",
+          "monetization"
+        ],
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
       "lastModified": "2026-03-27T10:00:00.000Z",
-      "taskCount": 61,
+      "taskCount": 62,
       "completedCount": 18,
       "tags": [
         "master"

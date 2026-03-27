@@ -257,3 +257,34 @@ The content generation AI should learn and improve:
 4. **Trend awareness**: Monitor social/political/cultural trends and incorporate relevant ones into content. Timely content outperforms evergreen content.
 
 **Implementation**: Store post performance data in `agent_content_insights` table (already exists). Build a feedback loop: generate → post → measure → learn → generate better.
+
+## Free and Paid Tiers
+
+**Status**: Not started
+**Why**: Amplifier needs a sustainable business model. Free tier drives adoption, paid tier drives revenue.
+
+Design a tiered pricing model for amplifiers (users):
+
+**Free Tier** (default):
+- Limited number of active campaigns (e.g., 1-2)
+- Basic content generation (text-only, standard AI models)
+- Standard posting frequency
+- Basic metrics dashboard
+- Community support
+
+**Paid Tier** (subscription or per-feature):
+- Unlimited active campaigns (or higher cap)
+- Advanced content generation (image+text, video, AI image gen via FLUX)
+- Higher posting frequency
+- Priority campaign matching (higher visibility to companies)
+- Advanced analytics and insights
+- Faster metric scraping intervals
+- Priority support
+
+**Implementation considerations**:
+- Tier stored on user model (server-side)
+- Feature gates checked at: campaign acceptance, content generation, posting frequency
+- Stripe subscription for paid tier (monthly billing)
+- Free tier must be genuinely useful — not crippled. Users should earn real money on free tier.
+- Paid tier unlocks scale and premium features, not basic functionality
+- Companies may also have tiers (more campaigns, higher budgets, priority matching)
