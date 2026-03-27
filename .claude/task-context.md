@@ -1,136 +1,92 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-26 (Session 21)
+**Last Updated**: 2026-03-27 (Session 22)
 
 ## Current Status
 
-**New task system**: 36 verification tasks (#15-#50) across 6 tiers. Old SLC tasks #1-#14 all done.
+**8 verification tasks complete** (Tasks #15-22). Working through feature verification flow.
 
 | Tier | Focus | Tasks | Status |
 |------|-------|-------|--------|
-| 1 Foundation | AI Wizard, Onboarding | #15-#18 | #15 #16 done, #17 #18 pending |
-| 2 Core Loop | Matching, Polling, Content Gen, Review | #19-#26 | All pending |
+| 1 Foundation | AI Wizard, Onboarding | #15-#18 | All done |
+| 2 Core Loop | Matching, Polling, Content Gen, Review | #19-#22 done, #23-#26 pending | 4/8 done |
 | 3 Delivery | Posting, Metric Scraping | #27-#30 | All pending |
 | 4 Money | Billing, Earnings, Stripe, Campaign Detail | #31-#38 | All pending |
 | 5 Support | System Tray, Dashboard Stats | #39-#42 | All pending |
 | 6 Admin | Overview, Users, Campaigns, Payouts | #43-#50 | All pending |
+| Future | AI scrapers, content gen, video gen | #51-#56 | All pending |
 
-## Session 21 — What Was Done (Chronological)
+## Session 22 — What Was Done
 
-### Phase 1: Task Setup
-- Extracted Session 20 conversation transcript to `session-20-transcript.md`
-- Found Claude Code conversation storage: `~/.claude/projects/<project-path>/<uuid>.jsonl`
-- Created 36 new verification tasks (#15-#50): 18 features × 2 tasks each (Explain + Verify)
-- Prioritized by dependency chain: Foundation → Core Loop → Delivery → Money → Support → Admin
+### Task #19/#20: Campaign Matching (Explain + Verify)
+- Required platforms changed from ALL to AT LEAST 1
+- AI scoring fully AI-driven (no static formula)
+- Full scraped profile data in AI prompt (bio, posts, engagement, experience)
+- AI told most users are normal people — don't penalize low numbers
+- Niche lists unified (21 niches, both sides match)
+- Platform format bug fixed (`True` vs `{connected: True}`)
+- Scraped profiles sync to server during onboarding (was missing)
+- Removed hardcoded top-10 cap (respects campaign max_users)
+- E2E test: 3 fake users x 3 campaigns, 6/7 passed
+- SLC spec updated
 
-### Phase 2: Task #15 — Explain: Company AI Wizard
-Walked through entire wizard flow. User identified 5 fixes needed:
+### Task #21/#22: Campaign Polling (Explain + Verify)
+- **Critical bug fixed**: Polled campaigns stored as `assigned` (accepted) instead of `pending_invitation`. Content generated for campaigns user never accepted. Fixed default status.
+- **upsert_campaign rewrite**: No longer overwrites local status on re-poll. Accepted campaigns stay accepted.
+- **Accept route**: Updates local status to `assigned`, triggers content generation
+- **Reject route**: Removes campaign from local DB
+- **Rich invitation display**: Full brief (truncated + Read More), content guidance, product images, uploaded files, payout rates (hides $0 rates)
+- **Clickable invitation titles**: Link to campaign detail page for full info before accepting
+- **Auto-reload**: Campaigns page + detail page poll for state changes every 10s, reload when new content appears
+- **Per-campaign desktop notifications**: "Content Ready for Review — [Title] — N drafts generated"
+- **Campaign detail page**: Read More on brief + guidance, product images, uploaded files
 
-### Phase 3: Task #15/#16 — Implement AI Wizard Fixes
+### Other Fixes This Session
+- LinkedIn reconnect: auto-reset corrupted browser profiles (TargetClosedError)
+- Mistral import: `from mistralai.client import Mistral` (v2.1 API change)
+- Reddit onboarding text updated
+- API keys saved to memory for re-use
+- tasks.json encoding fixed (mojibake, smart quotes, double CRLF)
+- Task #56 added: video generation (Seedance 2) integration
+- 8 comprehensive docs created in docs/
+- FUTURE.md expanded with AI content gen tools + pipeline
 
-**1. Supabase Storage for uploads**
-- Created `server/app/services/storage.py` — upload/delete/text extraction helper
-- Added `supabase`, `PyPDF2`, `python-docx` to requirements.txt
-- Added `supabase_url`, `supabase_service_key` to Settings
-- Created `campaign-assets` bucket via Supabase REST API
-- Set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` on Vercel
+### Bugs Found & Fixed
+1. **Campaign status overwrite on re-poll** — upsert_campaign used INSERT OR REPLACE, resetting accepted campaigns
+2. **Content generated for pending campaigns** — default status was "assigned" instead of "pending_invitation"
+3. **LinkedIn corrupted profile** — Playwright Chromium crashes with corrupt profile dir. Auto-reset + retry.
+4. **Mistral import error** — `from mistralai import Mistral` broke in v2.1, changed to `from mistralai.client import Mistral`
+5. **Platform format mismatch** — matching checked `{connected: True}` but user app sends `True`. Accept both.
 
-**2. Image uploads in wizard Step 1**
-- Drag-and-drop upload zone with thumbnail previews
-- `POST /company/campaigns/upload-asset` route (4MB limit — Vercel body limit)
-- Images stored in Supabase Storage, URLs in `Campaign.assets["image_urls"]`
+## Key Decisions
+- Matching is fully AI-driven — no static scoring formula
+- Most Amplifier users are normal people, not influencers — AI scoring accounts for this
+- Campaign brief is the single content source for amplifiers
+- Per-campaign desktop notifications (not batch)
+- Auto-reload pages via hash polling (10s interval)
+- Corrupted browser profiles auto-reset on failure
 
-**3. File uploads in wizard Step 1**
-- PDF/DOCX/TXT upload with text extraction (PyPDF2, python-docx)
-- Extracted text passed to AI prompt for richer brief generation
-- Files stored in Supabase Storage, content in `Campaign.assets["file_contents"]`
-
-**4. Deep BFS web crawling**
-- Replaced shallow single-page scrape with BFS crawler
-- Follows same-domain links up to 10 pages, depth 2
-- Uses httpx+BeautifulSoup (works on Vercel, no browser needed)
-- Scraped content (up to 20K chars) fed to Gemini prompt
-
-**5. Fixed AI generation**
-- Root cause: `product_name`, `product_features` weren't passed to `run_campaign_wizard()`
-- Targeting fields were read from wrong nesting level
-- Enhanced Gemini prompt: comprehensive 500-1000 word briefs using all sources
-- Fallback now clearly marks `[AI generation failed — please edit]`
-- Error response shows actual error instead of silently returning defaults
-
-**6. Balance gate**
-- Companies with <$50 balance blocked from wizard
-- Redirects to campaigns page with prominent error banner + "Go to Billing" link
-
-**7. UI fixes during testing**
-- Chip input bug: `handleChipInput`, `addChip`, `removeChip`, `syncChipValues` not exposed to `window`
-- Must-avoid changed from chip tags to plain textarea
-- Must-include help text: "weave naturally" not "appear in every post"
-- Max creators field made required with validation
-- Per-click payout removed from UI (can't track clicks — documented in FUTURE.md)
-- Stale SQLite DB error (missing `max_users` column) — deleted and recreated
-
-### Key Decisions Made This Session
-- **Campaign brief = single content source**: The detailed brief IS what amplifiers use. Must contain everything.
-- **httpx+BS4 BFS over Crawl4AI**: Crawl4AI requires Playwright/Chromium, won't work on Vercel serverless. Enhanced existing stack instead.
-- **4MB upload limit**: Vercel serverless has 4.5MB body limit. Sized accordingly.
-- **Per-click payout deferred**: Can't track clicks without UTM tracking. Backend preserved, UI removed.
-- **Must-include items are suggestions**: Woven naturally, not forced into every post.
-- **Must-avoid is free text**: Plain textarea better than chip tags for describing what to avoid.
-- **Supabase CLI for all ops**: User requested — always use `npx supabase`, never dashboard.
-
-## Bugs Found & Fixed (Session 21)
-1. **Stale SQLite DB**: Missing `max_users` column → deleted `amplifier.db`, auto-recreated
-2. **Pydantic extra field**: `GEMINI_API_KEY` in `.env` rejected by Settings → set as env var instead
-3. **Chip input not working**: Functions defined in closure, not on `window` → exposed all 4 functions
-4. **Port already in use**: Server process not killed properly → `taskkill //F //PID`
-5. **Balance gate invisible**: Rendered campaigns.html silently → redirect with prominent error banner
-
-## Key Reference Files
-
-### New This Session
-- `server/app/services/storage.py` — Supabase Storage upload/delete/text extraction
-- `server/vercel.json` — maxLambdaSize for deep crawl timeout
-- `FUTURE.md` — Deferred features (per-click payout)
-
-### Modified This Session
-- `server/app/services/campaign_wizard.py` — Deep BFS crawling, enhanced AI prompt, all sources
-- `server/app/routers/company_pages.py` — Upload route, balance gate, AI generate fix
-- `server/app/templates/company/campaign_wizard.html` — Image/file uploads, chip fix, textarea, validation
-- `server/app/templates/company/campaigns.html` — Error banner for balance gate
-- `server/app/core/config.py` — Supabase Storage settings
-- `server/requirements.txt` — supabase, PyPDF2, python-docx
-- `server/.env.example` — Supabase Storage env var docs
-- `.taskmaster/tasks/tasks.json` — 36 new verification tasks, updated #15 #16 #23 #37
-
-## Task Notes for Future Sessions
-- **Task #23 (AI Content Generation)**: Must-include items woven naturally, not forced. Must-avoid always excluded.
-- **Task #37 (Campaign Detail Page)**: Needs image/file upload in Edit Campaign modal. Remove per-click from edit modal.
-- **Task #35/#36 (Stripe Top-up)**: Deferred — company billing page shows "Stripe not configured"
+## Next Task
+**#23 — Explain: AI Content Generation**
 
 ## Deployed URLs
 - **Company**: https://server-five-omega-23.vercel.app/company/login
 - **Admin**: https://server-five-omega-23.vercel.app/admin/login (password: admin)
-- **Swagger**: https://server-five-omega-23.vercel.app/docs
-- **User App**: `python scripts/user_app.py` → http://localhost:5222
+- **User App**: http://localhost:5222
 
 ## Test Commands
 ```bash
-# Server unit tests (19)
-cd server && python -m pytest tests/ -v
+# Run user app
+python scripts/user_app.py
 
-# Run server locally (with Gemini key)
+# Run server locally
 cd server && GEMINI_API_KEY=<key> python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
-# Deploy to Vercel
+# E2E matching test
+python scripts/tests/test_matching_e2e.py setup
+python scripts/tests/test_matching_e2e.py test
+python scripts/tests/test_matching_e2e.py cleanup
+
+# Deploy
 vercel deploy --yes --prod --cwd server
-
-# Supabase CLI
-npx supabase projects list
-npx supabase projects api-keys --project-ref ozkntsmomkrsnjziamkr
-```
-
-## Commits This Session
-```
-0ad625d feat: AI wizard — image/file uploads, deep crawling, fix AI generation
 ```
