@@ -230,30 +230,69 @@ def set_setting(key: str, value: str) -> None:
 
 
 def upsert_campaign(campaign: dict) -> None:
-    """Insert or update a campaign from server response."""
+    """Insert or update a campaign from server response.
+
+    IMPORTANT: Does NOT overwrite the local status if the campaign already
+    exists with a more advanced status (e.g., assigned, content_generated).
+    This prevents re-polling from resetting accepted campaigns back to
+    pending_invitation.
+    """
     conn = _get_db()
-    conn.execute("""
-        INSERT OR REPLACE INTO local_campaign
-        (server_id, assignment_id, title, brief, assets, content_guidance,
-         payout_rules, payout_multiplier, status,
-         invitation_status, invited_at, expires_at, responded_at,
-         updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    """, (
-        campaign["campaign_id"],
-        campaign["assignment_id"],
-        campaign["title"],
-        campaign["brief"],
-        json.dumps(campaign.get("assets", {})),
-        campaign.get("content_guidance"),
-        json.dumps(campaign.get("payout_rules", {})),
-        campaign.get("payout_multiplier", 1.0),
-        campaign.get("status", "pending_invitation"),
-        campaign.get("invitation_status", "pending_invitation"),
-        campaign.get("invited_at"),
-        campaign.get("expires_at"),
-        campaign.get("responded_at"),
-    ))
+    campaign_id = campaign["campaign_id"]
+
+    # Check if campaign already exists locally
+    existing = conn.execute(
+        "SELECT status FROM local_campaign WHERE server_id = ?", (campaign_id,)
+    ).fetchone()
+
+    if existing is None:
+        # New campaign — insert with default pending_invitation status
+        conn.execute("""
+            INSERT INTO local_campaign
+            (server_id, assignment_id, title, brief, assets, content_guidance,
+             payout_rules, payout_multiplier, status,
+             invitation_status, invited_at, expires_at, responded_at,
+             updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        """, (
+            campaign_id,
+            campaign["assignment_id"],
+            campaign["title"],
+            campaign["brief"],
+            json.dumps(campaign.get("assets", {})),
+            campaign.get("content_guidance"),
+            json.dumps(campaign.get("payout_rules", {})),
+            campaign.get("payout_multiplier", 1.0),
+            campaign.get("status", "pending_invitation"),
+            campaign.get("invitation_status", "pending_invitation"),
+            campaign.get("invited_at"),
+            campaign.get("expires_at"),
+            campaign.get("responded_at"),
+        ))
+    else:
+        # Existing campaign — update data but PRESERVE the local status
+        conn.execute("""
+            UPDATE local_campaign SET
+                assignment_id = ?, title = ?, brief = ?, assets = ?,
+                content_guidance = ?, payout_rules = ?, payout_multiplier = ?,
+                invitation_status = ?, invited_at = ?, expires_at = ?,
+                responded_at = ?, updated_at = datetime('now')
+            WHERE server_id = ?
+        """, (
+            campaign["assignment_id"],
+            campaign["title"],
+            campaign["brief"],
+            json.dumps(campaign.get("assets", {})),
+            campaign.get("content_guidance"),
+            json.dumps(campaign.get("payout_rules", {})),
+            campaign.get("payout_multiplier", 1.0),
+            campaign.get("invitation_status", "pending_invitation"),
+            campaign.get("invited_at"),
+            campaign.get("expires_at"),
+            campaign.get("responded_at"),
+            campaign_id,
+        ))
+
     conn.commit()
     conn.close()
 
