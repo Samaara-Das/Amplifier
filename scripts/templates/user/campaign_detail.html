@@ -21,17 +21,48 @@
   </div>
 
   <!-- Campaign Brief -->
+  {% set brief_text = campaign.get('brief', '') %}
+  {% set guidance_text = campaign.get('content_guidance', '') %}
+  {% set assets = campaign.get('assets', {}) %}
+  {% if assets is string %}{% set assets = {} %}{% endif %}
   <div class="card" style="margin-bottom: 16px;">
     <div class="card-header">
       <h2>Campaign Brief</h2>
     </div>
     <div class="card-body">
-      <p style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">{{ campaign.get('brief', 'No brief provided.') }}</p>
+      <div style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">{% if brief_text|length > 400 %}<span id="brief-short">{{ brief_text[:400] }}... <a href="#" onclick="document.getElementById('brief-short').style.display='none'; document.getElementById('brief-full').style.display='block'; return false;" style="color:#3b82f6; text-decoration:none;">Read more</a></span><span id="brief-full" style="display:none;">{{ brief_text }} <a href="#" onclick="document.getElementById('brief-full').style.display='none'; document.getElementById('brief-short').style.display='inline'; return false;" style="color:#3b82f6; text-decoration:none;">Show less</a></span>{% else %}{{ brief_text or 'No brief provided.' }}{% endif %}</div>
 
-      {% if campaign.get('content_guidance') %}
+      {% if guidance_text %}
         <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
           <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Content Guidance</h3>
-          <p style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">{{ campaign.get('content_guidance', '') }}</p>
+          <div style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">{% if guidance_text|length > 300 %}<span id="guidance-short">{{ guidance_text[:300] }}... <a href="#" onclick="document.getElementById('guidance-short').style.display='none'; document.getElementById('guidance-full').style.display='block'; return false;" style="color:#3b82f6; text-decoration:none;">Read more</a></span><span id="guidance-full" style="display:none;">{{ guidance_text }} <a href="#" onclick="document.getElementById('guidance-full').style.display='none'; document.getElementById('guidance-short').style.display='inline'; return false;" style="color:#3b82f6; text-decoration:none;">Show less</a></span>{% else %}{{ guidance_text }}{% endif %}</div>
+        </div>
+      {% endif %}
+
+      <!-- Product Images -->
+      {% if assets.get('image_urls') %}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Product Images</h3>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% for img_url in assets.get('image_urls', [])[:8] %}
+              <img src="{{ img_url }}" alt="Product" style="width:100px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:pointer;" onclick="window.open(this.src, '_blank')">
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Uploaded Files -->
+      {% if assets.get('file_urls') %}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Campaign Files</h3>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            {% for file_url in assets.get('file_urls', []) %}
+              <a href="{{ file_url }}" target="_blank" style="display:flex; align-items:center; gap:4px; padding:6px 12px; background:var(--bg-secondary); border-radius:6px; font-size:13px; color:var(--text-primary); text-decoration:none; border:1px solid var(--border);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+                File {{ loop.index }}
+              </a>
+            {% endfor %}
+          </div>
         </div>
       {% endif %}
 
@@ -40,9 +71,11 @@
           <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Payout Rules</h3>
           <div class="payout-rates" style="display: flex; flex-wrap: wrap; gap: 6px;">
             {% for key, value in payout_rules.items() %}
+              {% if value and value > 0 %}
               <span class="payout-rate" style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
                 ${{ "%.3f"|format(value) }}/{{ key.replace('rate_per_', '').replace('_', ' ') }}
               </span>
+              {% endif %}
             {% endfor %}
           </div>
         </div>

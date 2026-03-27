@@ -311,7 +311,7 @@
         "id": "21",
         "title": "Explain: Campaign Polling (User Side)",
         "description": "Walk through how the user app polls the server for matched campaigns -- polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: When a matched campaign is displayed to the user, it must be highly detailed -- show ALL info the company filled in: brief, content guidance, images, files, payout rates, must-include/avoid, campaign goal. The user should have everything they need to decide whether to accept.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nBUG: Background agent auto-generates content for campaigns still in pending_invitation status. User never gets to accept/reject before content is created. The invitation flow must show invitations first, let user accept/reject, THEN generate content only for accepted campaigns.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "17"
@@ -327,7 +327,7 @@
         "id": "22",
         "title": "Verify: Campaign Polling (User Side)",
         "description": "Ask the user what the acceptance criteria is for campaign polling so that we know when it's fully done. Then test against those criteria.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "21"
@@ -598,7 +598,7 @@
       {
         "id": "39",
         "title": "Explain: System Tray + Notifications",
-        "description": "Walk through how the system tray and desktop notifications currently work ' tray icon, right-click menu, dashboard launch, notification triggers, background agent integration. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
+        "description": "Walk through how the system tray and desktop notifications currently work ' tray icon, right-click menu, dashboard launch, notification triggers, background agent integration. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nNOTE: Desktop notifications must be sent whenever new content drafts are generated for a campaign. User should know content is ready for review without having to check the dashboard.",
         "status": "pending",
         "priority": "low",
         "dependencies": [
