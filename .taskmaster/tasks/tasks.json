@@ -326,8 +326,8 @@
       {
         "id": "22",
         "title": "Verify: Campaign Polling (User Side)",
-        "description": "Ask the user what the acceptance criteria is for campaign polling so that we know when it's fully done. Then test against those criteria.",
-        "status": "in-progress",
+        "description": "Ask the user what the acceptance criteria is for campaign polling so that we know when it's fully done. Then test against those criteria.\n\nVERIFIED: Invitations display full campaign info (brief+ReadMore, guidance, images, files, payout rates). Accept/reject works. Content generates only for accepted campaigns. Auto-reload on state changes. Per-campaign desktop notifications. Accepted campaigns preserved across re-polls.",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "21"
