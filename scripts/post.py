@@ -26,7 +26,7 @@ async def human_delay(min_ms=500, max_ms=2000):
 
 async def human_type(page, selector, text, **kwargs):
     """Type text character by character with small delays."""
-    el = page.locator(selector)
+    el = page.locator(selector).first
     await el.fill("")
     for char in text:
         await el.press_sequentially(char, delay=random.randint(30, 80))
