@@ -131,13 +131,48 @@
               </div>
 
               {% if draft %}
+                {% set raw_text = draft.get('draft_text', '') %}
+                {% set is_reddit_json = platform == 'reddit' and raw_text.startswith('{') %}
                 {% if draft.get('approved') == 0 %}
                   {# Editable draft #}
-                  <form method="post" action="{{ url_for('edit_single_draft', draft_id=draft['id']) }}" class="draft-edit-form" id="draft-form-{{ draft['id'] }}">
-                    <textarea name="draft_text" class="content-edit-area visible" style="display:block; min-height: 100px;"
-                              oninput="updateDraftCharCount(this, '{{ platform }}')">{{ draft.get('draft_text', '') }}</textarea>
-                    <div class="char-count" id="char-count-{{ platform }}">{{ draft.get('draft_text', '')|length }} chars</div>
-                  </form>
+                  {% if is_reddit_json %}
+                    {# Reddit: show title + body separately #}
+                    <form method="post" action="{{ url_for('edit_single_draft', draft_id=draft['id']) }}" class="draft-edit-form" id="draft-form-{{ draft['id'] }}">
+                      <div style="margin-bottom:8px;">
+                        <label style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">Post Title</label>
+                        <input type="text" id="reddit-title-{{ draft['id'] }}" class="ob-select" style="width:100%; padding:8px 12px; font-size:13px;" />
+                      </div>
+                      <label style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">Post Body</label>
+                      <textarea id="reddit-body-{{ draft['id'] }}" class="content-edit-area visible" style="display:block; min-height:100px;"
+                                oninput="updateDraftCharCount(this, '{{ platform }}')"></textarea>
+                      <input type="hidden" name="draft_text" id="reddit-combined-{{ draft['id'] }}" />
+                      <div class="char-count" id="char-count-{{ platform }}">0 chars</div>
+                    </form>
+                    <script>
+                    (function(){
+                      try {
+                        var data = JSON.parse({{ raw_text|tojson }});
+                        document.getElementById('reddit-title-{{ draft["id"] }}').value = data.title || '';
+                        document.getElementById('reddit-body-{{ draft["id"] }}').value = data.body || '';
+                        var counter = document.getElementById('char-count-{{ platform }}');
+                        if (counter) counter.textContent = (data.body||'').length + ' chars';
+                      } catch(e) {}
+                      // On form submit, combine title+body back to JSON
+                      var form = document.getElementById('draft-form-{{ draft["id"] }}');
+                      form.addEventListener('submit', function() {
+                        var t = document.getElementById('reddit-title-{{ draft["id"] }}').value;
+                        var b = document.getElementById('reddit-body-{{ draft["id"] }}').value;
+                        document.getElementById('reddit-combined-{{ draft["id"] }}').value = JSON.stringify({title: t, body: b});
+                      });
+                    })();
+                    </script>
+                  {% else %}
+                    <form method="post" action="{{ url_for('edit_single_draft', draft_id=draft['id']) }}" class="draft-edit-form" id="draft-form-{{ draft['id'] }}">
+                      <textarea name="draft_text" class="content-edit-area visible" style="display:block; min-height: 100px;"
+                                oninput="updateDraftCharCount(this, '{{ platform }}')">{{ raw_text }}</textarea>
+                      <div class="char-count" id="char-count-{{ platform }}">{{ raw_text|length }} chars</div>
+                    </form>
+                  {% endif %}
                   <div style="display: flex; gap: 6px; margin-top: 8px;">
                     <form method="post" action="{{ url_for('approve_single_draft', draft_id=draft['id']) }}" style="margin:0;">
                       <button type="submit" class="btn btn-success btn-sm">Approve</button>
@@ -148,8 +183,26 @@
                     <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('draft-form-{{ draft['id'] }}').submit();">Save Edit</button>
                   </div>
                 {% else %}
-                  {# Read-only draft (approved or rejected) #}
-                  <div class="content-preview" style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--text-primary); background: var(--bg-secondary); padding: 12px; border-radius: var(--radius);">{{ draft.get('draft_text', '') }}</div>
+                  {# Read-only draft (approved, rejected, or posted) #}
+                  {% if is_reddit_json %}
+                    <div class="content-preview" style="background: var(--bg-secondary); padding: 12px; border-radius: var(--radius);">
+                      <div id="reddit-display-{{ draft['id'] }}"></div>
+                      <script>
+                      (function(){
+                        try {
+                          var data = JSON.parse({{ raw_text|tojson }});
+                          var el = document.getElementById('reddit-display-{{ draft["id"] }}');
+                          el.innerHTML = '<div style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">' + (data.title||'').replace(/</g,'&lt;') + '</div>' +
+                            '<div style="font-size:14px; line-height:1.6; color:var(--text-primary); white-space:pre-wrap;">' + (data.body||'').replace(/</g,'&lt;') + '</div>';
+                        } catch(e) {
+                          document.getElementById('reddit-display-{{ draft["id"] }}').textContent = {{ raw_text|tojson }};
+                        }
+                      })();
+                      </script>
+                    </div>
+                  {% else %}
+                    <div class="content-preview" style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--text-primary); background: var(--bg-secondary); padding: 12px; border-radius: var(--radius);">{{ raw_text }}</div>
+                  {% endif %}
                   <div style="margin-top: 8px;">
                     {% if draft.get('approved') == -1 %}
                       <form method="post" action="{{ url_for('restore_single_draft', draft_id=draft['id']) }}" style="margin:0; display:inline;">
