@@ -1360,4 +1360,6 @@ if __name__ == "__main__":
     threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
     print(f"\n  Amplifier is running at http://localhost:{PORT}")
     print("  The app is in your system tray — keep it running for campaigns to work.\n")
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
     app.run(host="127.0.0.1", port=PORT, debug=False)
