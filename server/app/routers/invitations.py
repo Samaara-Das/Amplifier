@@ -136,7 +136,7 @@ async def get_invitations(
     result = await db.execute(
         select(CampaignAssignment)
         .join(Campaign)
-        .options(selectinload(CampaignAssignment.campaign))
+        .options(selectinload(CampaignAssignment.campaign).selectinload(Campaign.company))
         .where(
             and_(
                 CampaignAssignment.user_id == user.id,

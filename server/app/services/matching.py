@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
@@ -377,6 +378,7 @@ async def _get_existing_assignments(
     existing_query = (
         select(CampaignAssignment)
         .join(Campaign)
+        .options(selectinload(CampaignAssignment.campaign).selectinload(Campaign.company))
         .where(
             and_(
                 CampaignAssignment.user_id == user.id,
@@ -459,9 +461,11 @@ async def get_matched_campaigns(
         # Jump to returning existing assignments only
         return await _get_existing_assignments(user, db, set())
 
-    # Get all active campaigns
+    # Get all active campaigns (eagerly load company for company_name)
     result = await db.execute(
-        select(Campaign).where(Campaign.status == "active")
+        select(Campaign)
+        .options(selectinload(Campaign.company))
+        .where(Campaign.status == "active")
     )
     active_campaigns = result.scalars().all()
 
