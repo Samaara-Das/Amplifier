@@ -1,0 +1,37 @@
+uid=5_0 RootWebArea "(9) Facebook" url="https://www.facebook.com/"
+  uid=5_1 banner
+    uid=5_2 link "Facebook" url="https://www.facebook.com/"
+    uid=5_3 StaticText " "
+    uid=5_4 combobox "Search Facebook" autocomplete="list" expandable haspopup="listbox"
+    uid=5_5 navigation "Facebook"
+      uid=5_6 link "Home" url="https://www.facebook.com/"
+      uid=5_7 link "Friends" url="https://www.facebook.com/friends/"
+      uid=5_8 link "Reels" url="https://www.facebook.com/reel/?s=tab"
+      uid=5_9 link "Groups" url="https://www.facebook.com/groups/"
+      uid=5_10 link "Gaming" url="https://www.facebook.com/gaming/play/?store_visit_source=gaming_tab"
+    uid=5_11 navigation "Account Controls and Settings"
+      uid=5_12 button "Facebook menu"
+      uid=5_13 button "Messenger" expandable
+      uid=5_14 button "Notifications, 9 unread" expandable
+      uid=5_15 button "Your profile" expandable
+  uid=6_0 generic
+    uid=6_1 heading "Create post" level="2"
+    uid=6_2 button "Close composer dialog"
+    uid=6_3 link "Samaara Das's Timeline" url="https://www.facebook.com/profile.php?id=100086447984609&__tn__=%3C"
+    uid=6_4 StaticText "Samaara Das"
+    uid=6_5 button "Edit privacy. Sharing with Your friends. "
+    uid=6_6 textbox "What's on your mind, Samaara?" multiline value="Testing Amplifier posting."
+      uid=6_7 paragraph
+        uid=7_0 StaticText "Testing Amplifier posting."
+    uid=6_8 button "Show Background Options"
+    uid=6_9 button "Emoji"
+    uid=6_10 button "Add to your post"
+    uid=6_11 button "Photo/video" focusable focused
+    uid=6_12 button "Tag people"
+    uid=6_13 button "Feeling/activity"
+    uid=6_14 button "Check in"
+    uid=6_15 button "GIF"
+    uid=6_16 button "More attachment options"
+    uid=6_17 button "Post"
+  uid=5_1534 button "New message"
+  uid=5_1535 generic

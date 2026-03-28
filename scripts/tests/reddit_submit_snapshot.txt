@@ -1,0 +1,89 @@
+uid=8_0 RootWebArea "Submit to r/fintech" url="https://www.reddit.com/r/fintech/submit/?type=TEXT"
+  uid=8_1 link "Skip to main content" url="https://www.reddit.com/r/fintech/submit/?type=TEXT#main-content"
+    uid=8_2 StaticText "Skip to main content"
+  uid=8_3 generic atomic live="assertive" relevant="additions text"
+    uid=8_4 StaticText "Submit to r/fintech"
+  uid=8_5 banner
+    uid=8_6 navigation
+      uid=8_7 link "Home" url="https://www.reddit.com/"
+      uid=8_8 search
+        uid=8_9 button pressed
+        uid=8_10 textbox "Remove r/fintech filter and expand search to all of Reddit"
+      uid=8_11 link "Advertise on Reddit" url="https://ads.reddit.com/register?utm_source=web3x_consumer&utm_name=nav_cta"
+        uid=8_12 StaticText "Advertise on Reddit"
+      uid=8_13 button "Open chat"
+      uid=8_14 link "Create post" url="https://www.reddit.com/r/fintech/submit/"
+        uid=8_15 StaticText "Create"
+        uid=8_16 StaticText "Create post"
+      uid=8_17 link "Open inbox" url="https://www.reddit.com/notifications"
+        uid=8_18 StaticText "Open inbox"
+      uid=8_19 StaticText "1"
+      uid=8_20 button "Expand user menu" expandable haspopup="menu"
+  uid=8_21 generic live="polite" relevant="additions text"
+    uid=8_22 generic live="polite" relevant="additions text"
+  uid=8_23 link "Skip to Navigation" url="https://www.reddit.com/r/fintech/submit/?type=TEXT#left-sidebar-container"
+    uid=8_24 StaticText "Skip to Navigation"
+  uid=8_25 link "Skip to Right Sidebar" url="https://www.reddit.com/r/fintech/submit/?type=TEXT#right-sidebar-container"
+    uid=8_26 StaticText "Skip to Right Sidebar"
+  uid=8_27 main
+    uid=8_28 heading "Create post" level="1"
+    uid=8_29 button "Drafts"
+    uid=8_30 button "r/fintech"
+    uid=8_31 tab "Text" selectable selected
+    uid=8_32 tab "Images & Video" selectable
+    uid=8_33 tab "Link" selectable
+    uid=8_34 tab "Poll" selectable
+    uid=8_35 tab "AMA" selectable
+    uid=8_36 StaticText "Title"
+    uid=8_37 textbox "Title" multiline required
+    uid=8_38 generic live="polite" relevant="additions text"
+      uid=8_39 generic live="polite" relevant="additions text"
+      uid=8_40 generic live="assertive" relevant="additions text"
+    uid=8_41 StaticText "0"
+    uid=8_42 StaticText "/"
+    uid=8_43 StaticText "300"
+    uid=8_44 button "Not available for this community"
+    uid=8_45 textbox "Post body text field" multiline value="
+"
+      uid=8_46 paragraph
+    uid=8_47 button "Bold"
+    uid=8_48 button "Italic"
+    uid=8_49 button "Strikethrough"
+    uid=8_50 button "Superscript"
+    uid=8_51 button "Heading"
+    uid=8_52 button "Link"
+    uid=8_53 button "Image"
+    uid=8_54 button "Video"
+    uid=8_55 button "Bullet List"
+    uid=8_56 button "Number List"
+    uid=8_57 button "Spoiler"
+    uid=8_58 button "Quote Block"
+    uid=8_59 button "Code"
+    uid=8_60 button "Code Block"
+    uid=8_61 button "Table"
+    uid=8_62 button "More options" expandable haspopup="menu"
+    uid=8_63 button "Post" disableable disabled
+    uid=8_64 button "Save Draft" disableable disabled
+  uid=8_65 complementary "Promotion"
+  uid=8_66 heading "R/FINTECH RULES" level="2"
+  uid=8_67 DisclosureTriangle "1 Be nice to others" expandable
+    uid=8_68 generic
+  uid=8_69 DisclosureTriangle "2 No discreet self promotion" expandable
+    uid=8_70 generic
+  uid=8_71 DisclosureTriangle "3 Keep quality high" expandable
+    uid=8_72 generic
+  uid=8_73 heading "SET USER FLAIR" level="2"
+  uid=8_74 button "SamaaraDas" expandable haspopup="menu"
+  uid=8_75 complementary "Entity Highlight Panel"
+  uid=8_76 link "Reddit Rules" url="https://www.redditinc.com/policies/content-policy"
+    uid=8_77 StaticText "Reddit Rules"
+  uid=8_78 link "Privacy Policy" url="https://www.reddit.com/policies/privacy-policy"
+    uid=8_79 StaticText "Privacy Policy"
+  uid=8_80 link "User Agreement" url="https://www.redditinc.com/policies/user-agreement"
+    uid=8_81 StaticText "User Agreement"
+  uid=8_82 link "Accessibility" url="https://support.reddithelp.com/hc/sections/38303584022676-Accessibility"
+    uid=8_83 StaticText "Accessibility"
+  uid=8_84 StaticText "•"
+  uid=8_85 link "Reddit, Inc. © 2026. All rights reserved." url="https://redditinc.com/"
+    uid=8_86 StaticText "Reddit, Inc. © 2026. All rights reserved."
+  uid=8_87 button "Expand Navigation"
