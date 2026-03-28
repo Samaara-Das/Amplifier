@@ -374,7 +374,7 @@
       {
         "id": "25",
         "title": "Explain: Content Review/Approval",
-        "description": "Walk through how the content review and approval flow currently works ' draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
+        "description": "Walk through how the content review and approval flow currently works ' draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nDONE: Review flow works \u2014 approve/reject/edit/restore/unapprove/approve-all. Reddit JSON formatted as title+body. Company name added. Auto-reload on state changes.",
         "status": "done",
         "priority": "high",
         "dependencies": [
@@ -390,8 +390,8 @@
       {
         "id": "26",
         "title": "Verify: Content Review/Approval",
-        "description": "Ask the user what the acceptance criteria is for content review/approval so that we know when it's fully done. Then test against those criteria.",
-        "status": "in-progress",
+        "description": "Ask the user what the acceptance criteria is for content review/approval so that we know when it's fully done. Then test against those criteria.\n\nDONE: Verified approve, reject, restore, unapprove, edit, approve-all. Reddit display fixed. Past posts formatted. Desktop notification fires on posting. Company name display added (requires eager loading fix).",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "25"

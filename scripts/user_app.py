@@ -1334,32 +1334,41 @@ def api_status():
 if __name__ == "__main__":
     init_db()
 
-    # Start system tray icon
-    try:
-        from utils.tray import start_tray, stop_tray, send_notification
+    # use_reloader spawns a child process — only start tray/agent in the child
+    # (the parent is the reloader watcher, not the actual app)
+    is_reloader_parent = os.environ.get("WERKZEUG_RUN_MAIN") != "true"
 
-        def _on_quit():
-            """Called when user clicks Quit in tray menu."""
-            try:
-                stop_agent()
-            except Exception:
-                pass
-            os._exit(0)
-
-        start_tray(port=PORT, on_quit=_on_quit)
-    except Exception as e:
-        logger.warning("System tray not available: %s", e)
-
-    # Start background agent if user is logged in and onboarded
-    if is_logged_in() and get_setting("onboarding_done") == "true":
+    if not is_reloader_parent:
+        # Start system tray icon (only in the actual app process)
         try:
-            start_agent()
-        except Exception as e:
-            logger.error("Failed to start background agent: %s", e)
+            from utils.tray import start_tray, stop_tray, send_notification
 
-    threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+            def _on_quit():
+                """Called when user clicks Quit in tray menu."""
+                try:
+                    stop_agent()
+                except Exception:
+                    pass
+                os._exit(0)
+
+            start_tray(port=PORT, on_quit=_on_quit)
+        except Exception as e:
+            logger.warning("System tray not available: %s", e)
+
+        # Start background agent if user is logged in and onboarded
+        if is_logged_in() and get_setting("onboarding_done") == "true":
+            try:
+                start_agent()
+            except Exception as e:
+                logger.error("Failed to start background agent: %s", e)
+
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+
     print(f"\n  Amplifier is running at http://localhost:{PORT}")
     print("  The app is in your system tray — keep it running for campaigns to work.\n")
+    if not is_reloader_parent:
+        print("  Hot reload enabled — Python and template changes auto-apply.\n")
+
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.jinja_env.auto_reload = True
-    app.run(host="127.0.0.1", port=PORT, debug=False)
+    app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=True)
