@@ -1,0 +1,12 @@
+uid=10_0 RootWebArea "(99+) Activity | Samaara Das | LinkedIn" url="https://www.linkedin.com/in/samaara-das/recent-activity/all/"
+  uid=10_1 region "Toast message"
+    uid=10_2 heading "0 notifications total" level="2"
+    uid=10_3 alert atomic live="assertive" relevant="additions text"
+  uid=12_0 dialog "Delete post?"
+    uid=12_1 StaticText "Dialog content start."
+    uid=12_2 heading "Delete post?" level="2"
+    uid=12_3 StaticText "Are you sure you want to permanently remove this post from LinkedIn?"
+    uid=12_4 button "Cancel" focusable focused
+    uid=12_5 button "Delete"
+    uid=12_6 StaticText "Dialog content end."
+  uid=10_4 generic live="polite" relevant="additions text"
