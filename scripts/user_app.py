@@ -996,6 +996,31 @@ def restore_single_draft(draft_id):
     return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
 
 
+@app.route("/drafts/<int:draft_id>/unapprove", methods=["POST"])
+def unapprove_single_draft(draft_id):
+    from utils.local_db import get_draft
+
+    draft = get_draft(draft_id)
+    if not draft:
+        flash("Draft not found.", "error")
+        return redirect(url_for("campaigns"))
+
+    # Only unapprove if approved and not yet posted
+    if draft.get("approved") == 1 and draft.get("posted") != 1:
+        conn = __import__("sqlite3").connect(str(ROOT / "data" / "local.db"))
+        # Set back to pending
+        conn.execute("UPDATE agent_draft SET approved = 0 WHERE id = ?", (draft_id,))
+        # Remove from post schedule
+        conn.execute("DELETE FROM post_schedule WHERE draft_id = ?", (draft_id,))
+        conn.commit()
+        conn.close()
+        flash("Draft unapproved and removed from posting schedule.", "success")
+    else:
+        flash("Cannot unapprove — draft is already posted or not approved.", "warning")
+
+    return redirect(url_for("campaign_detail", campaign_id=draft["campaign_id"]))
+
+
 @app.route("/drafts/<int:draft_id>/edit", methods=["POST"])
 def edit_single_draft(draft_id):
     from utils.local_db import update_draft_text, get_draft
