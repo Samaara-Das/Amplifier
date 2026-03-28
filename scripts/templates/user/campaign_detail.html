@@ -263,7 +263,13 @@
                       {% endif %}
                     </div>
                     <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; max-height: 80px; overflow: hidden; text-overflow: ellipsis;">
-                      {{ draft.get('draft_text', '')[:150] }}{% if draft.get('draft_text', '')|length > 150 %}...{% endif %}
+                      {% set past_text = draft.get('draft_text', '') %}
+                      {% if draft.get('platform') == 'reddit' and past_text.startswith('{') %}
+                        <span id="past-reddit-{{ draft.get('id', loop.index) }}"></span>
+                        <script>(function(){ try { var d=JSON.parse({{ past_text|tojson }}); document.getElementById('past-reddit-{{ draft.get("id", loop.index) }}').textContent = d.title + ' — ' + (d.body||'').substring(0,100) + '...'; } catch(e){ document.getElementById('past-reddit-{{ draft.get("id", loop.index) }}').textContent = {{ past_text[:150]|tojson }}; } })();</script>
+                      {% else %}
+                        {{ past_text[:150] }}{% if past_text|length > 150 %}...{% endif %}
+                      {% endif %}
                     </div>
                     {% set post_key = draft.get('platform', '') + '_' + date_str %}
                     {% if posts_by_platform_date.get(post_key) %}
