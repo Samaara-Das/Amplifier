@@ -159,8 +159,9 @@ async def generate_daily_content() -> dict:
                             "Content Ready for Review",
                             f"{campaign_title} — {len(draft_ids)} drafts generated. Open Amplifier to review.",
                         )
-                    except Exception:
-                        pass
+                        logger.info("Desktop notification sent for campaign %s", campaign_id)
+                    except Exception as notif_err:
+                        logger.warning("Desktop notification failed: %s", notif_err)
 
                     # Update campaign status if it was 'assigned'
                     if campaign.get('status') == 'assigned':

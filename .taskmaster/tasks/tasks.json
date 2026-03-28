@@ -375,7 +375,7 @@
         "id": "25",
         "title": "Explain: Content Review/Approval",
         "description": "Walk through how the content review and approval flow currently works ' draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "23"
@@ -957,7 +957,7 @@
       {
         "id": "63",
         "title": "Build 4-phase AI content agent (research, strategy, creation, review)",
-        "description": "Replace single-prompt content generator with a sophisticated 4-phase AI agent. See FUTURE.md for full architecture.\n\nPhases: 1) Weekly research (product, competitors, trends, image analysis via vision API), 2) Goal-driven strategy (leads vs virality vs awareness vs engagement), 3) Daily platform-native UGC creation (hooks, stories, real language, image matching), 4) Review flow (semi-auto or full-auto).\n\nBEFORE BUILDING: Research existing AI tools/frameworks that could handle this. Evaluate: Jasper API, Copy.ai API, CrewAI, AutoGen, LangGraph, FeedHive API, Predis.ai. Goal is leverage \u2014 use an existing tool if it does 80% of what we need. Only build custom if nothing fits.\n\nIf building custom: use Gemini/Mistral/Groq APIs with the 4-phase ContentAgent architecture (see FUTURE.md for class diagram).\n\nDo NOT start until all verification tasks (25-50) are done.",
+        "description": "Replace single-prompt content generator with a sophisticated 4-phase AI agent. See FUTURE.md for full architecture.\n\nPhases: 1) Weekly research (product, competitors, trends, image analysis via vision API), 2) Goal-driven strategy (leads vs virality vs awareness vs engagement), 3) Daily platform-native UGC creation (hooks, stories, real language, image matching), 4) Review flow (semi-auto or full-auto).\n\nBEFORE BUILDING: Research existing AI tools/frameworks that could handle this. Evaluate: Jasper API, Copy.ai API, CrewAI, AutoGen, LangGraph, FeedHive API, Predis.ai. Goal is leverage \u2014 use an existing tool if it does 80% of what we need. Only build custom if nothing fits.\n\nIf building custom: use Gemini/Mistral/Groq APIs with the 4-phase ContentAgent architecture (see FUTURE.md for class diagram).\n\nDo NOT start until all verification tasks (25-50) are done.\n\nSCHEDULING: The content agent (Phase 2 Strategy) should determine the scheduled posting time for each draft, not the review/approval flow. The agent decides WHEN to post based on campaign goal, target region timezone, platform peak hours, and posting frequency strategy.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -985,12 +985,28 @@
           "platforms"
         ],
         "subtasks": []
+      },
+      {
+        "id": "65",
+        "title": "Platform-specific content preview in review UI",
+        "description": "Show draft content as a visual mockup of how it would appear on each platform (X tweet card, LinkedIn post card, Reddit post, etc.) instead of plain text. This is a UI improvement, not functional \u2014 drafts already work as plain text.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "63"
+        ],
+        "tags": [
+          "future",
+          "ui",
+          "content-review"
+        ],
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
       "lastModified": "2026-03-27T10:00:00.000Z",
-      "taskCount": 64,
+      "taskCount": 65,
       "completedCount": 18,
       "tags": [
         "master"
