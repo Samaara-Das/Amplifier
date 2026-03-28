@@ -74,18 +74,57 @@ Deferred features that are designed but not yet implemented. The backend/model s
 - LoRA training per-user for face/style consistency
 - DALL-E, Nano Banana, Ideogram as alternative providers
 
-## Platform-Specific Content Formats
+## Platform-Specific Content Formats + Posting System Upgrade
 
 **Status**: Not started
-**Why deferred**: Current posting only supports basic text + single image per platform. Each platform has unique content formats that drive higher engagement.
+**Why deferred**: Current posting only supports basic text + single image per platform. Each platform has unique content formats that drive higher engagement. The posting system (`post.py`) must be updated to handle all common formats.
 
-**Formats to add**:
-- **LinkedIn**: Document/carousel uploads (PDF slides), polls, articles
-- **X (Twitter)**: Threads (multi-tweet), polls, quote tweets
-- **Reddit**: Link posts vs text posts, polls, cross-posting to multiple subreddits
-- **Facebook**: Photo albums, polls, events, stories
-- **Instagram**: Carousels (multiple images), Reels (short video), Stories
-- **TikTok**: Duets, stitches, slideshows
+**All 6 platforms must be supported**: X, LinkedIn, Facebook, Reddit, TikTok, Instagram.
+
+**Formats to add per platform** (most-used formats that the posting system must handle):
+
+**X (Twitter)**:
+- Text-only tweet
+- Image + text tweet
+- Multi-image tweet (up to 4 images)
+- Thread posts (multi-tweet, linked together)
+- Polls
+- Quote tweets
+
+**LinkedIn**:
+- Text-only post
+- Image + text post
+- Document/carousel uploads (PDF slides — high engagement format)
+- Polls
+- Articles (long-form)
+- Video posts
+
+**Facebook**:
+- Text-only post
+- Image + text post
+- Photo albums (multiple images)
+- Polls
+- Video posts
+- Stories
+
+**Reddit**:
+- Text posts (title + body)
+- Link posts (title + URL)
+- Image posts
+- Polls
+- Cross-posting to multiple subreddits
+
+**Instagram** (currently disabled — re-enable):
+- Single image + caption
+- Carousels (multiple images/slides)
+- Reels (short video)
+- Stories
+
+**TikTok** (currently disabled — re-enable):
+- Video posts
+- Slideshows (image sequence as video)
+- Duets
+- Stitches
 
 **To implement**:
 1. Update content generator to produce format-specific content (e.g., thread = array of tweets, carousel = array of slides)

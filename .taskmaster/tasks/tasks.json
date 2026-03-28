@@ -969,12 +969,28 @@
           "ai-agent"
         ],
         "subtasks": []
+      },
+      {
+        "id": "64",
+        "title": "Upgrade posting system for all content formats across 6 platforms (incl. TikTok + Instagram)",
+        "description": "Update post.py to handle all common content formats per platform: X (threads, multi-image, polls), LinkedIn (carousels/PDFs, polls, articles, video), Facebook (albums, polls, video, stories), Reddit (link posts, image posts, polls, cross-posting), Instagram (carousels, Reels, Stories), TikTok (video, slideshows, duets). Re-enable Instagram and TikTok. Content generator must produce format-specific drafts. See FUTURE.md for full format list per platform.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "63"
+        ],
+        "tags": [
+          "major",
+          "posting",
+          "platforms"
+        ],
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
       "lastModified": "2026-03-27T10:00:00.000Z",
-      "taskCount": 63,
+      "taskCount": 64,
       "completedCount": 18,
       "tags": [
         "master"
