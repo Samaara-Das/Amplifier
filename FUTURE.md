@@ -258,6 +258,73 @@ The content generation AI should learn and improve:
 
 **Implementation**: Store post performance data in `agent_content_insights` table (already exists). Build a feedback loop: generate → post → measure → learn → generate better.
 
+## 4-Phase AI Content Agent (MAJOR REBUILD)
+
+**Status**: Not started — requirements fully defined in Task #23
+**Priority**: Critical — this is the core value Amplifier delivers to companies
+
+Replace the current single-prompt content generator with a sophisticated 4-phase AI agent system.
+
+### Phase 1 — Research (weekly per campaign)
+- Deep-dive into the product using ALL campaign sources (brief, scraped URLs, uploaded files, images)
+- Competitor research: what are competitors posting? What content formats work in this niche?
+- Trend research: what's trending in this niche/industry right now?
+- Image intelligence: analyze campaign images via vision API (Gemini Vision), understand what each shows
+- Results cached and reused daily, refreshed weekly
+
+### Phase 2 — Strategy (per campaign, refreshed weekly)
+Campaign goal drives everything:
+- **LEADS**: links to product, strong CTAs, landing page mentions, conversion-focused
+- **VIRALITY**: emotionally triggering, images/videos, high posting frequency, shareable hooks
+- **BRAND AWARENESS**: natural product mentions, lifestyle content, consistent presence
+- **ENGAGEMENT**: questions, polls, controversial takes, discussion starters
+
+Decides per-platform: post type (text/image/video), posting frequency, tone, scheduling.
+
+### Phase 3 — Content Creation (daily)
+- Platform-native UGC that looks REAL (not polished marketing)
+- Hooks: emotional triggers, curiosity gaps, contrarian takes, real-life scenarios, stories
+- Imperfect language (casual, not corporate-perfect)
+- Each platform has its own style (X: punchy, LinkedIn: story, Reddit: genuine, Facebook: conversational)
+- NOT compulsory to use all assets/hashtags in every draft
+- Images matched to posts by content relevance (not blindly attached)
+- Content types: text-only, image-only, image+text
+
+### Phase 4 — Review (per draft)
+- Semi-auto: drafts shown to user with per-campaign desktop notification
+- Full-auto: auto-approved and scheduled immediately
+
+### Build vs Buy Decision
+**IMPORTANT**: Before building a custom 4-phase agent, research existing AI tools/frameworks/products that could handle this:
+- **AI content platforms**: Jasper, Copy.ai, Lately.ai, Predis.ai — do they have APIs that could be integrated?
+- **AI agent frameworks**: CrewAI, AutoGen, LangGraph, Composio — could these orchestrate the 4 phases?
+- **Social media AI tools**: FeedHive, Publer, ContentStudio — do they offer white-label or API access?
+
+The goal is **leverage** — if an existing tool does 80% of what we need, integrate it rather than building from scratch. However, if no tool fits (most are designed for single users, not a marketplace), build a custom agent using the Gemini/Mistral/Groq APIs with the 4-phase architecture.
+
+**Evaluate criteria**: cost per generation, quality of output, platform-native formatting, API availability, customizability, supports campaign-goal-driven content.
+
+### Technical Architecture (if building custom)
+```
+ContentAgent
+├── ResearchPhase (weekly)
+│   ├── product_deep_dive(campaign) → product_knowledge
+│   ├── competitor_scan(niche) → competitor_insights
+│   ├── trend_scan(niche) → trending_topics
+│   └── image_analysis(images) → image_descriptions
+├── StrategyPhase (weekly, uses research)
+│   ├── goal_strategy(campaign_goal) → content_strategy
+│   ├── platform_plan(platforms) → per_platform_config
+│   └── scheduling_plan(region, platforms) → posting_schedule
+├── CreationPhase (daily, uses strategy + research)
+│   ├── generate_drafts(strategy, research) → drafts[]
+│   ├── match_images(drafts, images) → drafts_with_images[]
+│   └── quality_check(drafts) → filtered_drafts[]
+└── ReviewPhase (per draft)
+    ├── semi_auto → show to user, notify
+    └── full_auto → approve + schedule
+```
+
 ## Free and Paid Tiers
 
 **Status**: Not started

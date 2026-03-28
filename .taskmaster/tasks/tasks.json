@@ -343,7 +343,7 @@
         "id": "23",
         "title": "Explain: AI Content Generation",
         "description": "Walk through how AI content generation currently works. Identify gaps between current implementation and what it should be. The user will specify what to fix.\n\nCURRENT STATE: Basic single-prompt content generation. No strategy phase, no competitor research, no goal-driven content.\n\nWHAT IT SHOULD BE (user-specified):\n\nAI AGENT: An actual AI agent should handle content generation through all 4 phases (research, strategy, creation, review). Not a single prompt call.\n\nPHASE 1 - RESEARCH (weekly per campaign):\n- Competitor research: what are competitors posting? What works for them?\n- Trend research: what is trending in this niche right now?\n- Product deep-dive: use ALL campaign sources (brief, scraped URLs, uploaded files, images)\n- Research runs ONCE PER WEEK per active campaign, results cached and reused daily\n\nPHASE 2 - STRATEGY (per campaign, refreshed weekly):\n- Campaign goal drives content strategy:\n  * LEADS: content has links to product, strong CTAs, landing page mentions\n  * VIRALITY: emotionally triggering content, images/videos, high posting frequency to stay in peoples heads\n  * BRAND AWARENESS: product mentions woven naturally, lifestyle content, consistent presence\n  * ENGAGEMENT: questions, polls, controversial takes, discussion starters\n- Post type per platform: text-only, image+text, or image-only (based on what performs best)\n- Posting frequency: how many posts per day per platform\n- Tone and angle: derived from research + campaign goal (NOT hardcoded)\n\nPHASE 3 - CONTENT CREATION:\n- Platform-native content that looks like REAL UGC (not polished marketing):\n  * Hooks that stop the scroll (emotional triggers, curiosity gaps, contrarian takes)\n  * Real-life scenarios and personal stories\n  * Imperfect language (typos-level casual, not corporate-perfect)\n  * Each platform has its own writing style (X: punchy + hashtags, LinkedIn: story format with line breaks, Reddit: genuine community member, Facebook: conversational)\n- NOT compulsory to use all assets/hashtags in every draft\n- Must-include items woven naturally where they fit, not forced\n- Campaign images used where appropriate (not every post)\n- Content types: text-only, image-only, image+text\n\nPHASE 4 - REVIEW:\n- Semi-auto: drafts shown to user with desktop notification\n- Full-auto: auto-approved and scheduled\n\nFREE API CREDITS: All content creation within free-tier limits. Gemini -> Mistral -> Groq fallback chain. Design to stay within daily free quotas.\n\nIMPACTS: Task 25 (review must handle image+text drafts), Task 27 (posting must handle all content types), Task 39 (notifications per campaign), Task 52 (future image/video gen tools plug into Phase 3)\n\nIMAGE INTELLIGENCE: When the company provides product images (Campaign.assets.image_urls), the AI must analyze each image (via vision API like Gemini Vision), understand what it shows (product shot, lifestyle photo, screenshot, infographic etc.), and decide WHICH posts should include WHICH images based on relevance. Not every post gets an image. The AI matches image content to post content \u2014 e.g., a product screenshot goes with a feature-focused post, a lifestyle photo goes with a story post. Images should NOT be blindly attached to every draft.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "21"
@@ -358,8 +358,8 @@
       {
         "id": "24",
         "title": "Verify: AI Content Generation",
-        "description": "Ask the user what the acceptance criteria is for AI content generation so that we know when it's fully done. Then test against those criteria.",
-        "status": "pending",
+        "description": "Ask the user what the acceptance criteria is for AI content generation so that we know when it's fully done. Then test against those criteria.\n\nSKIPPED: Current content gen is known to be inadequate (single-prompt, no strategy, no research). Requirements fully documented in task 23. Will be rebuilt as 4-phase AI agent (task 63) after all verification tasks complete.",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "23"
@@ -953,12 +953,28 @@
           "monetization"
         ],
         "subtasks": []
+      },
+      {
+        "id": "63",
+        "title": "Build 4-phase AI content agent (research, strategy, creation, review)",
+        "description": "Replace single-prompt content generator with a sophisticated 4-phase AI agent. See FUTURE.md for full architecture.\n\nPhases: 1) Weekly research (product, competitors, trends, image analysis via vision API), 2) Goal-driven strategy (leads vs virality vs awareness vs engagement), 3) Daily platform-native UGC creation (hooks, stories, real language, image matching), 4) Review flow (semi-auto or full-auto).\n\nBEFORE BUILDING: Research existing AI tools/frameworks that could handle this. Evaluate: Jasper API, Copy.ai API, CrewAI, AutoGen, LangGraph, FeedHive API, Predis.ai. Goal is leverage \u2014 use an existing tool if it does 80% of what we need. Only build custom if nothing fits.\n\nIf building custom: use Gemini/Mistral/Groq APIs with the 4-phase ContentAgent architecture (see FUTURE.md for class diagram).\n\nDo NOT start until all verification tasks (25-50) are done.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "54"
+        ],
+        "tags": [
+          "major",
+          "content-generation",
+          "ai-agent"
+        ],
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
       "lastModified": "2026-03-27T10:00:00.000Z",
-      "taskCount": 62,
+      "taskCount": 63,
       "completedCount": 18,
       "tags": [
         "master"
