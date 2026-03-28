@@ -20,10 +20,9 @@ os.environ.setdefault("AUTO_POSTER_ROOT", str(ROOT))
 
 # draft_manager and human_behavior removed — campaign posting managed by background_agent
 # Stubs for any remaining references in platform functions
-def human_delay(min_ms=500, max_ms=2000):
+async def human_delay(min_ms=500, max_ms=2000):
     """Minimal delay between actions."""
-    import time
-    time.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
+    await asyncio.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
 
 async def human_type(page, selector, text, **kwargs):
     """Type text character by character with small delays."""
@@ -557,25 +556,37 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         await page.wait_for_load_state("domcontentloaded")
         await human_delay(2, 4)
 
-        # Fill title — textarea inside faceplate-textarea-input shadow component
-        # Playwright locators pierce shadow DOM automatically
-        title_el = page.locator('textarea[name="title"]').first
+        # Fill title — Reddit 2026 UI uses textbox with label "Title"
+        # Try multiple selectors for robustness
+        title_el = page.locator(
+            'textarea[name="title"], '
+            '[role="textbox"][aria-label="Title"], '
+            'textbox[name="Title"]'
+        ).first
         await title_el.wait_for(timeout=COMPOSE_TIMEOUT)
         await title_el.click()
-        await human_type(page, 'textarea[name="title"]', title)
+        await title_el.fill(title)
         logger.info("Reddit: filled title")
         await human_delay(1, 2)
 
-        # Fill body — contenteditable div with role="textbox"
-        body_el = page.locator('[role="textbox"][name="body"], div[contenteditable="true"][name="body"]').first
+        # Fill body — try multiple selectors (Reddit UI changes frequently)
+        body_el = page.locator(
+            '[role="textbox"][name="body"], '
+            'div[contenteditable="true"][name="body"], '
+            'textarea[placeholder*="Body"], '
+            'textarea[placeholder*="body"]'
+        ).first
         await body_el.wait_for(timeout=COMPOSE_TIMEOUT)
         await body_el.click()
-        await human_type(page, '[role="textbox"][name="body"]', body)
+        await body_el.fill(body)
         logger.info("Reddit: filled body")
         await human_delay(1, 3)
 
-        # Click Post button
-        post_btn = page.locator('button:has-text("Post")').first
+        # Click Post button — try multiple selectors
+        post_btn = page.locator(
+            'button:has-text("Post"):not(:has-text("Create")):not(:has-text("Save")), '
+            'button[type="submit"]:has-text("Post")'
+        ).first
         await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
         await post_btn.click()
         logger.info("Reddit: clicked Post")
