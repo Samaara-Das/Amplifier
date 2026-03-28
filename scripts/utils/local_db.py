@@ -194,6 +194,8 @@ def init_db() -> None:
         "ALTER TABLE local_post ADD COLUMN status TEXT DEFAULT 'posted'",
         # v3: scraped_data for content research
         "ALTER TABLE local_campaign ADD COLUMN scraped_data TEXT DEFAULT '{}'",
+        # v4: company name for display
+        "ALTER TABLE local_campaign ADD COLUMN company_name TEXT",
     ]
     for stmt in _safe_alter_columns:
         try:
@@ -252,8 +254,8 @@ def upsert_campaign(campaign: dict) -> None:
             (server_id, assignment_id, title, brief, assets, content_guidance,
              payout_rules, payout_multiplier, status,
              invitation_status, invited_at, expires_at, responded_at,
-             updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+             company_name, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         """, (
             campaign_id,
             campaign["assignment_id"],
@@ -268,6 +270,7 @@ def upsert_campaign(campaign: dict) -> None:
             campaign.get("invited_at"),
             campaign.get("expires_at"),
             campaign.get("responded_at"),
+            campaign.get("company_name"),
         ))
     else:
         # Existing campaign — update data but PRESERVE the local status
@@ -276,7 +279,7 @@ def upsert_campaign(campaign: dict) -> None:
                 assignment_id = ?, title = ?, brief = ?, assets = ?,
                 content_guidance = ?, payout_rules = ?, payout_multiplier = ?,
                 invitation_status = ?, invited_at = ?, expires_at = ?,
-                responded_at = ?, updated_at = datetime('now')
+                responded_at = ?, company_name = ?, updated_at = datetime('now')
             WHERE server_id = ?
         """, (
             campaign["assignment_id"],
@@ -290,6 +293,7 @@ def upsert_campaign(campaign: dict) -> None:
             campaign.get("invited_at"),
             campaign.get("expires_at"),
             campaign.get("responded_at"),
+            campaign.get("company_name"),
             campaign_id,
         ))
 

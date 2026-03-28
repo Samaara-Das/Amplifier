@@ -161,6 +161,7 @@ async def get_invitations(
             "platforms_required": targeting.get("required_platforms", []),
             "expires_at": a.expires_at.isoformat() if a.expires_at else None,
             "invited_at": a.invited_at.isoformat() if a.invited_at else None,
+            "company_name": campaign.company.name if campaign.company else None,
         })
 
     return invitations

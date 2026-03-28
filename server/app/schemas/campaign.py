@@ -77,6 +77,7 @@ class CampaignBrief(BaseModel):
     content_guidance: str | None
     payout_rules: dict
     payout_multiplier: float
+    company_name: str | None = None
 
     model_config = {"from_attributes": True}
 

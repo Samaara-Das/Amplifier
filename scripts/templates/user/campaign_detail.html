@@ -12,7 +12,12 @@
 
   <!-- Campaign Header -->
   <div class="page-header" style="margin-bottom: 16px;">
-    <h1>{{ campaign.get('title', 'Campaign') }}</h1>
+    <div>
+      <h1>{{ campaign.get('title', 'Campaign') }}</h1>
+      {% if campaign.get('company_name') %}
+        <div style="font-size:14px; color:#94a3b8; margin-top:2px;">by {{ campaign.get('company_name') }}</div>
+      {% endif %}
+    </div>
     {% set status = campaign.get('status', 'assigned') %}
     <span class="status-badge {{ status }}" style="font-size: 14px; padding: 5px 14px;">
       <span class="status-badge-dot"></span>

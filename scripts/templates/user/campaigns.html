@@ -40,7 +40,12 @@
         <div class="invitation-card" style="border:1px solid #334155; border-radius:12px; padding:0; overflow:hidden; margin-bottom:16px;">
           <!-- Header -->
           <div style="padding:16px 20px; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;">
-            <a href="{{ url_for('campaign_detail', campaign_id=inv.get('campaign_id', inv.get('server_id', 0))) }}" style="margin:0; font-size:18px; font-weight:700; color:#f8fafc; text-decoration:none;">{{ inv.get('campaign_title', inv.get('title', 'Campaign')) }} <span style="font-size:12px; color:#3b82f6;">View details &rarr;</span></a>
+            <div>
+              <a href="{{ url_for('campaign_detail', campaign_id=inv.get('campaign_id', inv.get('server_id', 0))) }}" style="margin:0; font-size:18px; font-weight:700; color:#f8fafc; text-decoration:none;">{{ inv.get('campaign_title', inv.get('title', 'Campaign')) }} <span style="font-size:12px; color:#3b82f6;">View details &rarr;</span></a>
+              {% if inv.get('company_name') %}
+                <div style="font-size:13px; color:#94a3b8; margin-top:2px;">by {{ inv.get('company_name') }}</div>
+              {% endif %}
+            </div>
             {% if inv.get('expires_at') %}
               <span style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:4px;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

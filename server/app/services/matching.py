@@ -405,6 +405,7 @@ async def _get_existing_assignments(
                 content_guidance=campaign.content_guidance,
                 payout_rules=campaign.payout_rules,
                 payout_multiplier=1.0,
+                company_name=campaign.company.name if campaign.company else None,
             )
         )
     return result
@@ -540,6 +541,7 @@ async def get_matched_campaigns(
                 content_guidance=campaign.content_guidance,
                 payout_rules=campaign.payout_rules,
                 payout_multiplier=1.0,
+                company_name=campaign.company.name if campaign.company else None,
             )
         )
 
