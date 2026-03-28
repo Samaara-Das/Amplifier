@@ -124,8 +124,12 @@ async def post_to_x(draft: dict, pw) -> str | None:
     try:
         text, image_text = _extract_content(draft["content"], "x")
 
-        # Generate image if needed
-        if image_text:
+        # Check for external image path first, then generate from prompt
+        ext_image = draft.get("image_path")
+        if ext_image and Path(str(ext_image)).exists():
+            image_path = Path(str(ext_image))
+            logger.info("X: using provided image: %s", image_path)
+        elif image_text:
             from utils.image_generator import generate_landscape_image
             image_path = ROOT / "drafts" / "pending" / f"x-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
@@ -257,8 +261,12 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
     try:
         text, image_text = _extract_content(draft["content"], "linkedin")
 
-        # Generate image if needed
-        if image_text:
+        # Check for external image path first, then generate from prompt
+        ext_image = draft.get("image_path")
+        if ext_image and Path(str(ext_image)).exists():
+            image_path = Path(str(ext_image))
+            logger.info("LinkedIn: using provided image: %s", image_path)
+        elif image_text:
             from utils.image_generator import generate_landscape_image
             image_path = ROOT / "drafts" / "pending" / f"linkedin-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
@@ -283,35 +291,41 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
         if image_path and image_path.exists():
             try:
                 uploaded = False
-                # Strategy 1: hidden file input
-                try:
-                    fi = page.locator('input[type="file"]').first
-                    if await fi.count() > 0:
-                        await fi.set_input_files(str(image_path))
-                        uploaded = True
-                        logger.info("LinkedIn: uploaded image via file input")
-                except Exception:
-                    pass
-                # Strategy 2: click media button → file chooser
+                await human_delay(1, 2)  # Wait for modal to fully render
+
+                # Strategy 1: click "Add media" button → triggers file chooser
+                media_selectors = [
+                    'button[aria-label="Add media"]',
+                    'button[aria-label="Add a photo"]',
+                    'button:has(li-icon[type="image"])',
+                    'button:has-text("Add media")',
+                ]
+                for sel in media_selectors:
+                    try:
+                        btn = page.locator(sel).first
+                        if await btn.count() > 0:
+                            async with page.expect_file_chooser(timeout=10000) as fc_info:
+                                await btn.click()
+                            fc = await fc_info.value
+                            await fc.set_files(str(image_path))
+                            uploaded = True
+                            logger.info("LinkedIn: uploaded image via file chooser (%s)", sel)
+                            break
+                    except Exception as e:
+                        logger.debug("LinkedIn: media selector %s failed: %s", sel, e)
+                        continue
+
+                # Strategy 2: hidden file input (fallback)
                 if not uploaded:
-                    media_selectors = [
-                        'button[aria-label="Add a photo"]',
-                        'button[aria-label="Add media"]',
-                        'button:has(li-icon[type="image"])',
-                    ]
-                    for sel in media_selectors:
-                        try:
-                            btn = page.locator(sel).first
-                            if await btn.is_visible(timeout=3000):
-                                async with page.expect_file_chooser(timeout=5000) as fc_info:
-                                    await btn.click()
-                                fc = await fc_info.value
-                                await fc.set_files(str(image_path))
-                                uploaded = True
-                                logger.info("LinkedIn: uploaded image via file chooser (%s)", sel)
-                                break
-                        except Exception:
-                            continue
+                    try:
+                        fi = page.locator('input[type="file"]').first
+                        if await fi.count() > 0:
+                            await fi.set_input_files(str(image_path))
+                            uploaded = True
+                            logger.info("LinkedIn: uploaded image via hidden file input")
+                    except Exception:
+                        pass
+
                 if uploaded:
                     await human_delay(3, 5)
                 else:
@@ -335,32 +349,42 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
         logger.info("LinkedIn: post button clicked, waiting for post to appear...")
         await human_delay(5, 8)
 
-        # Extract post URL — go to own recent activity to find the just-posted content
+        # Extract post URL — check home feed first (new post appears at top), then activity page
         post_url = None
         try:
-            await page.goto("https://www.linkedin.com/in/me/recent-activity/all/", timeout=PAGE_LOAD_TIMEOUT)
+            # Method 1: Go back to feed — new post should be at the top
+            await page.goto("https://www.linkedin.com/feed/", timeout=PAGE_LOAD_TIMEOUT)
             await page.wait_for_load_state("domcontentloaded")
-            logger.info("LinkedIn: navigated to recent activity page")
+            await page.wait_for_timeout(5000)
 
-            # Wait for activity feed items to load
-            await page.wait_for_timeout(5000)  # Extra wait for lazy-loaded content
-            try:
-                await page.locator('a[href*="/feed/update/"]').first.wait_for(timeout=15000)
-            except Exception:
-                logger.warning("LinkedIn: timed out waiting for activity feed items")
-
-            # Retry loop: scroll if no update link found
+            # Look for the most recent feed update link
+            feed_links = page.locator('a[href*="/feed/update/"]')
             for attempt in range(5):
-                link = page.locator('a[href*="/feed/update/"]').first
-                if await link.count() > 0:
-                    href = await link.get_attribute("href")
+                if await feed_links.count() > 0:
+                    href = await feed_links.first.get_attribute("href")
                     if href:
                         post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
-                        logger.info("LinkedIn: captured post URL (attempt %d): %s", attempt + 1, post_url)
+                        logger.info("LinkedIn: captured post URL from feed (attempt %d): %s", attempt + 1, post_url)
                         break
-                logger.info("LinkedIn: no activity link on attempt %d, scrolling and retrying...", attempt + 1)
                 await page.mouse.wheel(0, 300)
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(2000)
+
+            # Method 2: Try activity page if feed didn't work
+            if not post_url:
+                await page.goto("https://www.linkedin.com/in/me/recent-activity/all/", timeout=PAGE_LOAD_TIMEOUT)
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_timeout(5000)
+
+                activity_links = page.locator('a[href*="/feed/update/"]')
+                for attempt in range(3):
+                    if await activity_links.count() > 0:
+                        href = await activity_links.first.get_attribute("href")
+                        if href:
+                            post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
+                            logger.info("LinkedIn: captured post URL from activity (attempt %d): %s", attempt + 1, post_url)
+                            break
+                    await page.mouse.wheel(0, 300)
+                    await page.wait_for_timeout(2000)
         except Exception as e:
             logger.warning("LinkedIn: could not extract post URL: %s", e)
 
@@ -400,8 +424,12 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
     try:
         text, image_text = _extract_content(draft["content"], "facebook")
 
-        # Generate image if needed
-        if image_text:
+        # Check for external image path first, then generate from prompt
+        ext_image = draft.get("image_path")
+        if ext_image and Path(str(ext_image)).exists():
+            image_path = Path(str(ext_image))
+            logger.info("Facebook: using provided image: %s", image_path)
+        elif image_text:
             from utils.image_generator import generate_landscape_image
             image_path = ROOT / "drafts" / "pending" / f"facebook-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
