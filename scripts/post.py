@@ -343,13 +343,14 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
             logger.info("LinkedIn: navigated to recent activity page")
 
             # Wait for activity feed items to load
+            await page.wait_for_timeout(5000)  # Extra wait for lazy-loaded content
             try:
-                await page.locator('a[href*="/feed/update/"]').first.wait_for(timeout=10000)
+                await page.locator('a[href*="/feed/update/"]').first.wait_for(timeout=15000)
             except Exception:
                 logger.warning("LinkedIn: timed out waiting for activity feed items")
 
             # Retry loop: scroll if no update link found
-            for attempt in range(3):
+            for attempt in range(5):
                 link = page.locator('a[href*="/feed/update/"]').first
                 if await link.count() > 0:
                     href = await link.get_attribute("href")
@@ -521,37 +522,47 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
 
 # ─── Reddit ────────────────────────────────────────────────────────────────
 
-REDDIT_SUBMIT_URL = "https://www.reddit.com/r/{subreddit}/submit"
-
-
 async def post_to_reddit(draft: dict, pw) -> str | None:
-    """Post content to Reddit. Returns post URL on success, None on failure."""
+    """Post content to Reddit via user profile. Returns post URL on success, None on failure."""
     context = None
     try:
         reddit_content = draft["content"]["reddit"]
         if isinstance(reddit_content, str):
-            # Fallback if not structured
-            title = reddit_content[:120]
-            body = reddit_content
+            try:
+                import json as _json
+                parsed = _json.loads(reddit_content)
+                title = parsed.get("title", reddit_content[:120])
+                body = parsed.get("body", reddit_content)
+            except (ValueError, TypeError):
+                title = reddit_content[:120]
+                body = reddit_content
         else:
             title = reddit_content["title"]
             body = reddit_content["body"]
 
-        subreddits = PLATFORMS.get("reddit", {}).get("subreddits", ["programming"])
-        # Pick one random subreddit per post to avoid spam
-        subreddit = random.choice(subreddits)
-
         context = await _launch_context(pw, "reddit")
         page = context.pages[0] if context.pages else await context.new_page()
 
-        # Pre-post browsing
-        await page.goto(PLATFORMS["reddit"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
+        # Navigate to user/me to get username, then to submit page
+        await page.goto("https://www.reddit.com/user/me/", timeout=PAGE_LOAD_TIMEOUT)
         await page.wait_for_load_state("domcontentloaded")
-        await browse_feed(page, "reddit")
+        await page.wait_for_timeout(3000)
 
-        # Navigate to submit page
-        submit_url = REDDIT_SUBMIT_URL.format(subreddit=subreddit)
-        logger.info("Reddit: submitting to r/%s", subreddit)
+        # Extract username from redirect URL (e.g., /user/SamaaraDas/)
+        current_url = page.url
+        username = None
+        import re as _re
+        user_match = _re.search(r'/user/([^/]+)', current_url)
+        if user_match:
+            username = user_match.group(1)
+
+        if not username:
+            logger.error("Reddit: could not determine username from %s", current_url)
+            return None
+
+        # Post to user profile (avoids subreddit spam filters)
+        submit_url = f"https://www.reddit.com/user/{username}/submit"
+        logger.info("Reddit: submitting to u/%s", username)
         await page.goto(submit_url, timeout=PAGE_LOAD_TIMEOUT)
         await page.wait_for_load_state("domcontentloaded")
         await human_delay(2, 4)
@@ -591,21 +602,25 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         await post_btn.click()
         logger.info("Reddit: clicked Post")
 
+        # Wait for redirect to the new post
         await human_delay(3, 6)
 
-        # Extract post URL — Reddit redirects to the new post after submission
-        post_url = page.url
-        if "/comments/" not in post_url:
-            post_url = None  # Didn't redirect, extraction failed
-        else:
-            logger.info("Reddit: captured post URL: %s", post_url)
+        # Extract post URL — Reddit redirects to /comments/ after submission
+        post_url = None
+        for attempt in range(5):
+            current = page.url
+            if "/comments/" in current:
+                post_url = current
+                logger.info("Reddit: captured post URL (attempt %d): %s", attempt + 1, post_url)
+                break
+            await page.wait_for_timeout(2000)
 
         # Post-post browsing
         await page.goto(PLATFORMS["reddit"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
         await browse_feed(page, "reddit")
 
-        logger.info("Successfully posted to Reddit (r/%s)", subreddit)
-        return post_url or f"https://reddit.com/r/{subreddit}/posted"
+        logger.info("Successfully posted to Reddit (u/%s)", username)
+        return post_url or f"https://reddit.com/user/{username}/submitted"
 
     except Exception as e:
         logger.error("Failed to post to Reddit: %s", e, exc_info=True)
