@@ -140,6 +140,11 @@ async def _launch_context(pw, platform: str):
         user_data_dir=str(profile_dir),
         headless=headless,
         viewport={"width": 1280, "height": 800},
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
         args=[
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
@@ -250,7 +255,12 @@ async def post_to_x(draft: dict, pw) -> str | None:
 
         # Type content (skip if empty — image-only post)
         if text and text.strip():
-            await human_type(page, X_TEXTBOX, text)
+            # Click to focus first — triggers React's onFocus which is required
+            # for the contenteditable textbox to accept input (especially in headless)
+            textbox = page.locator(X_TEXTBOX).first
+            await textbox.click(force=True)
+            await page.wait_for_timeout(500)
+            await page.keyboard.type(text, delay=random.randint(30, 80))
             await human_delay(1, 3)
 
         # Submit post — try multiple methods since X's overlay blocks standard clicks
@@ -506,7 +516,7 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
         await browse_feed(page, "linkedin")
 
         logger.info("Successfully posted to LinkedIn")
-        return post_url or "https://linkedin.com/posted"
+        return post_url  # None if URL capture failed — don't return fake placeholder
 
     except Exception as e:
         logger.error("Failed to post to LinkedIn: %s", e, exc_info=True)
@@ -708,21 +718,42 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         context = await _launch_context(pw, "reddit")
         page = context.pages[0] if context.pages else await context.new_page()
 
-        # Navigate to user/me to get username, then to submit page
+        # Get username — /user/me/ redirects via client-side JS which may not fire in headless
+        import re as _re
+        username = None
+
         await page.goto("https://www.reddit.com/user/me/", timeout=PAGE_LOAD_TIMEOUT)
         await page.wait_for_load_state("domcontentloaded")
-        await page.wait_for_timeout(3000)
 
-        # Extract username from redirect URL (e.g., /user/SamaaraDas/)
+        # Wait for the JS redirect to change URL from /user/me/ to /user/<actual>/
+        try:
+            await page.wait_for_url(lambda url: "/user/me" not in url.lower(), timeout=10000)
+        except Exception:
+            pass  # redirect may not fire in headless — fall through to fallback
+
         current_url = page.url
-        username = None
-        import re as _re
         user_match = _re.search(r'/user/([^/]+)', current_url)
-        if user_match:
+        if user_match and user_match.group(1).lower() != "me":
             username = user_match.group(1)
 
+        # Fallback: hit Reddit's JSON API to get username (no JS redirect needed)
         if not username:
-            logger.error("Reddit: could not determine username from %s", current_url)
+            logger.info("Reddit: /user/me/ redirect didn't resolve, trying API fallback")
+            try:
+                api_page = await context.new_page()
+                await api_page.goto("https://www.reddit.com/api/v1/me.json", timeout=PAGE_LOAD_TIMEOUT)
+                import json as _json2
+                body_text = await api_page.locator("body").inner_text()
+                me_data = _json2.loads(body_text)
+                username = me_data.get("name")
+                await api_page.close()
+                if username:
+                    logger.info("Reddit: got username from API: %s", username)
+            except Exception as e:
+                logger.warning("Reddit: API fallback failed: %s", e)
+
+        if not username:
+            logger.error("Reddit: could not determine username")
             return None
 
         # Navigate to submit page on user profile

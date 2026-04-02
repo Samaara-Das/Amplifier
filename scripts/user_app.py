@@ -1068,8 +1068,35 @@ def posts():
     ctx = _base_context("posts")
     try:
         from utils.local_db import get_all_posts
+        from datetime import datetime, timezone, timedelta
 
         all_posts = get_all_posts()
+
+        # Convert posted_at from UTC to local time, and clean up Reddit JSON display
+        local_tz = datetime.now(timezone.utc).astimezone().tzinfo
+        for post in all_posts:
+            # UTC → local timezone
+            if post.get("posted_at"):
+                try:
+                    ts = post["posted_at"]
+                    # Parse UTC timestamp (stored with or without +00:00)
+                    ts_clean = ts.replace("+00:00", "").replace("Z", "")
+                    dt_utc = datetime.fromisoformat(ts_clean).replace(tzinfo=timezone.utc)
+                    dt_local = dt_utc.astimezone(local_tz)
+                    post["posted_at"] = dt_local.isoformat()
+                except Exception:
+                    pass  # keep original if parsing fails
+
+            # Reddit: show title instead of raw JSON
+            content = post.get("content", "")
+            if content and content.strip().startswith("{"):
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, dict) and "title" in parsed:
+                        post["content"] = parsed["title"]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
         ctx["posts"] = all_posts
     except Exception as e:
         logger.error("Posts route error: %s", e)

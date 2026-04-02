@@ -407,7 +407,7 @@
         "id": "27",
         "title": "Explain: Scheduled Posting",
         "description": "Walk through how scheduled posting currently works ' post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.\n\nCRITICAL: X (Twitter) locks user accounts when controlled by Playwright automation. Amplifier must detect when X has locked the account (e.g., by checking for lockout page/modal after login) and notify the user to log back in manually. This is a known blocker for X posting.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nCONTENT TYPES: Some content drafts may be image-only, text-only, or image+text. The posting pipeline must handle all 3 types correctly for each platform. For image-only posts, upload the image without text. For text-only, post without image. For image+text, upload both. Each platform has different upload flows for these cases.\n\nBUGS FOUND DURING TESTING:\n1. Reddit post URL broken (posted_no_url status) — URL capture failed, placeholder stored. User clicked the URL and got a 404 in the app.\n2. Reddit post not actually appearing on Reddit — Playwright reported success but the post may not have landed (similar to LinkedIn issue from earlier sessions). Need to verify in headed mode.\n3. Post URL links in the Posts page route to local app URLs instead of platform URLs — causes 404.\n\nX LOCKOUT DETECTION (noted for later): When any activity opens X (posting, scraping), detect the locked account page (white page with heading like \"Your account got locked\") and notify user to unlock manually. Out of scope for current verify task.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "25"
@@ -417,7 +417,8 @@
           "user",
           "explain"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-02T12:09:33.507Z"
       },
       {
         "id": "28",
@@ -433,7 +434,8 @@
           "user",
           "verify"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-02T12:10:12.065Z"
       },
       {
         "id": "29",
@@ -1017,7 +1019,7 @@
         "subtasks": []
       },
       {
-        "id": 67,
+        "id": "67",
         "title": "Improve session health check reliability",
         "description": "Current session_health.py returns yellow (uncertain) for platforms that are actually logged in (LinkedIn, Reddit, X). Auth element selectors need updating to match current platform UIs. Reduce false-positive expired notifications. Consider: retry logic before notifying, use actual posting success as a health signal instead of element detection, suppress notifications if posts are succeeding on that platform.",
         "status": "pending",
@@ -1026,10 +1028,11 @@
         "metadata": {
           "created": "2026-04-01",
           "source": "task-28-verification"
-        }
+        },
+        "subtasks": []
       },
       {
-        "id": 68,
+        "id": "68",
         "title": "Repost campaign type — companies provide ready-made posts for users to repost",
         "description": "Add a new campaign type: repost campaigns. Instead of AI-generating content, companies provide pre-written posts per platform (X, LinkedIn, Facebook, Reddit) as part of the campaign. Users accept the campaign and Amplifier reposts these exact posts on a schedule to the user's social media profiles.\n\nCompany side:\n- New campaign type selector: \"AI Generated\" (existing) vs \"Repost\" (new)\n- For repost campaigns, company provides per-platform post content (text, images, links) directly in the campaign creation form\n- Each campaign can have multiple posts (a content calendar the company defines)\n- Company can specify posting order, frequency, and date range\n\nUser side:\n- Repost campaigns show the actual posts in the invitation (so users know what they're agreeing to post)\n- On accept, posts are scheduled automatically — no content generation step, no review step needed\n- User can optionally preview before each post goes live (semi_auto mode) or let them auto-post (full_auto)\n- Posts execute via existing Playwright posting engine (post.py)\n- Metrics scraped and billed the same as AI-generated campaigns\n\nServer side:\n- New campaign_type field on Campaign model (\"ai_generated\" or \"repost\")\n- New campaign_posts table: campaign_id, platform, content, image_url, post_order, scheduled_offset\n- Matching works the same — repost campaigns still matched to users by niche/platform/followers\n- Billing works the same — pay per impression/engagement\n\nThis is simpler than AI campaigns (no content generation, no research, no strategy) and gives companies more control over exact messaging.",
         "status": "pending",
@@ -1038,14 +1041,42 @@
         "metadata": {
           "created": "2026-04-01",
           "source": "user-request"
+        },
+        "subtasks": []
+      },
+      {
+        "id": "69",
+        "title": "Update all docs to match verified codebase",
+        "description": "Run the docs-updater agent to sync all 16 docs in docs/ with the actual codebase after all explain/verify tasks (#15-#50) are complete. Do NOT run this until all verify tasks are done — code changes during verify will invalidate doc updates. Single pass: read current code, update every doc, commit.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "50"
+        ],
+        "metadata": {
+          "created": "2026-04-02",
+          "source": "user-request"
+        },
+        "subtasks": []
+      },
+      {
+        "id": 70,
+        "title": "Fix draft notification count — shows stale drafts from all days",
+        "description": "Two bugs in the pending drafts notification: (1) get_pending_drafts() counts ALL unapproved drafts across all dates, not just today. Stale drafts from days ago inflate the count (showed 54 when only 12 were from today). Fix: filter to today only, or at minimum only count drafts from the last 24h. (2) On first page load, _lastPendingCount in user.js starts at 0, so the first /api/status poll always fires a notification (pending - 0 = pending). Fix: initialize _lastPendingCount to -1 or fetch initial count before enabling notifications. Files: scripts/utils/local_db.py (get_pending_drafts), scripts/user_app.py (/api/status), scripts/static/js/user.js (pollStatus).",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [],
+        "metadata": {
+          "created": "2026-04-02",
+          "source": "task-28-verification"
         }
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-03-27T10:00:00.000Z",
-      "taskCount": 66,
-      "completedCount": 18,
+      "lastModified": "2026-04-02T12:10:12.066Z",
+      "taskCount": 69,
+      "completedCount": 27,
       "tags": [
         "master"
       ]
