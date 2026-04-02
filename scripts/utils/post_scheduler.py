@@ -432,6 +432,10 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
                 content_hash="",
             )
             update_schedule_status(schedule_id, "posted", local_post_id=local_post_id)
+            # Mark the agent_draft as posted so the UI shows "Posted" instead of "Approved"
+            if post.get("draft_id"):
+                from utils.local_db import mark_draft_posted
+                mark_draft_posted(post["draft_id"])
             logger.info(
                 "Successfully posted schedule_id=%d to %s: %s",
                 schedule_id, post["platform"], post_url,
@@ -454,6 +458,10 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
                 local_post_id=local_post_id,
                 error_message="Post sent but URL capture failed — metric scraper will retry",
             )
+            # Mark draft as posted even without URL — the post was sent
+            if post.get("draft_id"):
+                from utils.local_db import mark_draft_posted
+                mark_draft_posted(post["draft_id"])
             logger.warning(
                 "Post to %s sent but URL unknown for schedule_id=%d (local_post_id=%d)",
                 post["platform"], schedule_id, local_post_id,

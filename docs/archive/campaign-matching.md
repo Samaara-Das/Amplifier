@@ -7,7 +7,7 @@
 When a user polls for campaigns, the server runs a multi-stage pipeline:
 1. Hard filters (pass/fail)
 2. AI relevance scoring (Gemini)
-3. Sort by score, create invitations for ALL passing candidates
+3. Sort by score, create invitations for top 10
 
 The matching is fully AI-driven -- no hardcoded scoring formula.
 
@@ -105,7 +105,8 @@ If all Gemini models fail, uses simple niche-overlap:
 
 After scoring:
 1. Sort by score descending
-2. Create `CampaignAssignment` for every candidate with score > 0:
+2. Take top 10 candidates
+3. Create `CampaignAssignment` with:
    - status: `pending_invitation`
    - content_mode: `ai_generated` (full_auto) or `user_customized` (semi_auto)
    - expires_at: 3 days from now

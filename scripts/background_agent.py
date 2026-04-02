@@ -224,6 +224,18 @@ async def execute_due_posts() -> dict:
         if not due_posts:
             return {"success": True, "executed": 0, "succeeded": 0, "failed": 0}
 
+        # Mark all due posts as 'posting' immediately to prevent the next
+        # 60s tick from picking them up again (race condition → duplicates)
+        from utils.local_db import _get_db
+        conn = _get_db()
+        for post in due_posts:
+            conn.execute(
+                "UPDATE post_schedule SET status = 'posting' WHERE id = ? AND status = 'queued'",
+                (post["id"],),
+            )
+        conn.commit()
+        conn.close()
+
         successes = []
         failures = []
 

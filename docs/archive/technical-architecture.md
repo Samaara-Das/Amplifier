@@ -33,9 +33,9 @@ Company Dashboard (Vercel)          Amplifier Server (Vercel/Supabase)          
 
 FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). Deployed on Vercel.
 
-- **72 API routes** across 8 routers
-- **9 database models** (Company, Campaign, User, Assignment, Post, Metric, Payout, Penalty, InvitationLog)
-- **6 services** (matching, billing, campaign_wizard, trust, payments, storage)
+- **52 API routes** across 7 routers
+- **8 database models** (Company, Campaign, User, Assignment, Post, Metric, Payout, Penalty + InvitationLog)
+- **5 services** (matching, billing, campaign_wizard, trust, payments, storage)
 - **2 web dashboards** (company, admin) rendered with Jinja2
 
 ### 2. User App (`scripts/`)
@@ -74,7 +74,7 @@ Server-rendered Jinja2 pages. Blue `#2563eb` theme, DM Sans font.
    - Hard filters: platforms (at least 1), followers, region, engagement, budget, max_users
    - AI scoring: Gemini reads full scraped profile + campaign brief, scores 0-100
    - Fallback: niche-overlap scoring if AI unavailable
-3. All passing matches become `pending_invitation` assignments (3-day TTL)
+3. Top 10 matches become `pending_invitation` assignments (3-day TTL)
 4. User accepts/rejects in their dashboard
 
 ### Content Generation (User App)

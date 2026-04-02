@@ -60,6 +60,70 @@ RETRY_DELAY_SEC = int(os.getenv("RETRY_DELAY_SEC", "300"))  # 5 minutes
 with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
     PLATFORMS = json.load(f)
 
+# Draft directories
+DRAFT_DIRS = {
+    "pending": ROOT / "drafts" / "pending",
+    "posted": ROOT / "drafts" / "posted",
+    "failed": ROOT / "drafts" / "failed",
+}
+for d in DRAFT_DIRS.values():
+    d.mkdir(parents=True, exist_ok=True)
+
+
+def get_next_draft(slot: int = None) -> dict | None:
+    """Get the next pending draft. If slot is given, prefer drafts matching that slot."""
+    pending = DRAFT_DIRS["pending"]
+    drafts = sorted(pending.glob("*.json"))
+    if not drafts:
+        return None
+
+    # Prefer drafts matching the slot
+    if slot is not None:
+        for path in drafts:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if data.get("slot") == slot:
+                    data["_path"] = str(path)
+                    return data
+            except (json.JSONDecodeError, OSError):
+                continue
+
+    # Fall back to the oldest draft (any slot or unslotted)
+    for path in drafts:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["_path"] = str(path)
+            return data
+        except (json.JSONDecodeError, OSError):
+            continue
+    return None
+
+
+def mark_posted(draft: dict, platforms: list[str]) -> None:
+    """Move draft from pending to posted, recording which platforms succeeded."""
+    draft["status"] = "posted"
+    draft["posted_at"] = datetime.now(tz=__import__('datetime').timezone.utc).isoformat()
+    draft["platforms_posted"] = platforms
+    src = Path(draft.pop("_path", ""))
+    dest = DRAFT_DIRS["posted"] / src.name
+    dest.write_text(json.dumps(draft, indent=2, ensure_ascii=False), encoding="utf-8")
+    if src.exists():
+        src.unlink()
+    logger.info("Draft %s marked as posted → %s", draft.get("id"), dest.name)
+
+
+def mark_failed(draft: dict, error: str) -> None:
+    """Move draft from pending to failed with error info."""
+    draft["status"] = "failed"
+    draft["error"] = error
+    draft["failed_at"] = datetime.now(tz=__import__('datetime').timezone.utc).isoformat()
+    src = Path(draft.pop("_path", ""))
+    dest = DRAFT_DIRS["failed"] / src.name
+    dest.write_text(json.dumps(draft, indent=2, ensure_ascii=False), encoding="utf-8")
+    if src.exists():
+        src.unlink()
+    logger.info("Draft %s marked as failed → %s", draft.get("id"), dest.name)
+
 
 async def _launch_context(pw, platform: str):
     """Launch a persistent browser context for the given platform.
@@ -125,6 +189,7 @@ async def post_to_x(draft: dict, pw) -> str | None:
         text, image_text = _extract_content(draft["content"], "x")
 
         # Check for external image path first, then generate from prompt
+        generated_image = False
         ext_image = draft.get("image_path")
         if ext_image and Path(str(ext_image)).exists():
             image_path = Path(str(ext_image))
@@ -133,6 +198,7 @@ async def post_to_x(draft: dict, pw) -> str | None:
             from utils.image_generator import generate_landscape_image
             image_path = ROOT / "drafts" / "pending" / f"x-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
+            generated_image = True
             logger.info("X: generated branded image at %s", image_path)
 
         context = await _launch_context(pw, "x")
@@ -151,65 +217,97 @@ async def post_to_x(draft: dict, pw) -> str | None:
         # Upload image if available
         if image_path and image_path.exists():
             try:
-                file_input_selectors = [
-                    'input[data-testid="fileInput"]',
-                    'input[type="file"][accept*="image"]',
-                    'input[type="file"]',
-                ]
                 uploaded = False
-                for sel in file_input_selectors:
-                    try:
-                        fi = page.locator(sel).first
-                        if await fi.count() > 0:
-                            await fi.set_input_files(str(image_path))
-                            logger.info("X: uploaded image via %s", sel)
-                            uploaded = True
-                            break
-                    except Exception:
-                        continue
-                if uploaded:
-                    # Wait for image preview to appear
+                abs_image = str(Path(str(image_path)).resolve())
+                logger.info("X: absolute image path: %s", abs_image)
+
+                # Use the hidden file input directly — this is the most reliable way on X
+                fi = page.locator('input[data-testid="fileInput"]').first
+                if await fi.count() > 0:
+                    await fi.set_input_files(abs_image)
+                    logger.info("X: set file on input[data-testid=fileInput]")
+                    # Wait for image to process and appear in attachments
                     try:
                         await page.locator('[data-testid="attachments"]').wait_for(timeout=15000)
+                        # Extra wait for X to fully process the image
+                        await page.wait_for_timeout(3000)
+                        logger.info("X: image attachment preview confirmed")
+                        uploaded = True
                     except Exception:
-                        pass
-                    await human_delay(2, 4)
+                        logger.error("X: attachments preview never appeared after set_input_files")
+
+                if not uploaded:
+                    logger.warning("X: image upload FAILED")
+                    if not (text and text.strip()):
+                        logger.error("X: no text and no image — nothing to post")
+                        return None
                 else:
-                    logger.warning("X: could not find file input, posting text-only")
+                    await human_delay(2, 4)
             except Exception as e:
-                logger.warning("X: image upload failed, posting text-only: %s", e)
+                logger.warning("X: image upload failed: %s", e)
+                if not (text and text.strip()):
+                    return None
 
-        # Type content
-        await human_type(page, X_TEXTBOX, text)
-        await human_delay(1, 3)
+        # Type content (skip if empty — image-only post)
+        if text and text.strip():
+            await human_type(page, X_TEXTBOX, text)
+            await human_delay(1, 3)
 
-        # Click post — use JS click to bypass overlay div that intercepts pointer events
+        # Submit post — try multiple methods since X's overlay blocks standard clicks
         post_btn = page.locator(X_POST_BUTTON)
         await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
-        await post_btn.dispatch_event("click")
-        logger.info("X: post button clicked, waiting for post to appear...")
-        await human_delay(5, 8)
 
-        # Extract post URL — go to OWN profile and grab the first tweet's permalink
+        # Check if button is actually enabled
+        is_disabled = await post_btn.get_attribute("aria-disabled")
+        if is_disabled == "true":
+            logger.error("X: post button is DISABLED — no content to post (image may not have attached)")
+            return None
+
+        logger.info("X: post button is enabled, attempting to submit...")
+
+        # Take screenshot before clicking post to verify state
+        await page.screenshot(path=str(ROOT / "logs" / "x_before_post.png"))
+        logger.info("X: screenshot saved to logs/x_before_post.png")
+
+        # Ctrl+Enter keyboard shortcut (bypasses overlay div that intercepts pointer events)
+        # Focus textbox with force=True (overlay blocks normal click)
+        textbox = page.locator(X_TEXTBOX).first
+        if await textbox.count() > 0:
+            await textbox.click(force=True)
+        await page.keyboard.press("Control+Enter")
+        logger.info("X: pressed Ctrl+Enter")
+
+        # Wait for post to process
+        await page.wait_for_timeout(5000)
+
+        # Take screenshot after to verify post went through
+        await page.screenshot(path=str(ROOT / "logs" / "x_after_post.png"))
+        logger.info("X: screenshot saved to logs/x_after_post.png")
+
+        await human_delay(3, 5)
+
+        # Extract post URL — go to profile, find the newest tweet (not a stale one)
         post_url = None
         try:
-            # Find profile link from sidebar
             profile_link = page.locator('a[data-testid="AppTabBar_Profile_Link"]')
             if await profile_link.count() > 0:
                 profile_href = await profile_link.get_attribute("href")
                 profile_url = f"https://x.com{profile_href}" if profile_href.startswith("/") else profile_href
                 logger.info("X: navigating to profile %s", profile_url)
-                await page.goto(profile_url, timeout=PAGE_LOAD_TIMEOUT)
-                await page.wait_for_load_state("domcontentloaded")
 
-                # Wait for tweets to actually load in the DOM
+                # Hard refresh to avoid stale cache
+                await page.goto(profile_url + "?t=" + str(int(asyncio.get_event_loop().time())), timeout=PAGE_LOAD_TIMEOUT)
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_timeout(3000)
+
+                # Wait for tweets to load
                 try:
                     await page.locator('article[data-testid="tweet"]').first.wait_for(timeout=10000)
                 except Exception:
                     logger.warning("X: timed out waiting for tweet articles to load")
 
-                # Retry loop: scroll down if no status link found
-                for attempt in range(3):
+                # Get the first tweet's status link — with retries and scroll
+                for attempt in range(5):
                     link = page.locator('article[data-testid="tweet"] a[href*="/status/"]').first
                     if await link.count() > 0:
                         href = await link.get_attribute("href")
@@ -217,9 +315,8 @@ async def post_to_x(draft: dict, pw) -> str | None:
                             post_url = f"https://x.com{href}" if href.startswith("/") else href
                             logger.info("X: captured post URL (attempt %d): %s", attempt + 1, post_url)
                             break
-                    logger.info("X: no status link on attempt %d, scrolling and retrying...", attempt + 1)
-                    await page.mouse.wheel(0, 300)
-                    await page.wait_for_timeout(3000)
+                    logger.info("X: no status link on attempt %d, waiting...", attempt + 1)
+                    await page.wait_for_timeout(2000)
             else:
                 logger.warning("X: profile link not found in sidebar")
         except Exception as e:
@@ -235,7 +332,7 @@ async def post_to_x(draft: dict, pw) -> str | None:
         logger.error("Failed to post to X: %s", e, exc_info=True)
         return None
     finally:
-        if image_path:
+        if image_path and generated_image:
             try:
                 image_path.unlink(missing_ok=True)
             except Exception:
@@ -255,13 +352,17 @@ LI_TEXTBOX = '[role="textbox"]'
 
 
 async def post_to_linkedin(draft: dict, pw) -> str | None:
-    """Post content to LinkedIn. Returns post URL on success, None on failure."""
+    """Post content to LinkedIn. Returns post URL on success, None on failure.
+
+    Flow: Open compose → paste image (if any) → type text (if any) → Post → grab URL from success dialog.
+    """
     context = None
     image_path = None
     try:
         text, image_text = _extract_content(draft["content"], "linkedin")
 
         # Check for external image path first, then generate from prompt
+        generated_image = False
         ext_image = draft.get("image_path")
         if ext_image and Path(str(ext_image)).exists():
             image_path = Path(str(ext_image))
@@ -270,123 +371,136 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
             from utils.image_generator import generate_landscape_image
             image_path = ROOT / "drafts" / "pending" / f"linkedin-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
+            generated_image = True
             logger.info("LinkedIn: generated branded image at %s", image_path)
 
         context = await _launch_context(pw, "linkedin")
         page = context.pages[0] if context.pages else await context.new_page()
 
-        # Pre-post browsing
-        await page.goto(PLATFORMS["linkedin"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
-        await page.wait_for_load_state("domcontentloaded")
+        # Navigate to feed
+        await page.goto(PLATFORMS["linkedin"]["home_url"], wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+        await page.wait_for_timeout(3000)
         await browse_feed(page, "linkedin")
 
-        # Open compose modal
-        compose_btn = page.locator(LI_COMPOSE_TRIGGER).first
-        await compose_btn.wait_for(timeout=COMPOSE_TIMEOUT)
-        await compose_btn.click()
-        logger.info("LinkedIn: clicked compose trigger")
-        await human_delay(3, 5)
+        # Open compose modal (retry if modal doesn't appear)
+        for compose_attempt in range(3):
+            compose_btn = page.locator(LI_COMPOSE_TRIGGER).first
+            await compose_btn.wait_for(timeout=COMPOSE_TIMEOUT)
+            await compose_btn.click()
+            logger.info("LinkedIn: clicked compose trigger (attempt %d)", compose_attempt + 1)
+            await human_delay(2, 3)
 
-        # Upload image BEFORE typing text (if available)
-        if image_path and image_path.exists():
+            # Verify modal opened
+            textbox = page.locator(LI_TEXTBOX).first
             try:
-                uploaded = False
-                await human_delay(1, 2)  # Wait for modal to fully render
+                await textbox.wait_for(timeout=5000)
+                logger.info("LinkedIn: compose modal open")
+                break
+            except Exception:
+                logger.warning("LinkedIn: compose modal didn't open, retrying...")
+                await page.wait_for_timeout(2000)
 
-                # Strategy 1: click "Add media" button → triggers file chooser
-                media_selectors = [
-                    'button[aria-label="Add media"]',
-                    'button[aria-label="Add a photo"]',
-                    'button:has(li-icon[type="image"])',
-                    'button:has-text("Add media")',
-                ]
-                for sel in media_selectors:
-                    try:
-                        btn = page.locator(sel).first
-                        if await btn.count() > 0:
-                            async with page.expect_file_chooser(timeout=10000) as fc_info:
-                                await btn.click()
-                            fc = await fc_info.value
-                            await fc.set_files(str(image_path))
-                            uploaded = True
-                            logger.info("LinkedIn: uploaded image via file chooser (%s)", sel)
-                            break
-                    except Exception as e:
-                        logger.debug("LinkedIn: media selector %s failed: %s", sel, e)
-                        continue
+        # Step 1: Paste image into composer (if available)
+        if image_path and image_path.exists():
+            abs_image = str(Path(str(image_path)).resolve())
+            import base64
+            with open(abs_image, "rb") as img_f:
+                img_bytes = img_f.read()
+            img_b64 = base64.b64encode(img_bytes).decode()
 
-                # Strategy 2: hidden file input (fallback)
-                if not uploaded:
-                    try:
-                        fi = page.locator('input[type="file"]').first
-                        if await fi.count() > 0:
-                            await fi.set_input_files(str(image_path))
-                            uploaded = True
-                            logger.info("LinkedIn: uploaded image via hidden file input")
-                    except Exception:
-                        pass
+            # Focus textbox, then paste image via ClipboardEvent
+            textbox = page.locator(LI_TEXTBOX).first
+            await textbox.click()
+            await human_delay(0.5, 1)
 
-                if uploaded:
-                    await human_delay(3, 5)
-                else:
-                    logger.warning("LinkedIn: could not upload image, posting text-only")
-            except Exception as e:
-                logger.warning("LinkedIn: image upload failed, posting text-only: %s", e)
+            # Use locator.evaluate to pierce shadow DOM (document.querySelector can't)
+            textbox_el = page.locator(LI_TEXTBOX).first
+            paste_result = await textbox_el.evaluate("""
+                (el, b64) => {
+                    const byteChars = atob(b64);
+                    const byteNums = new Array(byteChars.length);
+                    for (let i = 0; i < byteChars.length; i++) {
+                        byteNums[i] = byteChars.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNums);
+                    const blob = new Blob([byteArray], { type: 'image/png' });
+                    const file = new File([blob], 'image.png', { type: 'image/png' });
 
-        # Wait for textbox (in shadow DOM — locator pierces it, wait_for_selector does not)
-        textbox = page.locator(LI_TEXTBOX).first
-        await textbox.wait_for(timeout=COMPOSE_TIMEOUT)
-        await human_delay(1, 2)
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
 
-        # Type content
-        await human_type(page, LI_TEXTBOX, text)
-        await human_delay(1, 3)
+                    const pasteEvent = new ClipboardEvent('paste', {
+                        bubbles: true,
+                        cancelable: true,
+                        clipboardData: dt
+                    });
+                    el.dispatchEvent(pasteEvent);
+                    return 'pasted';
+                }
+            """, img_b64)
+            logger.info("LinkedIn: clipboard paste result: %s", paste_result)
 
-        # Click Post button
+            if paste_result == "pasted":
+                # Wait for image to appear in composer
+                await page.wait_for_timeout(3000)
+                logger.info("LinkedIn: image pasted into composer")
+            else:
+                logger.warning("LinkedIn: image paste failed (%s)", paste_result)
+                if not (text and text.strip()):
+                    logger.error("LinkedIn: no text and no image — nothing to post")
+                    return None
+            await human_delay(1, 2)
+
+        # Step 2: Type text (skip if empty — image-only post)
+        if text and text.strip():
+            textbox = page.locator(LI_TEXTBOX).first
+            await textbox.click(force=True)
+            await page.wait_for_timeout(500)
+            # Type via keyboard (more reliable for shadow DOM contenteditable)
+            await page.keyboard.type(text, delay=50)
+            logger.info("LinkedIn: typed %d chars of text", len(text))
+            await page.screenshot(path=str(ROOT / "logs" / "li_after_typing.png"))
+            await human_delay(1, 2)
+
+        # Step 3: Click Post button
         post_btn = page.get_by_role("button", name="Post", exact=True)
         await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
         await post_btn.click()
-        logger.info("LinkedIn: post button clicked, waiting for post to appear...")
-        await human_delay(5, 8)
+        logger.info("LinkedIn: post button clicked")
 
-        # Extract post URL — check home feed first (new post appears at top), then activity page
+        # Step 4: Wait for "Post successful" dialog and extract URL from "View post" link
         post_url = None
         try:
-            # Method 1: Go back to feed — new post should be at the top
-            await page.goto("https://www.linkedin.com/feed/", timeout=PAGE_LOAD_TIMEOUT)
-            await page.wait_for_load_state("domcontentloaded")
-            await page.wait_for_timeout(5000)
+            # Wait for success dialog (up to 10 seconds)
+            view_post = page.locator('a:has-text("View post")')
+            await view_post.wait_for(timeout=30000)
+            href = await view_post.get_attribute("href")
+            if href:
+                post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
+                logger.info("LinkedIn: captured URL from success dialog: %s", post_url)
 
-            # Look for the most recent feed update link
-            feed_links = page.locator('a[href*="/feed/update/"]')
-            for attempt in range(5):
-                if await feed_links.count() > 0:
-                    href = await feed_links.first.get_attribute("href")
+            # Dismiss the dialog
+            try:
+                not_now = page.locator('button:has-text("Not now")')
+                if await not_now.count() > 0:
+                    await not_now.click()
+                    logger.info("LinkedIn: dismissed success dialog")
+            except Exception:
+                pass
+        except Exception:
+            # Text-only posts may not show success dialog — fall back to activity page
+            logger.info("LinkedIn: no success dialog, checking activity page for URL...")
+            try:
+                await page.goto("https://www.linkedin.com/in/me/recent-activity/all/", wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+                await page.wait_for_timeout(3000)
+                activity_link = page.locator('a[href*="/feed/update/"]').first
+                if await activity_link.count() > 0:
+                    href = await activity_link.get_attribute("href")
                     if href:
                         post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
-                        logger.info("LinkedIn: captured post URL from feed (attempt %d): %s", attempt + 1, post_url)
-                        break
-                await page.mouse.wheel(0, 300)
-                await page.wait_for_timeout(2000)
-
-            # Method 2: Try activity page if feed didn't work
-            if not post_url:
-                await page.goto("https://www.linkedin.com/in/me/recent-activity/all/", timeout=PAGE_LOAD_TIMEOUT)
-                await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_timeout(5000)
-
-                activity_links = page.locator('a[href*="/feed/update/"]')
-                for attempt in range(3):
-                    if await activity_links.count() > 0:
-                        href = await activity_links.first.get_attribute("href")
-                        if href:
-                            post_url = href if href.startswith("http") else f"https://www.linkedin.com{href}"
-                            logger.info("LinkedIn: captured post URL from activity (attempt %d): %s", attempt + 1, post_url)
-                            break
-                    await page.mouse.wheel(0, 300)
-                    await page.wait_for_timeout(2000)
-        except Exception as e:
-            logger.warning("LinkedIn: could not extract post URL: %s", e)
+                        logger.info("LinkedIn: captured URL from activity page: %s", post_url)
+            except Exception as e:
+                logger.warning("LinkedIn: could not get URL from activity page: %s", e)
 
         # Post-post browsing
         await browse_feed(page, "linkedin")
@@ -398,7 +512,7 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
         logger.error("Failed to post to LinkedIn: %s", e, exc_info=True)
         return None
     finally:
-        if image_path:
+        if image_path and generated_image:
             try:
                 image_path.unlink(missing_ok=True)
             except Exception:
@@ -418,13 +532,17 @@ FB_POST_BUTTON = '[aria-label="Post"]'
 
 
 async def post_to_facebook(draft: dict, pw) -> str | None:
-    """Post content to Facebook. Returns post URL on success, None on failure."""
+    """Post content to Facebook. Returns post URL on success, None on failure.
+
+    Flow: Open composer → paste image (if any) → type text (if any) → Post → capture URL from profile.
+    """
     context = None
     image_path = None
     try:
         text, image_text = _extract_content(draft["content"], "facebook")
 
         # Check for external image path first, then generate from prompt
+        generated_image = False
         ext_image = draft.get("image_path")
         if ext_image and Path(str(ext_image)).exists():
             image_path = Path(str(ext_image))
@@ -433,98 +551,102 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
             from utils.image_generator import generate_landscape_image
             image_path = ROOT / "drafts" / "pending" / f"facebook-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
+            generated_image = True
             logger.info("Facebook: generated branded image at %s", image_path)
 
         context = await _launch_context(pw, "facebook")
         page = context.pages[0] if context.pages else await context.new_page()
 
-        # Pre-post browsing
-        await page.goto(PLATFORMS["facebook"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)
-        await page.wait_for_load_state("domcontentloaded")
+        # Navigate to Facebook
+        await page.goto(PLATFORMS["facebook"]["home_url"], wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+        await page.wait_for_timeout(3000)
         await browse_feed(page, "facebook")
 
-        # Open composer
+        # Open composer modal
         await page.click(FB_COMPOSER_TRIGGER, timeout=COMPOSE_TIMEOUT)
         await page.wait_for_selector(FB_TEXTBOX, timeout=COMPOSE_TIMEOUT)
+        logger.info("Facebook: composer modal open")
         await human_delay(1, 2)
 
-        # Upload image if available
+        # Step 1: Paste image into composer (if available)
         if image_path and image_path.exists():
-            try:
-                uploaded = False
-                # Try clicking "Photo/video" button to open media area
-                photo_selectors = [
-                    '[aria-label="Photo/video"]',
-                    '[aria-label="Photo/Video"]',
-                    'div[role="button"]:has-text("Photo/video")',
-                    'div[role="button"]:has-text("Photo/Video")',
-                ]
-                for sel in photo_selectors:
-                    try:
-                        btn = page.locator(sel).first
-                        if await btn.is_visible(timeout=3000):
-                            await btn.click()
-                            logger.info("Facebook: clicked photo/video button via %s", sel)
-                            await human_delay(1, 2)
-                            break
-                    except Exception:
-                        continue
+            abs_image = str(Path(str(image_path)).resolve())
+            import base64
+            with open(abs_image, "rb") as img_f:
+                img_bytes = img_f.read()
+            img_b64 = base64.b64encode(img_bytes).decode()
 
-                # Now find file input
-                fi_selectors = [
-                    'input[type="file"][accept*="image"]',
-                    'input[type="file"][accept*="video"]',
-                    'input[type="file"]',
-                ]
-                for sel in fi_selectors:
-                    try:
-                        fi = page.locator(sel).first
-                        if await fi.count() > 0:
-                            await fi.set_input_files(str(image_path))
-                            uploaded = True
-                            logger.info("Facebook: uploaded image via %s", sel)
-                            break
-                    except Exception:
-                        continue
+            # Focus textbox, then paste image via ClipboardEvent
+            textbox = page.locator(FB_TEXTBOX).first
+            await textbox.click()
+            await page.wait_for_timeout(500)
 
-                if uploaded:
-                    await human_delay(3, 5)
-                else:
-                    logger.warning("Facebook: could not upload image, posting text-only")
-            except Exception as e:
-                logger.warning("Facebook: image upload failed, posting text-only: %s", e)
+            paste_result = await textbox.evaluate("""
+                (el, b64) => {
+                    const byteChars = atob(b64);
+                    const byteNums = new Array(byteChars.length);
+                    for (let i = 0; i < byteChars.length; i++) {
+                        byteNums[i] = byteChars.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNums);
+                    const blob = new Blob([byteArray], { type: 'image/png' });
+                    const file = new File([blob], 'image.png', { type: 'image/png' });
 
-        # Type content
-        textbox = page.locator(FB_TEXTBOX).last
-        await textbox.click()
-        for char in text:
-            await textbox.press_sequentially(char, delay=0)
-            delay_ms = random.uniform(30, 120)
-            if random.random() < 0.05:
-                delay_ms = random.uniform(300, 800)
-            await asyncio.sleep(delay_ms / 1000)
-        await human_delay(1, 3)
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
 
-        # Click post
-        await page.click(FB_POST_BUTTON, timeout=COMPOSE_TIMEOUT)
-        await human_delay(3, 5)
+                    const pasteEvent = new ClipboardEvent('paste', {
+                        bubbles: true,
+                        cancelable: true,
+                        clipboardData: dt
+                    });
+                    el.dispatchEvent(pasteEvent);
+                    return 'pasted';
+                }
+            """, img_b64)
+            logger.info("Facebook: clipboard paste result: %s", paste_result)
 
-        # Extract post URL — go to own profile to find the just-posted content
+            if paste_result == "pasted":
+                await page.wait_for_timeout(3000)
+                logger.info("Facebook: image pasted into composer")
+            else:
+                logger.warning("Facebook: image paste failed (%s)", paste_result)
+                if not (text and text.strip()):
+                    logger.error("Facebook: no text and no image — nothing to post")
+                    return None
+            await human_delay(1, 2)
+
+        # Step 2: Type text (skip if empty — image-only post)
+        if text and text.strip():
+            textbox = page.locator(FB_TEXTBOX).first
+            await textbox.click()
+            await page.wait_for_timeout(500)
+            await page.keyboard.type(text, delay=50)
+            logger.info("Facebook: typed %d chars of text", len(text))
+            await human_delay(1, 2)
+
+        # Step 3: Click Post button
+        post_btn = page.locator(FB_POST_BUTTON)
+        await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
+        await post_btn.click()
+        logger.info("Facebook: post button clicked")
+
+        # Wait for post to process
+        await page.wait_for_timeout(5000)
+
+        # Step 4: Capture URL
+        # Facebook's modern React UI doesn't expose post permalinks as <a> links.
+        # Use profile URL as reliable fallback — the post is visible at the top of the profile.
         post_url = None
         try:
-            await page.goto("https://www.facebook.com/me", timeout=PAGE_LOAD_TIMEOUT)
-            await page.wait_for_load_state("domcontentloaded")
-            await human_delay(3, 5)
-
-            # First post permalink on own profile = just-posted content
-            link = page.locator('a[href*="/posts/"], a[href*="story_fbid"]').first
-            if await link.count() > 0:
-                href = await link.get_attribute("href")
-                if href:
-                    post_url = href if href.startswith("http") else f"https://www.facebook.com{href}"
-                    logger.info("Facebook: captured post URL: %s", post_url)
+            await page.goto("https://www.facebook.com/me", wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+            await page.wait_for_timeout(2000)
+            profile_url = page.url
+            # Use profile URL as the post reference
+            post_url = profile_url
+            logger.info("Facebook: using profile URL: %s", post_url)
         except Exception as e:
-            logger.warning("Facebook: could not extract post URL: %s", e)
+            logger.warning("Facebook: could not get profile URL: %s", e)
 
         # Post-post browsing
         await browse_feed(page, "facebook")
@@ -536,7 +658,7 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
         logger.error("Failed to post to Facebook: %s", e, exc_info=True)
         return None
     finally:
-        if image_path:
+        if image_path and generated_image:
             try:
                 image_path.unlink(missing_ok=True)
             except Exception:
@@ -551,7 +673,15 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
 # ─── Reddit ────────────────────────────────────────────────────────────────
 
 async def post_to_reddit(draft: dict, pw) -> str | None:
-    """Post content to Reddit via user profile. Returns post URL on success, None on failure."""
+    """Post content to Reddit via user profile. Supports text, image+text, and image-only posts.
+
+    Post types:
+      - text-only: Text tab → title + body
+      - image-only: Images & Video tab → title + upload image
+      - image+text: Images & Video tab → title + upload image + body
+
+    Returns post URL on success, None on failure.
+    """
     context = None
     try:
         reddit_content = draft["content"]["reddit"]
@@ -560,13 +690,20 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
                 import json as _json
                 parsed = _json.loads(reddit_content)
                 title = parsed.get("title", reddit_content[:120])
-                body = parsed.get("body", reddit_content)
+                body = parsed.get("body", "")
             except (ValueError, TypeError):
                 title = reddit_content[:120]
                 body = reddit_content
         else:
-            title = reddit_content["title"]
-            body = reddit_content["body"]
+            title = reddit_content.get("title", "")
+            body = reddit_content.get("body", "")
+
+        # Check for external image path
+        image_path = None
+        ext_image = draft.get("image_path")
+        if ext_image and Path(str(ext_image)).exists():
+            image_path = Path(str(ext_image))
+            logger.info("Reddit: using provided image: %s", image_path)
 
         context = await _launch_context(pw, "reddit")
         page = context.pages[0] if context.pages else await context.new_page()
@@ -588,60 +725,119 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
             logger.error("Reddit: could not determine username from %s", current_url)
             return None
 
-        # Post to user profile (avoids subreddit spam filters)
+        # Navigate to submit page on user profile
         submit_url = f"https://www.reddit.com/user/{username}/submit"
         logger.info("Reddit: submitting to u/%s", username)
         await page.goto(submit_url, timeout=PAGE_LOAD_TIMEOUT)
         await page.wait_for_load_state("domcontentloaded")
         await human_delay(2, 4)
 
-        # Fill title — Reddit 2026 UI uses textbox with label "Title"
-        # Try multiple selectors for robustness
-        title_el = page.locator(
-            'textarea[name="title"], '
-            '[role="textbox"][aria-label="Title"], '
-            'textbox[name="Title"]'
-        ).first
+        has_image = image_path is not None
+
+        # ── Image posts: switch to "Images & Video" tab and upload ──
+        if has_image:
+            img_tab = page.locator('button:has-text("Images & Video")')
+            await img_tab.first.wait_for(timeout=COMPOSE_TIMEOUT)
+            await img_tab.first.click()
+            await human_delay(1, 2)
+            logger.info("Reddit: switched to Images & Video tab")
+
+            # Upload image via "Upload files" button → file chooser
+            upload_btn = page.get_by_text("Upload files").first
+            async with page.expect_file_chooser() as fc_info:
+                await upload_btn.click()
+            file_chooser = await fc_info.value
+            await file_chooser.set_files(str(image_path))
+            logger.info("Reddit: uploaded image via file chooser")
+
+            # Wait for image to fully upload (thumbnail should appear)
+            await page.wait_for_timeout(5000)
+            logger.info("Reddit: waited for image upload to complete")
+
+        # ── Fill title (always required) ──
+        title_sel = 'textarea[name="title"], textarea[placeholder*="Title"]'
+        title_el = page.locator(title_sel).first
         await title_el.wait_for(timeout=COMPOSE_TIMEOUT)
         await title_el.click()
         await title_el.fill(title)
-        logger.info("Reddit: filled title")
+        logger.info("Reddit: filled title: %s", title[:60])
         await human_delay(1, 2)
 
-        # Fill body — try multiple selectors (Reddit UI changes frequently)
-        body_el = page.locator(
-            '[role="textbox"][name="body"], '
-            'div[contenteditable="true"][name="body"], '
-            'textarea[placeholder*="Body"], '
-            'textarea[placeholder*="body"]'
-        ).first
-        await body_el.wait_for(timeout=COMPOSE_TIMEOUT)
-        await body_el.click()
-        await body_el.fill(body)
-        logger.info("Reddit: filled body")
+        # ── Fill body if provided ──
+        if body and body.strip():
+            try:
+                # Lexical editor is inside shadow DOM — focus it via JS then type
+                focused = await page.evaluate('''() => {
+                    // Search through all shadow roots for the contenteditable
+                    function findInShadow(root) {
+                        const el = root.querySelector('div[contenteditable="true"][data-lexical-editor="true"]');
+                        if (el) return el;
+                        for (const child of root.querySelectorAll('*')) {
+                            if (child.shadowRoot) {
+                                const found = findInShadow(child.shadowRoot);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    }
+                    const editor = findInShadow(document);
+                    if (editor) {
+                        editor.focus();
+                        return true;
+                    }
+                    return false;
+                }''')
+                if focused:
+                    await human_delay(0.3, 0.5)
+                    await page.keyboard.type(body, delay=random.randint(20, 50))
+                    logger.info("Reddit: filled body text via JS focus")
+                else:
+                    logger.info("Reddit: Lexical editor not found in shadow DOM")
+            except Exception as e:
+                logger.info("Reddit: body field not available: %s", e)
         await human_delay(1, 3)
 
-        # Click Post button — try multiple selectors
-        post_btn = page.locator(
-            'button:has-text("Post"):not(:has-text("Create")):not(:has-text("Save")), '
-            'button[type="submit"]:has-text("Post")'
-        ).first
-        await post_btn.wait_for(timeout=COMPOSE_TIMEOUT)
+        # ── Click Post button ──
+        post_btn = page.locator('button:has-text("Post")').last
+        await post_btn.wait_for(state="visible", timeout=COMPOSE_TIMEOUT)
+        # Wait for button to become enabled (image may still be uploading)
+        for _ in range(15):
+            if await post_btn.is_enabled():
+                break
+            logger.info("Reddit: waiting for Post button to enable...")
+            await page.wait_for_timeout(1000)
         await post_btn.click()
         logger.info("Reddit: clicked Post")
 
-        # Wait for redirect to the new post
-        await human_delay(3, 6)
-
-        # Extract post URL — Reddit redirects to /comments/ after submission
+        # Wait for redirect — Reddit goes to /submitted/?created=t3_XXXXX
         post_url = None
-        for attempt in range(5):
+        try:
+            await page.wait_for_url("**/submitted/**created=**", timeout=20000)
             current = page.url
-            if "/comments/" in current:
-                post_url = current
-                logger.info("Reddit: captured post URL (attempt %d): %s", attempt + 1, post_url)
-                break
-            await page.wait_for_timeout(2000)
+            logger.info("Reddit: redirected to: %s", current)
+            # Extract post ID from ?created=t3_XXXXX query param
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(current).query)
+            created = qs.get("created", [None])[0]  # e.g., "t3_1s9nt35"
+            if created and created.startswith("t3_"):
+                post_id = created[3:]  # strip "t3_" prefix
+                post_url = f"https://www.reddit.com/user/{username}/comments/{post_id}/"
+                logger.info("Reddit: constructed post URL: %s", post_url)
+        except Exception:
+            # Fallback: poll for URL change
+            for attempt in range(8):
+                current = page.url
+                if "/comments/" in current:
+                    post_url = current
+                    break
+                if "created=" in current:
+                    from urllib.parse import urlparse, parse_qs
+                    qs = parse_qs(urlparse(current).query)
+                    created = qs.get("created", [None])[0]
+                    if created and created.startswith("t3_"):
+                        post_url = f"https://www.reddit.com/user/{username}/comments/{created[3:]}/"
+                        break
+                await page.wait_for_timeout(2000)
 
         # Post-post browsing
         await page.goto(PLATFORMS["reddit"]["home_url"], timeout=PAGE_LOAD_TIMEOUT)

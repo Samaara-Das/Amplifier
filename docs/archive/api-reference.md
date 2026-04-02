@@ -58,11 +58,6 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | PATCH | `/api/company/campaigns/{id}` | Edit campaign (increments version) |
 | DELETE | `/api/company/campaigns/{id}` | Delete draft (refunds budget) |
 | POST | `/api/company/campaigns/{id}/budget-topup` | Add budget |
-| POST | `/api/company/campaigns/{id}/clone` | Clone campaign as new draft |
-| GET | `/api/company/campaigns/{id}/export` | Export campaign report as CSV |
-| GET | `/api/company/campaigns/{id}/reach-estimate` | Reach estimate for existing campaign |
-| POST | `/api/company/campaigns/ai-wizard` | AI generates full campaign draft from wizard answers |
-| POST | `/api/company/campaigns/reach-estimate` | Estimate reach for targeting criteria |
 
 ---
 
@@ -83,9 +78,6 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | POST | `/api/admin/users/{id}/suspend` | Suspend user |
 | POST | `/api/admin/users/{id}/unsuspend` | Restore user |
 | GET | `/api/admin/stats` | System stats |
-| GET | `/api/admin/flagged-campaigns` | List flagged campaigns (filter by status) |
-| POST | `/api/admin/flagged-campaigns/{id}/approve` | Approve flagged campaign |
-| POST | `/api/admin/flagged-campaigns/{id}/reject` | Reject flagged campaign |
 
 ---
 
@@ -102,16 +94,9 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | POST | `/company/campaigns/upload-asset` | Upload image/file to Supabase Storage |
 | POST | `/company/campaigns/new` | Submit campaign form |
 | GET | `/company/campaigns/{id}` | Campaign detail |
-| POST | `/company/campaigns/{id}/status` | Update campaign status |
-| POST | `/company/campaigns/{id}/edit` | Edit campaign content |
-| POST | `/company/campaigns/{id}/topup` | Top up campaign budget |
 | GET | `/company/billing` | Billing page |
-| POST | `/company/billing/topup` | Submit balance top-up |
-| GET | `/company/billing/success` | Stripe payment success callback |
 | GET | `/company/stats` | Statistics page |
 | GET | `/company/settings` | Company settings |
-| POST | `/company/settings` | Update company settings |
-| GET | `/company/logout` | Logout |
 
 ---
 
@@ -122,20 +107,9 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | GET | `/admin/login` | Admin login |
 | POST | `/admin/login` | Submit password |
 | GET | `/admin/` | Overview dashboard |
-| GET | `/admin/logout` | Logout |
 | GET | `/admin/users` | User management |
-| POST | `/admin/users/{id}/suspend` | Suspend user |
-| POST | `/admin/users/{id}/unsuspend` | Unsuspend user |
 | GET | `/admin/campaigns` | Campaign management |
-| GET | `/admin/fraud` | Fraud detection dashboard |
-| POST | `/admin/fraud/run-check` | Run fraud detection check |
 | GET | `/admin/payouts` | Payout management |
-| POST | `/admin/payouts/run-billing` | Run billing cycle |
-| POST | `/admin/payouts/run-payout` | Run payout cycle |
-| GET | `/admin/platform-stats` | Per-platform statistics |
-| GET | `/admin/review-queue` | Flagged campaigns review queue |
-| POST | `/admin/review-queue/{id}/approve` | Approve flagged campaign |
-| POST | `/admin/review-queue/{id}/reject` | Reject flagged campaign |
 
 ---
 

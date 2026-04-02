@@ -44,7 +44,7 @@
                 <td>{{ post.campaign_title or 'N/A' }}</td>
                 <td style="max-width: 250px;">
                   {% set display_text = post.content or post.get('post_text', '') %}
-                  {% if post.post_url %}
+                  {% if post.post_url and post.post_url.startswith('http') %}
                     <a href="{{ post.post_url }}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none;" title="{{ display_text }}">
                       {{ display_text|truncate(60) }}
                     </a>
@@ -56,8 +56,10 @@
                   {{ post.posted_at[:16]|replace('T', ' ') if post.posted_at else 'N/A' }}
                 </td>
                 <td>
-                  {% if post.post_url %}
+                  {% if post.post_url and post.post_url.startswith('http') %}
                     <span class="status-badge posted"><span class="status-badge-dot"></span>Posted</span>
+                  {% elif post.post_url %}
+                    <span class="status-badge" style="background: #fefce8; color: #854d0e;"><span class="status-badge-dot" style="background: #854d0e;"></span>URL Missing</span>
                   {% elif post.get('status') == 'failed' %}
                     <span class="status-badge failed"><span class="status-badge-dot"></span>Failed</span>
                   {% else %}

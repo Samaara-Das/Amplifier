@@ -95,7 +95,7 @@ npx supabase projects api-keys --project-ref ozkntsmomkrsnjziamkr
 # Server unit tests (19 tests)
 cd server && python -m pytest tests/ -v
 
-# Scripts unit tests (13 tests)
+# Scripts unit tests (11 tests)
 cd scripts && python -m pytest tests/ -v
 
 # Test a specific scraper

@@ -74,7 +74,7 @@ Before generating content, the generator can deep-research campaign URLs:
 
 1. Extract URLs from campaign `assets.company_urls`
 2. Limit to max 3 unique URLs
-3. Call webcrawler: `python C:/Users/dassa/Work/webcrawler/crawl.py --json fetch {url}` (hardcoded path in `WEBCRAWLER_PATH`)
+3. Call webcrawler: `python crawl.py --json fetch {url}`
 4. Build research brief from scraped content (max 3000 chars total)
 5. Inject into prompt as `"RESEARCH (scraped from company URLs)"`
 

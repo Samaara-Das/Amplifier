@@ -139,17 +139,15 @@
 
 | Table | Purpose | Key Fields |
 |-------|---------|-----------|
-| local_campaign | Tracked campaigns | server_id, assignment_id, title, brief, assets, content_guidance, payout_rules, payout_multiplier, status, invitation_status, invited_at, expires_at, responded_at |
+| local_campaign | Tracked campaigns | server_id, assignment_id, status, invitation_status |
 | local_post | Posted content | campaign_server_id, platform, post_url, content_hash, synced |
 | local_metric | Engagement data | post_id, impressions, likes, reposts, comments, is_final |
 | local_earning | Earnings log | campaign_server_id, amount, period, status |
 | settings | Key-value config | key (PK), value |
-| scraped_profile | Platform profiles | platform (UNIQUE), follower_count, following_count, display_name, profile_pic_url, bio, recent_posts (JSON), engagement_rate, posting_frequency, ai_niches (JSON), profile_data (JSON) |
+| scraped_profile | Platform profiles | platform (UNIQUE), follower_count, bio, recent_posts (JSON), profile_data (JSON) |
 | post_schedule | Post queue | campaign_server_id, platform, scheduled_at, content, status |
 | agent_draft | Generated drafts | campaign_id, platform, draft_text, approved, posted |
-| agent_user_profile | Per-platform user style data | platform (UNIQUE), bio, recent_posts, style_notes, follower_count |
 | agent_research | Campaign research | campaign_id, research_type, content, source_url |
-| agent_content_insights | Content performance tracking | platform, pillar_type, hook_type, avg_engagement_rate, sample_count, best_performing_text |
 | local_notification | Event feed | type, title, message, data (JSON), read |
 
 ---

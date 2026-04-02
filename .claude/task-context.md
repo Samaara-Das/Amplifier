@@ -1,12 +1,12 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-03-29 (Session 23)
+**Last Updated**: 2026-04-02 (Session 24)
 
 ## Current Task
 
-**Task #28 — Verify: Scheduled Posting** (in-progress)
+**Task #28 — Verify: Scheduled Posting** (in-progress) — paused while handling docs/co-founder prep.
 
-Testing all post types (text-only, image+text, image-only) on all 4 platforms. Testing 1 platform at a time in order: X → LinkedIn → Facebook → Reddit.
+Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddit), then #29-#30 (Metric Scraping).
 
 ## Task Progress Summary
 
@@ -18,125 +18,91 @@ Testing all post types (text-only, image+text, image-only) on all 4 platforms. T
 | 4 Money | Billing, Earnings, Stripe, Campaign Detail | #31-#38 | All pending |
 | 5 Support | System Tray, Dashboard Stats | #39-#42 | All pending |
 | 6 Admin | Overview, Users, Campaigns, Payouts | #43-#50 | All pending |
-| Future | AI scrapers, content gen, video gen, tiers | #51-#66 | All pending |
+| Future | AI scrapers, content gen, video gen, tiers | #51-#68 | All pending |
 
-**14 of 36 verify tasks done. 22 remaining + 16 future tasks.**
+**26 done, 2 in-progress, 40 pending. 68 total tasks.**
 
-## Session 22 Summary (Previous Session)
+## Session 23 Summary (Previous Session)
 
-Tasks #19-#22 completed (Matching + Campaign Polling). Key work:
-- Matching: fully AI-driven, niche unification, platform format fix, scraped profiles sync
-- Polling: invitation flow bug fixed, rich display, auto-reload, per-campaign notifications
-- 8 docs created, FUTURE.md expanded, tasks.json encoding fixed
-- LinkedIn reconnect auto-reset, Mistral import fix
+Tasks #23-#26 completed (Content Gen + Review). Task #27 done, #28 in-progress. Key work:
+- Content gen: documented current system, deferred rebuild to Task #63
+- Content review: unapprove button, Reddit JSON fix, company name display, auto-reload, notifications
+- Posting: CRITICAL human_delay sync bug fixed (broke ALL posting), 4 platforms verified working
+- Posting test results: all posts delivered, URL capture broken for LinkedIn/Facebook/Reddit
+- 10 future tasks created (#57-#66), selector research via Chrome DevTools MCP
+- Key bugs: human_delay sync, X strict mode, Reddit spam filter, LinkedIn/Facebook timeouts
 
-## Session 23 — What Was Done (Current Session)
+## Session 24 — What Was Done (Current Session)
 
-### Task #23/#24: AI Content Generation (Explain + Verify)
-- **Explained** current single-prompt system, identified gaps vs SLC spec
-- **Documented full requirements** for 4-phase AI agent rebuild (research, strategy, creation, review)
-- Campaign goal drives content strategy (leads vs virality vs awareness vs engagement)
-- Image intelligence: AI analyzes campaign images via vision API, matches to relevant posts
-- Must-include items woven naturally, not forced into every post
-- Content must look like real UGC (hooks, stories, imperfect language)
-- Free API credit management (Gemini → Mistral → Groq fallback, stay within free limits)
-- **Marked done** — current system documented, rebuild deferred to Task #63
-- **Task #63 created**: Build 4-phase AI content agent (research before building — evaluate existing tools like Jasper, CrewAI, FeedHive for leverage)
+### Documentation for Co-Founder Review
+Created 3 comprehensive documents for potential co-founder **Devtest-Dan**:
 
-### Task #25/#26: Content Review/Approval (Explain + Verify)
-- **Verified**: approve/reject/edit/restore/unapprove/approve-all all work
-- **Added Unapprove button** for approved (not yet posted) drafts — sets back to pending, removes from schedule
-- **Fixed Reddit JSON display** — title+body rendered instead of raw JSON in both Today's Posts and Past Posts
-- **Added company name** to campaign invitations and detail pages (required eagerly loading Company relationship)
-- **Auto-reload** on campaigns + detail pages via hash polling (10s interval)
-- **Per-campaign desktop notifications** when content is generated
-- **Template auto-reload** enabled for development (TEMPLATES_AUTO_RELOAD + use_reloader)
-- **Hot reload** enabled — Python code changes auto-restart app (use_reloader with WERKZEUG_RUN_MAIN check)
+1. **PRD** (`docs/PRD.md`, ~56KB) — Complete product requirements document:
+   - Product concept, problem statement, solution overview
+   - Full system architecture with diagrams
+   - All 6 feature areas detailed (server, company dashboard, admin dashboard, user app, posting engine, content gen, personal brand engine)
+   - Complete data models (9 server tables + 8 local tables)
+   - Full API reference (52+ endpoints)
+   - Monetization formula and billing mechanics
+   - Trust & safety system
+   - Technical constraints, implementation status
+   - Future roadmap (6 phases)
+   - Configuration appendices
 
-### Task #27: Explain: Scheduled Posting
-- Walked through posting pipeline: scheduling → due detection → Playwright execution → URL capture → server sync
-- Identified issues: X lockout detection needed, image attachment not wired up, scheduling not goal-driven
-- **Task #66 created**: X lockout detection and user notification
+2. **Concept Doc** (`docs/concept.md`) — Non-technical business document:
+   - Vision: marketplace turning everyday social media users into a distribution channel
+   - Problem (both sides), solution (how it works in plain language)
+   - How it's different (vs influencer agencies, affiliate networks, UGC platforms, social mgmt tools)
+   - Business model (20% take rate, unit economics, money flow)
+   - Market opportunity (TAM $21B, SAM $5B, SOM $50M)
+   - What's built (V1 shipped, live URLs)
+   - Risks and honest challenges (platform detection, cold start, legal, revenue scale)
+   - Co-founder opportunity (what they'd own, why join now)
 
-### Task #28: Verify: Scheduled Posting (IN PROGRESS)
+3. **Pitch Deck** (`docs/pitch-deck.md`) — 13-slide markdown pitch:
+   - Problem (company + user sides)
+   - Solution, How It Works (5-step flow)
+   - Market Size (TAM/SAM/SOM)
+   - Business Model (20% take, ~90% gross margin)
+   - Competitive Landscape (comparison matrix)
+   - Traction (V1 built, live URLs, 52+ endpoints)
+   - Product Highlights, Roadmap
+   - Team & What We Need, The Ask
 
-#### CRITICAL BUG FIXED: `human_delay` was sync, broke ALL posting
-- `human_delay()` used `time.sleep()` but was called with `await` throughout ALL 4 platform posting functions
-- This caused `TypeError: 'NoneType' object can't be awaited`, silently crashing every post attempt
-- **Fix**: Changed to `async def human_delay()` using `asyncio.sleep()`
-- This was THE root cause of all posting failures across all platforms
+### GitHub Access for Devtest-Dan
+- Repo `Samaara-Das/Amplifier` is **private**
+- **Devtest-Dan** invited as collaborator with **push access** (pending acceptance)
+- All changes merged from `flask-user-app` → `main` and pushed
+- Devtest-Dan will see everything on default `main` branch
 
-#### Other posting fixes:
-- **human_type .first**: X compose has 2 `role=textbox` elements, strict mode failed. Added `.first`
-- **Reddit posts to user profile**: Changed from random subreddit (spam-filtered) to `u/username/submit`
-- **Reddit auto-detects username**: Navigates to `/user/me/`, extracts username from redirect URL
-- **Image path support**: All 4 platforms now accept `draft.get("image_path")` for pre-existing images
-- **LinkedIn URL capture**: Now checks home feed first (faster), then activity page as fallback
-- **LinkedIn image upload**: Updated selectors — "Add media" button with file chooser
-- **Empty text handling**: All platforms skip typing if text is empty (supports image-only posts)
-- **Reddit image posts**: Switch to "Images & Video" tab, upload via file input
-- **Reddit body optional**: Body field no longer required (supports image-only with just title)
+### Key Decisions This Session
+- Devtest-Dan is a **potential co-founder/partner** — docs framed for that audience
+- All 80+ commits from flask-user-app merged to main for visibility
+- Honest framing in docs: pre-revenue, V1 built, real risks acknowledged
+- Market sizing: TAM $21B (influencer marketing), SOM $50M (3-year target)
 
-#### Selector research via Chrome DevTools MCP:
-- **LinkedIn**: `button "Start a post"` → `textbox "Text editor for creating content"` → `button "Add media"` (file chooser) → `button "Post"`
-- **Facebook**: `button "What's on your mind?"` → `textbox` in dialog → `button "Photo/video"` (creates hidden `input[type="file"]`) → `button "Post"`
-- **Reddit**: `/user/{username}/submit` → `textarea[name="title"]` → `[role="textbox"][name="body"]` → `button "Post"`. Has "Images & Video" tab for image posts.
-- **X**: Uses `data-testid` attributes (stable). `[data-testid="tweetButton"]` for post, `[data-testid="fileInput"]` for image.
+## Session 23 Key Reference (Posting Verification)
 
-#### Full test run (12 tests — 3 types × 4 platforms):
+### Task #28 Remaining To-Dos (Resume Next Session)
+1. Fix URL capture for LinkedIn, Facebook, Reddit
+2. Verify LinkedIn image actually uploads
+3. Re-test all platforms with URL capture fixes
+
+### Posting Test Results (Session 23)
 | Platform | Text-only | Image+Text | Image-only | URL Capture |
 |----------|-----------|------------|------------|-------------|
-| X | SUCCESS ✓ | SUCCESS ✓ | SUCCESS ✓ | 3/3 ✓ |
+| X | SUCCESS | SUCCESS | SUCCESS | 3/3 |
 | LinkedIn | PARTIAL | SUCCESS | PARTIAL | 1/3 (timeout) |
 | Facebook | FAILED | FAILED | FAILED | 0/3 (timeout) |
 | Reddit | PARTIAL | PARTIAL | PARTIAL | 0/3 (no redirect) |
 
-All posts were delivered (0 failures) but URL capture broken for LinkedIn/Facebook/Reddit.
+All posts delivered (0 failures) but URL capture broken for LinkedIn/Facebook/Reddit.
 
-#### Remaining to-dos for Task #28:
-1. Test 1 platform at a time (X → LinkedIn → Facebook → Reddit)
-2. For each: verify text-only, image+text, image-only posts
-3. Fix URL capture for LinkedIn, Facebook, Reddit
-4. Verify LinkedIn image actually uploads
-5. Show all results with captured URLs
-6. Delete all test posts via Chrome DevTools MCP
-
-#### Test posts deleted:
-- LinkedIn: 3 test posts deleted via Chrome DevTools MCP
-- Facebook: 1 test post moved to trash
-- Reddit: test posts auto-removed by spam filter
-- X: test posts removed (likely by X automation detection)
-
-### New Future Tasks Created This Session
-- **#57**: Official social media APIs for profile data
-- **#58**: AI campaign quality gate (85% min before activation)
-- **#59**: AI browser agent scraping (browser-use or similar)
-- **#60**: Metrics accuracy for billing (critical for trust)
-- **#61**: Self-learning content generation
-- **#62**: Free and paid tiers
-- **#63**: Build 4-phase AI content agent (MAJOR)
-- **#64**: Upgrade posting for all content formats + TikTok/Instagram
-- **#65**: Platform-specific content preview in review UI
-- **#66**: X lockout detection and user notification
-
-### Key Decisions This Session
-- Content gen rebuild deferred to Task #63 (after all verify tasks)
-- Build vs buy decision required for content agent (evaluate Jasper, CrewAI, FeedHive before building custom)
-- Tools should be chosen based on 3-6 month model trajectory (cheaper, faster, on-phone)
-- Campaign goal drives content strategy (not hardcoded)
-- Image intelligence: AI analyzes images via vision API, matches to relevant posts
-- Scheduling determined by content agent strategy, not fixed 30-min spacing
-- Reddit posts to user profile (avoids subreddit spam filters)
-- All platforms support 3 content types: text-only, image+text, image-only
-
-### Bugs Found & Fixed This Session
-1. **human_delay sync (CRITICAL)** — `time.sleep()` called with `await`, crashed ALL posting silently
-2. **human_type strict mode** — X has 2 textboxes, needed `.first`
-3. **Reddit spam filter** — posts to subreddits got filtered, switched to user profile
-4. **LinkedIn URL timeout** — feed page `goto` used default `wait_until="load"`, too slow
-5. **Facebook timeout** — all `goto` calls timing out (30s), needs `wait_until="domcontentloaded"`
-6. **Company relationship not loaded** — `campaign.company.name` failed in async, added `selectinload`
-7. **Reddit JSON display** — raw JSON shown in draft review, now renders title + body
+### Platform Selectors (Verified Session 23)
+- **LinkedIn**: `button "Start a post"` → `textbox "Text editor..."` → `button "Add media"` → `button "Post"`
+- **Facebook**: `button "What's on your mind?"` → `textbox` → `button "Photo/video"` → `button "Post"`
+- **Reddit**: `/user/{username}/submit` → `textarea[name="title"]` → `[role="textbox"][name="body"]` → `button "Post"`
+- **X**: `data-testid` attributes. `[data-testid="tweetButton"]`, `[data-testid="fileInput"]`
 
 ## Key Reference Files
 - `scripts/post.py` — Platform posting functions (X, LinkedIn, Facebook, Reddit)
@@ -144,14 +110,16 @@ All posts were delivered (0 failures) but URL capture broken for LinkedIn/Facebo
 - `scripts/background_agent.py` — Polling, content gen, posting loop
 - `scripts/utils/content_generator.py` — AI content generation (single-prompt, to be rebuilt)
 - `scripts/tests/test_all_post_types.py` — Full posting test suite (12 tests)
-- `scripts/tests/test_matching_e2e.py` — E2E matching test (3 users × 3 campaigns)
-- `docs/` — 8 comprehensive docs (architecture, API, models, user app, setup, matching, content gen, posting)
+- `docs/PRD.md` — Comprehensive product requirements (56KB)
+- `docs/concept.md` — Non-technical concept doc for co-founder
+- `docs/pitch-deck.md` — 13-slide markdown pitch deck
 - `FUTURE.md` — 12 future feature specs with tool comparisons
 
 ## Deployed URLs
 - **Company**: https://server-five-omega-23.vercel.app/company/login
 - **Admin**: https://server-five-omega-23.vercel.app/admin/login (password: admin)
 - **User App**: http://localhost:5222
+- **GitHub**: https://github.com/Samaara-Das/Amplifier (private, Devtest-Dan has access)
 
 ## Test Commands
 ```bash
@@ -163,12 +131,6 @@ cd server && GEMINI_API_KEY=<key> python -m uvicorn app.main:app --host 127.0.0.
 
 # Test posting (all platforms, all types)
 python scripts/tests/test_all_post_types.py
-
-# Test single platform
-cd scripts && HEADLESS=false python -c "
-from post import post_to_linkedin
-# ... (see test_all_post_types.py for examples)
-"
 
 # E2E matching test
 python scripts/tests/test_matching_e2e.py setup && python scripts/tests/test_matching_e2e.py test && python scripts/tests/test_matching_e2e.py cleanup
