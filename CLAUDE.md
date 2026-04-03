@@ -49,38 +49,44 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). 52 API routes total.
+FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~88 routes total (27 JSON API + 34 admin dashboard + ~22 company dashboard + 2 system).
 
 **API endpoints** (`/api/`):
-- Auth: user + company register/login (JWT)
-- Campaigns: CRUD for companies, matching + polling for users
-- Posts/Metrics: batch registration and submission
-- Admin: user management, system stats
-- Version: auto-update endpoint
+- Auth: user + company register/login (JWT) — 4 routes
+- Campaigns: CRUD for companies, AI wizard, reach estimates, matching + polling for users — 13 routes
+- Invitations: list/accept/reject + active assignments — 6 routes
+- Users: profile CRUD + earnings + payout — 4 routes
+- Posts/Metrics: batch registration and submission — 2 routes
+- System: health check + version — 2 routes
 
 **Web dashboards** (blue `#2563eb` theme, DM Sans font, gradient cards, SVG Heroicons nav):
-- **Company** (`/company/`) — 6 pages: login, campaigns list, create campaign, campaign detail, billing, settings
-- **Admin** (`/admin/`) — 6 pages: overview, users, campaigns, fraud detection, payouts, login
+- **Company** (`/company/`) — 10 pages: login, dashboard, campaigns list, create campaign, AI wizard, campaign detail, billing, influencers, stats, settings. Routers modularized into `server/app/routers/company/` (7 files).
+- **Admin** (`/admin/`) — 14 pages: login, overview, users, user detail, companies, company detail, campaigns, campaign detail, financial, fraud, analytics, review queue, audit log, settings. Routers modularized into `server/app/routers/admin/` (10 files).
 
 **Services:**
-- `matching.py` — Campaign-to-user matching (hard filters + soft scoring)
-- `billing.py` — Earnings calculation from metrics + payout rules
+- `matching.py` — Campaign-to-user matching (hard filters + AI scoring via Gemini with fallback)
+- `billing.py` — Earnings calculation from metrics + payout rules (incremental, dedup)
 - `trust.py` — Trust score adjustments + fraud detection (anomaly, deletion, cross-user)
 - `payments.py` — Stripe Connect integration (user payouts, company top-ups)
-- `background_jobs.py` — ARQ worker (billing every 6h, trust checks 2x/day)
+- `campaign_wizard.py` — AI campaign generation (URL scraping + Gemini brief generation + content screening)
+- `storage.py` — File upload management (Supabase Storage + local fallback)
 
-**Models** (8 tables): Company, Campaign, User, CampaignAssignment, Post, Metric, Payout, Penalty
+**Models** (11 tables): Company, Campaign, User, CampaignAssignment, Post, Metric, Payout, Penalty, CampaignInvitationLog, AuditLog, ContentScreeningLog
 
 ### Amplifier User App
 Local Flask dashboard + campaign runner that connects to the server.
 
-- `scripts/campaign_dashboard.py` — Flask on port 5222. 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding
-- `scripts/campaign_runner.py` — Polls server for campaigns, generates content via Claude CLI, posts via existing Playwright engine, reports metrics
+- `scripts/user_app.py` — Main Flask app on port 5222 (32+ routes). 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding. Handles auth, campaign lifecycle, draft review, scheduling, background agent control.
+- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d)
+- `scripts/campaign_runner.py` — Legacy campaign polling loop (replaced by background_agent.py)
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
 - `scripts/utils/local_db.py` — Local SQLite database for offline campaign/post/metric tracking
 - `scripts/utils/content_generator.py` — Free AI API content generation (Gemini → Mistral → Groq fallback chain for text; Gemini → Pollinations → PIL for images). Replaces PowerShell + Claude CLI for campaign content.
 - `scripts/utils/metric_collector.py` — Hybrid metric collection: X and Reddit via official APIs, LinkedIn and Facebook via Browser Use + Gemini (falls back to Playwright selectors)
-- `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement
+- `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement via Playwright
+- `scripts/utils/post_scheduler.py` — Smart post scheduling (region-aware peak windows, platform-specific timing, 30-min spacing, jitter, daily limits)
+- `scripts/utils/session_health.py` — Platform session health monitoring (30-min interval, marks expired sessions)
+- `scripts/utils/profile_scraper.py` — Per-platform profile scraping (followers, bio, posts, engagement rate, LinkedIn extended data)
 - `scripts/generate_campaign.ps1` — Preserved but unused for campaigns (replaced by content_generator.py)
 
 ## Platform-Specific Selector Patterns

@@ -1,10 +1,10 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-02 (Session 24)
+**Last Updated**: 2026-04-03 (Session 25)
 
 ## Current Task
 
-**Task #28 — Verify: Scheduled Posting** (in-progress) — paused while handling docs/co-founder prep.
+**Task #28 — Verify: Scheduled Posting** (in-progress) — paused during Sessions 24-25 for co-founder docs and codebase audit.
 
 Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddit), then #29-#30 (Metric Scraping).
 
@@ -18,9 +18,9 @@ Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddi
 | 4 Money | Billing, Earnings, Stripe, Campaign Detail | #31-#38 | All pending |
 | 5 Support | System Tray, Dashboard Stats | #39-#42 | All pending |
 | 6 Admin | Overview, Users, Campaigns, Payouts | #43-#50 | All pending |
-| Future | AI scrapers, content gen, video gen, tiers | #51-#68 | All pending |
+| Future | AI scrapers, content gen, video gen, tiers | #51-#80 | All pending |
 
-**26 done, 2 in-progress, 40 pending. 68 total tasks.**
+**27 done, 1 in-progress, 52 pending. 80 total tasks.**
 
 ## Session 23 Summary (Previous Session)
 
@@ -32,7 +32,27 @@ Tasks #23-#26 completed (Content Gen + Review). Task #27 done, #28 in-progress. 
 - 10 future tasks created (#57-#66), selector research via Chrome DevTools MCP
 - Key bugs: human_delay sync, X strict mode, Reddit spam filter, LinkedIn/Facebook timeouts
 
-## Session 24 — What Was Done (Current Session)
+## Session 25 — What Was Done (Current Session)
+
+### Full Codebase Audit & Documentation Update
+Comprehensive audit of the entire Amplifier project — server, user app, engine, and all documentation. Found significant discrepancies between docs and code:
+
+**Key findings:**
+- Route count was "52" in all docs → actually ~88 routes (27 API + 34 admin + ~22 company + 2 system)
+- Model count was "8 tables" → actually 11 models (added AuditLog, ContentScreeningLog, CampaignInvitationLog)
+- Admin dashboard was "6 pages" → actually 14 pages (refactored into 10 modular routers)
+- Company dashboard was "6 pages" → actually 10 pages (refactored into 7 modular routers)
+- User app has 32+ Flask routes, 13 local SQLite tables, background agent with 6 async tasks
+- Server services: 7 (added campaign_wizard.py, storage.py)
+
+**Docs updated:**
+- CLAUDE.md — route counts, model counts, page counts, services, user app description
+- docs/PRD.md — route counts, model counts, added AuditLog + ContentScreeningLog model definitions, expanded admin/company dashboard page lists, updated admin API section, expanded local DB table list
+- docs/pitch-deck.md — route count
+- .claude/task-context.md — session 25 notes, task counts
+- Memory MEMORY.md — all counts, server file listings, user app file listings, implementation status
+
+## Session 24 — What Was Done
 
 ### Documentation for Co-Founder Review
 Created 3 comprehensive documents for potential co-founder **Devtest-Dan**:

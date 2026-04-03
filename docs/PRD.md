@@ -259,7 +259,7 @@ Internet
 
 ### 6.1 Amplifier Server (Marketplace)
 
-The server is a FastAPI application deployed to Vercel with Supabase PostgreSQL. It exposes 52+ REST API endpoints and serves two server-rendered web dashboards.
+The server is a FastAPI application deployed to Vercel with Supabase PostgreSQL. It exposes ~88 routes total (27 JSON API + 34 admin dashboard + ~22 company dashboard + 2 system) and serves two server-rendered web dashboards.
 
 #### Authentication
 
@@ -380,16 +380,19 @@ Server-rendered Jinja2 templates. Blue theme (#2563eb), DM Sans font, gradient s
 **Pages:**
 
 1. **Login/Register** (`/company/login`) — Email + password form, toggle between login and register
-2. **Campaigns List** (`/company/`) — Table of all campaigns with status badge, budget (remaining/total), user count, post count, impressions, engagement, earnings
-3. **Create Campaign** (`/company/campaigns/create`) — Multi-step form OR AI wizard:
+2. **Dashboard** (`/company/`) — Overview with campaign KPIs, budget usage, ROI, alerts, recent campaigns
+3. **Campaigns List** (`/company/campaigns`) — Table of all campaigns with status badge, budget (remaining/total), user count, post count, impressions, engagement, earnings. Search, status filter, sort.
+4. **Create Campaign** (`/company/campaigns/create`) — Multi-step form OR AI wizard:
    - **Step 1 (Basics):** Product name, description, goal, company URLs
    - **Step 2 (Audience):** Target niches, regions, required platforms, min followers, min engagement
    - **Step 3 (Content):** Content guidance, must-include, must-avoid, assets (images, links, hashtags)
    - **Step 4 (Budget):** Budget amount, payout rates, penalty rules, max users, start/end dates
    - **AI Wizard:** Input product URL → AI generates complete brief + targeting + rates
-4. **Campaign Detail** (`/company/campaigns/{id}`) — Stat cards (budget, users, posts, impressions, engagement), per-platform breakdown, creator table (user, platform, posts, impressions, earned), invitation funnel (sent/accepted/rejected/expired), budget management (top-up, pause, resume)
-5. **Billing** (`/company/billing`) — Company balance, transaction history, Stripe Checkout for top-ups
-6. **Settings** (`/company/settings`) — Company name, email, password change
+5. **Campaign Detail** (`/company/campaigns/{id}`) — Stat cards (budget, users, posts, impressions, engagement), per-platform breakdown, creator table (user, platform, posts, impressions, earned), invitation funnel (sent/accepted/rejected/expired), budget management (top-up, pause, resume)
+6. **Billing** (`/company/billing`) — Company balance, budget allocations, Stripe Checkout for top-ups (test mode: manual balance credit)
+7. **Influencers** (`/company/influencers`) — Cross-campaign influencer performance: all users assigned to company campaigns with engagement metrics
+8. **Stats** (`/company/stats`) — Campaign performance aggregates, platform breakdown, monthly spend trend
+9. **Settings** (`/company/settings`) — Company name, email update
 
 ### 6.3 Admin Dashboard
 
@@ -398,12 +401,19 @@ Server-rendered, password-protected (cookie auth).
 **Pages:**
 
 1. **Login** (`/admin/login`) — Password-only form
-2. **Overview** (`/admin/`) — Stat cards (total users, active users, total campaigns, active campaigns, total posts, platform revenue), recent 10 assignments
-3. **Users** (`/admin/users`) — User table with trust score, mode, platform count, total earned, status. Suspend/unsuspend actions. Filter by status.
-4. **Campaigns** (`/admin/campaigns`) — Campaign table with company, status, budget, user count, post count
-5. **Fraud Detection** (`/admin/fraud`) — Penalties list, manual fraud check trigger (detects post deletions + metrics anomalies), anomaly list with user details
-6. **Payouts** (`/admin/payouts`) — Payout summary (pending/paid/failed totals), recent payouts, manual billing cycle trigger, manual payout cycle trigger
-7. **Platform Stats** (`/admin/platform-stats`) — Per-platform: post count, live rate, average impressions, average engagement
+2. **Overview** (`/admin/`) — Stat cards (total users, active users, total campaigns, active campaigns, total posts, platform revenue), recent activity, system alerts
+3. **Users** (`/admin/users`) — Paginated user table with search, status filter, sort. Trust score, mode, platform count, total earned, status. Actions: suspend/unsuspend/ban, adjust trust score.
+4. **User Detail** (`/admin/users/{id}`) — Individual user with assignments, posts, payouts, penalties history
+5. **Companies** (`/admin/companies`) — Paginated company list with search, status filter, sort. Actions: add/deduct funds, suspend/unsuspend.
+6. **Company Detail** (`/admin/companies/{id}`) — Individual company with campaigns and financial summary
+7. **Campaigns** (`/admin/campaigns`) — Paginated campaign table with search, status filter, sort. Actions: pause/resume/cancel.
+8. **Campaign Detail** (`/admin/campaigns/{id}`) — Campaign assignments, posts with metrics
+9. **Financial** (`/admin/financial`) — Payout dashboard with pagination and status filters. Manual billing cycle trigger, manual payout trigger.
+10. **Fraud Detection** (`/admin/fraud`) — Penalties list with summary stats (appeals, low-trust users), manual fraud check trigger, appeal approve/deny actions
+11. **Analytics** (`/admin/analytics`) — Per-platform post stats, engagement metrics, top performers
+12. **Review Queue** (`/admin/review-queue`) — Flagged campaigns (content screening), approve/reject with refund
+13. **Audit Log** (`/admin/audit-log`) — Paginated admin action history with action/target type filters
+14. **Settings** (`/admin/settings`) — System config display (platform_cut, payout threshold, etc.)
 
 ### 6.4 User App (Desktop)
 
@@ -734,18 +744,46 @@ Separate from the campaign marketplace — a personal social media automation pi
 | event_metadata | jsonb | Flexible context |
 | created_at | timestamptz | Server default |
 
-### Local Database (User's Device — SQLite)
+#### AuditLog
+| Field | Type | Description |
+|---|---|---|
+| id | int (PK) | Auto-increment |
+| action | varchar(50) | Admin action type (suspend_user, ban_user, adjust_trust, approve_campaign, run_billing, etc.) |
+| target_type | varchar(20) | user, company, campaign, payout, penalty, system |
+| target_id | int | ID of the affected entity |
+| details | jsonb | Action-specific context (old values, new values, reason) |
+| admin_ip | varchar(45) | Admin's IP address |
+| created_at | timestamptz | Server default |
+
+#### ContentScreeningLog
+| Field | Type | Description |
+|---|---|---|
+| id | int (PK) | Auto-increment |
+| campaign_id | int (FK→Campaign, unique) | One screening per campaign |
+| flagged | boolean | Whether content was flagged |
+| flagged_keywords | jsonb | List of detected flagged terms |
+| screening_categories | jsonb | Categories triggered (violence, hate, explicit, financial, health) |
+| reviewed_by_admin | boolean | Whether admin has reviewed |
+| review_result | varchar(20) | approved, rejected |
+| review_notes | text | Admin review comments |
+| created_at | timestamptz | Server default |
+
+### Local Database (User's Device — SQLite, 13 tables)
 
 | Table | Purpose |
 |---|---|
-| `local_campaign` | Mirror of server campaigns with local status tracking |
-| `agent_draft` | AI-generated content per platform per day (approved/rejected/posted flags) |
-| `post_schedule` | Queue of scheduled posts (queued → posting → complete → failed) |
-| `local_post` | Posted content with URLs and sync status |
-| `local_metric` | Scraped engagement per post with reporting status |
-| `scraped_profile` | Per-platform profile data (UNIQUE on platform) |
-| `settings` | Key-value config (mode, server_url, API keys, onboarding_done) |
-| `local_notification` | Desktop notification queue |
+| `local_campaign` | Mirror of server campaigns with local status tracking, invitation metadata |
+| `agent_draft` | AI-generated content per platform per day (approved/rejected/posted flags, quality score, iteration/day number) |
+| `post_schedule` | Queue of scheduled posts (queued → posting → posted → failed), retry tracking, draft linkage |
+| `local_post` | Posted content with URLs, sync status to server, content hash for dedup |
+| `local_metric` | Scraped engagement per post with reporting status and is_final flag |
+| `local_earning` | Per-campaign earnings with status (pending/paid) |
+| `scraped_profile` | Per-platform profile data (UNIQUE on platform): followers, bio, engagement rate, posting frequency, extended data (LinkedIn: location, experience, education) |
+| `settings` | Key-value config (mode, audience_region, API keys, onboarding_done) |
+| `local_notification` | Desktop notification queue with type, read status |
+| `agent_research` | Campaign research findings (web scrape results, competitor analysis) |
+| `agent_user_profile` | Extracted user profile style notes per platform |
+| `agent_content_insights` | Engagement analytics per platform/pillar for content optimization |
 
 ---
 
@@ -804,14 +842,23 @@ Separate from the campaign marketplace — a personal social media automation pi
 | POST | `/api/metrics/posts` | User JWT | Batch register posted URLs |
 | POST | `/api/metrics/metrics` | User JWT | Batch submit metrics (triggers billing) |
 
-**Admin (5 endpoints):**
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/admin/users` | Admin cookie | List users |
-| POST | `/api/admin/users/{id}/suspend` | Admin cookie | Suspend user |
-| POST | `/api/admin/users/{id}/unsuspend` | Admin cookie | Unsuspend user |
-| GET | `/api/admin/stats` | Admin cookie | System statistics |
-| GET | `/api/admin/flagged-campaigns` | Admin cookie | Flagged campaigns |
+**Admin Dashboard (34 HTML routes via modular routers in `server/app/routers/admin/`):**
+
+Admin routes serve server-rendered Jinja2 pages. Authentication via `admin_token` cookie. All admin actions logged to `AuditLog` table.
+
+| Category | Routes | Key Actions |
+|---|---|---|
+| Auth | 3 | Login, logout |
+| Overview | 1 | Dashboard KPIs |
+| Users | 6 | List (paginated, search, filter), detail, suspend, unsuspend, ban, adjust trust |
+| Companies | 6 | List (paginated, search, filter), detail, add/deduct funds, suspend, unsuspend |
+| Campaigns | 5 | List (paginated, search, filter), detail, pause, resume, cancel |
+| Financial | 3 | Payout list, run billing cycle, run payout cycle |
+| Fraud | 4 | Penalty list, run trust check, approve/deny appeals |
+| Analytics | 1 | Per-platform stats |
+| Review Queue | 3 | List flagged campaigns, approve, reject |
+| Audit Log | 1 | Paginated admin action history |
+| Settings | 1 | System config display |
 
 **System (2 endpoints):**
 | Method | Path | Auth | Description |
@@ -949,9 +996,9 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 
 | Component | Status | Details |
 |---|---|---|
-| **Server API** | Done | 52+ endpoints, 9 models, 5 services |
-| **Company Dashboard** | Done | 6 pages, campaign CRUD, AI wizard, billing, settings |
-| **Admin Dashboard** | Done | 6 pages, users, campaigns, fraud, payouts, platform stats |
+| **Server API** | Done | ~88 routes, 11 models, 7 services |
+| **Company Dashboard** | Done | 10 pages, campaign CRUD, AI wizard, billing, influencers, stats, settings |
+| **Admin Dashboard** | Done | 14 pages, users, companies, campaigns, financial, fraud, analytics, review queue, audit log, settings |
 | **User Onboarding** | Done & Verified | 5-step flow, API keys, platform login, scraping, niche/region, mode |
 | **Campaign Matching** | Done & Verified | Hard filters + Gemini AI scoring + niche-overlap fallback |
 | **Campaign Polling** | Done & Verified | Invitation flow, 3-day TTL, max 3 active, auto-expire |
