@@ -452,9 +452,15 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
 
     except Exception as e:
         error_msg = str(e)
-        update_schedule_status(schedule_id, "failed", error_message=error_msg)
+        from utils.local_db import classify_error
+        error_code = classify_error(error_msg)
+        update_schedule_status(
+            schedule_id, "failed",
+            error_message=error_msg,
+            error_code=error_code,
+        )
         logger.error(
-            "Failed to execute schedule_id=%d on %s: %s",
-            schedule_id, post["platform"], error_msg,
+            "Failed to execute schedule_id=%d on %s [%s]: %s",
+            schedule_id, post["platform"], error_code, error_msg,
         )
         return False

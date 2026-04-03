@@ -31,6 +31,13 @@ class User(Base):
     mode: Mapped[str] = mapped_column(String(20), default="semi_auto")
     # full_auto | semi_auto | manual
 
+    # v2/v3 upgrade: Three-tier reputation system (Seedling → Grower → Amplifier)
+    tier: Mapped[str] = mapped_column(String(20), default="seedling")
+    # seedling: default, full approval, max 3 campaigns, 30% spot-checked, 1x CPM
+    # grower: 20+ successful posts, auto-post toggle, max 10 campaigns, 10% spot-checked, 1x CPM
+    # amplifier: 100+ posts + trust >= 80, full auto, unlimited campaigns, 2x CPM, 5% spot-checked
+    successful_post_count: Mapped[int] = mapped_column(Integer, default=0)
+
     earnings_balance: Mapped[float] = mapped_column(Numeric(12, 2), default=0.0)
     earnings_balance_cents: Mapped[int] = mapped_column(Integer, default=0)  # v2: money as cents
     total_earned: Mapped[float] = mapped_column(Numeric(12, 2), default=0.0)

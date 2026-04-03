@@ -91,66 +91,19 @@ def _parse_json_response(text: str) -> dict:
         raise ValueError(f"Could not parse JSON from response: {text[:200]}")
 
 
-# ── Providers ────────────────────────────────────────────────────
+# ── Text Providers (via AiManager) ───────────────────────────────
+# v2/v3 upgrade: providers extracted to scripts/ai/ with pluggable interface.
+# ContentGenerator now uses AiManager for text generation with auto-fallback.
 
+def _get_ai_manager():
+    """Lazy-initialize the global AiManager singleton."""
+    global _ai_manager
+    if _ai_manager is None:
+        from ai.manager import create_default_manager
+        _ai_manager = create_default_manager()
+    return _ai_manager
 
-class _GeminiProvider:
-    """Google Gemini — text generation."""
-
-    def __init__(self, api_key: str):
-        from google import genai
-        self.client = genai.Client(api_key=api_key)
-        self.name = "gemini"
-
-    _MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
-
-    async def generate_text(self, prompt: str) -> dict:
-        last_err = None
-        for model in self._MODELS:
-            try:
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
-                return _parse_json_response(response.text)
-            except Exception as e:
-                last_err = e
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                    continue
-                raise
-        raise last_err
-
-
-class _MistralProvider:
-    """Mistral AI — text only."""
-
-    def __init__(self, api_key: str):
-        from mistralai.client import Mistral
-        self.client = Mistral(api_key=api_key)
-        self.name = "mistral"
-
-    async def generate_text(self, prompt: str) -> dict:
-        response = self.client.chat.complete(
-            model="mistral-small-latest",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return _parse_json_response(response.choices[0].message.content)
-
-
-class _GroqProvider:
-    """Groq — text only (fast inference)."""
-
-    def __init__(self, api_key: str):
-        from groq import Groq
-        self.client = Groq(api_key=api_key)
-        self.name = "groq"
-
-    async def generate_text(self, prompt: str) -> dict:
-        response = self.client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return _parse_json_response(response.choices[0].message.content)
+_ai_manager = None
 
 
 # ── Image providers ──────────────────────────────────────────────
@@ -346,38 +299,15 @@ def _build_research_brief(scrape_results: list[dict]) -> str:
 
 
 class ContentGenerator:
-    """Generate campaign content using free AI APIs with fallback chain."""
+    """Generate campaign content using AiManager with pluggable provider fallback.
+
+    v2/v3 upgrade: providers are now in scripts/ai/ with a clean interface.
+    The AiManager handles registration, rate-limit detection, and auto-fallback.
+    """
 
     def __init__(self):
-        self.text_providers = []
-
-        # Build provider chain based on available API keys
-        gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-        mistral_key = os.getenv("MISTRAL_API_KEY", "").strip()
-        groq_key = os.getenv("GROQ_API_KEY", "").strip()
-
-        if gemini_key:
-            try:
-                self.text_providers.append(_GeminiProvider(gemini_key))
-                logger.info("Gemini provider initialized")
-            except Exception as e:
-                logger.warning("Failed to init Gemini: %s", e)
-
-        if mistral_key:
-            try:
-                self.text_providers.append(_MistralProvider(mistral_key))
-                logger.info("Mistral provider initialized")
-            except Exception as e:
-                logger.warning("Failed to init Mistral: %s", e)
-
-        if groq_key:
-            try:
-                self.text_providers.append(_GroqProvider(groq_key))
-                logger.info("Groq provider initialized")
-            except Exception as e:
-                logger.warning("Failed to init Groq: %s", e)
-
-        if not self.text_providers:
+        self._manager = _get_ai_manager()
+        if not self._manager.has_providers:
             logger.error("No AI providers available. Set GEMINI_API_KEY in config/.env")
 
     async def generate(self, campaign: dict, enabled_platforms: list[str] = None,
@@ -398,7 +328,7 @@ class ContentGenerator:
             "image_prompt": "description for image generation"
         }
         """
-        if not self.text_providers:
+        if not self._manager.has_providers:
             raise RuntimeError("No AI providers available. Set GEMINI_API_KEY in config/.env")
 
         if enabled_platforms is None:
@@ -424,18 +354,9 @@ class ContentGenerator:
                 )
             prompt += variation_section
 
-        last_error = None
-        for provider in self.text_providers:
-            try:
-                logger.info("Generating content via %s...", provider.name)
-                result = await provider.generate_text(prompt)
-                logger.info("Content generated via %s", provider.name)
-                return result
-            except Exception as e:
-                last_error = e
-                logger.warning("%s failed: %s. Trying next provider...", provider.name, e)
-
-        raise RuntimeError(f"All text providers failed. Last error: {last_error}")
+        # v2/v3 upgrade: use AiManager with auto-fallback
+        raw_text = await self._manager.generate(prompt)
+        return _parse_json_response(raw_text)
 
     async def research_and_generate(
         self,

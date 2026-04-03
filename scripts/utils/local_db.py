@@ -104,6 +104,7 @@ def init_db() -> None:
         );
 
         -- v2: Post scheduling queue for background agent
+        -- v2/v3 upgrade: error_code, execution_log, max_retries for structured retry lifecycle
         CREATE TABLE IF NOT EXISTS post_schedule (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             campaign_server_id INTEGER NOT NULL,
@@ -113,10 +114,17 @@ def init_db() -> None:
             image_path TEXT,
             draft_id INTEGER,
             status TEXT DEFAULT 'queued',
+            -- Status lifecycle: queued → posting → posted | posted_no_url | failed
+            -- Retry:           failed → queued (requeued with incremented retry_count)
+            error_code TEXT,
+            -- Categorized error: SELECTOR_FAILED | TIMEOUT | AUTH_EXPIRED | RATE_LIMITED | UNKNOWN
             error_message TEXT,
+            execution_log TEXT,
+            -- JSON array of step results from ScriptExecutor [{step_id, success, message}]
             actual_posted_at TEXT,
             local_post_id INTEGER,
             retry_count INTEGER DEFAULT 0,
+            max_retries INTEGER DEFAULT 3,
             last_retry_at TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (campaign_server_id) REFERENCES local_campaign(server_id)
@@ -645,29 +653,40 @@ def get_scheduled_posts(status: str = None) -> list[dict]:
 
 def update_schedule_status(schedule_id: int, status: str,
                             error_message: str = None,
+                            error_code: str = None,
+                            execution_log: str = None,
                             local_post_id: int = None) -> None:
-    """Update the status of a scheduled post."""
+    """Update the status of a scheduled post.
+
+    v2/v3 upgrade: supports error_code categorization and execution_log
+    from ScriptExecutor for debugging failed posts.
+    """
     conn = _get_db()
+    _migrate_schedule_columns(conn)
+
     if status == "posted":
         conn.execute(
             """UPDATE post_schedule
                SET status = ?, actual_posted_at = datetime('now'),
-                   local_post_id = ?
+                   local_post_id = ?, error_code = NULL, error_message = NULL,
+                   execution_log = ?
                WHERE id = ?""",
-            (status, local_post_id, schedule_id),
+            (status, local_post_id, execution_log, schedule_id),
         )
     elif status == "posted_no_url":
         conn.execute(
             """UPDATE post_schedule
                SET status = ?, actual_posted_at = datetime('now'),
-                   local_post_id = ?, error_message = ?
+                   local_post_id = ?, error_message = ?, execution_log = ?
                WHERE id = ?""",
-            (status, local_post_id, error_message, schedule_id),
+            (status, local_post_id, error_message, execution_log, schedule_id),
         )
     elif status == "failed":
         conn.execute(
-            "UPDATE post_schedule SET status = ?, error_message = ? WHERE id = ?",
-            (status, error_message, schedule_id),
+            """UPDATE post_schedule
+               SET status = ?, error_code = ?, error_message = ?, execution_log = ?
+               WHERE id = ?""",
+            (status, error_code, error_message, execution_log, schedule_id),
         )
     else:
         conn.execute(
@@ -678,49 +697,95 @@ def update_schedule_status(schedule_id: int, status: str,
     conn.close()
 
 
+def _migrate_schedule_columns(conn) -> None:
+    """Add new columns to existing post_schedule tables (safe migration)."""
+    for col, default in [
+        ("retry_count", "INTEGER DEFAULT 0"),
+        ("last_retry_at", "TEXT"),
+        ("error_code", "TEXT"),
+        ("execution_log", "TEXT"),
+        ("max_retries", "INTEGER DEFAULT 3"),
+    ]:
+        try:
+            conn.execute(f"SELECT {col} FROM post_schedule LIMIT 1")
+        except Exception:
+            conn.execute(f"ALTER TABLE post_schedule ADD COLUMN {col} {default}")
+            conn.commit()
+
+
 MAX_POST_RETRIES = 3
-RETRY_DELAY_MINUTES = 30
+
+
+def classify_error(error_message: str) -> str:
+    """Classify an error message into a categorized error code.
+
+    v2/v3 upgrade: categorized errors drive retry vs. alert decisions.
+    TIMEOUT/SELECTOR_FAILED → retry. AUTH_EXPIRED → alert user. RATE_LIMITED → backoff.
+    """
+    if not error_message:
+        return "UNKNOWN"
+    msg = error_message.lower()
+    if "selector" in msg or "element_not_found" in msg or "all selectors failed" in msg:
+        return "SELECTOR_FAILED"
+    if "timeout" in msg or "timed out" in msg:
+        return "TIMEOUT"
+    if "auth" in msg or "login" in msg or "session" in msg or "401" in msg:
+        return "AUTH_EXPIRED"
+    if "rate" in msg or "429" in msg or "too many" in msg:
+        return "RATE_LIMITED"
+    return "UNKNOWN"
 
 
 def requeue_failed_posts() -> int:
-    """Re-queue failed posts for retry (max 3 attempts, 30-min delay between retries).
+    """Re-queue failed posts for retry with exponential backoff.
+
+    v2/v3 upgrade: backoff = 30min * 2^retry_count (30min, 60min, 120min).
+    Only retries SELECTOR_FAILED, TIMEOUT, RATE_LIMITED, UNKNOWN.
+    AUTH_EXPIRED errors are NOT retried (user must re-login).
 
     Returns the number of posts re-queued.
     """
     conn = _get_db()
-    # Add retry columns if they don't exist (migration for existing DBs)
-    try:
-        conn.execute("SELECT retry_count FROM post_schedule LIMIT 1")
-    except Exception:
-        conn.execute("ALTER TABLE post_schedule ADD COLUMN retry_count INTEGER DEFAULT 0")
-        conn.execute("ALTER TABLE post_schedule ADD COLUMN last_retry_at TEXT")
-        conn.commit()
+    _migrate_schedule_columns(conn)
 
     from datetime import datetime, timedelta
     now = datetime.now()
-    cutoff = (now - timedelta(minutes=RETRY_DELAY_MINUTES)).isoformat()
 
-    # Find failed posts eligible for retry
     rows = conn.execute(
-        """SELECT id, retry_count, last_retry_at FROM post_schedule
+        """SELECT id, retry_count, last_retry_at, max_retries, error_code
+           FROM post_schedule
            WHERE status = 'failed'
-           AND (retry_count IS NULL OR retry_count < ?)
-           AND (last_retry_at IS NULL OR last_retry_at < ?)""",
-        (MAX_POST_RETRIES, cutoff),
+           AND (retry_count IS NULL OR retry_count < COALESCE(max_retries, ?))""",
+        (MAX_POST_RETRIES,),
     ).fetchall()
 
     requeued = 0
-    retry_time = (now + timedelta(minutes=5)).isoformat()
     for row in rows:
         schedule_id = row[0]
         current_retries = row[1] or 0
+        last_retry = row[2]
+        error_code = row[4] or "UNKNOWN"
+
+        # Don't retry AUTH_EXPIRED — user must re-login
+        if error_code == "AUTH_EXPIRED":
+            continue
+
+        # Exponential backoff: 30min * 2^retry_count
+        backoff_minutes = 30 * (2 ** current_retries)
+        if last_retry:
+            cutoff = (datetime.fromisoformat(last_retry) + timedelta(minutes=backoff_minutes))
+            if now < cutoff:
+                continue  # Not enough time has passed
+
+        retry_time = (now + timedelta(minutes=5)).isoformat()
         conn.execute(
             """UPDATE post_schedule
                SET status = 'queued',
                    scheduled_at = ?,
                    retry_count = ?,
                    last_retry_at = datetime('now'),
-                   error_message = NULL
+                   error_message = NULL,
+                   error_code = NULL
                WHERE id = ?""",
             (retry_time, current_retries + 1, schedule_id),
         )

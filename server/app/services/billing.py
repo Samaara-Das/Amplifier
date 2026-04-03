@@ -22,6 +22,47 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+# ── Reputation Tiers (v2/v3 upgrade) ──────────────────────────────────────
+
+TIER_CONFIG = {
+    "seedling": {"max_campaigns": 3, "spot_check_pct": 30, "cpm_multiplier": 1.0,
+                 "auto_post_allowed": False},
+    "grower":   {"max_campaigns": 10, "spot_check_pct": 10, "cpm_multiplier": 1.0,
+                 "auto_post_allowed": True},
+    "amplifier": {"max_campaigns": 999, "spot_check_pct": 5, "cpm_multiplier": 2.0,
+                  "auto_post_allowed": True},
+}
+
+
+def get_tier_config(tier: str) -> dict:
+    """Get configuration for a user's reputation tier."""
+    return TIER_CONFIG.get(tier, TIER_CONFIG["seedling"])
+
+
+def _check_tier_promotion(user) -> None:
+    """Promote user to a higher tier if they meet the criteria.
+
+    Seedling → Grower: 20 successful posts
+    Grower → Amplifier: 100 successful posts + trust_score >= 80
+    """
+    current = getattr(user, "tier", "seedling") or "seedling"
+    posts = getattr(user, "successful_post_count", 0) or 0
+    trust = getattr(user, "trust_score", 50) or 50
+
+    if current == "seedling" and posts >= 20:
+        user.tier = "grower"
+        logger.info("User %d promoted to GROWER (%d posts)", user.id, posts)
+    elif current == "grower" and posts >= 100 and trust >= 80:
+        user.tier = "amplifier"
+        logger.info("User %d promoted to AMPLIFIER (%d posts, trust=%d)", user.id, posts, trust)
+
+
+def get_cpm_multiplier(user) -> float:
+    """Get CPM multiplier for a user's tier. Amplifier gets 2x."""
+    tier = getattr(user, "tier", "seedling") or "seedling"
+    return TIER_CONFIG.get(tier, TIER_CONFIG["seedling"])["cpm_multiplier"]
+
+
 def calculate_post_earnings_cents(metric: Metric, campaign: Campaign) -> int:
     """Calculate earnings for a single post in integer cents.
 
@@ -182,6 +223,10 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
 
         # Update assignment status
         assignment.status = "paid"
+
+        # Increment successful post count and check tier promotion
+        user.successful_post_count = (user.successful_post_count or 0) + 1
+        _check_tier_promotion(user)
 
         posts_processed += 1
         total_earned += earning

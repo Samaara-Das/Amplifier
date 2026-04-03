@@ -433,8 +433,13 @@ async def get_matched_campaigns(
     5. Sort by score, take top 10, create invitations
     """
 
-    # Check if user already has 3+ active campaigns — skip matching if so
-    MAX_ACTIVE_FOR_MATCHING = 3
+    # v2/v3 upgrade: tier-based campaign limits
+    # Seedling: 3, Grower: 10, Amplifier: unlimited
+    from app.services.billing import get_tier_config
+    user_tier = getattr(user, "tier", "seedling") or "seedling"
+    tier_config = get_tier_config(user_tier)
+    max_active = tier_config["max_campaigns"]
+
     active_statuses = ("accepted", "content_generated", "posted", "metrics_collected")
     active_count_result = await db.execute(
         select(func.count(CampaignAssignment.id)).where(
@@ -454,11 +459,10 @@ async def get_matched_campaigns(
     )
     existing_campaign_ids = set(existing_result.scalars().all())
 
-    # If at max active campaigns, skip new matching — only return existing
-    if active_campaign_count >= MAX_ACTIVE_FOR_MATCHING:
-        logger.info("User %d has %d active campaigns (max %d), skipping matching",
-                     user.id, active_campaign_count, MAX_ACTIVE_FOR_MATCHING)
-        # Jump to returning existing assignments only
+    # If at max active campaigns for tier, skip new matching — only return existing
+    if active_campaign_count >= max_active:
+        logger.info("User %d (%s tier) has %d active campaigns (max %d), skipping matching",
+                     user.id, user_tier, active_campaign_count, max_active)
         return await _get_existing_assignments(user, db, set())
 
     # Get all active campaigns (eagerly load company for company_name)
