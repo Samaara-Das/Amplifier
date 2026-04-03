@@ -348,34 +348,12 @@ def get_due_posts() -> list[dict]:
 
 
 async def _post_to_platform(platform: str, draft: dict, image_path: str | None = None) -> str | None:
-    """Post content to a specific platform using the existing post.py functions.
-
-    This function imports post.py functions lazily to avoid heavy dependency loading
-    at module import time.
+    """Post content to a specific platform — tries script-driven first, falls back to legacy.
 
     Returns post URL on success, None on failure.
     """
-    # Lazy import to avoid loading Playwright and other heavy deps at module level
     from playwright.async_api import async_playwright
-
-    # Import platform posting functions
-    from post import (
-        post_to_x,
-        post_to_linkedin,
-        post_to_facebook,
-        post_to_reddit,
-    )
-
-    platform_funcs = {
-        "x": post_to_x,
-        "linkedin": post_to_linkedin,
-        "facebook": post_to_facebook,
-        "reddit": post_to_reddit,
-    }
-
-    func = platform_funcs.get(platform)
-    if not func:
-        raise ValueError(f"Unsupported platform: {platform}")
+    from post import post_to_platform
 
     # Build a draft dict compatible with post.py functions
     post_draft = {
@@ -383,8 +361,12 @@ async def _post_to_platform(platform: str, draft: dict, image_path: str | None =
         "id": draft.get("id", "scheduled"),
     }
 
+    # Attach image path if provided
+    if image_path:
+        post_draft["image_path"] = image_path
+
     async with async_playwright() as pw:
-        post_url = await func(post_draft, pw)
+        post_url = await post_to_platform(post_draft, pw, platform)
 
     return post_url
 

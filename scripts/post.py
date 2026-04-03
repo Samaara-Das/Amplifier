@@ -161,6 +161,181 @@ async def _launch_context(pw, platform: str):
     return context
 
 
+# ─── Script-Driven Posting Engine ──────────────────────────────────────────
+# Declarative JSON scripts replace hardcoded platform functions (v2/v3 upgrade).
+# Falls back to legacy functions for platforms without scripts (TikTok, Instagram).
+
+SCRIPTS_DIR = ROOT / "config" / "scripts"
+
+
+def _get_script_path(platform: str) -> Path | None:
+    """Find the JSON script for a platform. Returns None if no script exists."""
+    script_path = SCRIPTS_DIR / f"{platform}_post.json"
+    if script_path.exists():
+        return script_path
+    return None
+
+
+async def post_via_script(draft: dict, pw, platform: str) -> str | None:
+    """Post content using a declarative JSON script + ScriptExecutor.
+
+    This is the primary posting path for platforms with JSON scripts.
+    Falls back to None (caller should use legacy function) if no script exists.
+
+    Returns post URL on success, None on failure.
+    """
+    script_path = _get_script_path(platform)
+    if script_path is None:
+        return None  # No script — caller should use legacy function
+
+    from engine.script_parser import load_script
+    from engine.script_executor import ScriptExecutor
+
+    context = None
+    image_path = None
+    try:
+        # Parse draft content
+        text, image_text = _extract_content(draft["content"], platform)
+
+        # Handle Reddit's special JSON format
+        title = ""
+        body = ""
+        if platform == "reddit":
+            reddit_content = draft["content"].get("reddit", "")
+            if isinstance(reddit_content, str):
+                try:
+                    parsed = json.loads(reddit_content)
+                    title = parsed.get("title", reddit_content[:120])
+                    body = parsed.get("body", "")
+                except (ValueError, TypeError):
+                    title = reddit_content[:120]
+                    body = reddit_content
+            elif isinstance(reddit_content, dict):
+                title = reddit_content.get("title", "")
+                body = reddit_content.get("body", "")
+
+        # Resolve image path
+        generated_image = False
+        ext_image = draft.get("image_path")
+        if ext_image and Path(str(ext_image)).exists():
+            image_path = Path(str(ext_image))
+        elif image_text:
+            try:
+                from utils.image_generator import generate_landscape_image
+                image_path = ROOT / "drafts" / "pending" / f"{platform}-{draft.get('id', 'temp')}.png"
+                generate_landscape_image(image_text, image_path)
+                generated_image = True
+            except Exception as e:
+                logger.warning("%s: image generation failed: %s", platform, e)
+
+        # Prepare image as base64 for clipboard paste (LinkedIn, Facebook)
+        image_b64 = ""
+        if image_path and image_path.exists():
+            import base64
+            with open(str(image_path), "rb") as f:
+                image_b64 = base64.b64encode(f.read()).decode()
+
+        # Get Reddit username if needed
+        reddit_username = ""
+        if platform == "reddit":
+            context = await _launch_context(pw, "reddit")
+            page = context.pages[0] if context.pages else await context.new_page()
+            import re as _re
+            await page.goto("https://www.reddit.com/user/me/", timeout=PAGE_LOAD_TIMEOUT)
+            await page.wait_for_load_state("domcontentloaded")
+            try:
+                await page.wait_for_url(lambda url: "/user/me" not in url.lower(), timeout=10000)
+            except Exception:
+                pass
+            user_match = _re.search(r'/user/([^/]+)', page.url)
+            if user_match and user_match.group(1).lower() != "me":
+                reddit_username = user_match.group(1)
+            if not reddit_username:
+                try:
+                    api_page = await context.new_page()
+                    await api_page.goto("https://www.reddit.com/api/v1/me.json", timeout=PAGE_LOAD_TIMEOUT)
+                    me_data = json.loads(await api_page.locator("body").inner_text())
+                    reddit_username = me_data.get("name", "")
+                    await api_page.close()
+                except Exception:
+                    pass
+            if not reddit_username:
+                logger.error("Reddit: could not determine username")
+                return None
+        else:
+            context = await _launch_context(pw, platform)
+            page = context.pages[0] if context.pages else await context.new_page()
+
+        # Build variables for template substitution
+        variables = {
+            "text": text or "",
+            "title": title,
+            "body": body,
+            "image_path": str(image_path) if image_path and image_path.exists() else "",
+            "image_b64": image_b64,
+            "reddit_username": reddit_username,
+        }
+
+        # Load and execute script
+        script = load_script(script_path)
+        executor = ScriptExecutor(page, variables)
+        execution = await executor.execute(script)
+
+        if execution.success:
+            post_url = execution.post_url
+            logger.info("Script posting to %s succeeded (URL: %s)", platform, post_url)
+            return post_url or f"https://{platform}.com/posted"
+        else:
+            logger.error(
+                "Script posting to %s failed at step '%s': %s",
+                platform, execution.failed_step, execution.error,
+            )
+            # Log execution trace
+            for step_result in execution.log:
+                status = "OK" if step_result.success else "FAIL"
+                logger.debug("  [%s] %s: %s", status, step_result.step_id, step_result.message)
+            return None
+
+    except Exception as e:
+        logger.error("Script posting to %s failed: %s", platform, e, exc_info=True)
+        return None
+    finally:
+        if image_path and generated_image:
+            try:
+                image_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+        if context:
+            try:
+                await context.close()
+            except Exception:
+                pass
+
+
+async def post_to_platform(draft: dict, pw, platform: str) -> str | None:
+    """Unified posting function — tries script-driven first, falls back to legacy.
+
+    This is the single entry point for all platform posting.
+    """
+    # Try script-driven posting first
+    script_path = _get_script_path(platform)
+    if script_path:
+        logger.info("Using JSON script for %s: %s", platform, script_path.name)
+        result = await post_via_script(draft, pw, platform)
+        if result is not None:
+            return result
+        logger.warning("Script posting failed for %s, falling back to legacy", platform)
+
+    # Fall back to legacy hardcoded function
+    legacy_func = _LEGACY_PLATFORM_POSTERS.get(platform)
+    if legacy_func:
+        logger.info("Using legacy poster for %s", platform)
+        return await legacy_func(draft, pw)
+
+    logger.error("No posting method available for %s", platform)
+    return None
+
+
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 
@@ -1220,7 +1395,8 @@ async def post_to_instagram(draft: dict, pw) -> bool:
 
 # ─── Orchestrator ───────────────────────────────────────────────────────────
 
-PLATFORM_POSTERS = {
+# Legacy poster functions — used as fallback when JSON scripts don't exist or fail
+_LEGACY_PLATFORM_POSTERS = {
     "x": post_to_x,
     "linkedin": post_to_linkedin,
     "facebook": post_to_facebook,
@@ -1228,6 +1404,10 @@ PLATFORM_POSTERS = {
     "reddit": post_to_reddit,
     "tiktok": post_to_tiktok,
 }
+
+# Unified poster dict — uses post_to_platform() which tries script-driven first
+# Keeping this dict for backward compatibility with existing callers
+PLATFORM_POSTERS = _LEGACY_PLATFORM_POSTERS.copy()
 
 # ─── Slot → Platform Mapping ──────────────────────────────────────────────
 # Per the workflow spec in docs/auto-poster-workflow.md Phase 4

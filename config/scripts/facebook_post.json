@@ -1,0 +1,135 @@
+{
+  "platform": "facebook",
+  "action": "post",
+  "version": "2026.04.03",
+  "home_url": "https://www.facebook.com/",
+  "variables_required": ["text"],
+  "steps": [
+    {
+      "id": "browse_feed",
+      "type": "goto",
+      "url": "https://www.facebook.com/",
+      "wait_for": { "selector": "[role='main']", "timeout_ms": 15000 },
+      "description": "Navigate to Facebook feed"
+    },
+    {
+      "id": "pre_browse",
+      "type": "browse_feed",
+      "timeout_ms": 2000
+    },
+    {
+      "id": "open_compose",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "aria-label", "value": "What's on your mind?" },
+          { "by": "css", "value": "[role='button']:has-text('What\\'s on your mind')" },
+          { "by": "css", "value": "[aria-label*='on your mind']" }
+        ]
+      },
+      "delay_before_ms": { "min": 1000, "max": 2000 },
+      "description": "Open composer modal"
+    },
+    {
+      "id": "wait_compose",
+      "type": "wait_and_verify",
+      "success_signals": [
+        { "selector": "[role='textbox']" }
+      ],
+      "timeout_ms": 10000,
+      "description": "Wait for composer textbox to appear"
+    },
+    {
+      "id": "wait_settle",
+      "type": "wait",
+      "timeout_ms": 1500
+    },
+    {
+      "id": "paste_image",
+      "type": "evaluate",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox']" }
+        ]
+      },
+      "js_code": "(el, b64) => { if (!b64) return 'no_image'; const byteChars = atob(b64); const byteNums = new Array(byteChars.length); for (let i = 0; i < byteChars.length; i++) { byteNums[i] = byteChars.charCodeAt(i); } const byteArray = new Uint8Array(byteNums); const blob = new Blob([byteArray], { type: 'image/png' }); const file = new File([blob], 'image.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(file); const pasteEvent = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }); el.dispatchEvent(pasteEvent); return 'pasted'; }",
+      "js_args": ["image_b64"],
+      "delay_before_ms": { "min": 500, "max": 1000 },
+      "description": "Paste image via ClipboardEvent (skipped if no image_b64 variable)"
+    },
+    {
+      "id": "wait_image_process",
+      "type": "wait",
+      "timeout_ms": 3000,
+      "description": "Wait for image to process"
+    },
+    {
+      "id": "type_text",
+      "type": "text_input",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox']" },
+          { "by": "css", "value": "[contenteditable='true']" }
+        ]
+      },
+      "text": "{{text}}",
+      "typing_speed": { "min": 35, "max": 70 },
+      "delay_before_ms": { "min": 500, "max": 1000 },
+      "delay_after_ms": { "min": 1000, "max": 2000 },
+      "description": "Type post text"
+    },
+    {
+      "id": "click_post",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "aria-label", "value": "Post" },
+          { "by": "css", "value": "[aria-label='Post']" },
+          { "by": "text", "value": "Post" }
+        ]
+      },
+      "delay_before_ms": { "min": 800, "max": 2000 },
+      "description": "Click Post button"
+    },
+    {
+      "id": "wait_post_process",
+      "type": "wait",
+      "timeout_ms": 5000,
+      "description": "Wait for post to process"
+    },
+    {
+      "id": "go_to_profile",
+      "type": "goto",
+      "url": "https://www.facebook.com/me",
+      "wait_for": { "selector": "[role='main']", "timeout_ms": 15000 },
+      "description": "Navigate to profile for URL capture"
+    },
+    {
+      "id": "wait_profile",
+      "type": "wait",
+      "timeout_ms": 2000
+    },
+    {
+      "id": "extract_url",
+      "type": "extract_url",
+      "description": "Use profile page URL as post reference (Facebook doesn't expose post permalinks easily)"
+    },
+    {
+      "id": "post_browse",
+      "type": "browse_feed",
+      "timeout_ms": 2000
+    }
+  ],
+  "error_recovery": {
+    "on_element_not_found": "retry_with_next_selector",
+    "on_unexpected_screen": "navigate_back_and_retry",
+    "on_popup": "dismiss_and_continue",
+    "on_timeout": "retry",
+    "max_retries": 3,
+    "on_failure": "queue_for_manual"
+  }
+}

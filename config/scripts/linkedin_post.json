@@ -1,0 +1,139 @@
+{
+  "platform": "linkedin",
+  "action": "post",
+  "version": "2026.04.03",
+  "home_url": "https://www.linkedin.com/feed/",
+  "variables_required": ["text"],
+  "steps": [
+    {
+      "id": "browse_feed",
+      "type": "goto",
+      "url": "https://www.linkedin.com/feed/",
+      "wait_for": { "selector": "main", "timeout_ms": 15000 },
+      "description": "Navigate to LinkedIn feed"
+    },
+    {
+      "id": "pre_browse",
+      "type": "browse_feed",
+      "timeout_ms": 2000
+    },
+    {
+      "id": "open_compose",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "role", "value": "button:Start a post" },
+          { "by": "css", "value": "[role='button']:has-text('Start a post')" },
+          { "by": "css", "value": "button.share-box-feed-entry__trigger" }
+        ]
+      },
+      "delay_before_ms": { "min": 1000, "max": 2000 },
+      "description": "Open compose modal"
+    },
+    {
+      "id": "wait_compose_open",
+      "type": "wait",
+      "timeout_ms": 2000
+    },
+    {
+      "id": "verify_compose",
+      "type": "wait_and_verify",
+      "success_signals": [
+        { "selector": "[role='textbox']" }
+      ],
+      "timeout_ms": 5000,
+      "description": "Verify compose modal opened"
+    },
+    {
+      "id": "paste_image",
+      "type": "evaluate",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox']" }
+        ]
+      },
+      "js_code": "(el, b64) => { if (!b64) return 'no_image'; const byteChars = atob(b64); const byteNums = new Array(byteChars.length); for (let i = 0; i < byteChars.length; i++) { byteNums[i] = byteChars.charCodeAt(i); } const byteArray = new Uint8Array(byteNums); const blob = new Blob([byteArray], { type: 'image/png' }); const file = new File([blob], 'image.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(file); const pasteEvent = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }); el.dispatchEvent(pasteEvent); return 'pasted'; }",
+      "js_args": ["image_b64"],
+      "delay_before_ms": { "min": 500, "max": 1000 },
+      "description": "Paste image via ClipboardEvent (skipped if no image_b64 variable)"
+    },
+    {
+      "id": "wait_image_process",
+      "type": "wait",
+      "timeout_ms": 3000,
+      "description": "Wait for image to process in composer"
+    },
+    {
+      "id": "type_text",
+      "type": "text_input",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox']" },
+          { "by": "css", "value": ".ql-editor" }
+        ]
+      },
+      "text": "{{text}}",
+      "typing_speed": { "min": 35, "max": 70 },
+      "delay_before_ms": { "min": 500, "max": 1500 },
+      "delay_after_ms": { "min": 1000, "max": 2000 },
+      "description": "Type post text"
+    },
+    {
+      "id": "click_post",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "role", "value": "button:Post" },
+          { "by": "css", "value": "button.share-actions__primary-action" },
+          { "by": "text", "value": "Post" }
+        ]
+      },
+      "delay_before_ms": { "min": 800, "max": 2000 },
+      "description": "Click Post button"
+    },
+    {
+      "id": "extract_url_dialog",
+      "type": "extract_url",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "a:has-text('View post')" },
+          { "by": "text", "value": "View post" }
+        ]
+      },
+      "timeout_ms": 30000,
+      "description": "Extract URL from success dialog 'View post' link"
+    },
+    {
+      "id": "dismiss_dialog",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "text", "value": "Not now" },
+          { "by": "text", "value": "Got it" },
+          { "by": "css", "value": "button[aria-label='Dismiss']" }
+        ]
+      },
+      "delay_before_ms": { "min": 500, "max": 1000 },
+      "description": "Dismiss success dialog (best effort)"
+    },
+    {
+      "id": "post_browse",
+      "type": "browse_feed",
+      "timeout_ms": 2000
+    }
+  ],
+  "error_recovery": {
+    "on_element_not_found": "retry_with_next_selector",
+    "on_unexpected_screen": "navigate_back_and_retry",
+    "on_popup": "dismiss_and_continue",
+    "on_timeout": "retry",
+    "max_retries": 3,
+    "on_failure": "queue_for_manual"
+  }
+}

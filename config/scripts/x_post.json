@@ -1,0 +1,160 @@
+{
+  "platform": "x",
+  "action": "post",
+  "version": "2026.04.03",
+  "home_url": "https://x.com/home",
+  "variables_required": ["text"],
+  "steps": [
+    {
+      "id": "browse_feed",
+      "type": "goto",
+      "url": "https://x.com/home",
+      "wait_for": { "selector": "[data-testid='primaryColumn']", "timeout_ms": 15000 },
+      "description": "Navigate to home feed"
+    },
+    {
+      "id": "pre_browse",
+      "type": "browse_feed",
+      "timeout_ms": 2000,
+      "description": "Simulate brief feed browsing"
+    },
+    {
+      "id": "open_compose",
+      "type": "goto",
+      "url": "https://x.com/compose/post",
+      "wait_for": { "selector": "[role='textbox']", "timeout_ms": 15000 },
+      "description": "Navigate to compose page"
+    },
+    {
+      "id": "wait_compose",
+      "type": "wait",
+      "timeout_ms": 1500,
+      "description": "Brief pause before interacting"
+    },
+    {
+      "id": "upload_image",
+      "type": "file_upload",
+      "file_path": "{{image_path}}",
+      "file_selector": "input[data-testid='fileInput']",
+      "delay_before_ms": { "min": 500, "max": 1500 },
+      "description": "Upload image via hidden file input (skipped if no image)"
+    },
+    {
+      "id": "wait_image_attach",
+      "type": "wait_and_verify",
+      "success_signals": [
+        { "selector": "[data-testid='attachments']" }
+      ],
+      "timeout_ms": 15000,
+      "description": "Wait for image attachment preview"
+    },
+    {
+      "id": "wait_image_process",
+      "type": "wait",
+      "timeout_ms": 3000,
+      "description": "Extra wait for X to process image"
+    },
+    {
+      "id": "focus_textbox",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox']" },
+          { "by": "css", "value": "[data-testid='tweetTextarea_0']" }
+        ]
+      },
+      "force": true,
+      "delay_before_ms": { "min": 300, "max": 700 },
+      "description": "Click textbox to focus (triggers React onFocus)"
+    },
+    {
+      "id": "wait_focus",
+      "type": "wait",
+      "timeout_ms": 500
+    },
+    {
+      "id": "type_text",
+      "type": "text_input",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox']" },
+          { "by": "css", "value": "[data-testid='tweetTextarea_0']" }
+        ]
+      },
+      "text": "{{text}}",
+      "typing_speed": { "min": 30, "max": 80 },
+      "delay_after_ms": { "min": 1000, "max": 3000 },
+      "description": "Type post content character by character"
+    },
+    {
+      "id": "submit_post",
+      "type": "keyboard",
+      "key": "Control+Enter",
+      "delay_before_ms": { "min": 500, "max": 1500 },
+      "description": "Submit via Ctrl+Enter (bypasses overlay div that intercepts pointer events on tweet button)"
+    },
+    {
+      "id": "wait_post_process",
+      "type": "wait",
+      "timeout_ms": 5000,
+      "description": "Wait for post to process"
+    },
+    {
+      "id": "screenshot_after",
+      "type": "screenshot",
+      "description": "Capture state after posting"
+    },
+    {
+      "id": "wait_settle",
+      "type": "wait",
+      "timeout_ms": 3000
+    },
+    {
+      "id": "go_to_profile",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "a[data-testid='AppTabBar_Profile_Link']" },
+          { "by": "aria-label", "value": "Profile" }
+        ]
+      },
+      "delay_before_ms": { "min": 1000, "max": 2000 },
+      "description": "Navigate to profile to find posted tweet"
+    },
+    {
+      "id": "wait_profile_load",
+      "type": "wait",
+      "timeout_ms": 3000
+    },
+    {
+      "id": "extract_post_url",
+      "type": "extract_url",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "article[data-testid='tweet'] a[href*='/status/']" },
+          { "by": "css", "value": "a[href*='/status/']" }
+        ]
+      },
+      "timeout_ms": 10000,
+      "description": "Extract URL of the newly posted tweet"
+    },
+    {
+      "id": "post_browse",
+      "type": "browse_feed",
+      "timeout_ms": 2000,
+      "description": "Post-post browsing"
+    }
+  ],
+  "error_recovery": {
+    "on_element_not_found": "retry_with_next_selector",
+    "on_unexpected_screen": "navigate_back_and_retry",
+    "on_popup": "dismiss_and_continue",
+    "on_timeout": "retry",
+    "max_retries": 3,
+    "on_failure": "queue_for_manual"
+  }
+}

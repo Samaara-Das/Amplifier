@@ -1,0 +1,147 @@
+{
+  "platform": "reddit",
+  "action": "post",
+  "version": "2026.04.03",
+  "home_url": "https://www.reddit.com/",
+  "variables_required": ["title"],
+  "steps": [
+    {
+      "id": "get_username",
+      "type": "goto",
+      "url": "https://www.reddit.com/user/me/",
+      "timeout_ms": 15000,
+      "description": "Navigate to /user/me/ — Reddit redirects to /user/<actual_username>/"
+    },
+    {
+      "id": "wait_redirect",
+      "type": "wait",
+      "timeout_ms": 5000,
+      "description": "Wait for JS redirect to resolve username"
+    },
+    {
+      "id": "go_to_submit",
+      "type": "goto",
+      "url": "https://www.reddit.com/user/{{reddit_username}}/submit",
+      "wait_for": { "selector": "textarea[name='title']", "timeout_ms": 15000 },
+      "description": "Navigate to user profile submit page"
+    },
+    {
+      "id": "wait_submit_page",
+      "type": "wait",
+      "timeout_ms": 2000
+    },
+    {
+      "id": "switch_to_image_tab",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "text", "value": "Images & Video" },
+          { "by": "css", "value": "button:has-text('Images & Video')" },
+          { "by": "css", "value": "button:has-text('Image')" }
+        ]
+      },
+      "delay_before_ms": { "min": 500, "max": 1500 },
+      "description": "Switch to Images & Video tab (only for image posts — skipped for text-only)"
+    },
+    {
+      "id": "wait_tab_switch",
+      "type": "wait",
+      "timeout_ms": 1500
+    },
+    {
+      "id": "upload_image",
+      "type": "evaluate",
+      "js_code": "async () => { const btn = document.querySelector('button'); const uploadBtns = [...document.querySelectorAll('button')].filter(b => b.textContent.includes('Upload')); return uploadBtns.length > 0 ? 'found' : 'not_found'; }",
+      "description": "Check for upload button (image upload handled by file_chooser step)"
+    },
+    {
+      "id": "fill_title",
+      "type": "text_input",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "textarea[name='title']" },
+          { "by": "css", "value": "textarea[placeholder*='Title']" },
+          { "by": "css", "value": "textarea[placeholder*='title']" }
+        ]
+      },
+      "text": "{{title}}",
+      "typing_speed": { "min": 25, "max": 60 },
+      "delay_before_ms": { "min": 500, "max": 1500 },
+      "description": "Fill post title"
+    },
+    {
+      "id": "wait_after_title",
+      "type": "wait",
+      "timeout_ms": 1500
+    },
+    {
+      "id": "focus_body_editor",
+      "type": "evaluate",
+      "js_code": "() => { function findInShadow(root) { const el = root.querySelector('div[contenteditable=\"true\"][data-lexical-editor=\"true\"]'); if (el) return el; for (const child of root.querySelectorAll('*')) { if (child.shadowRoot) { const found = findInShadow(child.shadowRoot); if (found) return found; } } return null; } const editor = findInShadow(document); if (editor) { editor.focus(); return true; } return false; }",
+      "delay_before_ms": { "min": 300, "max": 500 },
+      "description": "Focus the Lexical body editor inside shadow DOM via JS"
+    },
+    {
+      "id": "type_body",
+      "type": "text_input",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "[role='textbox'][name='body']" },
+          { "by": "css", "value": "[contenteditable='true'][data-lexical-editor='true']" },
+          { "by": "css", "value": "[role='textbox']" }
+        ]
+      },
+      "text": "{{body}}",
+      "typing_speed": { "min": 20, "max": 50 },
+      "delay_after_ms": { "min": 1000, "max": 3000 },
+      "description": "Type post body (skipped if empty)"
+    },
+    {
+      "id": "click_post",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "button:has-text('Post'):last-of-type" },
+          { "by": "text", "value": "Post" },
+          { "by": "css", "value": "button[type='submit']:has-text('Post')" }
+        ]
+      },
+      "delay_before_ms": { "min": 1000, "max": 2000 },
+      "description": "Click Post button"
+    },
+    {
+      "id": "wait_for_redirect",
+      "type": "wait",
+      "timeout_ms": 10000,
+      "description": "Wait for redirect to /submitted/?created=t3_XXXXX"
+    },
+    {
+      "id": "extract_url",
+      "type": "extract_url",
+      "description": "Extract post URL from page URL or redirect parameters"
+    },
+    {
+      "id": "post_browse",
+      "type": "goto",
+      "url": "https://www.reddit.com/",
+      "description": "Post-post browsing on Reddit home"
+    },
+    {
+      "id": "browse_delay",
+      "type": "browse_feed",
+      "timeout_ms": 2000
+    }
+  ],
+  "error_recovery": {
+    "on_element_not_found": "retry_with_next_selector",
+    "on_unexpected_screen": "navigate_back_and_retry",
+    "on_popup": "dismiss_and_continue",
+    "on_timeout": "retry",
+    "max_retries": 3,
+    "on_failure": "queue_for_manual"
+  }
+}
