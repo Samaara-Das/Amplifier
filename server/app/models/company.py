@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Numeric, DateTime, func
+from sqlalchemy import String, Integer, Numeric, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -13,6 +13,9 @@ class Company(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     balance: Mapped[float] = mapped_column(Numeric(12, 2), default=0.0)
+    balance_cents: Mapped[int] = mapped_column(Integer, default=0)  # v2: money as cents
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    # active | suspended
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

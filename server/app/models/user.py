@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import String, Numeric, Integer, DateTime, func
-from sqlalchemy import JSON as JSONB  # Portable: works with SQLite and PostgreSQL
+from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -32,7 +32,9 @@ class User(Base):
     # full_auto | semi_auto | manual
 
     earnings_balance: Mapped[float] = mapped_column(Numeric(12, 2), default=0.0)
+    earnings_balance_cents: Mapped[int] = mapped_column(Integer, default=0)  # v2: money as cents
     total_earned: Mapped[float] = mapped_column(Numeric(12, 2), default=0.0)
+    total_earned_cents: Mapped[int] = mapped_column(Integer, default=0)  # v2: money as cents
 
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
     # active | suspended | banned

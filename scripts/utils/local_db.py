@@ -116,6 +116,8 @@ def init_db() -> None:
             error_message TEXT,
             actual_posted_at TEXT,
             local_post_id INTEGER,
+            retry_count INTEGER DEFAULT 0,
+            last_retry_at TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (campaign_server_id) REFERENCES local_campaign(server_id)
         );
@@ -211,18 +213,34 @@ def init_db() -> None:
 # ── Settings ───────────────────────────────────────────────────────
 
 
+# Keys that contain sensitive data and should be encrypted at rest
+_SENSITIVE_KEYS = {"gemini_api_key", "mistral_api_key", "groq_api_key"}
+
+
 def get_setting(key: str, default: str = None) -> str | None:
     conn = _get_db()
     row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
     conn.close()
-    return row["value"] if row else default
+    if not row:
+        return default
+    value = row["value"]
+    # Decrypt sensitive settings transparently
+    if key in _SENSITIVE_KEYS and value:
+        from utils.crypto import decrypt_safe
+        value = decrypt_safe(value)
+    return value
 
 
 def set_setting(key: str, value: str) -> None:
+    # Encrypt sensitive settings before storage
+    stored_value = value
+    if key in _SENSITIVE_KEYS and value:
+        from utils.crypto import encrypt_if_needed
+        stored_value = encrypt_if_needed(value)
     conn = _get_db()
     conn.execute(
         "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-        (key, value),
+        (key, stored_value),
     )
     conn.commit()
     conn.close()
@@ -658,6 +676,59 @@ def update_schedule_status(schedule_id: int, status: str,
         )
     conn.commit()
     conn.close()
+
+
+MAX_POST_RETRIES = 3
+RETRY_DELAY_MINUTES = 30
+
+
+def requeue_failed_posts() -> int:
+    """Re-queue failed posts for retry (max 3 attempts, 30-min delay between retries).
+
+    Returns the number of posts re-queued.
+    """
+    conn = _get_db()
+    # Add retry columns if they don't exist (migration for existing DBs)
+    try:
+        conn.execute("SELECT retry_count FROM post_schedule LIMIT 1")
+    except Exception:
+        conn.execute("ALTER TABLE post_schedule ADD COLUMN retry_count INTEGER DEFAULT 0")
+        conn.execute("ALTER TABLE post_schedule ADD COLUMN last_retry_at TEXT")
+        conn.commit()
+
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    cutoff = (now - timedelta(minutes=RETRY_DELAY_MINUTES)).isoformat()
+
+    # Find failed posts eligible for retry
+    rows = conn.execute(
+        """SELECT id, retry_count, last_retry_at FROM post_schedule
+           WHERE status = 'failed'
+           AND (retry_count IS NULL OR retry_count < ?)
+           AND (last_retry_at IS NULL OR last_retry_at < ?)""",
+        (MAX_POST_RETRIES, cutoff),
+    ).fetchall()
+
+    requeued = 0
+    retry_time = (now + timedelta(minutes=5)).isoformat()
+    for row in rows:
+        schedule_id = row[0]
+        current_retries = row[1] or 0
+        conn.execute(
+            """UPDATE post_schedule
+               SET status = 'queued',
+                   scheduled_at = ?,
+                   retry_count = ?,
+                   last_retry_at = datetime('now'),
+                   error_message = NULL
+               WHERE id = ?""",
+            (retry_time, current_retries + 1, schedule_id),
+        )
+        requeued += 1
+
+    conn.commit()
+    conn.close()
+    return requeued
 
 
 # ── Agent Pipeline: User Profiles ─────────────────────────────────

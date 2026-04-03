@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Integer, Numeric, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -16,6 +16,7 @@ class Penalty(Base):
     # content_removed | off_brief | fake_metrics | platform_violation
 
     amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0.0)
+    amount_cents: Mapped[int] = mapped_column(Integer, default=0)  # v2: money as cents
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     appealed: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -1,7 +1,11 @@
-"""Billing engine — calculates earnings from metrics and processes payouts."""
+"""Billing engine — calculates earnings from metrics and processes payouts.
+
+v2/v3 upgrade: earnings use integer cents, 7-day hold period before payout.
+"""
 
 import logging
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,38 +16,48 @@ from app.models.metric import Metric
 from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.user import User
-from app.models.payout import Payout
+from app.models.payout import Payout, EARNING_HOLD_DAYS
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-async def calculate_post_earnings(post: Post, metric: Metric, assignment: CampaignAssignment,
-                                  campaign: Campaign) -> float:
-    """Calculate earnings for a single post based on its final metrics and payout rules.
+def calculate_post_earnings_cents(metric: Metric, campaign: Campaign) -> int:
+    """Calculate earnings for a single post in integer cents.
 
-    v2: payout_multiplier is ignored. Earnings = raw metrics * rates * (1 - platform_cut).
-    The multiplier field still exists on assignments for backward compat but is NOT used.
+    Returns user's share in cents (after platform cut).
+    v2 pattern: all money math in cents to eliminate float rounding.
     """
     rules = campaign.payout_rules or {}
 
-    rate_per_1k_imp = rules.get("rate_per_1k_impressions", 0)
-    rate_per_like = rules.get("rate_per_like", 0)
-    rate_per_repost = rules.get("rate_per_repost", 0)
-    rate_per_click = rules.get("rate_per_click", 0)
+    # Rates are stored as dollars (float) in campaign — convert to cents for math
+    rate_per_1k_imp_cents = int(rules.get("rate_per_1k_impressions", 0) * 100)
+    rate_per_like_cents = int(rules.get("rate_per_like", 0) * 100)
+    rate_per_repost_cents = int(rules.get("rate_per_repost", 0) * 100)
+    rate_per_click_cents = int(rules.get("rate_per_click", 0) * 100)
 
-    raw_earning = (
-        (metric.impressions / 1000.0 * rate_per_1k_imp) +
-        (metric.likes * rate_per_like) +
-        (metric.reposts * rate_per_repost) +
-        (metric.clicks * rate_per_click)
+    raw_cents = (
+        (metric.impressions * rate_per_1k_imp_cents // 1000) +
+        (metric.likes * rate_per_like_cents) +
+        (metric.reposts * rate_per_repost_cents) +
+        (metric.clicks * rate_per_click_cents)
     )
 
-    # Apply platform cut (no multiplier — v2 simplified billing)
-    platform_cut = settings.platform_cut_percent / 100.0
-    user_earning = raw_earning * (1 - platform_cut)
+    # Apply platform cut
+    platform_cut_pct = settings.platform_cut_percent  # e.g. 20
+    user_cents = raw_cents * (100 - platform_cut_pct) // 100
 
-    return round(user_earning, 2)
+    return user_cents
+
+
+async def calculate_post_earnings(post: Post, metric: Metric, assignment: CampaignAssignment,
+                                  campaign: Campaign) -> float:
+    """Calculate earnings for a single post. Returns dollars (float) for backward compat.
+
+    Internally uses cents for precision, converts to float for legacy callers.
+    """
+    cents = calculate_post_earnings_cents(metric, campaign)
+    return cents / 100.0
 
 
 async def run_billing_cycle(db: AsyncSession) -> dict:
@@ -93,7 +107,24 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
             budget_cost = float(campaign.budget_remaining)
             earning = budget_cost * (1 - settings.platform_cut_percent / 100.0)
 
-        # Credit user
+        # Compute in cents for precision
+        earning_cents = calculate_post_earnings_cents(metric, campaign)
+        earning = earning_cents / 100.0
+        if earning_cents <= 0:
+            continue
+
+        # Cap earning to remaining budget (in cents)
+        budget_remaining_cents = int(float(campaign.budget_remaining) * 100)
+        platform_cut_pct = settings.platform_cut_percent
+        budget_cost_cents = earning_cents * 100 // (100 - platform_cut_pct)
+        if budget_cost_cents > budget_remaining_cents:
+            budget_cost_cents = budget_remaining_cents
+            earning_cents = budget_cost_cents * (100 - platform_cut_pct) // 100
+            earning = earning_cents / 100.0
+
+        budget_cost = budget_cost_cents / 100.0
+
+        # Credit user (both cents and legacy float fields)
         user_result = await db.execute(
             select(User).where(User.id == assignment.user_id)
         )
@@ -102,7 +133,9 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
             continue
 
         user.earnings_balance = float(user.earnings_balance) + earning
+        user.earnings_balance_cents = (user.earnings_balance_cents or 0) + earning_cents
         user.total_earned = float(user.total_earned) + earning
+        user.total_earned_cents = (user.total_earned_cents or 0) + earning_cents
 
         # Deduct from campaign budget
         campaign.budget_remaining = float(campaign.budget_remaining) - budget_cost
@@ -121,15 +154,17 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
             if float(campaign.budget_remaining) < 0.2 * budget_total:
                 campaign.budget_alert_sent = True
 
-        # Create payout record
+        # Create payout record with hold period (v2 pattern)
         now = datetime.now(timezone.utc)
         payout = Payout(
             user_id=assignment.user_id,
             campaign_id=campaign.id,
             amount=earning,
+            amount_cents=earning_cents,
             period_start=post.posted_at,
             period_end=now,
             status="pending",
+            available_at=now + timedelta(days=EARNING_HOLD_DAYS),
             breakdown={
                 "metric_id": metric.id,
                 "post_id": post.id,
@@ -139,6 +174,8 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
                 "reposts": metric.reposts,
                 "clicks": metric.clicks,
                 "platform_cut_pct": settings.platform_cut_percent,
+                "earning_cents": earning_cents,
+                "budget_cost_cents": budget_cost_cents,
             },
         )
         db.add(payout)
@@ -162,3 +199,74 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
         "total_earned": total_earned,
         "total_budget_deducted": total_budget_deducted,
     }
+
+
+async def promote_pending_earnings(db: AsyncSession) -> int:
+    """Move 'pending' earnings to 'available' after hold period expires.
+
+    v2 pattern: runs periodically (every 10 min via background task).
+    Returns count of promoted payouts.
+    """
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(Payout).where(
+            and_(
+                Payout.status == "pending",
+                Payout.available_at <= now,
+            )
+        )
+    )
+    payouts = result.scalars().all()
+
+    for payout in payouts:
+        payout.status = "available"
+
+    if payouts:
+        await db.flush()
+        logger.info("Promoted %d pending earnings to available", len(payouts))
+
+    return len(payouts)
+
+
+async def void_earnings_for_post(db: AsyncSession, post_id: int) -> int:
+    """Void pending earnings for a post (fraud detected during hold period).
+
+    Returns funds to campaign budget. Only affects 'pending' payouts — if the
+    hold period already passed, the earning is available and can't be voided.
+    """
+    result = await db.execute(
+        select(Payout).where(Payout.status == "pending")
+    )
+    voided = 0
+    for payout in result.scalars().all():
+        breakdown = payout.breakdown or {}
+        if breakdown.get("post_id") == post_id:
+            payout.status = "voided"
+
+            # Return funds to campaign budget
+            if payout.campaign_id:
+                camp_result = await db.execute(
+                    select(Campaign).where(Campaign.id == payout.campaign_id)
+                )
+                campaign = camp_result.scalar_one_or_none()
+                if campaign:
+                    budget_cost_cents = breakdown.get("budget_cost_cents", 0)
+                    campaign.budget_remaining = float(campaign.budget_remaining) + (budget_cost_cents / 100.0)
+
+            # Deduct from user balance
+            user_result = await db.execute(
+                select(User).where(User.id == payout.user_id)
+            )
+            user = user_result.scalar_one_or_none()
+            if user:
+                earning = payout.amount_cents / 100.0 if payout.amount_cents else float(payout.amount)
+                user.earnings_balance = max(0, float(user.earnings_balance) - earning)
+                user.total_earned = max(0, float(user.total_earned) - earning)
+
+            voided += 1
+            logger.info("Voided payout %d for post %d ($%.2f)", payout.id, post_id, float(payout.amount))
+
+    if voided:
+        await db.flush()
+
+    return voided
