@@ -616,7 +616,8 @@ Separate from the campaign marketplace — a personal social media automation pi
 | name | varchar(255) | Company display name |
 | email | varchar(255), unique | Login email |
 | password_hash | varchar(255) | bcrypt hash |
-| balance | decimal(12,2) | Available funds for campaigns |
+| balance | decimal(12,2) | Available funds for campaigns (legacy float) |
+| balance_cents | int | Available funds in integer cents |
 | created_at, updated_at | timestamptz | Server defaults |
 
 #### Campaign
@@ -662,11 +663,15 @@ Separate from the campaign marketplace — a personal social media automation pi
 | audience_region | varchar(50) | us, uk, india, eu, global |
 | trust_score | int | 0-100, starts at 50 |
 | mode | varchar(20) | full_auto, semi_auto |
+| tier | varchar(20) | seedling (default) / grower (20+ posts) / amplifier (100+ posts + trust≥80) |
+| successful_post_count | int | Lifetime successful posts (used for tier promotion) |
 | scraped_profiles | jsonb | Full scraped data per platform |
 | ai_detected_niches | jsonb[] | AI-classified from post content |
 | last_scraped_at | timestamptz | Last profile scrape |
-| earnings_balance | decimal(12,2) | Available to withdraw |
-| total_earned | decimal(12,2) | Lifetime total |
+| earnings_balance | decimal(12,2) | Available to withdraw (legacy float) |
+| earnings_balance_cents | int | Available balance in integer cents |
+| total_earned | decimal(12,2) | Lifetime total (legacy float) |
+| total_earned_cents | int | Lifetime total in integer cents |
 | created_at, updated_at | timestamptz | Server defaults |
 
 #### CampaignAssignment
@@ -715,10 +720,12 @@ Separate from the campaign marketplace — a personal social media automation pi
 | id | int (PK) | Auto-increment |
 | user_id | int (FK→User) | |
 | campaign_id | int (FK→Campaign, nullable) | NULL for aggregate payouts |
-| amount | decimal(12,2) | Payout amount |
+| amount | decimal(12,2) | Payout amount (legacy float, kept for backward compat) |
+| amount_cents | int | Payout amount in integer cents (v2: eliminates float rounding) |
 | period_start, period_end | timestamptz | Billing period |
-| status | varchar(20) | pending, processing, paid, failed |
-| breakdown | jsonb | `{metric_id, impressions, likes, ...}` or `{withdrawal: true}` |
+| status | varchar(20) | pending → available → processing → paid; or pending → voided; processing → failed |
+| available_at | timestamptz | When the 7-day earning hold period ends and the user can withdraw |
+| breakdown | jsonb | `{metric_id, post_id, platform, impressions, likes, reposts, clicks, platform_cut_pct}` |
 | created_at | timestamptz | Server default |
 
 #### Penalty
@@ -728,7 +735,8 @@ Separate from the campaign marketplace — a personal social media automation pi
 | user_id | int (FK→User) | |
 | post_id | int (FK→Post, nullable) | |
 | reason | varchar(30) | content_removed, off_brief, fake_metrics, platform_violation |
-| amount | decimal(12,2) | Deducted from earnings |
+| amount | decimal(12,2) | Deducted from earnings (legacy float) |
+| amount_cents | int | Penalty amount in integer cents |
 | description | text | Details |
 | appealed | boolean | |
 | appeal_result | text | |
@@ -774,7 +782,7 @@ Separate from the campaign marketplace — a personal social media automation pi
 |---|---|
 | `local_campaign` | Mirror of server campaigns with local status tracking, invitation metadata |
 | `agent_draft` | AI-generated content per platform per day (approved/rejected/posted flags, quality score, iteration/day number) |
-| `post_schedule` | Queue of scheduled posts (queued → posting → posted → failed), retry tracking, draft linkage |
+| `post_schedule` | Scheduled post queue (queued → posting → posted → failed). Added: `error_code` (classified error category), `execution_log` (step-by-step trace), `max_retries` (default 3). `classify_error()` maps error messages to codes for structured exponential-backoff retry. |
 | `local_post` | Posted content with URLs, sync status to server, content hash for dedup |
 | `local_metric` | Scraped engagement per post with reporting status and is_final flag |
 | `local_earning` | Per-campaign earnings with status (pending/paid) |
@@ -898,12 +906,27 @@ company_cost = raw_earning           (full amount from campaign budget)
 
 ### Billing Mechanics
 
+- **Integer cents:** All money math uses integer cents internally to eliminate float rounding errors. Legacy `amount` float fields retained for backward compatibility.
 - **Incremental billing:** Runs on every metric submission (not batched). Prevents under-billing.
 - **Deduplication:** Tracks billed metric IDs in Payout records via `breakdown.metric_id`. Same metric never billed twice.
 - **Budget capping:** Earnings capped to remaining campaign budget. No over-spend.
 - **Budget exhaustion:** When remaining < $1, campaign auto-pauses or auto-completes based on `budget_exhaustion_action` setting.
 - **Budget alert:** When remaining < 20% of total, `budget_alert_sent` flag set (for notification).
 - **Budget top-up:** Companies can add funds anytime. Resets alert if remaining >= 20% of new total. Resumes paused campaigns.
+- **Earning hold period:** New earnings stay in `pending` status for 7 days (`EARNING_HOLD_DAYS`). `promote_pending_earnings()` moves them to `available` after the hold. Allows voiding earnings if fraud is detected within the window.
+- **Payout auto-processing:** `process_pending_payouts()` in payments.py auto-sends available payouts via Stripe Connect.
+
+### Reputation Tiers
+
+Users progress through three tiers based on successful posts and trust score:
+
+| Tier | Unlock Criteria | Max Campaigns | Spot-Check | Auto-Post | CPM Multiplier |
+|---|---|---|---|---|---|
+| **Seedling** | Default | 3 | 30% | No | 1x |
+| **Grower** | 20 successful posts | 10 | 10% | Yes | 1x |
+| **Amplifier** | 100 posts + trust ≥ 80 | Unlimited | 5% | Yes | 2x |
+
+Tier promotion runs automatically in `billing.py` (`_check_tier_promotion()`) on each billing cycle. The matching service enforces campaign limits per tier.
 
 ### Money Flow
 
@@ -992,7 +1015,7 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 
 ## 12. Implementation Status
 
-### Completed (26 of 68 tasks)
+### Completed (27+ of 80 tasks)
 
 | Component | Status | Details |
 |---|---|---|
@@ -1000,28 +1023,30 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 | **Company Dashboard** | Done | 10 pages, campaign CRUD, AI wizard, billing, influencers, stats, settings |
 | **Admin Dashboard** | Done | 14 pages, users, companies, campaigns, financial, fraud, analytics, review queue, audit log, settings |
 | **User Onboarding** | Done & Verified | 5-step flow, API keys, platform login, scraping, niche/region, mode |
-| **Campaign Matching** | Done & Verified | Hard filters + Gemini AI scoring + niche-overlap fallback |
+| **Campaign Matching** | Done & Verified | Hard filters + Gemini AI scoring + niche-overlap fallback. Tier-based campaign limits. |
 | **Campaign Polling** | Done & Verified | Invitation flow, 3-day TTL, max 3 active, auto-expire |
-| **Content Generation** | Done & Verified | Gemini→Mistral→Groq fallback, research phase, platform-native |
+| **Content Generation** | Done & Verified | AiManager (Gemini→Mistral→Groq), ImageManager (5-provider fallback + UGC post-processing), img2img support |
 | **Content Review** | Done & Verified | Approve/reject/edit/restore/unapprove, Reddit JSON display, auto-reload |
-| **Posting Engine** | Done (Partial Verify) | All 4 platforms post successfully, URL capture needs fixes |
+| **Posting Engine** | Done (Partial Verify) | JSON script engine (4 platforms). All 4 platforms post successfully, URL capture needs fixes. |
 | **Metric Scraping** | Built, Not Verified | API-first (X, Reddit) + browser fallback (LinkedIn, Facebook) |
-| **Billing** | Built, Not Verified | Incremental, dedup, budget capping, auto-pause |
+| **Billing** | Done | Integer cents math, earning hold period (7 days), tier CPM multiplier, earning promotion, payout auto-processing |
+| **Financial Safety** | Done | AES-256-GCM encryption for API keys (client + server), structured error codes + retry lifecycle in post_schedule |
+| **Reputation Tiers** | Done | Seedling/Grower/Amplifier tiers with auto-promotion in billing cycle |
 | **Trust/Fraud** | Built, Not Verified | Trust events, deletion detection, anomaly detection |
-| **Payments** | Built, Not Verified | Stripe Checkout + Connect (stub) |
+| **Payments** | Done | Stripe Connect (stub). `process_pending_payouts()` auto-processing added. |
 | **Deployment** | Done | Vercel + Supabase (US East), company/admin dashboards live |
 
-### In Progress (2 tasks)
+### In Progress
 
-- **#27-#28: Scheduled Posting Verification** — All 4 platforms post text+image. URL capture broken for LinkedIn/Facebook/Reddit.
+- **#28: Scheduled Posting Verification** — URL capture broken for LinkedIn/Facebook/Reddit.
 
-### Pending Verification (22 tasks)
+### Pending Verification
 
-Tasks #29-#50: Metric Scraping, Billing, Earnings, Stripe, Campaign Detail, System Tray, Dashboard Stats, Admin Overview/Users/Campaigns/Payouts.
+Tasks #29-#50: Metric Scraping, Earnings, Stripe, Campaign Detail, System Tray, Dashboard Stats, Admin Overview/Users/Campaigns/Payouts.
 
-### Future Features (18 tasks)
+### Future Features
 
-Tasks #51-#68: AI profile scraping, sophisticated content generation, image/video generation, official platform APIs, AI quality gate, free/paid tiers, self-learning content, X lockout detection, repost campaign type.
+Tasks #51-#80: AI profile scraping, sophisticated content generation, video generation, official platform APIs, AI quality gate, free/paid tiers, self-learning content, X lockout detection, repost campaign type.
 
 ---
 

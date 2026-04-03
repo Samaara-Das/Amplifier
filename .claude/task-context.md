@@ -1,6 +1,6 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-03 (Session 25)
+**Last Updated**: 2026-04-03 (Session 26)
 
 ## Current Task
 
@@ -32,7 +32,23 @@ Tasks #23-#26 completed (Content Gen + Review). Task #27 done, #28 in-progress. 
 - 10 future tasks created (#57-#66), selector research via Chrome DevTools MCP
 - Key bugs: human_delay sync, X strict mode, Reddit spam filter, LinkedIn/Facebook timeouts
 
-## Session 25 — What Was Done (Current Session)
+## Session 26 — What Was Done (Current Session)
+
+### Documentation Update for 4-Commit Feature Sprint
+Updated all docs after 4 major commits (Declarative JSON Engine, Financial Safety, Automation/AI Abstraction/Tiers, Image Gen Upgrade):
+- CLAUDE.md — engine/ and ai/ modules, updated service descriptions, updated model fields, JSON engine note in selector patterns section
+- docs/PRD.md — Company/User/Payout/Penalty model fields (cents columns, tier, status lifecycle), post_schedule schema, billing section (hold period, tier table), Implementation Status table
+- docs/AMPLIFIER-SPEC.md — Section 5.3 (image generation: 5-provider chain, UGC post-processing, img2img), Section 6.1 (JSON script engine table), Section 3.7 (tiers now in v1), Section 8 comparison table
+- Memory MEMORY.md — key file listings updated with engine/ and ai/ modules
+
+### Key Reference Files Added This Session
+- `scripts/engine/` — 6-module JSON script engine
+- `scripts/ai/` — text AiManager + image ImageManager + UGC post-processor
+- `server/app/utils/crypto.py` — server-side AES-256-GCM encryption
+- `scripts/utils/crypto.py` — client-side machine-derived key encryption
+- `config/scripts/` — x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json
+
+## Session 25 — What Was Done
 
 ### Full Codebase Audit & Documentation Update
 Comprehensive audit of the entire Amplifier project — server, user app, engine, and all documentation. Found significant discrepancies between docs and code:
@@ -125,12 +141,19 @@ All posts delivered (0 failures) but URL capture broken for LinkedIn/Facebook/Re
 - **X**: `data-testid` attributes. `[data-testid="tweetButton"]`, `[data-testid="fileInput"]`
 
 ## Key Reference Files
-- `scripts/post.py` — Platform posting functions (X, LinkedIn, Facebook, Reddit)
+- `scripts/post.py` — Platform posting orchestrator (script-first via post_via_script(), legacy fallback)
+- `scripts/engine/` — Declarative JSON posting engine (script_parser, selector_chain, human_timing, error_recovery, script_executor)
+- `config/scripts/` — Platform JSON scripts (x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json)
+- `scripts/ai/` — AI provider abstraction (AiManager for text, ImageManager for images, UGC post-processing)
 - `scripts/utils/post_scheduler.py` — Post scheduling and execution
 - `scripts/background_agent.py` — Polling, content gen, posting loop
-- `scripts/utils/content_generator.py` — AI content generation (single-prompt, to be rebuilt)
+- `scripts/utils/content_generator.py` — AI content generation via AiManager + ImageManager
+- `scripts/utils/local_db.py` — Local SQLite (API key encryption, post_schedule error_code/retry)
+- `server/app/services/billing.py` — Billing engine (cents math, hold period, tier promotion)
+- `server/app/services/payments.py` — Stripe Connect + auto payout processing
 - `scripts/tests/test_all_post_types.py` — Full posting test suite (12 tests)
-- `docs/PRD.md` — Comprehensive product requirements (56KB)
+- `docs/PRD.md` — Comprehensive product requirements
+- `docs/AMPLIFIER-SPEC.md` — Multi-implementation system spec
 - `docs/concept.md` — Non-technical concept doc for co-founder
 - `docs/pitch-deck.md` — 13-slide markdown pitch deck
 - `FUTURE.md` — 12 future feature specs with tool comparisons

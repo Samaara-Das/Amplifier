@@ -45,7 +45,9 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 
 - `scripts/generate.ps1` — Invokes `claude --dangerously-skip-permissions` to write draft JSON files to `drafts/review/`. Per-slot generation, pillar rotation, CTA rotation, legal disclaimers.
 - `scripts/review_dashboard.py` — Flask app on localhost:5111. Platform-by-platform previews, character counts, edit, approve/reject.
-- `scripts/post.py` — Async orchestrator. Picks pending draft, posts via Playwright to enabled platforms with human behavior emulation.
+- `scripts/post.py` — Async orchestrator. Tries `post_via_script()` first (JSON-driven engine), falls back to legacy hardcoded functions.
+- `scripts/engine/` — Declarative JSON posting engine (6 modules): `script_parser.py` (data models), `selector_chain.py` (fallback selector chains), `human_timing.py` (per-step delays), `error_recovery.py` (retry/backoff), `script_executor.py` (13 action types). Scripts live in `config/scripts/` (x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json).
+- `scripts/ai/` — AI provider abstraction layer: `provider.py` (abstract base), `manager.py` (registry + auto-fallback), `gemini_provider.py`, `mistral_provider.py`, `groq_provider.py`. Image submodule: `image_provider.py`, `image_manager.py`, `image_postprocess.py` (UGC pipeline), `image_prompts.py`, and 5 providers in `image_providers/` (gemini, cloudflare, together, pollinations, pil_fallback).
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
@@ -64,14 +66,17 @@ FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~88 routes total 
 - **Admin** (`/admin/`) — 14 pages: login, overview, users, user detail, companies, company detail, campaigns, campaign detail, financial, fraud, analytics, review queue, audit log, settings. Routers modularized into `server/app/routers/admin/` (10 files).
 
 **Services:**
-- `matching.py` — Campaign-to-user matching (hard filters + AI scoring via Gemini with fallback)
-- `billing.py` — Earnings calculation from metrics + payout rules (incremental, dedup)
+- `matching.py` — Campaign-to-user matching (hard filters + AI scoring via Gemini with fallback). Enforces tier-based campaign limits (seedling:3, grower:10, amplifier:unlimited).
+- `billing.py` — Earnings in integer cents (eliminates float rounding). `calculate_post_earnings_cents()`, `promote_pending_earnings()` (7-day hold), `void_earnings_for_post()`. Tier CPM multiplier (amplifier tier = 2x). Reputation tier promotion logic.
 - `trust.py` — Trust score adjustments + fraud detection (anomaly, deletion, cross-user)
-- `payments.py` — Stripe Connect integration (user payouts, company top-ups)
+- `payments.py` — Stripe Connect integration. `process_pending_payouts()` auto-sends via Stripe Connect.
 - `campaign_wizard.py` — AI campaign generation (URL scraping + Gemini brief generation + content screening)
 - `storage.py` — File upload management (Supabase Storage + local fallback)
 
-**Models** (11 tables): Company, Campaign, User, CampaignAssignment, Post, Metric, Payout, Penalty, CampaignInvitationLog, AuditLog, ContentScreeningLog
+**Server utilities:**
+- `server/app/utils/crypto.py` — AES-256-GCM server-side encryption
+
+**Models** (11 tables): Company (`balance_cents` added), Campaign, User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count` added), CampaignAssignment, Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog
 
 ### Amplifier User App
 Local Flask dashboard + campaign runner that connects to the server.
@@ -80,10 +85,11 @@ Local Flask dashboard + campaign runner that connects to the server.
 - `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d)
 - `scripts/campaign_runner.py` — Legacy campaign polling loop (replaced by background_agent.py)
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
-- `scripts/utils/local_db.py` — Local SQLite database for offline campaign/post/metric tracking
-- `scripts/utils/content_generator.py` — Free AI API content generation (Gemini → Mistral → Groq fallback chain for text; Gemini → Pollinations → PIL for images). Replaces PowerShell + Claude CLI for campaign content.
+- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff.
+- `scripts/utils/content_generator.py` — AI content generation using AiManager (text) and ImageManager (images). Supports img2img. Replaces PowerShell + Claude CLI for campaign content.
 - `scripts/utils/metric_collector.py` — Hybrid metric collection: X and Reddit via official APIs, LinkedIn and Facebook via Browser Use + Gemini (falls back to Playwright selectors)
 - `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement via Playwright
+- `scripts/utils/crypto.py` — Client-side encryption using machine-derived key
 - `scripts/utils/post_scheduler.py` — Smart post scheduling (region-aware peak windows, platform-specific timing, 30-min spacing, jitter, daily limits)
 - `scripts/utils/session_health.py` — Platform session health monitoring (30-min interval, marks expired sessions)
 - `scripts/utils/profile_scraper.py` — Per-platform profile scraping (followers, bio, posts, engagement rate, LinkedIn extended data)
@@ -91,7 +97,7 @@ Local Flask dashboard + campaign runner that connects to the server.
 
 ## Platform-Specific Selector Patterns
 
-Each platform function in `post.py` has selector constants at the top. Key gotchas:
+Platform posting is now driven by JSON scripts in `config/scripts/` via `scripts/engine/script_executor.py`. The scripts use fallback selector chains — try 3+ selectors before failing. Legacy hardcoded functions in `post.py` remain as fallback. Key gotchas still apply to both layers:
 
 - **X**: Overlay div intercepts pointer events — must use `dispatch_event("click")` on the post button, not `.click()`. Image upload via hidden `input[data-testid="fileInput"]`.
 - **LinkedIn**: Shadow DOM — use `page.locator().wait_for()` (pierces shadow), NOT `page.wait_for_selector()` (does not pierce). Image upload via file input or `expect_file_chooser`.

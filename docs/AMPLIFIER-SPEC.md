@@ -286,13 +286,15 @@ company_cost = raw_earning           (full amount from campaign budget)
 - Reasons: content_removed, off_brief, fake_metrics, platform_violation
 - Appeal workflow: user can appeal, admin approves/denies
 
-**Reputation Tiers (v3 design, not yet in v1):**
+**Reputation Tiers (now in v1):**
 
 | Tier | Name | Unlock | Capabilities | CPM Rate |
 |---|---|---|---|---|
-| 1 | Seedling | Default | Full approval required. Max 3 campaigns. 30% spot-checked. | Standard |
-| 2 | Grower | 20 successful posts | Auto-post toggle. Max 10 campaigns. 10% spot-checked. | Standard |
-| 3 | Amplifier | 100 posts + 4.5 star rating | Full auto. Unlimited campaigns. 5% spot-checked. | 2x premium |
+| 1 | Seedling | Default | Full approval required. Max 3 campaigns. 30% spot-checked. | 1x |
+| 2 | Grower | 20 successful posts | Auto-post toggle. Max 10 campaigns. 10% spot-checked. | 1x |
+| 3 | Amplifier | 100 posts + trust ≥ 80 | Full auto. Unlimited campaigns. 5% spot-checked. | 2x premium |
+
+Auto-promotion runs in `billing.py` (`_check_tier_promotion()`). Campaign limits enforced in `matching.py`. User model stores `tier` and `successful_post_count`.
 
 ### 3.8 API Surface
 
@@ -516,13 +518,32 @@ The content prompt enforces UGC (user-generated content) style — authentic, pe
 
 ### 5.3 Image Generation
 
-**v1 Provider Chain (free tier, automatic fallback):**
-1. Cloudflare Workers AI (FLUX.1-schnell)
-2. Together AI (FLUX.1-schnell free)
-3. Pollinations AI (turbo)
-4. PIL branded template (dark gradient + white text) — last resort
+**v1 Provider Chain (free tier, automatic fallback via ImageManager):**
+1. Gemini (txt2img + img2img, ~500 free/day)
+2. Cloudflare Workers AI (FLUX.1-schnell)
+3. Together AI (FLUX.1-schnell free)
+4. Pollinations AI (turbo)
+5. PIL branded template (dark gradient + white text) — last resort
 
-**v2 Pipeline (paid):**
+Each provider implements the `ImageProvider` abstract base class (`scripts/ai/image_provider.py`) with `text_to_image()` and optionally `image_to_image()`. The `ImageManager` (`scripts/ai/image_manager.py`) handles registry, priority ordering, and auto-fallback — same pattern as text `AiManager`.
+
+**UGC Post-Processing Pipeline (`scripts/ai/image_postprocess.py`):**
+
+Applied automatically after every successful generation to make AI images look like authentic phone photos:
+1. Resize to platform-optimal dimensions (X: 1200×675, LinkedIn/Facebook: 1200×627, Reddit/Instagram: 1080×1080, TikTok: 1080×1920)
+2. Slight desaturation (13%) — AI images are oversaturated
+3. Warm or cool color cast — mimic phone camera processing
+4. Film grain (numpy) — diffusion models cannot generate authentic grain
+5. Subtle vignetting — mimic phone lens
+6. JPEG compression at quality 80 — introduce natural artifacts
+7. EXIF metadata injection (piexif) — mimic common phone cameras
+
+**Photorealism Prompt Framework (`scripts/ai/image_prompts.py`):**
+8-category framework (product, lifestyle, editorial, UGC phone, testimonial, comparison, infographic, minimalist) to generate realistic prompts for each content type.
+
+**img2img support:** `ImageManager.generate_variation()` uses an existing image as reference (supported by Gemini provider).
+
+**v2 Pipeline (paid, v2 Android only):**
 1. DALL-E 3 generates images from prompt
 2. OpenAI TTS generates voiceover
 3. FFmpeg stitches into video slideshow
@@ -547,9 +568,25 @@ Before generating content, the system can enrich the campaign brief:
 
 **Supported Platforms:** X, LinkedIn, Facebook, Reddit (enabled). TikTok, Instagram (code preserved, disabled).
 
+**JSON Script Engine (`scripts/engine/`):**
+
+Posting logic is now declarative — defined in JSON files in `config/scripts/` rather than hardcoded Python. Inspired by AmpliFire v3's `ScriptModel.kt`. The engine layer:
+
+| Module | Role |
+|---|---|
+| `script_parser.py` | Parses JSON scripts into data models: `PlatformScript`, `ScriptStep`, `SelectorTarget`, `DelayRange`, `WaitCondition`, `ErrorRecoveryConfig`, `SuccessSignal` |
+| `selector_chain.py` | Fallback selector chains — tries each selector (css, text, role, testid, aria_label, xpath) before failing |
+| `human_timing.py` | Per-step configurable delays + character-by-character typing with random speed |
+| `error_recovery.py` | Retry strategies: exponential backoff, popup dismiss, navigate-back |
+| `script_executor.py` | Main executor supporting 13 action types: `goto`, `click`, `text_input`, `file_upload`, `keyboard`, `dispatch_event`, `wait_and_verify`, `scroll`, `evaluate`, `wait`, `screenshot`, `extract_url`, `browse_feed` |
+
+**Scripts:** `config/scripts/x_post.json`, `linkedin_post.json`, `facebook_post.json`, `reddit_post.json`
+
+`post.py` tries `post_via_script()` first; if no script exists or the script fails, it falls back to the legacy hardcoded platform functions. `post_scheduler.py` uses the unified `post_to_platform()` function.
+
 **Human Emulation:**
-- Character-by-character typing (30-120ms per character)
-- Random delays between actions
+- Character-by-character typing (30-120ms per character, per-step configurable)
+- Per-step delay ranges (min/max ms) defined in JSON
 - Feed browsing before/after posting
 - Mouse movement simulation
 - Randomized scroll patterns
@@ -686,7 +723,7 @@ Hourly cron job syncs metrics. Earning promotion from PENDING to AVAILABLE after
 | **Auth** | JWT (email/password) | JWT + Google OAuth + 3 strategies | None (local only) |
 | **Platforms** | X, LinkedIn, Facebook, Reddit | TikTok, Instagram (+ 3 scaffolded) | Instagram, X |
 | **Tests** | None (manual) | 46 unit tests | 2 unit tests |
-| **OTA Scripts** | N/A (hardcoded selectors) | N/A | JSON scripts, OTA-planned |
+| **OTA Scripts** | JSON script engine (config/scripts/), not OTA yet | N/A | JSON scripts, OTA-planned |
 | **Distribution** | Desktop (Python + Playwright) | Android APK | Android APK (sideload) |
 | **Trust System** | Score 0-100, events-based | User tiers (FREE/PREMIUM) | 3 tiers (Seedling/Grower/Amplifier) |
 | **Matching** | AI scoring (Gemini) + niche fallback | Hard filters | Not yet (Phase 3) |
