@@ -221,9 +221,10 @@ async def post_via_script(draft: dict, pw, platform: str) -> str | None:
             image_path = Path(str(ext_image))
         elif image_text:
             try:
-                from utils.image_generator import generate_landscape_image
-                image_path = ROOT / "drafts" / "pending" / f"{platform}-{draft.get('id', 'temp')}.png"
-                generate_landscape_image(image_text, image_path)
+                from ai.image_manager import create_default_image_manager as _create_img_mgr
+                _mgr = _create_img_mgr()
+                image_path = ROOT / "drafts" / "pending" / f"{platform}-{draft.get('id', 'temp')}.jpg"
+                await _mgr.generate(image_text, str(image_path))
                 generated_image = True
             except Exception as e:
                 logger.warning("%s: image generation failed: %s", platform, e)
@@ -375,7 +376,7 @@ async def post_to_x(draft: dict, pw) -> str | None:
             image_path = Path(str(ext_image))
             logger.info("X: using provided image: %s", image_path)
         elif image_text:
-            from utils.image_generator import generate_landscape_image
+            from ai.image_manager import create_default_image_manager as _create_img_mgr
             image_path = ROOT / "drafts" / "pending" / f"x-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
             generated_image = True
@@ -553,7 +554,7 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
             image_path = Path(str(ext_image))
             logger.info("LinkedIn: using provided image: %s", image_path)
         elif image_text:
-            from utils.image_generator import generate_landscape_image
+            from ai.image_manager import create_default_image_manager as _create_img_mgr
             image_path = ROOT / "drafts" / "pending" / f"linkedin-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
             generated_image = True
@@ -733,7 +734,7 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
             image_path = Path(str(ext_image))
             logger.info("Facebook: using provided image: %s", image_path)
         elif image_text:
-            from utils.image_generator import generate_landscape_image
+            from ai.image_manager import create_default_image_manager as _create_img_mgr
             image_path = ROOT / "drafts" / "pending" / f"facebook-{draft.get('id', 'temp')}.png"
             generate_landscape_image(image_text, image_path)
             generated_image = True
@@ -1071,8 +1072,6 @@ async def post_to_tiktok(draft: dict, pw) -> bool:
     context = None
     video_path = None
     try:
-        from utils.image_generator import generate_tiktok_video
-
         tiktok_content = draft["content"]["tiktok"]
         if isinstance(tiktok_content, str):
             caption = tiktok_content
@@ -1082,8 +1081,15 @@ async def post_to_tiktok(draft: dict, pw) -> bool:
             image_text = tiktok_content["image_text"]
 
         # Generate a short video from the branded image
+        # Note: generate_tiktok_video was in the now-missing image_generator.py.
+        # TikTok is disabled in platforms.json — this code is preserved but non-functional.
         video_path = ROOT / "drafts" / "pending" / f"tiktok-{draft.get('id', 'temp')}.mp4"
-        generate_tiktok_video(image_text, video_path)
+        try:
+            from utils.image_generator import generate_tiktok_video
+            generate_tiktok_video(image_text, video_path)
+        except ImportError:
+            logger.error("TikTok: image_generator module not available")
+            return False
         logger.info("TikTok: generated video at %s", video_path)
 
         context = await _launch_context(pw, "tiktok")
@@ -1203,7 +1209,13 @@ async def post_to_instagram(draft: dict, pw) -> bool:
     """
     context = None
     try:
-        from utils.image_generator import generate_instagram_image
+        # Note: generate_instagram_image was in the now-missing image_generator.py.
+        # Instagram is disabled — this code is preserved but non-functional.
+        try:
+            from utils.image_generator import generate_instagram_image
+        except ImportError:
+            logger.error("Instagram: image_generator module not available")
+            return False
 
         caption = draft["content"]["instagram"]
 

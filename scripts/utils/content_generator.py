@@ -91,9 +91,13 @@ def _parse_json_response(text: str) -> dict:
         raise ValueError(f"Could not parse JSON from response: {text[:200]}")
 
 
-# ── Text Providers (via AiManager) ───────────────────────────────
-# v2/v3 upgrade: providers extracted to scripts/ai/ with pluggable interface.
-# ContentGenerator now uses AiManager for text generation with auto-fallback.
+# ── Providers (via AiManager + ImageManager) ────────────────────
+# v2/v3 upgrade: providers extracted to scripts/ai/ with pluggable interfaces.
+# ContentGenerator uses AiManager for text and ImageManager for images.
+
+_ai_manager = None
+_image_manager = None
+
 
 def _get_ai_manager():
     """Lazy-initialize the global AiManager singleton."""
@@ -103,100 +107,19 @@ def _get_ai_manager():
         _ai_manager = create_default_manager()
     return _ai_manager
 
-_ai_manager = None
+
+def _get_image_manager():
+    """Lazy-initialize the global ImageManager singleton."""
+    global _image_manager
+    if _image_manager is None:
+        from ai.image_manager import create_default_image_manager
+        _image_manager = create_default_image_manager()
+    return _image_manager
 
 
-# ── Image providers ──────────────────────────────────────────────
-
-
-async def _cloudflare_image(prompt: str, output_path: str) -> str:
-    """Generate image via Cloudflare Workers AI (free tier — 10k neurons/day)."""
-    import base64
-    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
-    api_token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
-    if not account_id or not api_token:
-        raise RuntimeError("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN not set")
-    model = "@cf/black-forest-labs/flux-1-schnell"
-    url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}"
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            url,
-            headers={"Authorization": f"Bearer {api_token}"},
-            json={"prompt": prompt, "num_steps": 4},
-        )
-        if resp.status_code != 200:
-            error_detail = resp.text[:200]
-            raise RuntimeError(f"Cloudflare AI returned {resp.status_code}: {error_detail}")
-        # Response is JSON with base64-encoded JPEG in result.image
-        data = resp.json()
-        img_b64 = data["result"]["image"]
-        with open(output_path, "wb") as f:
-            f.write(base64.b64decode(img_b64))
-    return output_path
-
-
-async def _together_image(prompt: str, output_path: str) -> str:
-    """Generate image via Together AI FLUX.1 schnell (free tier)."""
-    api_key = os.getenv("TOGETHER_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("TOGETHER_API_KEY not set")
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            "https://api.together.xyz/v1/images/generations",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": "black-forest-labs/FLUX.1-schnell-Free",
-                "prompt": prompt,
-                "width": 1024,
-                "height": 1024,
-                "steps": 4,
-                "n": 1,
-                "response_format": "b64_json",
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        import base64
-        img_b64 = data["data"][0]["b64_json"]
-        with open(output_path, "wb") as f:
-            f.write(base64.b64decode(img_b64))
-    return output_path
-
-
-async def _pollinations_image(prompt: str, output_path: str) -> str:
-    """Generate image via Pollinations AI (requires API key)."""
-    import urllib.parse
-    api_key = os.getenv("POLLINATIONS_API_KEY", "").strip()
-    encoded = urllib.parse.quote(prompt)
-    url = f"https://gen.pollinations.ai/image/{encoded}?width=1080&height=1080&nologo=true&model=turbo"
-    headers = {}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    async with httpx.AsyncClient(timeout=90.0, follow_redirects=True) as client:
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        with open(output_path, "wb") as f:
-            f.write(resp.content)
-    return output_path
-
-
-def _pil_fallback_image(campaign_title: str, output_path: str) -> str:
-    """Generate a branded image using PIL (last resort)."""
-    try:
-        from utils.image_generator import generate_landscape_image
-        return str(generate_landscape_image(campaign_title, output_path))
-    except Exception:
-        # Minimal PIL fallback if image_generator fails
-        from PIL import Image, ImageDraw, ImageFont
-        img = Image.new("RGB", (1080, 1080), color=(26, 26, 46))
-        draw = ImageDraw.Draw(img)
-        try:
-            font = ImageFont.truetype("arial.ttf", 48)
-        except OSError:
-            font = ImageFont.load_default()
-        draw.text((100, 450), campaign_title[:60], fill="white", font=font)
-        img.save(output_path)
-        return output_path
+# ── Image generation (via ImageManager) ─────────────────────────
+# Old inline providers (_cloudflare_image, _together_image, _pollinations_image,
+# _pil_fallback_image) have been extracted to scripts/ai/image_providers/.
 
 
 # ── Webcrawler helpers ───────────────────────────────────────────
@@ -444,38 +367,49 @@ class ContentGenerator:
 
         return await self.generate(enriched_campaign, enabled_platforms, day_number, previous_hooks)
 
-    async def generate_image(self, prompt: str, platform: str = "default") -> str | None:
-        """Generate image for campaign. Returns path to image file or None."""
-        # Output path
+    async def generate_image(
+        self,
+        prompt: str,
+        platform: str = "default",
+        product_image_path: str | None = None,
+        campaign_brief: str | None = None,
+    ) -> str | None:
+        """Generate image for campaign via ImageManager with auto-fallback.
+
+        Supports three modes:
+        - text-to-image: generate from prompt (enhanced with UGC framework)
+        - image-to-image: transform product photo into UGC scene (if product_image_path set)
+        - simple prompt: use raw prompt with minimal enhancement
+
+        Returns path to image file or None on total failure.
+        """
         img_dir = ROOT / "data" / "campaign_images"
         img_dir.mkdir(parents=True, exist_ok=True)
-        output_path = str(img_dir / f"campaign_{platform}_{id(prompt) % 100000}.png")
+        output_path = str(img_dir / f"campaign_{platform}_{id(prompt) % 100000}.jpg")
 
-        # 1. Try Cloudflare Workers AI (free tier)
-        try:
-            logger.info("Generating image via Cloudflare Workers AI...")
-            return await _cloudflare_image(prompt, output_path)
-        except Exception as e:
-            logger.warning("Cloudflare AI image gen failed: %s", e)
+        manager = _get_image_manager()
+        if not manager.has_providers:
+            logger.error("No image providers available")
+            return None
 
-        # 2. Try Together AI FLUX (free tier)
         try:
-            logger.info("Generating image via Together AI FLUX...")
-            return await _together_image(prompt, output_path)
-        except Exception as e:
-            logger.warning("Together AI image gen failed: %s", e)
+            # Mode 1: Image-to-image (campaign has product photos)
+            if product_image_path and Path(product_image_path).exists():
+                from ai.image_prompts import build_img2img_prompt
+                img2img_prompt = build_img2img_prompt(
+                    product_name=prompt[:60],
+                    campaign_brief=campaign_brief,
+                )
+                logger.info("Using img2img with product photo: %s", product_image_path)
+                return await manager.transform(product_image_path, img2img_prompt, output_path)
 
-        # 3. Try Pollinations
-        try:
-            logger.info("Generating image via Pollinations...")
-            return await _pollinations_image(prompt, output_path)
-        except Exception as e:
-            logger.warning("Pollinations image gen failed: %s", e)
+            # Mode 2: Text-to-image with UGC enhancement
+            from ai.image_prompts import build_simple_prompt, get_negative_prompt
+            enhanced_prompt = build_simple_prompt(prompt)
+            negative = get_negative_prompt()
+            logger.info("Generating text-to-image with UGC-enhanced prompt")
+            return await manager.generate(enhanced_prompt, output_path, negative_prompt=negative)
 
-        # 4. PIL branded template (last resort)
-        try:
-            logger.info("Falling back to PIL branded image...")
-            return _pil_fallback_image(prompt[:60], output_path)
         except Exception as e:
-            logger.error("All image generation failed: %s", e)
+            logger.error("Image generation failed: %s", e)
             return None
