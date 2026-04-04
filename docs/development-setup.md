@@ -21,6 +21,8 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
+Notable dependencies beyond the standard web stack: `numpy>=1.24.0` (image processing), `piexif>=1.1.3` (EXIF metadata for UGC image pipeline).
+
 ### 2. Server (Local)
 
 ```bash
@@ -57,6 +59,8 @@ python login_setup.py reddit
 ```
 
 Browser profiles saved to `profiles/{platform}-profile/`.
+
+Platform posting is driven by JSON scripts in `config/scripts/` (e.g., `x_post.json`, `linkedin_post.json`, `facebook_post.json`, `reddit_post.json`) via the declarative posting engine in `scripts/engine/`.
 
 ## Server Deployment (Vercel)
 

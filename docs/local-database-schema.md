@@ -1,8 +1,10 @@
 # Local Database Schema
 
-SQLite database stored at `data/local.db`. Used by the Amplifier user app to track campaigns, posts, metrics, earnings, and agent pipeline state locally on the user's device. Credentials and content never leave the device.
+SQLite database stored at `data/local.db`. 12 tables. Used by the Amplifier user app to track campaigns, posts, metrics, earnings, and agent pipeline state locally on the user's device. Credentials and content never leave the device.
 
 **Connection settings**: WAL journal mode (`PRAGMA journal_mode=WAL`), `sqlite3.Row` row factory.
+
+**API key encryption**: Keys in `_SENSITIVE_KEYS` (`gemini_api_key`, `mistral_api_key`, `groq_api_key`) are auto-encrypted with AES-256-GCM on save and decrypted on read via `scripts/utils/crypto.py` (machine-derived key).
 
 ---
 
@@ -140,7 +142,12 @@ Queue of posts scheduled for future execution by the background agent. Created w
 | `image_path` | TEXT | NULL | Local path to image file for the post |
 | `draft_id` | INTEGER | NULL | Logical FK to `agent_draft.id` (no DB constraint) |
 | `status` | TEXT | `'queued'` | `queued`, `posting`, `posted`, `posted_no_url`, `failed` |
+| `error_code` | TEXT | NULL | Categorized error: `SELECTOR_FAILED`, `TIMEOUT`, `AUTH_EXPIRED`, `RATE_LIMITED`, `UNKNOWN`. Set by `classify_error()`. |
 | `error_message` | TEXT | NULL | Error details if status is `failed` or `posted_no_url` |
+| `execution_log` | TEXT | NULL | JSON array of step results from ScriptExecutor `[{step_id, success, message}]` |
+| `retry_count` | INTEGER | `0` | Number of retry attempts so far |
+| `max_retries` | INTEGER | `3` | Maximum retries before giving up. `AUTH_EXPIRED` skips retry entirely. |
+| `last_retry_at` | TEXT | NULL | ISO timestamp of last retry attempt |
 | `actual_posted_at` | TEXT | NULL | ISO timestamp of when the post actually went live |
 | `local_post_id` | INTEGER | NULL | ID of the resulting `local_post` row after posting |
 | `created_at` | TEXT | `datetime('now')` | Row creation timestamp |
@@ -148,6 +155,8 @@ Queue of posts scheduled for future execution by the background agent. Created w
 **Foreign keys**: `campaign_server_id` references `local_campaign(server_id)`.
 
 **Indexes**: `ix_post_schedule_status_time` on `(status, scheduled_at)`.
+
+**Error retry lifecycle**: Failed posts are requeued by `requeue_failed_posts()` with exponential backoff (`30min * 2^retry_count`). Posts with `error_code = 'AUTH_EXPIRED'` are never retried -- the user must re-login. `classify_error()` maps error messages to one of the 5 error codes.
 
 ---
 
@@ -192,6 +201,7 @@ Agent pipeline table. Stores generated draft content per campaign per platform. 
 | `campaign_id` | INTEGER | NULL | Logical FK to `local_campaign.server_id` |
 | `platform` | TEXT | NULL | Target platform |
 | `draft_text` | TEXT | NULL | The generated post text |
+| `image_path` | TEXT | NULL | Local path to generated image (product photo img2img or txt2img from prompt) |
 | `pillar_type` | TEXT | NULL | Content pillar category |
 | `quality_score` | REAL | `0` | AI-assigned quality score (higher = better) |
 | `iteration` | INTEGER | `1` | Generation iteration / day number |

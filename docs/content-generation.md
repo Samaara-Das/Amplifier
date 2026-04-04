@@ -8,7 +8,7 @@ Content generation creates UGC-style posts for campaigns across platforms. Uses 
 
 ## AI Provider Fallback Chain
 
-### Text Generation
+### Text Generation (AiManager -- `scripts/ai/manager.py`)
 | Order | Provider | Model | Free Tier |
 |-------|----------|-------|-----------|
 | 1 | Gemini | gemini-2.5-flash > 2.0-flash > 2.5-flash-lite | 20 req/day/model = 60/day |
@@ -17,13 +17,44 @@ Content generation creates UGC-style posts for campaigns across platforms. Uses 
 
 Rate limit handling: on 429/RESOURCE_EXHAUSTED, skips to next model/provider.
 
-### Image Generation
+### Image Generation (ImageManager -- `scripts/ai/image_manager.py`)
+
+Three generation modes:
+- **txt2img**: Generate an image from an AI-written prompt (default when no product photo is available)
+- **img2img**: Transform a campaign product photo into a UGC-style scene via Gemini (preferred when product photos exist)
+- **txt2txt**: Text-only generation (no image) -- used when image generation is disabled or all providers fail
+
 | Order | Provider | Model | Notes |
 |-------|----------|-------|-------|
-| 1 | Cloudflare Workers AI | FLUX-1-schnell | Requires CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN |
-| 2 | Together AI | FLUX.1-schnell-Free | Requires TOGETHER_API_KEY |
-| 3 | Pollinations | turbo | No key required, 90s timeout |
-| 4 | PIL template | N/A | Dark background + white text fallback |
+| 1 | **Gemini Flash Image** | gemini-2.0-flash-exp (imagen) | **PRIMARY**. 500 free/day. Supports img2img. |
+| 2 | Cloudflare Workers AI | FLUX-1-schnell | Requires CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN |
+| 3 | Together AI | FLUX.1-schnell-Free | Requires TOGETHER_API_KEY |
+| 4 | Pollinations | turbo | No key required, 90s timeout |
+| 5 | PIL template | N/A | Dark background + white text fallback (always available) |
+
+### UGC Post-Processing Pipeline (`scripts/ai/image_postprocess.py`)
+
+All generated images pass through a post-processing pipeline that makes them look like real phone photos rather than AI-generated:
+
+1. **Desaturation** -- slight reduction in color vibrancy
+2. **Color cast** -- subtle warm/cool tint
+3. **Film grain** -- noise layer for analog feel
+4. **Vignetting** -- darkened edges
+5. **JPEG compression** -- lossy re-encode to match phone camera output
+6. **EXIF injection** -- fake camera metadata (model, GPS, timestamp)
+
+### img2img Workflow (Campaign Product Photos)
+
+When a campaign includes product images in `assets.image_urls`:
+
+1. Background agent downloads ALL product images from the campaign
+2. `_pick_daily_image()` rotates through the product photo list based on `day_number` (deterministic daily rotation)
+3. Gemini img2img transforms the product photo into a UGC-style scene using an 8-category photorealism prompt framework
+4. Post-processing pipeline runs on the result
+5. `agent_draft.image_path` stores the local path to the generated image
+6. When scheduled, `_schedule_draft()` passes `image_path` through to `post_schedule`
+
+Fallback: if no product photos exist or img2img fails, falls back to txt2img using the AI-generated `image_prompt`.
 
 ## The Content Generation Prompt
 

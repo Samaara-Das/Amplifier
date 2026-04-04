@@ -11,7 +11,7 @@ cd server
 pip install -r requirements.txt
 ```
 
-Key dependencies: `fastapi`, `uvicorn`, `sqlalchemy[asyncio]`, `aiosqlite` (local), `asyncpg` (production), `python-jose`, `passlib`, `jinja2`, `google-genai`, `stripe`, `supabase`.
+Key dependencies: `fastapi`, `uvicorn`, `sqlalchemy[asyncio]`, `aiosqlite` (local), `asyncpg` (production), `python-jose`, `passlib`, `jinja2`, `google-genai`, `stripe`, `supabase`, `numpy>=1.24.0`, `piexif>=1.1.3`.
 
 ### Running Locally
 
@@ -72,6 +72,8 @@ printf "your-random-secret-key" | vercel env add JWT_SECRET_KEY production --cwd
 printf "your-admin-password" | vercel env add ADMIN_PASSWORD production --cwd server
 
 printf "your-gemini-api-key" | vercel env add GEMINI_API_KEY production --cwd server
+
+printf "your-encryption-key" | vercel env add ENCRYPTION_KEY production --cwd server
 ```
 
 #### Required Environment Variables
@@ -82,6 +84,7 @@ printf "your-gemini-api-key" | vercel env add GEMINI_API_KEY production --cwd se
 | `JWT_SECRET_KEY` | Secret key for JWT token signing | `change-me-to-a-random-secret` |
 | `ADMIN_PASSWORD` | Password for the admin dashboard at `/admin/login` | `admin` |
 | `GEMINI_API_KEY` | Google Gemini API key (used by campaign wizard for brief generation) | (none) |
+| `ENCRYPTION_KEY` | AES-256-GCM encryption key for server-side data encryption. Without it, a dev fallback key is used (not secure for production). | Dev fallback key |
 
 #### Optional Environment Variables
 

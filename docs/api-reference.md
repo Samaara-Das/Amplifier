@@ -43,7 +43,7 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 |--------|----------|---------|
 | GET | `/api/campaigns/mine` | Poll for matched campaigns (triggers matching) |
 | GET | `/api/campaigns/invitations` | Get pending invitations (auto-expires stale) |
-| POST | `/api/campaigns/invitations/{id}/accept` | Accept invitation (max 3 active) |
+| POST | `/api/campaigns/invitations/{id}/accept` | Accept invitation (tier-based limit: seedling 3, grower 10, amplifier unlimited) |
 | POST | `/api/campaigns/invitations/{id}/reject` | Reject invitation |
 | GET | `/api/campaigns/active` | Get accepted + active campaigns |
 | PATCH | `/api/campaigns/assignments/{id}` | Update assignment status |
@@ -132,6 +132,8 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | GET | `/admin/payouts` | Payout management |
 | POST | `/admin/payouts/run-billing` | Run billing cycle |
 | POST | `/admin/payouts/run-payout` | Run payout cycle |
+| POST | `/admin/financial/run-earning-promotion` | Promotes pending earnings to available after 7-day hold period |
+| POST | `/admin/financial/run-payout-processing` | Auto-processes payouts via Stripe Connect (marks as paid in test mode) |
 | GET | `/admin/platform-stats` | Per-platform statistics |
 | GET | `/admin/review-queue` | Flagged campaigns review queue |
 | POST | `/admin/review-queue/{id}/approve` | Approve flagged campaign |

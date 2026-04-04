@@ -9,7 +9,9 @@
 | name | varchar(255) | Company name |
 | email | varchar(255) | Unique, indexed |
 | password_hash | varchar(255) | pbkdf2:sha256 |
-| balance | numeric(12,2) | Available funds for campaigns |
+| balance | numeric(12,2) | Available funds for campaigns (legacy) |
+| balance_cents | int | Available funds in integer cents (v2) |
+| status | varchar(20) | active (default) |
 | created_at | datetime | Auto-set |
 | updated_at | datetime | Auto-update |
 
@@ -55,10 +57,14 @@
 | follower_counts | jsonb | `{x: 0, linkedin: 9497, ...}` |
 | niche_tags | jsonb | `["finance", "tech", "ai"]` |
 | audience_region | varchar(50) | us, uk, india, eu, latam, sea, global |
+| tier | varchar(20) | Reputation tier: seedling (default), grower, amplifier |
+| successful_post_count | int | Lifetime successful posts (drives tier promotion) |
 | trust_score | int | 0-100, default 50 |
 | mode | varchar(20) | full_auto, semi_auto |
-| earnings_balance | numeric(12,2) | Withdrawal-ready balance |
-| total_earned | numeric(12,2) | Lifetime earnings |
+| earnings_balance | numeric(12,2) | Withdrawal-ready balance (legacy) |
+| earnings_balance_cents | int | Withdrawal-ready balance in integer cents (v2) |
+| total_earned | numeric(12,2) | Lifetime earnings (legacy) |
+| total_earned_cents | int | Lifetime earnings in integer cents (v2) |
 | status | varchar(20) | active, suspended, banned (indexed) |
 | scraped_profiles | jsonb | Full per-platform scraped data (bio, posts, engagement, etc.) |
 | ai_detected_niches | jsonb | AI-classified niches (deprecated, use niche_tags) |
@@ -113,10 +119,12 @@
 | id | int (PK) | Auto-increment |
 | user_id | int (FK) | References User, indexed |
 | campaign_id | int (FK) | References Campaign (nullable for withdrawals) |
-| amount | numeric(12,2) | Payout amount |
+| amount | numeric(12,2) | Payout amount (legacy) |
+| amount_cents | int | Payout amount in integer cents (v2) |
 | period_start | datetime(tz) | Billing period start |
 | period_end | datetime(tz) | Billing period end |
-| status | varchar(20) | pending, processing, paid, failed |
+| status | varchar(20) | pending, available, processing, paid, failed, voided |
+| available_at | datetime(tz) | When earning becomes withdrawable (created_at + 7 days) |
 | breakdown | jsonb | Detailed earnings breakdown |
 | created_at | datetime | Auto-set |
 
@@ -127,7 +135,8 @@
 | user_id | int (FK) | References User, indexed |
 | post_id | int (FK) | References Post (nullable) |
 | reason | varchar(30) | content_removed, off_brief, fake_metrics |
-| amount | numeric(12,2) | Penalty deducted |
+| amount | numeric(12,2) | Penalty deducted (legacy) |
+| amount_cents | int | Penalty deducted in integer cents (v2) |
 | description | text | Details (nullable) |
 | appealed | bool | Whether user appealed |
 | appeal_result | text | Appeal decision (nullable) |
@@ -145,8 +154,8 @@
 | local_earning | Earnings log | campaign_server_id, amount, period, status |
 | settings | Key-value config | key (PK), value |
 | scraped_profile | Platform profiles | platform (UNIQUE), follower_count, following_count, display_name, profile_pic_url, bio, recent_posts (JSON), engagement_rate, posting_frequency, ai_niches (JSON), profile_data (JSON) |
-| post_schedule | Post queue | campaign_server_id, platform, scheduled_at, content, status |
-| agent_draft | Generated drafts | campaign_id, platform, draft_text, approved, posted |
+| post_schedule | Post queue | campaign_server_id, platform, scheduled_at, content, image_path, status, error_code, execution_log, max_retries |
+| agent_draft | Generated drafts | campaign_id, platform, draft_text, image_path, approved, posted |
 | agent_user_profile | Per-platform user style data | platform (UNIQUE), bio, recent_posts, style_notes, follower_count |
 | agent_research | Campaign research | campaign_id, research_type, content, source_url |
 | agent_content_insights | Content performance tracking | platform, pillar_type, hook_type, avg_engagement_rate, sample_count, best_performing_text |

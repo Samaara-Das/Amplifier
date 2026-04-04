@@ -38,7 +38,7 @@ await stop_background_agent()
 |------|----------|----------|---------|
 | Execute due posts | `execute_due_posts()` | 60s (every iteration) | Every loop tick |
 | Metric scraping | `run_metric_scraping()` | 60s (every iteration) | Every loop tick |
-| Content generation | `generate_daily_content()` | 120s (2 min) | `now - last_content_gen >= 120` |
+| Content generation (text + images) | `generate_daily_content()` | 120s (2 min) | `now - last_content_gen >= 120` |
 | Campaign polling | `poll_campaigns()` | 600s (10 min) | `now - last_poll >= 600` |
 | Session health check | `check_sessions()` | 1800s (30 min) | `now - last_health_check >= 1800` |
 | Profile refresh | `refresh_profiles()` | 604800s (7 days) | `now - last_profile_refresh >= 604800` |
@@ -76,10 +76,12 @@ Generates per-platform content for all active campaigns that don't have today's 
    - Collects previous draft hooks (last 12) for anti-repetition.
    - Calculates day number from unique draft dates.
    - Calls `ContentGenerator.research_and_generate()` with campaign data and previous hooks.
+   - **Image generation**: If the campaign has product images, downloads them and uses `ImageManager` for img2img generation (product image as base). Otherwise, generates images via txt2img from the campaign brief. The resulting `image_path` is stored on each draft.
+   - **Daily image rotation**: `_pick_daily_image()` selects which campaign product image to use as the base, rotating through available images across days.
    - Stores drafts in `agent_draft` table.
    - Sends a desktop notification ("Content Ready for Review").
    - Updates campaign status to `content_generated` if it was `assigned`.
-4. In `full_auto` mode: auto-approves all drafts and schedules them with 30-minute spacing (starting 5 minutes from now, with 0-10 minute random jitter per post).
+4. In `full_auto` mode: auto-approves all drafts and schedules them with 30-minute spacing (starting 5 minutes from now, with 0-10 minute random jitter per post). The `image_path` from the draft is passed through to the scheduled post.
 
 **Returns**: `{"success": bool, "generated": int}`
 

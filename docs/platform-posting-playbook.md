@@ -1,6 +1,56 @@
 # Amplifier -- Platform Posting Playbook
 
-**File:** `scripts/post.py`
+**Primary:** `scripts/engine/script_executor.py` (JSON script engine)
+**Fallback:** `scripts/post.py` (legacy hardcoded functions)
+
+## JSON Script Engine (Primary)
+
+Posting is now driven by declarative JSON scripts in `config/scripts/` via `scripts/engine/script_executor.py`. The engine tries the script-driven path first (`post_via_script()`); if no script exists for a platform (TikTok, Instagram), it falls back to the legacy hardcoded functions in `post.py`.
+
+**Scripts:** `config/scripts/x_post.json`, `linkedin_post.json`, `facebook_post.json`, `reddit_post.json`
+
+**Engine modules** (`scripts/engine/`):
+| Module | Purpose |
+|--------|---------|
+| `script_parser.py` | Data models for parsing JSON script definitions |
+| `selector_chain.py` | Fallback selector chains (3+ selectors per element) |
+| `human_timing.py` | Per-step human-like delays |
+| `error_recovery.py` | Retry with exponential backoff, popup dismissal |
+| `script_executor.py` | Executes 13 action types (click, type, upload, wait, etc.) |
+
+### Fallback Selector Chains
+
+Each element in a script defines multiple selectors tried in order. If the first selector fails (stale DOM, layout change), the engine tries the next:
+
+```json
+{
+  "selectors": [
+    "[data-testid='tweetButton']",
+    "button[aria-label='Post']",
+    "button:has-text('Post')"
+  ]
+}
+```
+
+The chain stops at the first selector that matches. This makes posting resilient to minor UI changes without code updates.
+
+### Error Recovery
+
+When a step fails, the engine classifies the error and decides the retry strategy:
+
+| Error Code | Meaning | Retry? |
+|------------|---------|--------|
+| `SELECTOR_FAILED` | No selector in the chain matched | Yes -- exponential backoff |
+| `TIMEOUT` | Page load or element wait timed out | Yes -- exponential backoff |
+| `AUTH_EXPIRED` | Login session has expired | No -- user must re-login |
+| `RATE_LIMITED` | Platform throttling detected | Yes -- longer backoff |
+| `UNKNOWN` | Unclassified failure | Yes -- exponential backoff |
+
+Backoff formula: `30min * 2^retry_count`. The `post_schedule` table tracks `error_code`, `execution_log` (JSON array of step results), `retry_count`, and `max_retries` (default 3).
+
+The engine also dismisses common popups (cookie banners, notification prompts) automatically before they block the posting flow.
+
+---
 
 ## Browser Setup
 
@@ -31,6 +81,8 @@ Optional proxy support from `platforms.json`: `kwargs["proxy"] = {"server": prox
 
 ## X (Twitter)
 
+> **Note:** X posting is now primarily handled by `config/scripts/x_post.json` via the script engine. The selectors and flow below are the legacy fallback, retained as reference.
+
 ### Selectors
 ```python
 X_COMPOSE_URL = "https://x.com/compose/post"
@@ -56,6 +108,8 @@ X_POST_BUTTON = '[data-testid="tweetButton"]'
 ---
 
 ## LinkedIn
+
+> **Note:** LinkedIn posting is now primarily handled by `config/scripts/linkedin_post.json` via the script engine. The selectors and flow below are the legacy fallback, retained as reference.
 
 ### Selectors
 ```python
@@ -85,6 +139,8 @@ LI_POST_BUTTON = page.get_by_role("button", name="Post", exact=True)
 
 ## Facebook
 
+> **Note:** Facebook posting is now primarily handled by `config/scripts/facebook_post.json` via the script engine. The selectors and flow below are the legacy fallback, retained as reference.
+
 ### Selectors
 ```python
 FB_COMPOSER_TRIGGER = '[aria-label="What\'s on your mind?"], [role="button"]:has-text("What\'s on your mind")'
@@ -110,6 +166,8 @@ FB_POST_BUTTON = '[aria-label="Post"]'
 ---
 
 ## Reddit
+
+> **Note:** Reddit posting is now primarily handled by `config/scripts/reddit_post.json` via the script engine. The selectors and flow below are the legacy fallback, retained as reference.
 
 ### Selectors
 ```python
@@ -142,6 +200,8 @@ REDDIT_POST_BUTTON = 'button:has-text("Post")'  # uses .last to avoid multiple m
 
 ## TikTok
 
+> **Note:** No JSON script exists for TikTok. This legacy hardcoded function is the only posting path. TikTok is currently disabled in `platforms.json`.
+
 ### Selectors
 ```python
 UPLOAD_URL = "https://www.tiktok.com/creator#/upload?scene=creator_center"
@@ -167,6 +227,8 @@ POST_BUTTON = '[data-e2e="post_video_button"]'  # or button:has-text("Post")
 ---
 
 ## Instagram
+
+> **Note:** No JSON script exists for Instagram. This legacy hardcoded function is the only posting path. Instagram is currently disabled in `platforms.json`.
 
 ### Selectors
 ```python

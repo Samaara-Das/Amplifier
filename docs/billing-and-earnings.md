@@ -30,19 +30,81 @@ Users post content --> metrics are scraped
     v
 Billing cycle runs (server-side, every 6 hours)
     --> For each unbilled metric:
-        --> Calculate raw earning from payout rates
+        --> calculate_post_earnings_cents() computes in integer cents
         --> Deduct platform cut (20%)
+        --> Apply tier CPM multiplier (amplifier tier = 2x)
         --> Cap to remaining budget
-        --> Credit user.earnings_balance
+        --> Credit user.earnings_balance_cents
         --> Deduct from campaign.budget_remaining
-        --> Create Payout record
+        --> Create Payout record (status = "pending", available_at = now + 7 days)
+    |
+    v
+Hold period (7 days -- EARNING_HOLD_DAYS)
+    --> promote_pending_earnings() runs every 10 min
+    --> Moves "pending" → "available" once available_at has passed
+    --> During hold: void_earnings_for_post() can cancel if fraud detected
     |
     v
 Payout cycle (when user requests or on schedule)
-    --> Users with earnings_balance >= $10.00
+    --> Users with available earnings >= $10.00
     --> Stripe Transfer to user's Connect Express account
-    --> earnings_balance reset to $0
+    --> Payout status: available → processing → paid|failed
 ```
+
+---
+
+## Integer Cents Storage (v2)
+
+All money columns now use integer cents alongside legacy Numeric(12,2) columns to eliminate float rounding:
+
+| Model | Cents Column | Legacy Column |
+|-------|-------------|---------------|
+| Company | `balance_cents` | `balance` |
+| User | `earnings_balance_cents`, `total_earned_cents` | `earnings_balance`, `total_earned` |
+| Payout | `amount_cents` | `amount` |
+| Penalty | `amount_cents` | `amount` |
+
+The billing engine calculates in cents via `calculate_post_earnings_cents()` and converts to dollars only for display.
+
+---
+
+## Earning Lifecycle
+
+```
+Metric billed → Payout created (status: "pending", available_at: now + 7 days)
+                    |
+        +-----------+-----------+
+        |                       |
+    7 days pass             Fraud detected
+        |                       |
+    "available"             "voided"
+        |                   (void_earnings_for_post)
+    User requests
+    withdrawal
+        |
+    "processing"
+        |
+    +---+---+
+    |       |
+  "paid"  "failed"
+```
+
+- **`promote_pending_earnings()`** -- Background task (every 10 min). Queries all payouts where `status = 'pending'` and `available_at <= now`, moves them to `available`.
+- **`void_earnings_for_post()`** -- Called during fraud detection (deleted post, fake metrics). Voids all pending payouts for a specific post before the hold period expires.
+
+---
+
+## Reputation Tiers
+
+Users progress through three tiers that affect campaign limits and earnings:
+
+| Tier | Max Campaigns | CPM Multiplier | Spot-Check Rate | Promotion Rule |
+|------|---------------|----------------|-----------------|----------------|
+| **Seedling** | 3 | 1x | 30% | Default for new users |
+| **Grower** | 10 | 1x | 15% | 20+ successful posts |
+| **Amplifier** | Unlimited | **2x** | 5% | 100+ successful posts AND trust_score >= 80 |
+
+Auto-promotion is handled by the billing service: after each successful post, `user.successful_post_count` is incremented and tier eligibility is checked.
 
 ---
 
@@ -136,9 +198,16 @@ budget_cost = user_earning / (1 - platform_cut_percent / 100)
 
 This means the company pays the full `$7.45`, of which `$5.96` goes to the user and `$1.49` goes to Amplifier.
 
-### Payout Multiplier
+### Tier CPM Multiplier
 
-The `payout_multiplier` field exists on campaign assignments for backward compatibility but is **not used** in v2 billing. Earnings are calculated purely from raw metrics and rates.
+Users in the **amplifier** tier earn 2x CPM on all campaigns. The multiplier is applied during `calculate_post_earnings_cents()`:
+
+```
+tier_multiplier = 2.0 if user.tier == "amplifier" else 1.0
+earning_cents = int(raw_earning_dollars * 100 * tier_multiplier)
+```
+
+The `payout_multiplier` field on campaign assignments is **not used** in v2 billing (kept for backward compatibility).
 
 ---
 
@@ -210,10 +279,12 @@ Each billed metric creates a `Payout` record:
 |-------|-------|
 | `user_id` | The user who made the post |
 | `campaign_id` | The campaign the post was for |
-| `amount` | User earning (after platform cut) |
+| `amount` | User earning in dollars (after platform cut) -- legacy |
+| `amount_cents` | User earning in integer cents (after platform cut) -- v2 |
 | `period_start` | When the post was published |
 | `period_end` | When the billing cycle ran |
-| `status` | `"pending"` (then `"processing"` -> `"paid"` or `"failed"`) |
+| `status` | `"pending"` -> `"available"` -> `"processing"` -> `"paid"` or `"failed"` (or `"voided"` during hold) |
+| `available_at` | `created_at + EARNING_HOLD_DAYS` (7 days). When this earning becomes withdrawable. |
 | `breakdown` | JSON: `{metric_id, post_id, platform, impressions, likes, reposts, clicks, platform_cut_pct}` |
 
 ---
@@ -222,12 +293,14 @@ Each billed metric creates a `Payout` record:
 
 ### Balance Accumulation
 
-Each billing cycle credits the user:
+Each billing cycle credits the user (in cents for precision):
 
 ```python
-user.earnings_balance += user_earning   # Available for withdrawal
-user.total_earned += user_earning       # Lifetime total (never decreases)
+user.earnings_balance_cents += earning_cents   # Held during 7-day period, then available
+user.total_earned_cents += earning_cents        # Lifetime total (never decreases)
 ```
+
+Legacy float columns (`earnings_balance`, `total_earned`) are updated in parallel for backward compatibility.
 
 ### Payout Cycle
 
@@ -236,9 +309,9 @@ The payout cycle (`run_payout_cycle`) processes all eligible users:
 | Rule | Value |
 |------|-------|
 | Minimum threshold | `$10.00` (configurable via `MIN_PAYOUT_THRESHOLD` in server `.env`) |
-| Eligibility | `user.earnings_balance >= threshold` AND `user.status == "active"` |
+| Eligibility | User has `available` payouts totaling >= threshold AND `user.status == "active"` |
 | Method | Stripe Connect Express transfer |
-| After payout | `user.earnings_balance = 0.0` |
+| After payout | Available payouts moved to `processing` then `paid` |
 
 Stripe integration requires:
 1. User creates a Stripe Connect Express account via `create_user_stripe_account()`
@@ -278,3 +351,11 @@ Billing-related settings in `server/.env`:
 | `PLATFORM_CUT_PERCENT` | `20` | Percentage Amplifier takes from each earning (0-100) |
 | `MIN_PAYOUT_THRESHOLD` | `10.00` | Minimum USD balance required to trigger a payout |
 | `STRIPE_SECRET_KEY` | (empty) | Stripe API secret key. Payments disabled if not set |
+
+---
+
+## Data Security
+
+Sensitive financial data is encrypted at rest using AES-256-GCM:
+- **Server-side** (`server/app/utils/crypto.py`): encrypts Stripe keys and other secrets stored in the database
+- **Client-side** (`scripts/utils/crypto.py`): encrypts API keys using a machine-derived key. The `_SENSITIVE_KEYS` set in `local_db.py` (`gemini_api_key`, `mistral_api_key`, `groq_api_key`) are auto-encrypted on save and decrypted on read.

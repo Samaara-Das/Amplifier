@@ -22,9 +22,17 @@ The matching is fully AI-driven -- no hardcoded scoring formula.
 | Max users | Cap check | `campaign.accepted_count < max_users` |
 | Budget remaining | `> 0` | Campaign still has money |
 | Already assigned | Dedup check | Skip if user already has this campaign |
-| 3-campaign limit | Active count | User with 3+ active campaigns skips matching entirely |
+| Tier-based campaign limit | Active count vs tier cap | User at or above their tier's max active campaigns skips matching |
 
-Active statuses for 3-campaign limit: `accepted, content_generated, posted, metrics_collected`
+**Tier-based campaign limits** (from `get_tier_config()` in `billing.py`):
+
+| Tier | Max Active Campaigns |
+|------|---------------------|
+| Seedling | 3 |
+| Grower | 10 |
+| Amplifier | Unlimited |
+
+Active statuses for campaign limit: `accepted, content_generated, posted, metrics_collected`
 
 ## AI Relevance Scoring
 
