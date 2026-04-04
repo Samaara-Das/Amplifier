@@ -18,12 +18,14 @@
   </div>
 
   <!-- Sub-tab navigation -->
+  {% set search_active = request.args.get('q', '') %}
+  {% set default_tab = 'active' if search_active else 'invitations' %}
   <div class="campaigns-tabs">
-    <button class="campaigns-tab active" data-tab="invitations" onclick="switchCampaignsTab('invitations')">
+    <button class="campaigns-tab {{ 'active' if default_tab == 'invitations' }}" data-tab="invitations" onclick="switchCampaignsTab('invitations')">
       <span>Invitations</span>
       <span class="campaigns-tab-count">{{ invitations|length }}</span>
     </button>
-    <button class="campaigns-tab" data-tab="active" onclick="switchCampaignsTab('active')">
+    <button class="campaigns-tab {{ 'active' if default_tab == 'active' }}" data-tab="active" onclick="switchCampaignsTab('active')">
       <span>Active</span>
       <span class="campaigns-tab-count">{{ active_campaigns|length }}</span>
     </button>
@@ -34,7 +36,7 @@
   </div>
 
   <!-- Invitations Section -->
-  <div class="campaigns-section active" id="campaigns-section-invitations">
+  <div class="campaigns-section {{ 'active' if default_tab == 'invitations' }}" id="campaigns-section-invitations">
     {% if invitations %}
       {% for inv in invitations %}
         {% set brief_text = inv.get('campaign_brief', inv.get('brief', '')) %}
@@ -154,7 +156,7 @@
   </div>
 
   <!-- Active Section -->
-  <div class="campaigns-section" id="campaigns-section-active">
+  <div class="campaigns-section {{ 'active' if default_tab == 'active' }}" id="campaigns-section-active">
     {% if active_campaigns %}
       {% for c in active_campaigns %}
         <div class="active-campaign-card">

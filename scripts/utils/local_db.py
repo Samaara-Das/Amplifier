@@ -455,6 +455,8 @@ def get_posts_for_scraping() -> list[dict]:
         AND lp.post_url NOT LIKE 'posted_but%'
         AND lp.post_url NOT LIKE '%/submitted%'
         AND lp.post_url NOT LIKE '%/submitted'
+        AND lp.post_url NOT LIKE '%/comments/'
+        AND lp.post_url NOT LIKE '%/profile.php%'
         AND lc.status NOT IN ('skipped', 'cancelled')
         ORDER BY lp.posted_at ASC
     """).fetchall()
