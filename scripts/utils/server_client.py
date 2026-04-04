@@ -111,6 +111,23 @@ def login(email: str, password: str) -> dict:
     return data
 
 
+def reset_password(email: str, current_password: str, new_password: str) -> dict:
+    """Reset password using current password as verification."""
+    url = f"{_get_server_url()}/api/auth/reset-password"
+    with httpx.Client(timeout=30.0) as client:
+        resp = client.post(url, json={
+            "email": email,
+            "current_password": current_password,
+            "new_password": new_password,
+        })
+    if resp.status_code != 200:
+        raise RuntimeError(f"Password reset failed: {resp.json().get('detail', resp.text)}")
+    data = resp.json()
+    _save_auth({"access_token": data["access_token"], "email": email})
+    logger.info("Password reset for %s", email)
+    return data
+
+
 def is_logged_in() -> bool:
     auth = _load_auth()
     return bool(auth.get("access_token"))

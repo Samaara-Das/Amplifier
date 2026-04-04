@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User
 from app.models.company import Company
-from app.schemas.auth import UserRegister, CompanyRegister, LoginRequest, TokenResponse
+from app.schemas.auth import UserRegister, CompanyRegister, LoginRequest, PasswordResetRequest, TokenResponse
 
 router = APIRouter()
 
@@ -40,6 +40,36 @@ async def login_user(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     token = create_access_token({"sub": str(user.id), "type": "user"})
     return TokenResponse(access_token=token)
+
+
+@router.post("/reset-password")
+async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    """Reset password using current password as verification."""
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user or not verify_password(data.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or current password")
+
+    user.password_hash = hash_password(data.new_password)
+    await db.flush()
+
+    token = create_access_token({"sub": str(user.id), "type": "user"})
+    return {"message": "Password reset successfully", "access_token": token}
+
+
+@router.post("/company/reset-password")
+async def reset_company_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    """Reset company password using current password as verification."""
+    result = await db.execute(select(Company).where(Company.email == data.email))
+    company = result.scalar_one_or_none()
+    if not company or not verify_password(data.current_password, company.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or current password")
+
+    company.password_hash = hash_password(data.new_password)
+    await db.flush()
+
+    token = create_access_token({"sub": str(company.id), "type": "company"})
+    return {"message": "Password reset successfully", "access_token": token}
 
 
 @router.post("/company/register", response_model=TokenResponse)
