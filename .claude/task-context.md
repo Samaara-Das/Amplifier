@@ -1,10 +1,10 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-03 (Session 26)
+**Last Updated**: 2026-04-04 (Session 26)
 
 ## Current Task
 
-**Task #28 — Verify: Scheduled Posting** (in-progress) — paused during Sessions 24-25 for co-founder docs and codebase audit.
+**Task #28 — Verify: Scheduled Posting** (in-progress) — paused during Sessions 24-26 for co-founder docs, codebase audit, and v2/v3 upgrade sprint.
 
 Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddit), then #29-#30 (Metric Scraping).
 
@@ -22,141 +22,93 @@ Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddi
 
 **27 done, 1 in-progress, 52 pending. 80 total tasks.**
 
-## Session 23 Summary (Previous Session)
-
-Tasks #23-#26 completed (Content Gen + Review). Task #27 done, #28 in-progress. Key work:
-- Content gen: documented current system, deferred rebuild to Task #63
-- Content review: unapprove button, Reddit JSON fix, company name display, auto-reload, notifications
-- Posting: CRITICAL human_delay sync bug fixed (broke ALL posting), 4 platforms verified working
-- Posting test results: all posts delivered, URL capture broken for LinkedIn/Facebook/Reddit
-- 10 future tasks created (#57-#66), selector research via Chrome DevTools MCP
-- Key bugs: human_delay sync, X strict mode, Reddit spam filter, LinkedIn/Facebook timeouts
-
 ## Session 26 — What Was Done (Current Session)
 
-### Documentation Update for 4-Commit Feature Sprint
-Updated all docs after 4 major commits (Declarative JSON Engine, Financial Safety, Automation/AI Abstraction/Tiers, Image Gen Upgrade):
-- CLAUDE.md — engine/ and ai/ modules, updated service descriptions, updated model fields, JSON engine note in selector patterns section
-- docs/PRD.md — Company/User/Payout/Penalty model fields (cents columns, tier, status lifecycle), post_schedule schema, billing section (hold period, tier table), Implementation Status table
-- docs/AMPLIFIER-SPEC.md — Section 5.3 (image generation: 5-provider chain, UGC post-processing, img2img), Section 6.1 (JSON script engine table), Section 3.7 (tiers now in v1), Section 8 comparison table
-- Memory MEMORY.md — key file listings updated with engine/ and ai/ modules
+### 1. Full Codebase Audit (Session 25 portion)
+Comprehensive audit found major doc discrepancies: route count was "52" in docs (actually ~88), model count was "8" (actually 11), admin dashboard was "6 pages" (actually 14). All docs updated.
 
-### Key Reference Files Added This Session
-- `scripts/engine/` — 6-module JSON script engine
-- `scripts/ai/` — text AiManager + image ImageManager + UGC post-processor
-- `server/app/utils/crypto.py` — server-side AES-256-GCM encryption
-- `scripts/utils/crypto.py` — client-side machine-derived key encryption
-- `config/scripts/` — x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json
+### 2. Dan's v2/v3 Analysis
+Read both Devtest-Dan repos (amplifire-v2: NestJS+Kotlin+Go 75% done, AmpliFire-v3: Android Phase 1 MVP). Created `docs/AMPLIFIER-SPEC.md` (complete system spec covering all 3 versions) and `docs/V2-V3-UPGRADE-PLAN.md` (15 upgrades across 5 phases).
 
-## Session 25 — What Was Done
+### 3. v2/v3 Upgrade Implementation (8 commits)
 
-### Full Codebase Audit & Documentation Update
-Comprehensive audit of the entire Amplifier project — server, user app, engine, and all documentation. Found significant discrepancies between docs and code:
+**Phase 1 — Declarative JSON Posting Engine** (`994adcf`)
+- `scripts/engine/` — 6 modules: script_parser.py (data models), selector_chain.py (fallback selectors), human_timing.py (per-step delays), error_recovery.py (retry strategies), script_executor.py (13 action handlers)
+- `config/scripts/` — 4 JSON posting scripts (x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json)
+- `post.py` refactored: `post_to_platform()` tries script-first, falls back to legacy hardcoded functions
+- `post_scheduler.py` updated to use unified posting function
 
-**Key findings:**
-- Route count was "52" in all docs → actually ~88 routes (27 API + 34 admin + ~22 company + 2 system)
-- Model count was "8 tables" → actually 11 models (added AuditLog, ContentScreeningLog, CampaignInvitationLog)
-- Admin dashboard was "6 pages" → actually 14 pages (refactored into 10 modular routers)
-- Company dashboard was "6 pages" → actually 10 pages (refactored into 7 modular routers)
-- User app has 32+ Flask routes, 13 local SQLite tables, background agent with 6 async tasks
-- Server services: 7 (added campaign_wizard.py, storage.py)
+**Phase 2 — Financial Safety** (`019a667`)
+- `server/app/utils/crypto.py` — AES-256-GCM server-side encryption (PBKDF2 key derivation from ENCRYPTION_KEY env var)
+- `scripts/utils/crypto.py` — Client-side encryption (machine-derived key: username+hostname)
+- `local_db.py` — API keys (gemini, mistral, groq) auto-encrypted on save, auto-decrypted on read
+- Payout model: `amount_cents`, `available_at`, expanded status lifecycle (pending→available→processing→paid|voided|failed), EARNING_HOLD_DAYS=7
+- Company/User/Penalty models: `_cents` integer columns alongside legacy Numeric
+- `billing.py`: `calculate_post_earnings_cents()`, `promote_pending_earnings()`, `void_earnings_for_post()`
 
-**Docs updated:**
-- CLAUDE.md — route counts, model counts, page counts, services, user app description
-- docs/PRD.md — route counts, model counts, added AuditLog + ContentScreeningLog model definitions, expanded admin/company dashboard page lists, updated admin API section, expanded local DB table list
-- docs/pitch-deck.md — route count
-- .claude/task-context.md — session 25 notes, task counts
-- Memory MEMORY.md — all counts, server file listings, user app file listings, implementation status
+**Phase 3 — Automation & Intelligence** (`4d085de`)
+- `scripts/ai/` — AiProvider abstract base, GeminiProvider (model fallback + rate limit tracking), MistralProvider, GroqProvider
+- `scripts/ai/manager.py` — AiManager with registry, priority ordering, auto-fallback
+- `content_generator.py` refactored to use AiManager (deleted 3 inline provider classes)
+- `local_db.py` — post_schedule gains error_code (SELECTOR_FAILED/TIMEOUT/AUTH_EXPIRED/RATE_LIMITED), execution_log, max_retries. classify_error(). Exponential backoff retry (30min * 2^retry_count)
+- `payments.py` — `process_pending_payouts()` auto-sends via Stripe Connect
 
-## Session 24 — What Was Done
+**Phase 5 — Reputation Tiers** (`4d085de`)
+- User model gains `tier` (seedling/grower/amplifier) + `successful_post_count`
+- TIER_CONFIG: seedling (max 3 campaigns, 1x CPM), grower (max 10, 1x CPM, auto-post), amplifier (unlimited, 2x CPM)
+- Auto-promotion in billing after each successful post
+- `matching.py` uses tier-based campaign limits
+- Admin endpoints: run-earning-promotion, run-payout-processing
 
-### Documentation for Co-Founder Review
-Created 3 comprehensive documents for potential co-founder **Devtest-Dan**:
+**Image Generation Upgrade** (`f840964`)
+- `scripts/ai/image_provider.py` — Abstract ImageProvider (text_to_image + image_to_image)
+- `scripts/ai/image_manager.py` — ImageManager with 5-provider fallback + auto post-processing
+- 5 providers: GeminiImageProvider (500 free/day, img2img support), CloudflareImageProvider, TogetherImageProvider, PollinationsImageProvider, PilFallbackProvider
+- `scripts/ai/image_postprocess.py` — UGC pipeline: desaturation (13%), color cast, film grain (sigma=8), vignetting, JPEG at quality 80, EXIF injection (iPhone/Samsung/Pixel metadata)
+- `scripts/ai/image_prompts.py` — 8-category photorealism prompt framework with randomized pools, negative prompt
 
-1. **PRD** (`docs/PRD.md`, ~56KB) — Complete product requirements document:
-   - Product concept, problem statement, solution overview
-   - Full system architecture with diagrams
-   - All 6 feature areas detailed (server, company dashboard, admin dashboard, user app, posting engine, content gen, personal brand engine)
-   - Complete data models (9 server tables + 8 local tables)
-   - Full API reference (52+ endpoints)
-   - Monetization formula and billing mechanics
-   - Trust & safety system
-   - Technical constraints, implementation status
-   - Future roadmap (6 phases)
-   - Configuration appendices
+**Campaign Image Pipeline Fix** (`168137d`)
+- Critical gap found: campaign product images were stored in assets dict through the whole chain but NEVER actually used for image generation. All images were generic txt2img.
+- Fixed: `_download_campaign_product_images()` downloads ALL product images from assets.image_urls
+- `generate_daily_content()` now calls `generate_image(product_image_path=...)` after text generation
+- `agent_draft` table gains `image_path` column; `add_draft()` stores it; `_schedule_draft()` passes it through
 
-2. **Concept Doc** (`docs/concept.md`) — Non-technical business document:
-   - Vision: marketplace turning everyday social media users into a distribution channel
-   - Problem (both sides), solution (how it works in plain language)
-   - How it's different (vs influencer agencies, affiliate networks, UGC platforms, social mgmt tools)
-   - Business model (20% take rate, unit economics, money flow)
-   - Market opportunity (TAM $21B, SAM $5B, SOM $50M)
-   - What's built (V1 shipped, live URLs)
-   - Risks and honest challenges (platform detection, cold start, legal, revenue scale)
-   - Co-founder opportunity (what they'd own, why join now)
-
-3. **Pitch Deck** (`docs/pitch-deck.md`) — 13-slide markdown pitch:
-   - Problem (company + user sides)
-   - Solution, How It Works (5-step flow)
-   - Market Size (TAM/SAM/SOM)
-   - Business Model (20% take, ~90% gross margin)
-   - Competitive Landscape (comparison matrix)
-   - Traction (V1 built, live URLs, 52+ endpoints)
-   - Product Highlights, Roadmap
-   - Team & What We Need, The Ask
-
-### GitHub Access for Devtest-Dan
-- Repo `Samaara-Das/Amplifier` is **private**
-- **Devtest-Dan** invited as collaborator with **push access** (pending acceptance)
-- All changes merged from `flask-user-app` → `main` and pushed
-- Devtest-Dan will see everything on default `main` branch
+**Daily Image Rotation** (`bc7b433`)
+- `_pick_daily_image(images, day_number)` rotates through multiple campaign product photos: Day 1 → image 0, Day 2 → image 1, wraps around
+- Maximizes value of multiple campaign assets without needing multi-image compositing
 
 ### Key Decisions This Session
-- Devtest-Dan is a **potential co-founder/partner** — docs framed for that audience
-- All 80+ commits from flask-user-app merged to main for visibility
-- Honest framing in docs: pre-revenue, V1 built, real risks acknowledged
-- Market sizing: TAM $21B (influencer marketing), SOM $50M (3-year target)
+- local-dream (on-device SD1.5 for Android) rejected: CC-BY-NC-4.0 non-commercial license + Android-only
+- Our FastAPI server + Playwright engine stays — adopt v2/v3 PATTERNS, not their stacks
+- Gemini Flash Image as primary image provider (500 free/day, best quality, supports img2img)
+- Integer cents for all money (industry standard, consistent with Stripe)
+- 7-day earning hold period before payout (fraud prevention window)
+- Three-tier reputation system (Seedling→Grower→Amplifier) with auto-promotion
 
-## Session 23 Key Reference (Posting Verification)
-
-### Task #28 Remaining To-Dos (Resume Next Session)
-1. Fix URL capture for LinkedIn, Facebook, Reddit
-2. Verify LinkedIn image actually uploads
-3. Re-test all platforms with URL capture fixes
-
-### Posting Test Results (Session 23)
-| Platform | Text-only | Image+Text | Image-only | URL Capture |
-|----------|-----------|------------|------------|-------------|
-| X | SUCCESS | SUCCESS | SUCCESS | 3/3 |
-| LinkedIn | PARTIAL | SUCCESS | PARTIAL | 1/3 (timeout) |
-| Facebook | FAILED | FAILED | FAILED | 0/3 (timeout) |
-| Reddit | PARTIAL | PARTIAL | PARTIAL | 0/3 (no redirect) |
-
-All posts delivered (0 failures) but URL capture broken for LinkedIn/Facebook/Reddit.
-
-### Platform Selectors (Verified Session 23)
-- **LinkedIn**: `button "Start a post"` → `textbox "Text editor..."` → `button "Add media"` → `button "Post"`
-- **Facebook**: `button "What's on your mind?"` → `textbox` → `button "Photo/video"` → `button "Post"`
-- **Reddit**: `/user/{username}/submit` → `textarea[name="title"]` → `[role="textbox"][name="body"]` → `button "Post"`
-- **X**: `data-testid` attributes. `[data-testid="tweetButton"]`, `[data-testid="fileInput"]`
+## Remaining Blockers (Priority Order)
+1. Posting URL capture broken on LinkedIn/Facebook/Reddit (Task #28)
+2. Metric scraping unverified E2E (Tasks #29-30)
+3. Billing unverified E2E (Tasks #31-32)
+4. X account detection risk (locked during testing)
+5. Real Stripe payments (both sides) — company deposit + creator withdrawal
+6. FTC disclosure (#ad/#sponsored) not in content generator
+7. Distribution — no installable app yet (Tauri or web planned)
 
 ## Key Reference Files
-- `scripts/post.py` — Platform posting orchestrator (script-first via post_via_script(), legacy fallback)
-- `scripts/engine/` — Declarative JSON posting engine (script_parser, selector_chain, human_timing, error_recovery, script_executor)
+- `scripts/post.py` — Posting orchestrator (script-first via post_via_script(), legacy fallback)
+- `scripts/engine/` — JSON posting engine (script_parser, selector_chain, human_timing, error_recovery, script_executor)
 - `config/scripts/` — Platform JSON scripts (x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json)
-- `scripts/ai/` — AI provider abstraction (AiManager for text, ImageManager for images, UGC post-processing)
-- `scripts/utils/post_scheduler.py` — Post scheduling and execution
-- `scripts/background_agent.py` — Polling, content gen, posting loop
-- `scripts/utils/content_generator.py` — AI content generation via AiManager + ImageManager
-- `scripts/utils/local_db.py` — Local SQLite (API key encryption, post_schedule error_code/retry)
-- `server/app/services/billing.py` — Billing engine (cents math, hold period, tier promotion)
+- `scripts/ai/` — AiManager (text), ImageManager (images, 5 providers), image_postprocess, image_prompts
+- `scripts/background_agent.py` — Orchestrator: polling, content gen + image gen, posting, metrics, session health
+- `scripts/utils/content_generator.py` — AI content gen via AiManager + ImageManager (txt2img + img2img)
+- `scripts/utils/local_db.py` — 13 tables, API key encryption, post_schedule retry lifecycle
+- `server/app/services/billing.py` — Cents math, hold period, tier promotion, void earnings
 - `server/app/services/payments.py` — Stripe Connect + auto payout processing
-- `scripts/tests/test_all_post_types.py` — Full posting test suite (12 tests)
-- `docs/PRD.md` — Comprehensive product requirements
-- `docs/AMPLIFIER-SPEC.md` — Multi-implementation system spec
-- `docs/concept.md` — Non-technical concept doc for co-founder
-- `docs/pitch-deck.md` — 13-slide markdown pitch deck
-- `FUTURE.md` — 12 future feature specs with tool comparisons
+- `server/app/services/matching.py` — AI scoring + tier-based campaign limits
+- `server/app/utils/crypto.py` — AES-256-GCM encryption
+- `docs/AMPLIFIER-SPEC.md` — Complete multi-implementation system spec
+- `docs/V2-V3-UPGRADE-PLAN.md` — 15 upgrades across 5 phases
+- `docs/IMAGE-GENERATION-UPGRADE.md` — Image gen spec (txt2img, img2img, post-processing)
 
 ## Deployed URLs
 - **Company**: https://server-five-omega-23.vercel.app/company/login
@@ -166,17 +118,14 @@ All posts delivered (0 failures) but URL capture broken for LinkedIn/Facebook/Re
 
 ## Test Commands
 ```bash
-# Run user app (with hot reload)
+# Run user app
 python scripts/user_app.py
 
 # Run server locally
 cd server && GEMINI_API_KEY=<key> python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
-# Test posting (all platforms, all types)
+# Test posting
 python scripts/tests/test_all_post_types.py
-
-# E2E matching test
-python scripts/tests/test_matching_e2e.py setup && python scripts/tests/test_matching_e2e.py test && python scripts/tests/test_matching_e2e.py cleanup
 
 # Deploy
 vercel deploy --yes --prod --cwd server
