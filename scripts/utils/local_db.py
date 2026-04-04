@@ -210,12 +210,33 @@ def init_db() -> None:
         "ALTER TABLE local_campaign ADD COLUMN company_name TEXT",
         # v5: FTC disclosure text per campaign
         "ALTER TABLE local_campaign ADD COLUMN disclaimer_text TEXT",
+        # Phase C: campaign type, goal, tone for Tier 4 features
+        "ALTER TABLE local_campaign ADD COLUMN campaign_type TEXT DEFAULT 'ai_generated'",
+        "ALTER TABLE local_campaign ADD COLUMN campaign_goal TEXT",
+        "ALTER TABLE local_campaign ADD COLUMN tone TEXT",
+        # Phase C: agent_draft format type and variant tracking
+        "ALTER TABLE agent_draft ADD COLUMN format_type TEXT DEFAULT 'text'",
+        "ALTER TABLE agent_draft ADD COLUMN variant_id INTEGER DEFAULT 0",
     ]
     for stmt in _safe_alter_columns:
         try:
             conn.execute(stmt)
         except sqlite3.OperationalError:
             pass  # Column already exists
+
+    # Phase C: campaign_posts table for repost campaigns
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS campaign_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_server_id INTEGER NOT NULL,
+            platform TEXT NOT NULL,
+            content TEXT,
+            image_url TEXT,
+            post_order INTEGER DEFAULT 0,
+            scheduled_offset_hours INTEGER DEFAULT 0,
+            FOREIGN KEY (campaign_server_id) REFERENCES local_campaign(server_id)
+        )
+    """)
 
     conn.commit()
     conn.close()

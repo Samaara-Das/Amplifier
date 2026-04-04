@@ -29,6 +29,12 @@ class CampaignCreate(BaseModel):
     start_date: datetime
     end_date: datetime
     max_users: int | None = None
+    # Phase C additions
+    campaign_goal: str = "brand_awareness"
+    campaign_type: str = "ai_generated"
+    tone: str | None = None
+    preferred_formats: dict = {}
+    disclaimer_text: str | None = None
 
 
 class CampaignUpdate(BaseModel):
@@ -59,6 +65,12 @@ class CampaignResponse(BaseModel):
     campaign_version: int = 1
     max_users: int | None = None
     screening_warning: str | None = None
+    # Phase C additions
+    campaign_goal: str | None = None
+    campaign_type: str | None = None
+    tone: str | None = None
+    preferred_formats: dict = {}
+    disclaimer_text: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -78,6 +90,11 @@ class CampaignBrief(BaseModel):
     payout_rules: dict
     payout_multiplier: float
     company_name: str | None = None
+    # Phase C additions
+    campaign_type: str = "ai_generated"
+    campaign_goal: str | None = None
+    tone: str | None = None
+    disclaimer_text: str | None = None
 
     model_config = {"from_attributes": True}
 

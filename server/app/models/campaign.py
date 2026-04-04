@@ -29,6 +29,18 @@ class Campaign(Base):
     content_guidance: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Tone, must-include phrases, forbidden phrases
 
+    # Phase C schema extensions (Tier 4 features)
+    campaign_goal: Mapped[str | None] = mapped_column(String(30), nullable=True, default="brand_awareness")
+    # brand_awareness | leads | virality | engagement
+    campaign_type: Mapped[str | None] = mapped_column(String(20), nullable=True, default="ai_generated")
+    # ai_generated | repost | political
+    tone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # professional | casual | edgy | educational | urgent
+    preferred_formats: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # {"x": ["thread", "poll"], "linkedin": ["carousel"]}
+    disclaimer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # "#ad" or "Paid for by [committee]" — appended to every post
+
     penalty_rules: Mapped[dict] = mapped_column(JSONB, default=dict)
     # penalty_rules: {"post_deleted_24h": 5.00, "off_brief": 2.00, "fake_metrics": 50.00}
 

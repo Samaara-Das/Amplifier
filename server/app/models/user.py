@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Numeric, Integer, DateTime, func
+from sqlalchemy import Boolean, String, Numeric, Integer, DateTime, func
 from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,6 +45,13 @@ class User(Base):
 
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
     # active | suspended | banned
+
+    # Phase C schema extensions (political campaigns + subscription tiers)
+    zip_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(2), nullable=True)  # US state abbreviation
+    political_campaigns_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    subscription_tier: Mapped[str] = mapped_column(String(20), default="free")
+    # free | paid (orthogonal to reputation tier)
 
     # v2: Scraped profile data
     scraped_profiles: Mapped[dict] = mapped_column(JSONB, default=dict)
