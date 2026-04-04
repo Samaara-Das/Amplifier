@@ -1,4 +1,4 @@
-# Amplifier — Concept Document
+# Amplifier — Product Concept
 
 ## The One-Line Version
 
@@ -42,11 +42,32 @@ That's what Amplifier does.
 
 ## How Amplifier Works
 
+### The End-to-End Flow
+
+```
+COMPANY                           AMPLIFIER                          CREATOR
+
+1. Create campaign          ───►  AI generates brief from URLs  ───► Matched by niche + profile
+   (product, budget, rates)       AI scores creator fit
+
+2. Budget locked            ◄───  Invitations sent (3-day TTL)  ───► Accepts (max 3-10 based on tier)
+
+                                  AI generates content           ───► Reviews / edits / approves
+                                  (text + images per platform)       (or auto-posts if full-auto)
+
+3. Tracks performance       ◄───  Posts to social media          ◄── On-device automation
+                                  Scrapes engagement at               (JSON script engine +
+                                  T+1h, T+6h, T+24h, T+72h           human emulation)
+
+4. Pays per engagement      ───►  Calculates billing             ───► Earns 80% of engagement value
+   (from campaign budget)         Takes 20% cut                       7-day hold, then cash out at $10+
+```
+
 ### For Companies
 
-1. **Create a campaign.** Describe your product, paste your website URL. Amplifier's AI scrapes your site and generates a complete campaign brief — what to say, how to say it, who should say it.
+1. **Create a campaign.** Describe your product, paste your website URL. Amplifier's AI scrapes your site and generates a complete campaign brief — what to say, how to say it, who should say it. Upload product photos for AI image generation.
 
-2. **Set your budget and rates.** Decide how much you'll pay per 1,000 impressions, per like, per share, per click. Set a total budget. Amplifier suggests rates based on your niche.
+2. **Set your budget and rates.** Decide how much you'll pay per 1,000 impressions, per like, per share, per click. Set a total budget. Amplifier suggests rates based on your niche (finance/tech pays more, lifestyle less).
 
 3. **Go live.** That's it. AI automatically matches your campaign to relevant users based on their social media profiles, niches, audience, and posting history. Users start posting within 24 hours. You pay only for real engagement.
 
@@ -58,13 +79,25 @@ That's what Amplifier does.
 
 1. **Install the app.** Desktop app for Windows. Connect your social media accounts (X, LinkedIn, Facebook, Reddit). The app never sees your passwords — it uses persistent browser sessions.
 
-2. **Accept campaigns.** AI matches you with campaigns that fit your niche and audience. You see the campaign brief, payout rates, and what's expected. Accept up to 3 campaigns at a time.
+2. **Accept campaigns.** AI matches you with campaigns that fit your niche and audience. You see the campaign brief, payout rates, and what's expected. Accept up to 3 campaigns at first (more as your reputation grows).
 
-3. **Review or auto-post.** AI generates platform-native content for each of your connected platforms. In semi-auto mode, you review and approve. In full-auto mode, it posts automatically.
+3. **Review or auto-post.** AI generates platform-native content for each of your connected platforms — text captions AND images. It can transform the company's product photos into authentic lifestyle scenes (img2img), or generate images from text descriptions (txt2img). In semi-auto mode, you review and approve. In full-auto mode (unlocked at Grower tier), it posts automatically.
 
-4. **Earn money.** The app tracks your posts' engagement (impressions, likes, shares) and reports it to the server. Earnings appear in your dashboard. Cash out when you hit $10.
+4. **Earn money.** The app tracks your posts' engagement (impressions, likes, shares) and reports it to the server. Earnings are held for 7 days (fraud prevention), then become available. Cash out when you hit $10.
 
 **Time from install to first earning: same day.**
+
+---
+
+## Three Content Generation Modes
+
+| Mode | Input | Output | When Used |
+|---|---|---|---|
+| **Text → Text** | Campaign brief + guidance | Platform-native captions (different tone per platform) | Every campaign |
+| **Text → Image** | AI-generated image prompt | Lifestyle photo with UGC post-processing (grain, JPEG artifacts, phone EXIF) | Campaigns without product photos |
+| **Image → Image** | Company's product photo | UGC-style scene featuring the real product | Campaigns with product photos in assets |
+
+Images rotate daily through multiple campaign photos (Day 1 uses photo A, Day 2 uses photo B, wraps around). Every generated image passes through a UGC authenticity pipeline — desaturation, film grain, vignetting, JPEG compression, fake phone EXIF data — so it looks like a real person took it with their phone, not like AI generated it.
 
 ---
 
@@ -78,13 +111,13 @@ That's what Amplifier does.
 | **Payment model** | Pay upfront, hope for results | Pay only for real engagement |
 | **Reach** | Concentrated in few influencers | Distributed across thousands of normal people |
 | **Content** | Created by influencer (variable) | AI-generated, platform-native, brand-guided |
+| **Images** | Influencer takes their own photos | AI generates UGC-style images from product photos |
 | **Setup time** | Weeks of negotiation | Minutes |
 | **Tracking** | Manual, screenshots | Automated metric scraping + billing |
 
 ### vs. Affiliate Marketing (ShareASale, Impact, etc.)
 
 Affiliate networks pay for conversions (clicks, signups, purchases). Amplifier pays for engagement (impressions, likes, shares). This matters because:
-
 - Affiliate links are obvious and people avoid them
 - Affiliate requires the user to manually craft promotional content
 - Amplifier content looks like normal social media posts because it is — AI generates authentic UGC, not ads
@@ -109,7 +142,25 @@ When a company pays $1.00 for engagement on a user's post:
 - **$0.80** goes to the user
 - **$0.20** goes to Amplifier
 
-That's it. No subscription fees. No setup costs. Pure marketplace economics.
+No subscription fees. No setup costs. Pure marketplace economics.
+
+### Reputation Tiers
+
+Users progress through three tiers as they build a track record:
+
+| Tier | Unlock | Max Campaigns | CPM Rate | Auto-Post |
+|---|---|---|---|---|
+| **Seedling** | Default (new user) | 3 | 1x standard | Requires approval |
+| **Grower** | 20 successful posts | 10 | 1x standard | Toggle available |
+| **Amplifier** | 100 posts + high trust | Unlimited | **2x premium** | Full auto |
+
+Higher tiers = more campaigns, more earnings per impression, less manual review. This incentivizes consistent, quality posting.
+
+### Financial Safety
+
+- **7-day earning hold**: Earnings are "pending" for 7 days before becoming withdrawable. If fraud is detected during the hold period (deleted posts, fake metrics), earnings are voided and funds return to the campaign budget.
+- **Integer cents math**: All money is stored as integer cents internally (not floats), eliminating rounding errors. Consistent with Stripe's own cent-based API.
+- **AES-256-GCM encryption**: API keys, payment details, and sensitive data encrypted at rest on both server and client devices.
 
 ### Unit Economics (Projected)
 
@@ -122,20 +173,22 @@ That's it. No subscription fees. No setup costs. Pure marketplace economics.
 | Gross margin | ~90%+ |
 
 The economics work because:
-- AI content generation uses free-tier APIs (Gemini, Mistral, Groq)
+- AI content generation uses free-tier APIs (Gemini 500 images/day free, text gen free)
+- Image post-processing runs locally (PIL + numpy)
 - Hosting is on Vercel's free/hobby tier
 - Database is Supabase's free tier
-- All compute-heavy work (Playwright, AI generation) runs on users' devices
+- All compute-heavy work (browser automation, AI generation, metric scraping) runs on users' devices
 
 ### How Money Flows
 
 ```
 Company deposits funds (Stripe) → Company balance
 Company activates campaign → Budget locked from balance
-Users post + get engagement → Billing calculates earnings
-    → 80% credited to user's balance
+Users post + get engagement → Billing calculates earnings (integer cents)
+    → 80% credited to user's pending balance
     → 20% retained by Amplifier
     → Deducted from campaign budget
+7 days pass → Pending earnings promoted to available
 User cashes out ($10 minimum) → Stripe Connect payout
 ```
 
@@ -151,18 +204,18 @@ User cashes out ($10 minimum) → Stripe Connect payout
 
 ### Amplifier's Addressable Market
 
-**TAM (Total Addressable Market):** $21B — the global influencer marketing spend. Amplifier is a direct alternative to influencer marketing for the "long tail" of companies and creators.
+**TAM (Total Addressable Market):** $21B — the global influencer marketing spend.
 
-**SAM (Serviceable Addressable Market):** $5B — small-to-mid companies in the US spending $500-$50K annually on social media marketing. These companies can't afford traditional influencer deals but need social proof and organic-looking distribution.
+**SAM (Serviceable Addressable Market):** $5B — small-to-mid US companies spending $500-$50K/year on social media marketing.
 
-**SOM (Serviceable Obtainable Market):** $50M — 1% of SAM within 3 years. 10,000 companies spending an average of $5,000/year on Amplifier campaigns. At 20% take rate = $10M annual revenue.
+**SOM (Serviceable Obtainable Market):** $50M — 10,000 companies x $5,000 avg spend x 20% take rate (3-year target).
 
 ### Why Now
 
-1. **AI is finally good enough.** Gemini, GPT-4, Claude can generate genuinely good, platform-native social media content. This wasn't possible 2 years ago.
+1. **AI is finally good enough.** Gemini, GPT-4, Claude can generate genuinely good, platform-native social media content. Image generation creates authentic-looking UGC from text descriptions or product photos.
 2. **Social media is saturated.** Organic reach is dying. Companies need new distribution channels.
 3. **The gig economy is mainstream.** People are used to earning money from apps (Uber, DoorDash, Fiverr). Earning from social media posts is a natural extension.
-4. **Platform APIs are accessible.** Browser automation + APIs make it possible to automate posting and metric collection across platforms.
+4. **Free AI tiers make unit economics viable.** Gemini offers 500 free images/day. Text generation APIs are free-tier. The cost of AI content generation per campaign is near zero.
 
 ---
 
@@ -172,29 +225,25 @@ Amplifier is not a pitch deck. It's a working product.
 
 ### Shipped (V1)
 
-- **Server** — 52+ API endpoints, deployed on Vercel with Supabase PostgreSQL
-- **Company Dashboard** — 6 pages: login, campaign list, AI campaign wizard, campaign detail with analytics, billing, settings
-- **Admin Dashboard** — 6 pages: overview, user management, campaign management, fraud detection, payouts, platform stats
-- **User App** — Desktop app with 5-step onboarding, campaign dashboard, background agent
-- **AI Matching** — Gemini scores user profiles against campaign briefs, with hard filters and niche-overlap fallback
-- **AI Content Generation** — Platform-native content for X, LinkedIn, Facebook, Reddit. Research phase scrapes company URLs. Provider fallback chain (Gemini → Mistral → Groq).
-- **Posting Engine** — Playwright automation with human emulation on 4 platforms (X, LinkedIn, Facebook, Reddit). Text, image+text, and image-only support.
-- **Metric Scraping** — API-first for X and Reddit, browser fallback for LinkedIn and Facebook. Tiered schedule (1h, 6h, 24h, 72h).
-- **Billing** — Incremental billing on metric submission, budget capping, auto-pause on exhaustion
-- **Trust & Fraud** — Trust scoring (0-100), deletion detection, metrics anomaly detection, penalty system
-- **Payments** — Stripe Checkout for company top-ups, Stripe Connect stub for user payouts
+- **Server** — ~90 API routes across 11 routers, deployed on Vercel with Supabase PostgreSQL. 11 database models.
+- **Company Dashboard** — 10 pages: login, dashboard overview, campaign list, AI campaign wizard, campaign detail with analytics, billing with Stripe, influencer performance, stats, settings.
+- **Admin Dashboard** — 14 pages: overview, user/company management (detail views, suspend/ban/funds), campaign management, financial (billing cycles, earning promotion, payout processing), fraud detection with appeals, analytics, content review queue, audit log, settings.
+- **User App** — Desktop app with 32+ routes. 5-step onboarding, campaign dashboard, content review, post scheduling, earnings tracking, background agent control.
+- **AI Matching** — Gemini scores user profiles against campaign briefs (0-100), with hard filters (platforms, followers, region, engagement) and niche-overlap fallback. Tier-based campaign limits.
+- **AI Content Generation** — Three modes: text-to-text (platform-native captions), text-to-image (UGC lifestyle photos), image-to-image (transform product photos into lifestyle scenes). 5-provider image chain (Gemini → Cloudflare → Together → Pollinations → PIL). UGC post-processing pipeline. Daily product image rotation.
+- **Posting Engine** — JSON script-driven automation with fallback selector chains, per-step human timing, structured error recovery with exponential backoff. 4 platforms (X, LinkedIn, Facebook, Reddit).
+- **Metric Scraping** — Tiered schedule (T+1h, T+6h, T+24h, T+72h). Per-platform selectors.
+- **Billing** — Integer cents math, incremental billing on metric submission, budget capping, auto-pause on exhaustion, 7-day earning hold, auto tier promotion.
+- **Trust & Fraud** — Trust scoring (0-100), deletion detection, metrics anomaly detection, penalty system with appeals, earning void during hold period.
+- **Reputation Tiers** — Seedling/Grower/Amplifier with auto-promotion, tier-based CPM multiplier (2x for Amplifier), tier-gated features.
+- **Security** — AES-256-GCM encryption on server (ENCRYPTION_KEY) and client (machine-derived key). API keys encrypted at rest.
+- **Payments** — Stripe Checkout for company top-ups, Stripe Connect for user payouts (test mode), automated payout processing.
 
 ### Live URLs
 
 - Company Dashboard: `https://server-five-omega-23.vercel.app/company/login`
 - Admin Dashboard: `https://server-five-omega-23.vercel.app/admin/login`
 - API Docs: `https://server-five-omega-23.vercel.app/docs`
-
-### In Progress
-
-- Verification of all built features (26/68 tasks complete)
-- URL capture fixes for LinkedIn/Facebook/Reddit
-- Remaining feature verification (metrics, billing, earnings, admin features)
 
 ---
 
@@ -203,24 +252,24 @@ Amplifier is not a pitch deck. It's a working product.
 ### Platform Detection
 
 Social media platforms actively detect and block automation. Amplifier mitigates this with:
-- Persistent browser profiles (looks like a real user)
+- JSON script engine with fallback selector chains (3+ selectors per element)
 - Human emulation (character-by-character typing, random delays, feed browsing)
-- Stealth browser flags
+- Persistent browser profiles and stealth browser flags
 - **But**: X has already locked one test account during development. This is the #1 technical risk.
 
-**Mitigation path:** Official platform APIs (X API, LinkedIn API) for posting instead of browser automation. This is on the roadmap.
+**Mitigation path:** Official platform APIs for posting (X API, LinkedIn API). Declarative JSON scripts can be updated without app changes when platform UIs change.
 
 ### Chicken-and-Egg Marketplace Problem
 
 Every marketplace faces this: companies won't come without users, users won't come without campaigns.
 
-**Approach:** Start with the personal brand engine (already built) to onboard early users who post their own content. Then introduce campaigns once there's a user base. Also: the founder's trading community provides an initial pool of beta users.
+**Approach:** Start with the personal brand engine (already built) to onboard early users who post their own content. Then introduce campaigns once there's a user base.
 
 ### Legal / Compliance
 
-Automated posting on behalf of users may violate some platform ToS. FTC requires disclosure of paid partnerships.
+Automated posting on behalf of users may violate some platform ToS. FTC requires disclosure of paid partnerships (#ad, #sponsored).
 
-**Approach:** Content guidance includes disclosure language. Long-term: pursue platform partnership programs and comply with advertising disclosure requirements.
+**Approach:** Content generator needs to auto-append disclosure text. Planned for implementation before launch.
 
 ### Revenue Scale
 
@@ -230,43 +279,15 @@ At 20% of micro-transactions, reaching meaningful revenue requires volume. $10M 
 
 ---
 
-## What We Need (The Co-Founder Opportunity)
-
-### Current State
-
-Amplifier is built by a solo founder. The V1 is functional — server deployed, 4 platforms working, AI pipeline operational. But scaling from "working prototype" to "real business" requires more than one person.
-
-### What a Co-Founder Brings
-
-**If technical:** Take ownership of the posting engine reliability (the hardest technical problem), platform API integrations, and infrastructure scaling. The solo founder handles product, growth, and business development.
-
-**If business/growth:** Take ownership of go-to-market — acquiring the first 100 companies, building the user acquisition funnel, managing partnerships, and handling legal/compliance. The solo founder handles engineering and AI.
-
-**Either way:** A co-founder brings accountability, complementary skills, and the ability to move twice as fast on a product that already works.
-
-### The Opportunity
-
-You're not joining a slide deck. You're joining a working product with:
-- A deployed server handling real API traffic
-- AI that generates genuinely good, platform-native content
-- Browser automation that posts to 4 major platforms
-- A billing system that calculates real earnings
-- A trust system that detects fraud
-- A clear path to revenue (company → budget → users → engagement → billing → cash out)
-
-The hard engineering is largely done. What's needed now is the last mile: polishing the product, acquiring the first customers, and proving the business model works.
-
----
-
 ## Summary
 
 | | |
 |---|---|
 | **What** | Marketplace connecting companies with everyday social media users for paid, AI-generated posts |
-| **How** | AI generates content, Playwright posts it, metrics are scraped, billing is automatic |
+| **How** | AI generates text + images, JSON script engine posts it, metrics are scraped, billing is automatic |
 | **Revenue** | 20% of all engagement-based earnings |
 | **Stage** | V1 built and deployed, pre-revenue, in verification phase |
 | **Market** | $21B influencer marketing market, targeting the long tail |
-| **Differentiator** | Performance-based billing + AI-native everything + user-side compute |
+| **Differentiator** | Performance-based billing + AI-native everything + user-side compute + img2img from product photos |
 | **#1 Risk** | Platform automation detection |
 | **#1 Opportunity** | First mover in AI-powered micro-influencer marketplace |
