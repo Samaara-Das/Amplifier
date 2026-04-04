@@ -116,8 +116,16 @@ class MetricCollector:
             context = await _launch_context(pw, platform)
             page = context.pages[0] if context.pages else await context.new_page()
             try:
-                metrics = await scraper(page, post_url)
-                return metrics
+                result = await scraper(page, post_url)
+                # Scrapers now return (metrics_dict, status) tuple
+                if isinstance(result, tuple):
+                    metrics, scrape_status = result
+                    if scrape_status == "deleted":
+                        raise ValueError(f"Post deleted/unavailable: {post_url}")
+                    if scrape_status == "rate_limited":
+                        raise ValueError(f"Rate limited while scraping: {post_url}")
+                    return metrics
+                return result  # Backward compatibility
             finally:
                 await context.close()
 

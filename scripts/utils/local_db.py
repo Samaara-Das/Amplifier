@@ -70,6 +70,7 @@ def init_db() -> None:
             scraped_at TEXT NOT NULL,
             is_final INTEGER DEFAULT 0,
             reported INTEGER DEFAULT 0,
+            anomaly_flag INTEGER DEFAULT 0,
             FOREIGN KEY (post_id) REFERENCES local_post(id)
         );
 
@@ -217,6 +218,8 @@ def init_db() -> None:
         # Phase C: agent_draft format type and variant tracking
         "ALTER TABLE agent_draft ADD COLUMN format_type TEXT DEFAULT 'text'",
         "ALTER TABLE agent_draft ADD COLUMN variant_id INTEGER DEFAULT 0",
+        # v6: anomaly flag for metric accuracy improvements
+        "ALTER TABLE local_metric ADD COLUMN anomaly_flag INTEGER DEFAULT 0",
     ]
     for stmt in _safe_alter_columns:
         try:
@@ -491,6 +494,14 @@ def mark_posts_synced(post_ids: list[int], server_post_ids: dict = None) -> None
     conn.close()
 
 
+def update_post_status(post_id: int, status: str) -> None:
+    """Update the status of a local post (e.g., 'posted', 'deleted')."""
+    conn = _get_db()
+    conn.execute("UPDATE local_post SET status = ? WHERE id = ?", (status, post_id))
+    conn.commit()
+    conn.close()
+
+
 def get_posts_for_scraping() -> list[dict]:
     """Get posts that need metric scraping (have URLs, campaign still active).
 
@@ -507,6 +518,7 @@ def get_posts_for_scraping() -> list[dict]:
         AND lp.post_url NOT LIKE '%/submitted'
         AND lp.post_url NOT LIKE '%/comments/'
         AND lp.post_url NOT LIKE '%/profile.php%'
+        AND COALESCE(lp.status, 'posted') != 'deleted'
         AND lc.status NOT IN ('skipped', 'cancelled')
         ORDER BY lp.posted_at ASC
     """).fetchall()
@@ -545,17 +557,59 @@ def get_all_posts() -> list[dict]:
 # ── Metrics ────────────────────────────────────────────────────────
 
 
+def _check_metric_anomaly(conn, post_id: int, impressions: int, likes: int,
+                          reposts: int, comments: int) -> bool:
+    """Check if any metric value exceeds 10x the previous scrape for the same post.
+
+    Returns True if an anomaly is detected. Logs a warning but does NOT block insertion.
+    """
+    prev = conn.execute("""
+        SELECT impressions, likes, reposts, comments
+        FROM local_metric
+        WHERE post_id = ?
+        ORDER BY id DESC LIMIT 1
+    """, (post_id,)).fetchone()
+
+    if not prev:
+        return False  # First scrape — no baseline to compare
+
+    anomaly = False
+    fields = [
+        ("impressions", impressions, prev["impressions"]),
+        ("likes", likes, prev["likes"]),
+        ("reposts", reposts, prev["reposts"]),
+        ("comments", comments, prev["comments"]),
+    ]
+
+    for name, current, previous in fields:
+        # Only flag if previous value was non-zero (avoid div-by-zero)
+        # and current value exceeds 10x the previous
+        if previous > 0 and current > previous * 10:
+            logger.warning(
+                "ANOMALY post_id=%d: %s jumped from %d to %d (%.1fx)",
+                post_id, name, previous, current, current / previous,
+            )
+            anomaly = True
+
+    return anomaly
+
+
 def add_metric(post_id: int, impressions: int = 0, likes: int = 0,
                reposts: int = 0, comments: int = 0, clicks: int = 0,
                is_final: bool = False) -> int:
     conn = _get_db()
+
+    # Anomaly detection: flag 10x+ jumps from previous scrape
+    anomaly = _check_metric_anomaly(conn, post_id, impressions, likes,
+                                    reposts, comments)
+
     cursor = conn.execute("""
         INSERT INTO local_metric (post_id, impressions, likes, reposts, comments,
-                                  clicks, scraped_at, is_final)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                  clicks, scraped_at, is_final, anomaly_flag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         post_id, impressions, likes, reposts, comments, clicks,
-        datetime.now(timezone.utc).isoformat(), int(is_final),
+        datetime.now(timezone.utc).isoformat(), int(is_final), int(anomaly),
     ))
     metric_id = cursor.lastrowid
     conn.commit()

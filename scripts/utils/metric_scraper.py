@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from utils.local_db import (
     get_posts_for_scraping, add_metric, get_unreported_metrics, mark_metrics_reported,
+    update_post_status,
 )
 from utils.server_client import report_metrics
 
@@ -58,16 +59,47 @@ async def _launch_context(pw, platform: str):
     return await pw.chromium.launch_persistent_context(**kwargs)
 
 
-async def _scrape_x(page, post_url: str) -> dict:
+async def _scrape_x(page, post_url: str) -> tuple[dict, str | None]:
     """Scrape metrics from an X/Twitter post.
 
     X exposes views, likes, reposts, replies via aria-labels on the
     engagement button group.
+
+    Returns (metrics_dict, status) where status is 'deleted', 'rate_limited', or None.
     """
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
+
+        body_text = await page.inner_text("body")
+        title = await page.title()
+
+        # Detect deleted / unavailable posts
+        unavailable_phrases = [
+            "this post is unavailable",
+            "this account doesn't exist",
+            "this post was deleted",
+            "hmm...this page doesn't exist",
+            "account suspended",
+            "this tweet is unavailable",
+            "this tweet has been deleted",
+            "page not found",
+        ]
+        body_lower = body_text.lower()
+        if any(phrase in body_lower for phrase in unavailable_phrases):
+            logger.warning("Post deleted/unavailable on X: %s", post_url)
+            return metrics, "deleted"
+
+        # Detect rate limiting / CAPTCHA
+        rate_phrases = ["rate limit", "try again later", "too many requests"]
+        title_lower = title.lower()
+        if any(phrase in body_lower or phrase in title_lower for phrase in rate_phrases):
+            logger.warning("Rate limited on X while scraping: %s", post_url)
+            return metrics, "rate_limited"
+        if "captcha" in body_lower or "captcha" in title_lower:
+            logger.warning("CAPTCHA detected on X while scraping: %s", post_url)
+            return metrics, "rate_limited"
 
         for el in await page.query_selector_all('[role="group"] [aria-label]'):
             label = await el.get_attribute("aria-label") or ""
@@ -90,14 +122,16 @@ async def _scrape_x(page, post_url: str) -> dict:
     except Exception as e:
         logger.warning("Failed to scrape X post %s: %s", post_url, e)
 
-    return metrics
+    return metrics, None
 
 
-async def _scrape_linkedin(page, post_url: str) -> dict:
+async def _scrape_linkedin(page, post_url: str) -> tuple[dict, str | None]:
     """Scrape metrics from a LinkedIn post.
 
     LinkedIn CSS classes change frequently. Uses both CSS selectors and
     body text parsing as fallback for reliable extraction.
+
+    Returns (metrics_dict, status) where status is 'deleted', 'rate_limited', or None.
     """
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
@@ -105,6 +139,30 @@ async def _scrape_linkedin(page, post_url: str) -> dict:
         await page.wait_for_timeout(3000)
 
         body_text = await page.inner_text("body")
+        title = await page.title()
+
+        # Detect deleted / unavailable posts
+        body_lower = body_text.lower()
+        title_lower = title.lower()
+        unavailable_phrases = [
+            "this page doesn't exist",
+            "page not found",
+            "this content isn't available",
+            "this post has been removed",
+            "content unavailable",
+        ]
+        if any(phrase in body_lower for phrase in unavailable_phrases):
+            logger.warning("Post deleted/unavailable on LinkedIn: %s", post_url)
+            return metrics, "deleted"
+
+        # Detect rate limiting / auth walls
+        if "captcha" in body_lower or "captcha" in title_lower:
+            logger.warning("CAPTCHA detected on LinkedIn while scraping: %s", post_url)
+            return metrics, "rate_limited"
+        if "sign in" in title_lower and "linkedin" in title_lower:
+            # Auth wall — session may have expired, treat as rate_limited so we don't store zeros
+            logger.warning("LinkedIn auth wall detected while scraping: %s", post_url)
+            return metrics, "rate_limited"
 
         # Impressions — LinkedIn shows "X impressions" for post authors
         imp_match = re.search(r'([\d,]+)\s*(?:impressions?|views?)', body_text, re.IGNORECASE)
@@ -144,14 +202,16 @@ async def _scrape_linkedin(page, post_url: str) -> dict:
     except Exception as e:
         logger.warning("Failed to scrape LinkedIn post %s: %s", post_url, e)
 
-    return metrics
+    return metrics, None
 
 
-async def _scrape_facebook(page, post_url: str) -> dict:
+async def _scrape_facebook(page, post_url: str) -> tuple[dict, str | None]:
     """Scrape metrics from a Facebook post.
 
     Facebook does not expose impressions/views on personal profile posts.
     Only reactions, comments, and shares are available.
+
+    Returns (metrics_dict, status) where status is 'deleted', 'rate_limited', or None.
     """
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
@@ -159,6 +219,29 @@ async def _scrape_facebook(page, post_url: str) -> dict:
         await page.wait_for_timeout(3000)
 
         body_text = await page.inner_text("body")
+        title = await page.title()
+
+        # Detect deleted / unavailable posts
+        body_lower = body_text.lower()
+        title_lower = title.lower()
+        unavailable_phrases = [
+            "this content isn't available",
+            "this page isn't available",
+            "the link you followed may be broken",
+            "content not found",
+            "this post is no longer available",
+        ]
+        if any(phrase in body_lower for phrase in unavailable_phrases):
+            logger.warning("Post deleted/unavailable on Facebook: %s", post_url)
+            return metrics, "deleted"
+
+        # Detect rate limiting / auth walls
+        if "captcha" in body_lower or "captcha" in title_lower:
+            logger.warning("CAPTCHA detected on Facebook while scraping: %s", post_url)
+            return metrics, "rate_limited"
+        if "log in" in title_lower and "facebook" in title_lower:
+            logger.warning("Facebook auth wall detected while scraping: %s", post_url)
+            return metrics, "rate_limited"
 
         # Reactions via aria-label
         reactions = page.locator('[aria-label*="reaction"]')
@@ -189,29 +272,68 @@ async def _scrape_facebook(page, post_url: str) -> dict:
     except Exception as e:
         logger.warning("Failed to scrape Facebook post %s: %s", post_url, e)
 
-    return metrics
+    return metrics, None
 
 
-async def _scrape_reddit(page, post_url: str) -> dict:
+async def _scrape_reddit(page, post_url: str) -> tuple[dict, str | None]:
     """Scrape metrics from a Reddit post.
 
     Reddit shows views in body text (e.g. '3.2K views'), upvotes via
     shreddit-post 'score' attribute, and comments via 'comment-count'.
     Reddit blocks headless browsers, so this runs in headed mode.
+
+    Returns (metrics_dict, status) where status is 'deleted', 'rate_limited', or None.
     """
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
 
-        # Views from body text (e.g. "3.2K views")
         body_text = await page.inner_text("body")
+        title = await page.title()
+
+        # Detect deleted / removed posts
+        body_lower = body_text.lower()
+        title_lower = title.lower()
+        unavailable_phrases = [
+            "sorry, this post was removed",
+            "this post was removed by",
+            "this post has been removed",
+            "this post is no longer available",
+            "page not found",
+            "sorry, this page isn't available",
+        ]
+        if any(phrase in body_lower for phrase in unavailable_phrases):
+            logger.warning("Post deleted/removed on Reddit: %s", post_url)
+            return metrics, "deleted"
+
+        # Check for empty shreddit-post (another sign of removal)
+        sp = page.locator("shreddit-post")
+        if await sp.count() > 0:
+            removed_attr = await sp.first.get_attribute("removed")
+            if removed_attr and removed_attr.lower() == "true":
+                logger.warning("Post marked as removed on Reddit: %s", post_url)
+                return metrics, "deleted"
+        elif "reddit" in title_lower and len(body_text.strip()) < 100:
+            # Page loaded but no post content — likely removed
+            logger.warning("Post appears removed on Reddit (empty page): %s", post_url)
+            return metrics, "deleted"
+
+        # Detect rate limiting
+        if "captcha" in body_lower or "captcha" in title_lower:
+            logger.warning("CAPTCHA detected on Reddit while scraping: %s", post_url)
+            return metrics, "rate_limited"
+        rate_phrases = ["rate limit", "too many requests", "try again later"]
+        if any(phrase in body_lower or phrase in title_lower for phrase in rate_phrases):
+            logger.warning("Rate limited on Reddit while scraping: %s", post_url)
+            return metrics, "rate_limited"
+
+        # Views from body text (e.g. "3.2K views")
         view_match = re.search(r'([\d,.]+[KkMm]?)\s*views?', body_text, re.IGNORECASE)
         if view_match:
             metrics["impressions"] = _parse_number(view_match.group(1))
 
         # Upvotes — prefer shreddit-post attribute (most reliable)
-        sp = page.locator("shreddit-post")
         if await sp.count() > 0:
             score = await sp.first.get_attribute("score")
             if score:
@@ -234,19 +356,39 @@ async def _scrape_reddit(page, post_url: str) -> dict:
     except Exception as e:
         logger.warning("Failed to scrape Reddit post %s: %s", post_url, e)
 
-    return metrics
+    return metrics, None
 
 
-async def _scrape_tiktok(page, post_url: str) -> dict:
-    """Scrape metrics from a TikTok post."""
+async def _scrape_tiktok(page, post_url: str) -> tuple[dict, str | None]:
+    """Scrape metrics from a TikTok post.
+
+    Returns (metrics_dict, status) where status is 'deleted', 'rate_limited', or None.
+    """
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
 
-        # Views
-        views_el = page.locator('[data-e2e="browser-nickname"] + span, strong[data-e2e="like-count"]')
         body_text = await page.inner_text("body")
+        title = await page.title()
+        body_lower = body_text.lower()
+        title_lower = title.lower()
+
+        # Detect deleted / unavailable
+        unavailable_phrases = [
+            "this video is unavailable",
+            "couldn't find this account",
+            "video currently unavailable",
+            "page not available",
+        ]
+        if any(phrase in body_lower for phrase in unavailable_phrases):
+            logger.warning("Post deleted/unavailable on TikTok: %s", post_url)
+            return metrics, "deleted"
+
+        # Detect rate limiting / CAPTCHA
+        if "captcha" in body_lower or "captcha" in title_lower:
+            logger.warning("CAPTCHA detected on TikTok while scraping: %s", post_url)
+            return metrics, "rate_limited"
 
         like_match = re.search(r'([\d.]+[KkMm]?)\s*(?:Likes?|likes?)', body_text)
         if like_match:
@@ -263,15 +405,42 @@ async def _scrape_tiktok(page, post_url: str) -> dict:
     except Exception as e:
         logger.warning("Failed to scrape TikTok post %s: %s", post_url, e)
 
-    return metrics
+    return metrics, None
 
 
-async def _scrape_instagram(page, post_url: str) -> dict:
-    """Scrape metrics from an Instagram post."""
+async def _scrape_instagram(page, post_url: str) -> tuple[dict, str | None]:
+    """Scrape metrics from an Instagram post.
+
+    Returns (metrics_dict, status) where status is 'deleted', 'rate_limited', or None.
+    """
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
         await page.wait_for_timeout(3000)
+
+        body_text = await page.inner_text("body")
+        title = await page.title()
+        body_lower = body_text.lower()
+        title_lower = title.lower()
+
+        # Detect deleted / unavailable
+        unavailable_phrases = [
+            "this page isn't available",
+            "the link you followed may be broken",
+            "sorry, this page isn't available",
+            "content isn't available",
+        ]
+        if any(phrase in body_lower for phrase in unavailable_phrases):
+            logger.warning("Post deleted/unavailable on Instagram: %s", post_url)
+            return metrics, "deleted"
+
+        # Detect rate limiting / auth walls
+        if "captcha" in body_lower or "captcha" in title_lower:
+            logger.warning("CAPTCHA detected on Instagram while scraping: %s", post_url)
+            return metrics, "rate_limited"
+        if "log in" in title_lower and "instagram" in title_lower:
+            logger.warning("Instagram auth wall detected while scraping: %s", post_url)
+            return metrics, "rate_limited"
 
         # Likes
         likes_el = page.locator('section span:has-text("like")')
@@ -280,7 +449,6 @@ async def _scrape_instagram(page, post_url: str) -> dict:
             metrics["likes"] = _parse_number(text)
 
         # Comments
-        body_text = await page.inner_text("body")
         comment_match = re.search(r'View all (\d+) comments?', body_text)
         if comment_match:
             metrics["comments"] = int(comment_match.group(1))
@@ -288,7 +456,7 @@ async def _scrape_instagram(page, post_url: str) -> dict:
     except Exception as e:
         logger.warning("Failed to scrape Instagram post %s: %s", post_url, e)
 
-    return metrics
+    return metrics, None
 
 
 def _parse_number(text: str) -> int:
@@ -453,6 +621,12 @@ async def scrape_all_posts():
                             " [FINAL]" if is_final else "")
                 continue  # Skip Playwright scraping for this post
             except Exception as e:
+                err_msg = str(e).lower()
+                # Check if the failure was due to a deleted post
+                if "deleted" in err_msg or "unavailable" in err_msg:
+                    update_post_status(post["id"], "deleted")
+                    logger.info("  Marked post %d as deleted via API detection", post["id"])
+                    continue
                 logger.warning("API collection failed for %s, falling back to Playwright: %s",
                              platform, e)
 
@@ -482,12 +656,40 @@ async def scrape_all_posts():
             try:
                 context = await _launch_context(pw, platform)
                 page = context.pages[0] if context.pages else await context.new_page()
+                consecutive_rate_limits = 0
 
                 for post, is_final in post_list:
                     if not post["post_url"]:
                         continue
+
+                    # If we hit 3+ consecutive rate limits on this platform, stop scraping it
+                    if consecutive_rate_limits >= 3:
+                        logger.warning(
+                            "Stopping %s scraping: %d consecutive rate limits",
+                            platform, consecutive_rate_limits,
+                        )
+                        break
+
                     logger.info("Scraping %s: %s", platform, post["post_url"])
-                    metrics = await scraper(page, post["post_url"])
+                    metrics, scrape_status = await scraper(page, post["post_url"])
+
+                    # Handle deleted posts — mark as deleted, skip metric insert
+                    if scrape_status == "deleted":
+                        update_post_status(post["id"], "deleted")
+                        logger.info("  Marked post %d as deleted, skipping metric insert", post["id"])
+                        consecutive_rate_limits = 0
+                        await page.wait_for_timeout(2000)
+                        continue
+
+                    # Handle rate limiting — don't store zeros, count consecutive hits
+                    if scrape_status == "rate_limited":
+                        consecutive_rate_limits += 1
+                        logger.info("  Rate limited, skipping metric insert (consecutive: %d)",
+                                    consecutive_rate_limits)
+                        await page.wait_for_timeout(5000)  # Longer pause on rate limit
+                        continue
+
+                    consecutive_rate_limits = 0
 
                     add_metric(
                         post_id=post["id"],
