@@ -640,6 +640,12 @@ def _campaigns_impl():
     from utils.local_db import get_campaigns, get_todays_drafts
 
     all_campaigns = get_campaigns()
+
+    # Search filter
+    search_query = request.args.get("q", "").strip().lower()
+    if search_query:
+        all_campaigns = [c for c in all_campaigns if search_query in (c.get("title") or "").lower()]
+
     active = [
         c
         for c in all_campaigns

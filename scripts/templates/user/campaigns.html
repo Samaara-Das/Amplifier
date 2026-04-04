@@ -4,6 +4,9 @@
 <div id="page-campaigns" class="page active">
   <div class="page-header">
     <h1>Campaigns</h1>
+    <form method="get" action="{{ url_for('campaigns') }}" style="margin:0; display:flex; gap:8px; align-items:center;">
+      <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search campaigns..." style="padding:6px 12px; border:1px solid #374151; border-radius:6px; background:#1f2937; color:#e5e7eb; font-size:14px; width:200px;">
+    </form>
     <form method="post" action="{{ url_for('campaigns_poll') }}" style="margin:0;">
       <button type="submit" class="btn btn-primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
