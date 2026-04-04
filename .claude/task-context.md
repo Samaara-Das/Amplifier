@@ -1,10 +1,10 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-04 (Session 26)
+**Last Updated**: 2026-04-04 (Session 27)
 
 ## Current Task
 
-**Task #28 — Verify: Scheduled Posting** (in-progress) — paused during Sessions 24-26 for co-founder docs, codebase audit, and v2/v3 upgrade sprint.
+**Task #28 — Verify: Scheduled Posting** (in-progress) — paused during Sessions 24-27 for co-founder docs, codebase audit, v2/v3 upgrade sprint, and political campaigns strategy.
 
 Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddit), then #29-#30 (Metric Scraping).
 
@@ -22,68 +22,96 @@ Next: Resume posting verification (URL capture fixes for LinkedIn/Facebook/Reddi
 
 **27 done, 1 in-progress, 52 pending. 80 total tasks.**
 
-## Session 26 — What Was Done (Current Session)
+## Session 27 — What Was Done (Current Session)
 
-### 1. Full Codebase Audit (Session 25 portion)
-Comprehensive audit found major doc discrepancies: route count was "52" in docs (actually ~88), model count was "8" (actually 11), admin dashboard was "6 pages" (actually 14). All docs updated.
+### 1. Deep Codebase Understanding
 
-### 2. Dan's v2/v3 Analysis
-Read both Devtest-Dan repos (amplifire-v2: NestJS+Kotlin+Go 75% done, AmpliFire-v3: Android Phase 1 MVP). Created `docs/AMPLIFIER-SPEC.md` (complete system spec covering all 3 versions) and `docs/V2-V3-UPGRADE-PLAN.md` (15 upgrades across 5 phases).
+Three parallel exploration agents did a comprehensive deep dive of the entire Amplifier product:
 
-### 3. v2/v3 Upgrade Implementation (8 commits)
+**Agent 1 — Amplifier Engine**: Generation pipeline (content_generator.py + AI providers), review dashboard, posting pipeline (post.py → script engine → legacy fallback), JSON posting engine (13 action types, fallback selector chains, error recovery), all 4 platform scripts, human timing, draft lifecycle, login setup, scheduling, config files.
 
-**Phase 1 — Declarative JSON Posting Engine** (`994adcf`)
-- `scripts/engine/` — 6 modules: script_parser.py (data models), selector_chain.py (fallback selectors), human_timing.py (per-step delays), error_recovery.py (retry strategies), script_executor.py (13 action handlers)
-- `config/scripts/` — 4 JSON posting scripts (x_post.json, linkedin_post.json, facebook_post.json, reddit_post.json)
-- `post.py` refactored: `post_to_platform()` tries script-first, falls back to legacy hardcoded functions
-- `post_scheduler.py` updated to use unified posting function
+**Agent 2 — Amplifier Server**: FastAPI main app + DB switching, all 11 models (Company, Campaign, User, CampaignAssignment, Post, Metric, Payout, Penalty, CampaignInvitationLog, AuditLog, ContentScreeningLog), auth flow, campaign API (CRUD + wizard + reach estimates + clone + export), invitation workflow, matching service (hard filters + Gemini AI scoring), billing service (cents math, 7-day hold, tier promotion), trust service (fraud detection), payments (Stripe Connect), campaign wizard (URL crawling + Gemini generation), admin dashboard (11 routers, 14 pages), company dashboard (7 routers, 10 pages), all templates.
 
-**Phase 2 — Financial Safety** (`019a667`)
-- `server/app/utils/crypto.py` — AES-256-GCM server-side encryption (PBKDF2 key derivation from ENCRYPTION_KEY env var)
-- `scripts/utils/crypto.py` — Client-side encryption (machine-derived key: username+hostname)
-- `local_db.py` — API keys (gemini, mistral, groq) auto-encrypted on save, auto-decrypted on read
-- Payout model: `amount_cents`, `available_at`, expanded status lifecycle (pending→available→processing→paid|voided|failed), EARNING_HOLD_DAYS=7
-- Company/User/Penalty models: `_cents` integer columns alongside legacy Numeric
-- `billing.py`: `calculate_post_earnings_cents()`, `promote_pending_earnings()`, `void_earnings_for_post()`
+**Agent 3 — User App + AI Layer**: Flask user app (32+ routes, 5 tabs), background agent (6 async tasks), server client (15 methods), local database (13 tables + encryption), content generator (research_and_generate + 3 image modes), AI manager (text provider fallback), image pipeline (5 providers + UGC post-processing: desaturation, color cast, grain, vignetting, EXIF injection), metric collection/scraping, post scheduler, session health, profile scraper, onboarding, client-side crypto.
 
-**Phase 3 — Automation & Intelligence** (`4d085de`)
-- `scripts/ai/` — AiProvider abstract base, GeminiProvider (model fallback + rate limit tracking), MistralProvider, GroqProvider
-- `scripts/ai/manager.py` — AiManager with registry, priority ordering, auto-fallback
-- `content_generator.py` refactored to use AiManager (deleted 3 inline provider classes)
-- `local_db.py` — post_schedule gains error_code (SELECTOR_FAILED/TIMEOUT/AUTH_EXPIRED/RATE_LIMITED), execution_log, max_retries. classify_error(). Exponential backoff retry (30min * 2^retry_count)
-- `payments.py` — `process_pending_payouts()` auto-sends via Stripe Connect
+### 2. Political Campaigns Strategy
 
-**Phase 5 — Reputation Tiers** (`4d085de`)
-- User model gains `tier` (seedling/grower/amplifier) + `successful_post_count`
-- TIER_CONFIG: seedling (max 3 campaigns, 1x CPM), grower (max 10, 1x CPM, auto-post), amplifier (unlimited, 2x CPM)
-- Auto-promotion in billing after each successful post
-- `matching.py` uses tier-based campaign limits
-- Admin endpoints: run-earning-promotion, run-payout-processing
+Full strategic analysis and planning for using Amplifier as political campaign infrastructure during US midterm elections:
 
-**Image Generation Upgrade** (`f840964`)
-- `scripts/ai/image_provider.py` — Abstract ImageProvider (text_to_image + image_to_image)
-- `scripts/ai/image_manager.py` — ImageManager with 5-provider fallback + auto post-processing
-- 5 providers: GeminiImageProvider (500 free/day, img2img support), CloudflareImageProvider, TogetherImageProvider, PollinationsImageProvider, PilFallbackProvider
-- `scripts/ai/image_postprocess.py` — UGC pipeline: desaturation (13%), color cast, film grain (sigma=8), vignetting, JPEG at quality 80, EXIF injection (iPhone/Samsung/Pixel metadata)
-- `scripts/ai/image_prompts.py` — 8-category photorealism prompt framework with randomized pools, negative prompt
+**What midterms are**: Elections every 2 years, all 435 House seats + ~33 Senate seats + governors + thousands of state/local races. $16.7B spent in 2022. Lower turnout (40%) makes grassroots mobilization critical.
 
-**Campaign Image Pipeline Fix** (`168137d`)
-- Critical gap found: campaign product images were stored in assets dict through the whole chain but NEVER actually used for image generation. All images were generic txt2img.
-- Fixed: `_download_campaign_product_images()` downloads ALL product images from assets.image_urls
-- `generate_daily_content()` now calls `generate_image(product_image_path=...)` after text generation
-- `agent_draft` table gains `image_path` column; `add_draft()` stores it; `_schedule_draft()` passes it through
+**How Amplifier fits**: Politicians pay Amplifier, Amplifier pays real people to post campaign messages from personal accounts. Bypasses algorithm suppression and platform ad restrictions. Peer-to-peer political messaging is 3-10x more effective than official campaign posts.
 
-**Daily Image Rotation** (`bc7b433`)
-- `_pick_daily_image(images, day_number)` rotates through multiple campaign product photos: Day 1 → image 0, Day 2 → image 1, wraps around
-- Maximizes value of multiple campaign assets without needing multi-image compositing
+**6 use cases**: Voter mobilization (GOTV), issue framing, candidate name recognition (down-ballot), rapid response, policy education, opposition research distribution.
+
+**4 client tiers**: Campaign committees, PACs/Super PACs ($1.2B from top 20 in 2022), issue advocacy groups, state/local parties.
+
+**TAM**: $100M-$500M per midterm cycle. At 25% cut = $25M-$125M platform revenue.
+
+**3-phase plan documented**:
+- Phase 0: Legal foundation (US entity + FEC compliance, $5K-$15K)
+- Phase 1: 8-week MVP (geo-targeting, political content mode, FEC disclaimers, war room mode, political reporting, political wizard)
+- Phase 2: Go-to-market (down-ballot swing states, sell through political consultants at 10% referral, issue advocacy groups)
+- Phase 3: Scale for 2026 (self-serve, multi-race packages, war room dashboard, opponent monitoring, A/B message testing)
+
+**Revenue projection**: ~$550K from ~58 campaigns in 2026 cycle (conservative).
+
+### 3. Architecture Decision: One App (DECIDED)
+
+Debated whether political campaigns should be a separate app or built into Amplifier.
+
+**Decision: One app.** Political campaigns are a campaign type within the existing platform.
+
+**Arguments that won**:
+- User base is everything — splitting means starting from zero users on the political side, which kills the value prop (politicians need users in specific districts)
+- User acquisition cost doubles with two apps — can't afford to split attention
+- Politicians get access to a bigger user base in one app
+- "Consultants don't want to share a platform" concern is overblown — Google Ads, Meta, Stripe all serve political and commercial clients on the same platform
+- Brand contamination is solvable with a simple opt-in toggle (political_campaigns_enabled, default OFF)
+- Public perception risk is premature — not at scale where journalists cover Amplifier yet
+
+**Implementation decided**:
+- `campaign_type` field: "brand" (default) or "political"
+- `political_campaigns_enabled` user setting (default OFF)
+- Optional `political_party_preference` (any, democratic, republican, independent, nonpartisan)
+- `disclaimer_text` on Campaign model for FEC compliance
+- Geographic micro-targeting (zip_code, state, congressional district)
+
+### 4. Political Content Generation Requirements
+
+Noted that political content generation is fundamentally different from brand content:
+- Needs proper trend analysis (what's trending politically today)
+- Must read news on political parties and campaigns
+- Must know what opposing party is saying (for contrast/rapid response)
+- Must know what supporting party is saying (for coordinated messaging)
+- Requires continuous daily news monitoring, not one-time URL crawl
+- Research pipeline refreshes daily, not weekly
+
+### 5. Timing Decision: Ship With Core Product (DECIDED)
+
+Decided to include political campaign features in the initial Amplifier launch, not add them later.
+
+**Reasoning**:
+- Zero users is not a blocker — users will be acquired
+- Core foundation will be tested and verified before launch
+- Shipping with political features from day one means users are already there when campaign season starts
+- Political vertical is potentially the highest-revenue feature
+- Having it ready before demand hits is a competitive advantage
+
+### 6. Files Created/Updated
+
+- **Created**: `docs/political-campaigns.md` — Complete political campaigns strategy document (midterms explainer, problem/solution, 6 use cases, 4 client tiers, 3-phase plan, go-to-market, pricing, revenue projections, risks, architecture decision)
+- **Updated**: `FUTURE.md` — Added "Fake Followers/Engagement Problem & Amplifier as Growth Engine" section (verbatim user note) and "Amplifier for Political Campaigns" section (summary with architecture decision)
 
 ### Key Decisions This Session
-- local-dream (on-device SD1.5 for Android) rejected: CC-BY-NC-4.0 non-commercial license + Android-only
-- Our FastAPI server + Playwright engine stays — adopt v2/v3 PATTERNS, not their stacks
-- Gemini Flash Image as primary image provider (500 free/day, best quality, supports img2img)
-- Integer cents for all money (industry standard, consistent with Stripe)
-- 7-day earning hold period before payout (fraud prevention window)
-- Three-tier reputation system (Seedling→Grower→Amplifier) with auto-promotion
+- Political campaigns = campaign type within existing Amplifier app (not separate product)
+- Users opt into political campaigns via toggle (default OFF)
+- FEC disclaimers appended to every political post
+- Geo-targeting (zip, state, district) needed for both political and brand campaigns
+- Political content generation needs continuous daily news/trend monitoring
+- Political features ship with the core product launch, not added later
+- Sell through political consultants (10% referral), start with down-ballot swing state races
+- 25-30% platform cut for political (vs 20% for brands)
 
 ## Remaining Blockers (Priority Order)
 1. Posting URL capture broken on LinkedIn/Facebook/Reddit (Task #28)
@@ -93,6 +121,7 @@ Read both Devtest-Dan repos (amplifire-v2: NestJS+Kotlin+Go 75% done, AmpliFire-
 5. Real Stripe payments (both sides) — company deposit + creator withdrawal
 6. FTC disclosure (#ad/#sponsored) not in content generator
 7. Distribution — no installable app yet (Tauri or web planned)
+8. Political features: legal structure (US entity + FEC compliance) needed before taking political clients
 
 ## Key Reference Files
 - `scripts/post.py` — Posting orchestrator (script-first via post_via_script(), legacy fallback)
@@ -106,9 +135,11 @@ Read both Devtest-Dan repos (amplifire-v2: NestJS+Kotlin+Go 75% done, AmpliFire-
 - `server/app/services/payments.py` — Stripe Connect + auto payout processing
 - `server/app/services/matching.py` — AI scoring + tier-based campaign limits
 - `server/app/utils/crypto.py` — AES-256-GCM encryption
+- `docs/political-campaigns.md` — Complete political campaigns strategy and implementation plan
 - `docs/AMPLIFIER-SPEC.md` — Complete multi-implementation system spec
 - `docs/V2-V3-UPGRADE-PLAN.md` — 15 upgrades across 5 phases
 - `docs/IMAGE-GENERATION-UPGRADE.md` — Image gen spec (txt2img, img2img, post-processing)
+- `FUTURE.md` — Deferred features including political campaigns and fake engagement problem
 
 ## Deployed URLs
 - **Company**: https://server-five-omega-23.vercel.app/company/login

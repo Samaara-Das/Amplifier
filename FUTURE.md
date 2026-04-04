@@ -394,3 +394,36 @@ Design a tiered pricing model for amplifiers (users):
 - Free tier must be genuinely useful — not crippled. Users should earn real money on free tier.
 - Paid tier unlocks scale and premium features, not basic functionality
 - Companies may also have tiers (more campaigns, higher budgets, priority matching)
+
+## Fake Followers/Engagement Problem & Amplifier as Growth Engine
+
+the amplifiers can easily buy followers and engagements (likes, comments, re-posts etc.). if they do this, the posts that are posted on their behalf will have engagements by bots. also, since they have a high following, they'll get invites to campaigns that pay more. so, companies will pay these people money but the views and engagements they'll get are from bots. also, users will want to buy fake followers and engagements to get paid more (if their cost is lower than what they earn out of amplifier). should amplifier do more than just post? should it respond to comments, post in groups, send out friend requests etc. to increase the user's following (which will potentially increase their views/engagements -> lead to the user earning more)
+
+## Amplifier for Political Campaigns
+
+**Status**: Not started — requires legal structure first
+**Priority**: High — massive revenue opportunity ($100M-$500M TAM per midterm cycle)
+
+**What it is**: A political vertical where campaigns, PACs, and issue advocacy groups use Amplifier to get real people in target districts to post campaign messages from their personal accounts. Bypasses algorithm suppression and platform ad restrictions. Peer-to-peer political messaging is 3-10x more effective than official campaign posts.
+
+**Clients**: Campaign committees, Super PACs, issue advocacy groups (Everytown, NRA-ILA, etc.), state/local party organizations.
+
+**Why it works**: Organic political reach is dead. Paid political ads are restricted/banned on most platforms. Campaigns are turning to real people posting on personal accounts — which is exactly what Amplifier does.
+
+**Critical legal prerequisite**: US federal law (52 U.S.C. § 30121) prohibits foreign nationals from making expenditures in connection with US elections. Must establish US-incorporated entity + get FEC compliance opinion before taking political clients. Cost: $5K-$15K for legal setup.
+
+**Key product changes needed**:
+1. Geographic micro-targeting (zip code, congressional district, state — not just "us")
+2. Political content generation mode (candidate promotion, issue framing, GOTV, contrast, rapid response)
+3. FEC compliance disclaimers ("Paid for by [committee]") appended to every post
+4. Rapid campaign deployment ("war room" mode — campaign created to posts live in <2 hours)
+5. Political reporting dashboard (reach by district, voter contact estimates, message penetration)
+6. Political campaign wizard (candidate info + opponent info + issues → AI-generated campaign)
+
+**Go-to-market**: Start with down-ballot races in swing states (PA, MI, WI, AZ, GA, NV, NC). Sell through political consultants (10% referral). Expand to PACs and issue groups. Target: 50+ active campaigns by 2026 midterms.
+
+**Pricing**: 25-30% platform cut (vs 20% for brands). $500 minimum campaign budget. 35% cut for rapid-response (<24h). Retainer option: $2K-$10K/month.
+
+**Revenue projection (conservative, 2026 cycle)**: ~$550K platform revenue from ~58 campaigns across down-ballot, House/Senate, state parties, issue groups, and PACs. 2028 presidential cycle would be 5-10x larger.
+
+**Architecture decision (DECIDED)**: One app, not a separate product. Political campaigns are a campaign type (`campaign_type: "political"`) within the existing Amplifier platform. Users opt in via a `political_campaigns_enabled` setting (default OFF). This gives political clients access to the full Amplifier user base from day one, avoids splitting effort across two products, and solves brand contamination with a simple opt-in toggle. Full rationale in `docs/political-campaigns.md`.
