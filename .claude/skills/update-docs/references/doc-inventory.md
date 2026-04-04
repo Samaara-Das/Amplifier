@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: 2026-03-22
+Last updated: 2026-04-04
 
 ---
 
@@ -13,24 +13,33 @@ Last updated: 2026-03-22
 | `CLAUDE.md` | Architecture, commands, platform gotchas, config | Claude / developers | Every feature change |
 | `README.md` | Project overview, setup, tech stack, doc index | Public / contributors | New features, setup changes |
 
-## Tier 2: Technical Reference Docs (audit when features change)
+## Tier 2: Architecture & Planning Docs (audit when features change)
 
 | File | Purpose | Audience | Update Frequency |
 |------|---------|----------|-----------------|
-| `docs/API_REFERENCE.md` | All 52+ API endpoints with request/response examples | Developers | API route changes |
-| `docs/DATABASE_SCHEMA.md` | All 13 tables with field-level detail + Mermaid ERD | Developers | Model changes |
-| `docs/USER_FLOWS.md` | Step-by-step user journeys with Mermaid diagrams | Developers, stakeholders | Flow changes |
-| `docs/SYSTEM_DESIGN.md` | Architectural decisions with rationale | Developers | Architecture changes |
-| `docs/DEPLOYMENT.md` | Server deployment, user app distribution, env vars | DevOps, developers | Deployment changes |
+| `docs/PRD.md` | Full product requirements: all features, data models, API spec, billing, trust, implementation status | Developers, stakeholders | Every feature sprint |
+| `docs/AMPLIFIER-SPEC.md` | Complete system spec covering all 3 implementations (v1/v2/v3), content gen, posting, metrics, comparison table | Developers, co-founders | Architecture changes |
+| `docs/pitch-deck.md` | Investor/co-founder pitch deck (Slide 9: What's Built is traction-sensitive) | Co-founders, investors | After major milestones |
 
-## Tier 3: Architecture & Planning Docs (audit when features change)
+## Tier 3: Reference Docs (audit when relevant subsystems change)
 
 | File | Purpose | Audience | Update Frequency |
 |------|---------|----------|-----------------|
-| `docs/campaign-platform-architecture.md` | Server architecture deep dive, matching, billing, trust | Developers | Server feature changes |
-| `docs/auto-poster-workflow.md` | Engine pipeline: generate → review → post | Developers | Engine workflow changes |
-| `auto-poster-prd.md` | Product requirements for the posting engine | Stakeholders, devs | Scope changes, milestones |
-| `.taskmaster/docs/campaign-platform-prd.md` | Product requirements for the marketplace server | Stakeholders, devs | Scope changes, milestones |
+| `docs/amplifier-flow.md` | E2E flow diagram | Developers | Flow changes |
+| `docs/api-reference.md` | Detailed API endpoint reference | Developers | API route changes |
+| `docs/background-agent-reference.md` | Background agent task reference | Developers | Agent task changes |
+| `docs/billing-and-earnings.md` | Billing mechanics deep dive | Developers | Billing changes |
+| `docs/campaign-matching.md` | Matching algorithm deep dive | Developers | Matching changes |
+| `docs/config-reference.md` | Config options reference | Developers | Config changes |
+| `docs/content-generation.md` | Content generation pipeline | Developers | AI provider changes |
+| `docs/database-models.md` | DB model field reference | Developers | Model changes |
+| `docs/deployment-guide.md` | Vercel + Supabase deployment | DevOps | Deployment changes |
+| `docs/development-setup.md` | Local dev setup | Developers | Setup changes |
+| `docs/local-database-schema.md` | Local SQLite schema | Developers | Local DB changes |
+| `docs/platform-posting-playbook.md` | Platform-specific posting details | Developers | Platform changes |
+| `docs/technical-architecture.md` | Architecture overview | Developers | Architecture changes |
+| `docs/troubleshooting.md` | Common issues and fixes | Developers | When new bugs found |
+| `docs/user-app-guide.md` | User app guide | Users, developers | UX changes |
 
 ## Tier 4: Brand & Content Docs (audit when brand strategy changes)
 
@@ -75,17 +84,17 @@ These are the main code areas. When files here change, docs likely need updating
 
 | Area | Key Files | Docs Affected |
 |------|-----------|---------------|
-| Posting engine | `scripts/post.py` | CLAUDE.md, auto-poster-workflow.md, USER_FLOWS.md |
-| Content generation (personal) | `scripts/generate.ps1` | CLAUDE.md, auto-poster-workflow.md |
-| Content generation (campaigns) | `scripts/utils/content_generator.py` | CLAUDE.md, SYSTEM_DESIGN.md |
-| Metric collection | `scripts/utils/metric_collector.py` | CLAUDE.md, SYSTEM_DESIGN.md |
-| Review dashboard | `scripts/review_dashboard.py` | CLAUDE.md, USER_FLOWS.md |
-| Campaign runner | `scripts/campaign_runner.py` | CLAUDE.md, USER_FLOWS.md, SYSTEM_DESIGN.md |
-| User dashboard | `scripts/campaign_dashboard.py` | CLAUDE.md, USER_FLOWS.md |
-| Server API | `server/app/routers/` | CLAUDE.md, API_REFERENCE.md, campaign-platform-architecture.md |
-| Server models | `server/app/models/` | CLAUDE.md, DATABASE_SCHEMA.md, campaign-platform-architecture.md |
-| Server services | `server/app/services/` | campaign-platform-architecture.md, SYSTEM_DESIGN.md |
-| Server dashboards | `server/app/templates/` | campaign-platform-architecture.md, USER_FLOWS.md |
-| Utilities | `scripts/utils/` | CLAUDE.md, SYSTEM_DESIGN.md |
-| Config | `config/` | CLAUDE.md, DEPLOYMENT.md |
-| Deployment | `vercel.json`, `amplifier.spec`, `installer.iss` | DEPLOYMENT.md, README.md |
+| Posting engine | `scripts/post.py`, `scripts/engine/`, `config/scripts/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| AI abstraction (text) | `scripts/ai/manager.py`, `scripts/ai/*_provider.py` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| AI abstraction (image) | `scripts/ai/image_manager.py`, `scripts/ai/image_providers/`, `scripts/ai/image_postprocess.py`, `scripts/ai/image_prompts.py` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| Background agent | `scripts/background_agent.py` | CLAUDE.md, docs/PRD.md |
+| Content generation (personal) | `scripts/generate.ps1` | CLAUDE.md |
+| Content generation (campaigns) | `scripts/utils/content_generator.py` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| Local database | `scripts/utils/local_db.py` | CLAUDE.md, docs/PRD.md |
+| Metric collection | `scripts/utils/metric_collector.py`, `scripts/utils/metric_scraper.py` | CLAUDE.md |
+| User app | `scripts/user_app.py` | CLAUDE.md, docs/PRD.md |
+| Server API | `server/app/routers/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| Server models | `server/app/models/` | CLAUDE.md, docs/PRD.md |
+| Server services | `server/app/services/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| Config | `config/` | CLAUDE.md |
+| Deployment | `vercel.json`, `server/.env.example` | CLAUDE.md, docs/deployment-guide.md |

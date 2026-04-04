@@ -158,13 +158,13 @@ Company pays $1.00 for engagement
 
 | Component | Status | Details |
 |---|---|---|
-| **Server API** | Live | ~88 routes (27 API + 34 admin + 22 company + 2 system), Vercel + Supabase PostgreSQL |
+| **Server API** | Live | ~90 routes (27 API + 36 admin + 21 company + 2 system + 2 health), Vercel + Supabase PostgreSQL |
 | **Company Dashboard** | Live | Campaign wizard, analytics, billing, settings |
 | **Admin Dashboard** | Live | Users, campaigns, fraud detection, payouts |
 | **User Desktop App** | Working | 5-step onboarding, campaign management, earnings |
 | **AI Matching** | Working | Gemini-powered profile scoring + hard filters |
-| **AI Content Generation** | Working | Platform-native for X, LinkedIn, Facebook, Reddit |
-| **Posting Engine** | Working | 4 platforms, human emulation, image support |
+| **AI Content Generation** | Working | Platform-native text + images for X, LinkedIn, Facebook, Reddit. img2img from campaign product photos, daily image rotation. |
+| **Posting Engine** | Working | 4 platforms, JSON script engine with fallback selector chains, human emulation, image support |
 | **Metric Scraping** | Working | API + browser hybrid, tiered schedule |
 | **Billing Engine** | Working | Incremental, dedup, auto-pause on budget exhaustion |
 | **Trust & Fraud** | Working | Score system, deletion + anomaly detection |

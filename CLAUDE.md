@@ -51,7 +51,7 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~88 routes total (27 JSON API + 34 admin dashboard + ~22 company dashboard + 2 system).
+FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health).
 
 **API endpoints** (`/api/`):
 - Auth: user + company register/login (JWT) — 4 routes
@@ -63,7 +63,7 @@ FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~88 routes total 
 
 **Web dashboards** (blue `#2563eb` theme, DM Sans font, gradient cards, SVG Heroicons nav):
 - **Company** (`/company/`) — 10 pages: login, dashboard, campaigns list, create campaign, AI wizard, campaign detail, billing, influencers, stats, settings. Routers modularized into `server/app/routers/company/` (7 files).
-- **Admin** (`/admin/`) — 14 pages: login, overview, users, user detail, companies, company detail, campaigns, campaign detail, financial, fraud, analytics, review queue, audit log, settings. Routers modularized into `server/app/routers/admin/` (10 files).
+- **Admin** (`/admin/`) — 14 pages: login, overview, users, user detail, companies, company detail, campaigns, campaign detail, financial, fraud, analytics, review queue, audit log, settings. Routers modularized into `server/app/routers/admin/` (11 files). Financial router has 5 routes: GET list + POST run-billing + POST run-payout + POST run-earning-promotion + POST run-payout-processing.
 
 **Services:**
 - `matching.py` — Campaign-to-user matching (hard filters + AI scoring via Gemini with fallback). Enforces tier-based campaign limits (seedling:3, grower:10, amplifier:unlimited).
@@ -82,11 +82,11 @@ FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~88 routes total 
 Local Flask dashboard + campaign runner that connects to the server.
 
 - `scripts/user_app.py` — Main Flask app on port 5222 (32+ routes). 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding. Handles auth, campaign lifecycle, draft review, scheduling, background agent control.
-- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d)
+- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
 - `scripts/campaign_runner.py` — Legacy campaign polling loop (replaced by background_agent.py)
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
-- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff.
-- `scripts/utils/content_generator.py` — AI content generation using AiManager (text) and ImageManager (images). Supports img2img. Replaces PowerShell + Claude CLI for campaign content.
+- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` column (path to generated or downloaded product image).
+- `scripts/utils/content_generator.py` — AI content generation using AiManager (text) and ImageManager (images). Three image modes: img2img (product photo via `ImageManager.transform()`), txt2img (`ImageManager.generate()`), PIL fallback. Replaces PowerShell + Claude CLI for campaign content.
 - `scripts/utils/metric_collector.py` — Hybrid metric collection: X and Reddit via official APIs, LinkedIn and Facebook via Browser Use + Gemini (falls back to Playwright selectors)
 - `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement via Playwright
 - `scripts/utils/crypto.py` — Client-side encryption using machine-derived key
@@ -170,7 +170,7 @@ Claude operates as cofounder and CTO of Amplifier — not an assistant, not a ye
 
 ## Key Constraints
 
-- Windows-only (Windows fonts in image generator, PowerShell for generation, Task Scheduler for automation)
+- Windows-only (Windows fonts in image generator, PowerShell for generation, Task Scheduler for automation). Image post-processing requires `numpy>=1.24.0` and `piexif>=1.1.3` (added to requirements.txt).
 - Each platform needs a one-time manual login via `login_setup.py` to establish the persistent browser profile
 - Per-platform proxy support in `_launch_context()` for geo-restricted platforms (configured in `platforms.json`)
 - MVP platforms (enabled): X, LinkedIn, Facebook, Reddit. TikTok and Instagram disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped

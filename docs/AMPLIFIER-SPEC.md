@@ -193,7 +193,7 @@ draft → active → paused → active (resume)
 5. User meets minimum follower count per platform (if specified)
 6. User meets minimum engagement rate (if specified)
 7. User's audience region matches campaign target regions
-8. User has fewer than 3 active campaigns
+8. User is below their tier's active campaign limit (Seedling: 3, Grower: 10, Amplifier: unlimited)
 9. User status is not suspended/banned
 
 **AI Scoring (Gemini):**
@@ -298,7 +298,7 @@ Auto-promotion runs in `billing.py` (`_check_tier_promotion()`). Campaign limits
 
 ### 3.8 API Surface
 
-**v1 (deployed) — ~88 routes:**
+**v1 (deployed) — ~90 routes:**
 
 | Group | Routes | Auth | Description |
 |---|---|---|---|
@@ -309,7 +309,7 @@ Auto-promotion runs in `billing.py` (`_check_tier_promotion()`). Campaign limits
 | User Profile | 4 | User JWT | Profile CRUD, earnings, payout |
 | Posts & Metrics | 2 | User JWT | Batch register posts, batch submit metrics |
 | System | 2 | None | Health check, version |
-| Admin Dashboard | 34 | Admin cookie | 10 modular routers: overview, users, companies, campaigns, financial, fraud, analytics, review queue, audit log, settings |
+| Admin Dashboard | 36 | Admin cookie | 11 modular routers: login, overview, users, companies, campaigns, financial (5 routes: list + run-billing + run-payout + run-earning-promotion + run-payout-processing), fraud, analytics, review queue, audit log, settings |
 | Company Dashboard | ~22 | Company JWT cookie | 7 modular routers: dashboard, campaigns, billing, influencers, stats, settings |
 
 **v2 (not deployed) — 24 NestJS modules:**
@@ -519,13 +519,22 @@ The content prompt enforces UGC (user-generated content) style — authentic, pe
 ### 5.3 Image Generation
 
 **v1 Provider Chain (free tier, automatic fallback via ImageManager):**
-1. Gemini (txt2img + img2img, ~500 free/day)
+1. Gemini Flash Image (txt2img + img2img, ~500 free/day)
 2. Cloudflare Workers AI (FLUX.1-schnell)
 3. Together AI (FLUX.1-schnell free)
 4. Pollinations AI (turbo)
 5. PIL branded template (dark gradient + white text) — last resort
 
-Each provider implements the `ImageProvider` abstract base class (`scripts/ai/image_provider.py`) with `text_to_image()` and optionally `image_to_image()`. The `ImageManager` (`scripts/ai/image_manager.py`) handles registry, priority ordering, and auto-fallback — same pattern as text `AiManager`.
+Each provider implements the `ImageProvider` abstract base class (`scripts/ai/image_provider.py`) with `text_to_image()` and optionally `image_to_image()`. The `ImageManager` (`scripts/ai/image_manager.py`) handles registry, priority ordering, and auto-fallback — same pattern as text `AiManager`. Key methods: `generate()` (txt2img), `transform()` (img2img — only tries providers that set `supports_img2img=True`).
+
+**Three generation modes (`scripts/utils/content_generator.py`):**
+1. **img2img** — if a product image path is provided and the file exists, calls `ImageManager.transform()` using `build_img2img_prompt()` from the prompt framework
+2. **txt2img** — enhanced UGC prompt via `build_simple_prompt()` + `get_negative_prompt()`, calls `ImageManager.generate()`
+3. **PIL fallback** — last resort if all API providers are unavailable
+
+**Campaign Image Pipeline (`scripts/background_agent.py`):**
+- `_download_campaign_product_images()` downloads ALL images from `campaign.assets.image_urls` to `data/product_images/{campaign_id}/`. Caches on disk — re-downloads are skipped.
+- `_pick_daily_image(images, day_number)` rotates through the list by day number (Day 1→image[0], Day 2→image[1], wraps around), so each day's post features a different product photo.
 
 **UGC Post-Processing Pipeline (`scripts/ai/image_postprocess.py`):**
 
@@ -539,9 +548,7 @@ Applied automatically after every successful generation to make AI images look l
 7. EXIF metadata injection (piexif) — mimic common phone cameras
 
 **Photorealism Prompt Framework (`scripts/ai/image_prompts.py`):**
-8-category framework (product, lifestyle, editorial, UGC phone, testimonial, comparison, infographic, minimalist) to generate realistic prompts for each content type.
-
-**img2img support:** `ImageManager.generate_variation()` uses an existing image as reference (supported by Gemini provider).
+8-category framework with pools for REALISM_TRIGGERS, CAMERAS, LIGHTING, TEXTURES, COLORS, COMPOSITIONS, QUALITY_MARKERS. Helper functions: `build_ugc_prompt()`, `build_img2img_prompt()`, `build_simple_prompt()`, `get_negative_prompt()`.
 
 **v2 Pipeline (paid, v2 Android only):**
 1. DALL-E 3 generates images from prompt
@@ -712,13 +719,13 @@ Hourly cron job syncs metrics. Earning promotion from PENDING to AVAILABLE after
 
 | Aspect | v1 (Ours — Deployed) | v2 (Dan — Shelved) | v3 (Dan — Phase 1 Done) |
 |---|---|---|---|
-| **Server** | FastAPI + Supabase, ~88 routes, 11 models, Vercel **LIVE** | NestJS + Prisma, 24 modules, 53 models, Docker, NOT deployed | None (Phase 3 planned) |
+| **Server** | FastAPI + Supabase, ~90 routes, 11 models, Vercel **LIVE** | NestJS + Prisma, 24 modules, 53 models, Docker, NOT deployed | None (Phase 3 planned) |
 | **Company Dashboard** | 10 pages, Jinja2 **LIVE** | Brand portal (6+ NestJS modules) | Not built (Phase 4) |
 | **Admin Dashboard** | 14 pages, Jinja2 **LIVE** | JWT + role-based access (5 admin roles) | Not built (Phase 3) |
 | **Creator App** | Flask web (desktop), 32+ routes | Kotlin Android, 14 Gradle modules, ~85-95% done | Kotlin Android, single module, Phase 1 complete |
 | **Posting** | Playwright (browser), 4 platforms working | Accessibility Service, TikTok + IG working | Accessibility Service, IG + X working, JSON scripts |
 | **AI Cost** | $0 (free API tiers) | $$$ (paid OpenAI APIs) — **deal-breaker** | $0 (free WebView scraping) |
-| **AI Content** | Text + images | Text + images + video + voiceover | Text only (media from gallery) |
+| **AI Content** | Text + images (txt2img + img2img from product photos, daily rotation, UGC post-processing) | Text + images + video + voiceover | Text only (media from gallery) |
 | **Payments** | Stripe (stub) | PayPal Payouts (working) | None (Phase 3) |
 | **Auth** | JWT (email/password) | JWT + Google OAuth + 3 strategies | None (local only) |
 | **Platforms** | X, LinkedIn, Facebook, Reddit | TikTok, Instagram (+ 3 scaffolded) | Instagram, X |

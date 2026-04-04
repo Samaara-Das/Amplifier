@@ -193,7 +193,7 @@ Amplifier fills this gap.
 | **Company/Admin UI** | Jinja2 server-rendered templates | No frontend build step, SEO-friendly, fast iteration |
 | **User App** | Flask (port 5222) + Playwright + Local SQLite | Desktop app, local compute, persistent browser profiles |
 | **Content Gen** | Gemini 2.5 Flash → Mistral Small → Groq Llama 3.3 | Free-tier AI APIs with fallback chain |
-| **Image Gen** | Cloudflare Workers AI → Together AI → Pollinations → PIL | Free-tier image generation with fallback |
+| **Image Gen** | Gemini → Cloudflare Workers AI → Together AI → Pollinations → PIL | Free-tier image generation with fallback chain via ImageManager |
 | **Browser Automation** | Playwright (Chromium) | Stealth mode, persistent profiles, multi-platform |
 | **Payments** | Stripe Checkout (company top-ups) + Stripe Connect Express (user payouts) | Industry standard, handles compliance |
 | **Scheduling** | Windows Task Scheduler + async background agent | Reliable, runs headless |
@@ -259,7 +259,7 @@ Internet
 
 ### 6.1 Amplifier Server (Marketplace)
 
-The server is a FastAPI application deployed to Vercel with Supabase PostgreSQL. It exposes ~88 routes total (27 JSON API + 34 admin dashboard + ~22 company dashboard + 2 system) and serves two server-rendered web dashboards.
+The server is a FastAPI application deployed to Vercel with Supabase PostgreSQL. It exposes ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health) and serves two server-rendered web dashboards.
 
 #### Authentication
 
@@ -329,7 +329,7 @@ draft → active → paused → active (resume)
 5. User meets minimum follower count per platform
 6. User meets minimum engagement rate
 7. User's audience region matches campaign target regions
-8. User has fewer than 3 active campaigns
+8. User is below their tier's active campaign limit (Seedling: 3, Grower: 10, Amplifier: unlimited)
 9. User status is not suspended/banned
 
 **AI Scoring (Gemini):**
@@ -572,9 +572,22 @@ AI-powered, platform-native content generation with provider fallback chain.
 
 #### Image Generation
 
-**Provider Chain:** Cloudflare Workers AI (FLUX.1-schnell) → Together AI (FLUX.1-schnell) → Pollinations (turbo) → PIL branded template (dark background + white text)
+**Three generation modes via ImageManager with automatic provider fallback:**
+- **img2img** (when campaign has product photos): transforms a product photo into a UGC scene using `ImageManager.transform()`
+- **txt2img** (no product photo): generates from AI-enhanced UGC prompt using `ImageManager.generate()`
+
+**Provider Chain (Gemini → Cloudflare → Together → Pollinations → PIL):**
+1. Gemini Flash Image (~500 free/day, supports both txt2img and img2img)
+2. Cloudflare Workers AI (FLUX.1-schnell)
+3. Together AI (FLUX.1-schnell free)
+4. Pollinations AI (turbo)
+5. PIL branded template (dark background + white text) — last resort
 
 All free-tier APIs. Rate limiting handled with automatic fallback to next provider on 429.
+
+**UGC Post-Processing Pipeline (`scripts/ai/image_postprocess.py`):** Applied automatically after every successful generation — desaturation (13%), warm/cool color cast, film grain (Gaussian sigma=8), vignetting (25%), JPEG at quality 80, EXIF injection (iPhone 15 Pro, Galaxy S24, Pixel 8 Pro). Requires `numpy` and `piexif`.
+
+**Campaign Image Pipeline (`scripts/background_agent.py`):** Downloads ALL product images from `campaign.assets.image_urls` to `data/product_images/{campaign_id}/`. `_pick_daily_image()` rotates through them by day number so each day's post uses a different product photo.
 
 ### 6.7 Personal Brand Engine
 
@@ -781,7 +794,7 @@ Separate from the campaign marketplace — a personal social media automation pi
 | Table | Purpose |
 |---|---|
 | `local_campaign` | Mirror of server campaigns with local status tracking, invitation metadata |
-| `agent_draft` | AI-generated content per platform per day (approved/rejected/posted flags, quality score, iteration/day number) |
+| `agent_draft` | AI-generated content per platform per day (approved/rejected/posted flags, quality score, iteration/day number, `image_path` for generated or product image) |
 | `post_schedule` | Scheduled post queue (queued → posting → posted → failed). Added: `error_code` (classified error category), `execution_log` (step-by-step trace), `max_retries` (default 3). `classify_error()` maps error messages to codes for structured exponential-backoff retry. |
 | `local_post` | Posted content with URLs, sync status to server, content hash for dedup |
 | `local_metric` | Scraped engagement per post with reporting status and is_final flag |
@@ -850,7 +863,7 @@ Separate from the campaign marketplace — a personal social media automation pi
 | POST | `/api/metrics/posts` | User JWT | Batch register posted URLs |
 | POST | `/api/metrics/metrics` | User JWT | Batch submit metrics (triggers billing) |
 
-**Admin Dashboard (34 HTML routes via modular routers in `server/app/routers/admin/`):**
+**Admin Dashboard (36 HTML routes via modular routers in `server/app/routers/admin/`):**
 
 Admin routes serve server-rendered Jinja2 pages. Authentication via `admin_token` cookie. All admin actions logged to `AuditLog` table.
 
@@ -861,7 +874,7 @@ Admin routes serve server-rendered Jinja2 pages. Authentication via `admin_token
 | Users | 6 | List (paginated, search, filter), detail, suspend, unsuspend, ban, adjust trust |
 | Companies | 6 | List (paginated, search, filter), detail, add/deduct funds, suspend, unsuspend |
 | Campaigns | 5 | List (paginated, search, filter), detail, pause, resume, cancel |
-| Financial | 3 | Payout list, run billing cycle, run payout cycle |
+| Financial | 5 | Payout list, run billing cycle, run payout cycle, run earning promotion, run payout processing |
 | Fraud | 4 | Penalty list, run trust check, approve/deny appeals |
 | Analytics | 1 | Per-platform stats |
 | Review Queue | 3 | List flagged campaigns, approve, reject |
@@ -1019,13 +1032,13 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 
 | Component | Status | Details |
 |---|---|---|
-| **Server API** | Done | ~88 routes, 11 models, 7 services |
+| **Server API** | Done | ~90 routes, 11 models, 7 services |
 | **Company Dashboard** | Done | 10 pages, campaign CRUD, AI wizard, billing, influencers, stats, settings |
 | **Admin Dashboard** | Done | 14 pages, users, companies, campaigns, financial, fraud, analytics, review queue, audit log, settings |
 | **User Onboarding** | Done & Verified | 5-step flow, API keys, platform login, scraping, niche/region, mode |
 | **Campaign Matching** | Done & Verified | Hard filters + Gemini AI scoring + niche-overlap fallback. Tier-based campaign limits. |
 | **Campaign Polling** | Done & Verified | Invitation flow, 3-day TTL, max 3 active, auto-expire |
-| **Content Generation** | Done & Verified | AiManager (Gemini→Mistral→Groq), ImageManager (5-provider fallback + UGC post-processing), img2img support |
+| **Content Generation** | Done & Verified | AiManager (Gemini→Mistral→Groq), ImageManager (5-provider fallback: Gemini→Cloudflare→Together→Pollinations→PIL + UGC post-processing). Three image modes: img2img product photo via `transform()`, txt2img via `generate()`, PIL fallback. Daily image rotation via `_pick_daily_image()`. |
 | **Content Review** | Done & Verified | Approve/reject/edit/restore/unapprove, Reddit JSON display, auto-reload |
 | **Posting Engine** | Done (Partial Verify) | JSON script engine (4 platforms). All 4 platforms post successfully, URL capture needs fixes. |
 | **Metric Scraping** | Built, Not Verified | API-first (X, Reddit) + browser fallback (LinkedIn, Facebook) |
