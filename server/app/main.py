@@ -14,12 +14,14 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup (idempotent — safe for both SQLite and PostgreSQL)
-    try:
-        await init_tables()
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("init_tables failed (tables may already exist): %s", e)
+    # Skip init_tables on Vercel (tables managed via Supabase migrations)
+    # Only run for local SQLite development
+    import os
+    if not os.environ.get("VERCEL"):
+        try:
+            await init_tables()
+        except Exception:
+            pass
     yield
 
 
