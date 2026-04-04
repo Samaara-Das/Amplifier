@@ -305,8 +305,9 @@ def upsert_campaign(campaign: dict) -> None:
             (server_id, assignment_id, title, brief, assets, content_guidance,
              payout_rules, payout_multiplier, status,
              invitation_status, invited_at, expires_at, responded_at,
-             company_name, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+             company_name, campaign_type, campaign_goal, tone, disclaimer_text,
+             updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         """, (
             campaign_id,
             campaign["assignment_id"],
@@ -322,6 +323,10 @@ def upsert_campaign(campaign: dict) -> None:
             campaign.get("expires_at"),
             campaign.get("responded_at"),
             campaign.get("company_name"),
+            campaign.get("campaign_type", "ai_generated"),
+            campaign.get("campaign_goal"),
+            campaign.get("tone"),
+            campaign.get("disclaimer_text"),
         ))
     else:
         # Existing campaign — update data but PRESERVE the local status
@@ -330,7 +335,9 @@ def upsert_campaign(campaign: dict) -> None:
                 assignment_id = ?, title = ?, brief = ?, assets = ?,
                 content_guidance = ?, payout_rules = ?, payout_multiplier = ?,
                 invitation_status = ?, invited_at = ?, expires_at = ?,
-                responded_at = ?, company_name = ?, updated_at = datetime('now')
+                responded_at = ?, company_name = ?,
+                campaign_type = ?, campaign_goal = ?, tone = ?, disclaimer_text = ?,
+                updated_at = datetime('now')
             WHERE server_id = ?
         """, (
             campaign["assignment_id"],
@@ -345,8 +352,30 @@ def upsert_campaign(campaign: dict) -> None:
             campaign.get("expires_at"),
             campaign.get("responded_at"),
             campaign.get("company_name"),
+            campaign.get("campaign_type", "ai_generated"),
+            campaign.get("campaign_goal"),
+            campaign.get("tone"),
+            campaign.get("disclaimer_text"),
             campaign_id,
         ))
+
+    # Store repost content if present
+    repost_content = campaign.get("repost_content")
+    if repost_content:
+        # Clear old repost content for this campaign
+        conn.execute("DELETE FROM campaign_posts WHERE campaign_server_id = ?", (campaign_id,))
+        for i, post_data in enumerate(repost_content):
+            conn.execute("""
+                INSERT INTO campaign_posts (campaign_server_id, platform, content, image_url, post_order, scheduled_offset_hours)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                campaign_id,
+                post_data.get("platform", ""),
+                post_data.get("content", ""),
+                post_data.get("image_url"),
+                post_data.get("post_order", i + 1),
+                post_data.get("scheduled_offset_hours", 0),
+            ))
 
     conn.commit()
     conn.close()

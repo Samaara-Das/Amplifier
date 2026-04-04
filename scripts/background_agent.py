@@ -194,6 +194,63 @@ async def generate_daily_content() -> dict:
             if not needs_generation:
                 continue
 
+            # ── Repost campaigns: skip AI gen, use pre-written content ──
+            if campaign.get("campaign_type") == "repost":
+                repost_content = campaign.get("repost_content") or []
+                if not repost_content:
+                    # Try loading from local campaign_posts table
+                    from utils.local_db import _get_db as _get_repost_db
+                    _rconn = _get_repost_db()
+                    _rows = _rconn.execute(
+                        "SELECT platform, content, image_url FROM campaign_posts WHERE campaign_server_id = ? ORDER BY post_order",
+                        (campaign_id,),
+                    ).fetchall()
+                    _rconn.close()
+                    repost_content = [{"platform": r[0], "content": r[1], "image_url": r[2]} for r in _rows]
+
+                if repost_content:
+                    draft_ids = []
+                    for post_data in repost_content:
+                        plat = post_data.get("platform", "")
+                        text = post_data.get("content", "")
+                        if plat and text and get_todays_draft_count(campaign_id, plat) == 0:
+                            did = add_draft(campaign_id, plat, text, iteration=1)
+                            draft_ids.append(did)
+
+                    if draft_ids:
+                        generated_count += 1
+                        logger.info("Repost content loaded for campaign %s (%d drafts)", campaign_id, len(draft_ids))
+                        from utils.local_db import add_notification
+                        add_notification("content", "Repost Drafts Ready", f"Loaded {len(draft_ids)} pre-written draft(s) for \"{campaign.get('title', 'campaign')}\".")
+
+                        if campaign.get('status') == 'assigned':
+                            update_campaign_status(campaign_id, 'content_generated')
+
+                        # Full auto: auto-approve and schedule
+                        if mode == "full_auto" and draft_ids:
+                            from datetime import datetime as _dt, timedelta as _td
+                            import random as _rnd
+                            for did in draft_ids:
+                                approve_draft(did)
+                            base_time = _dt.now() + _td(minutes=5)
+                            for i, did in enumerate(draft_ids):
+                                draft_data = _get_draft(did) if '_get_draft' in dir() else None
+                                if not draft_data:
+                                    from utils.local_db import get_draft as _get_draft
+                                    draft_data = _get_draft(did)
+                                if draft_data:
+                                    sched_time = base_time + _td(minutes=30 * i + _rnd.randint(0, 10))
+                                    add_scheduled_post(
+                                        campaign_server_id=campaign_id,
+                                        platform=draft_data.get("platform", ""),
+                                        scheduled_at=sched_time.isoformat(),
+                                        content=draft_data.get("draft_text", ""),
+                                        image_path=draft_data.get("image_path"),
+                                        draft_id=did,
+                                    )
+                            logger.info("Full-auto: approved + scheduled %d repost drafts", len(draft_ids))
+                continue  # Skip AI generation for repost campaigns
+
             # Get previous drafts for anti-repetition
             previous = get_all_drafts(campaign_id)
             previous_hooks = []
