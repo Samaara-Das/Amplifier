@@ -32,11 +32,11 @@ PROFILE_REFRESH_INTERVAL = 604800  # 7 days
 # ── Campaign asset helpers ──────────────────────────────────────────
 
 
-async def _download_campaign_product_image(campaign_data: dict) -> str | None:
-    """Extract and download the first product image from campaign assets.
+async def _download_campaign_product_images(campaign_data: dict) -> list[str]:
+    """Download ALL product images from campaign assets to local disk.
 
-    Checks campaign.assets for image_urls, downloads the first one to local disk.
-    Returns local file path or None if no images available.
+    Returns list of local file paths (may be empty if no images).
+    Images are cached — re-downloads are skipped.
     """
     import httpx
     from pathlib import Path
@@ -46,43 +46,55 @@ async def _download_campaign_product_image(campaign_data: dict) -> str | None:
         try:
             assets = json.loads(assets)
         except (json.JSONDecodeError, TypeError):
-            return None
+            return []
 
-    # Look for image URLs in multiple places
     image_urls = assets.get("image_urls") or assets.get("images") or []
     if isinstance(image_urls, str):
         image_urls = [image_urls]
 
     if not image_urls:
-        return None
+        return []
 
-    # Download first image to local cache
     campaign_id = campaign_data.get("campaign_id", "unknown")
     cache_dir = Path("data") / "product_images" / str(campaign_id)
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    for url in image_urls:
+    downloaded = []
+    for i, url in enumerate(image_urls):
         if not isinstance(url, str) or not url.startswith("http"):
             continue
 
-        # Check if already downloaded
-        filename = url.split("/")[-1].split("?")[0][:50] or "product.jpg"
+        filename = url.split("/")[-1].split("?")[0][:50] or f"product_{i}.jpg"
         local_path = cache_dir / filename
         if local_path.exists():
-            logger.info("Using cached product image: %s", local_path)
-            return str(local_path)
+            downloaded.append(str(local_path))
+            continue
 
         try:
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 resp = await client.get(url)
                 if resp.status_code == 200 and len(resp.content) > 1000:
                     local_path.write_bytes(resp.content)
-                    logger.info("Downloaded product image: %s → %s", url, local_path)
-                    return str(local_path)
+                    downloaded.append(str(local_path))
+                    logger.info("Downloaded product image: %s", local_path)
         except Exception as e:
             logger.warning("Failed to download product image %s: %s", url, e)
 
-    return None
+    if downloaded:
+        logger.info("Campaign %s: %d product images available", campaign_id, len(downloaded))
+    return downloaded
+
+
+def _pick_daily_image(images: list[str], day_number: int) -> str | None:
+    """Pick a product image for today by rotating through the list.
+
+    Day 1 -> image 0, Day 2 -> image 1, ..., wraps around.
+    Each day's post features a different product photo.
+    """
+    if not images:
+        return None
+    index = (day_number - 1) % len(images)
+    return images[index]
 
 
 # ── Individual task functions ────────────────────────────────────────
@@ -216,12 +228,13 @@ async def generate_daily_content() -> dict:
 
                     # ── Image generation (v2/v3 upgrade) ──
                     # Generate an image for this campaign using:
-                    # 1. img2img from product photos in campaign assets (preferred)
+                    # 1. img2img from product photos in campaign assets (preferred, daily rotation)
                     # 2. txt2img from the AI-generated image_prompt (fallback)
                     draft_image_path = None
                     try:
                         image_prompt = content.get("image_prompt", "")
-                        product_image = await _download_campaign_product_image(campaign_data)
+                        all_product_images = await _download_campaign_product_images(campaign_data)
+                        product_image = _pick_daily_image(all_product_images, day_number)
 
                         if image_prompt or product_image:
                             draft_image_path = await asyncio.to_thread(
