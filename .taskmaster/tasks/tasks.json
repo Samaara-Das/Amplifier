@@ -1117,40 +1117,43 @@
         "id": "73",
         "title": "User App: Encrypt stored credentials",
         "description": "Auth tokens in server_auth.json and API keys in local SQLite are plaintext. Use OS keychain (keyring lib) or AES encryption at rest. If device is compromised, all tokens and keys are exposed.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
           "user-app",
           "security"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-04T16:08:52.841Z"
       },
       {
         "id": "74",
         "title": "User App: Rate limiting + API key validation + campaign search",
         "description": "Three items: (1) Add rate limiting on login/register (5 attempts/min). (2) Test API key validity on save in settings — call the provider and verify before accepting. (3) Add search by title and filter by status to campaign list on dashboard.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
           "user-app",
           "dashboard"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-04T16:09:01.446Z"
       },
       {
         "id": "75",
         "title": "User App: Improve content draft UX",
         "description": "Five items: (1) Show campaign content_guidance alongside draft during review. (2) Add draft versioning — store original AI-generated + user-edited versions. (3) Add character counts for all platforms (LinkedIn 3000, Facebook 63206, Reddit 40000). (4) Fix Reddit JSON format error handling with try/except. (5) Add \"preview exactly what will be posted\" step before posting.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
           "user-app",
           "content"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-04T16:09:10.373Z"
       },
       {
         "id": "76",
@@ -1221,9 +1224,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-04T16:08:42.980Z",
+      "lastModified": "2026-04-04T16:09:10.373Z",
       "taskCount": 80,
-      "completedCount": 43,
+      "completedCount": 46,
       "tags": [
         "master"
       ]
