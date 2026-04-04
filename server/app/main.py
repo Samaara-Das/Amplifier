@@ -15,7 +15,11 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables on startup (idempotent — safe for both SQLite and PostgreSQL)
-    await init_tables()
+    try:
+        await init_tables()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("init_tables failed (tables may already exist): %s", e)
     yield
 
 
