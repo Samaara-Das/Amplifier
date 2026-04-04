@@ -142,7 +142,12 @@ def dashboard():
         from datetime import datetime
         current_month = datetime.now().strftime("%Y-%m")
         posts_this_month = [p for p in all_posts if (p.get("posted_at") or "").startswith(current_month)]
-        earnings = get_earnings_summary()
+        # Try server API for earnings (source of truth), fall back to local
+        try:
+            from utils.server_client import get_earnings as _get_server_earnings
+            earnings = _get_server_earnings()
+        except Exception:
+            earnings = get_earnings_summary()
 
         # Get invitations count
         try:
