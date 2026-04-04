@@ -44,23 +44,45 @@ That's what Amplifier does.
 
 ### The End-to-End Flow
 
-```
-COMPANY                           AMPLIFIER                          CREATOR
+```mermaid
+sequenceDiagram
+    participant C as Company
+    participant S as Amplifier Server
+    participant U as Creator's Device
 
-1. Create campaign          ───►  AI generates brief from URLs  ───► Matched by niche + profile
-   (product, budget, rates)       AI scores creator fit
+    rect rgb(59, 130, 246, 0.1)
+    Note over C,U: 1. Campaign Setup
+    C->>S: Create campaign (product, budget, rates)
+    S->>S: AI generates brief from company URLs
+    S->>S: AI matches creators by niche + profile
+    S->>U: Send invitation (3-day TTL)
+    U->>S: Accept campaign
+    end
 
-2. Budget locked            ◄───  Invitations sent (3-day TTL)  ───► Accepts (max 3-10 based on tier)
+    rect rgb(16, 185, 129, 0.1)
+    Note over C,U: 2. Content Generation (on-device)
+    U->>U: Download product images from campaign assets
+    U->>U: Generate text (AiManager: Gemini → Mistral → Groq)
+    U->>U: Generate image (ImageManager: img2img or txt2img)
+    U->>U: Post-process image (grain, JPEG, EXIF)
+    U->>U: Creator reviews / approves (or auto-posts)
+    end
 
-                                  AI generates content           ───► Reviews / edits / approves
-                                  (text + images per platform)       (or auto-posts if full-auto)
+    rect rgb(245, 158, 11, 0.1)
+    Note over C,U: 3. Posting & Measurement
+    U->>U: JSON script engine posts to platform
+    U->>U: Scrape metrics at T+1h, 6h, 24h, 72h
+    U->>S: Submit post URL + metrics
+    end
 
-3. Tracks performance       ◄───  Posts to social media          ◄── On-device automation
-                                  Scrapes engagement at               (JSON script engine +
-                                  T+1h, T+6h, T+24h, T+72h           human emulation)
-
-4. Pays per engagement      ───►  Calculates billing             ───► Earns 80% of engagement value
-   (from campaign budget)         Takes 20% cut                       7-day hold, then cash out at $10+
+    rect rgb(139, 92, 246, 0.1)
+    Note over C,U: 4. Billing & Payout
+    S->>S: Calculate earnings (integer cents)
+    S->>S: Deduct from campaign budget (80% user / 20% platform)
+    S->>S: Hold earnings 7 days (fraud window)
+    S->>U: Earnings available → cash out at $10+
+    S->>C: Dashboard shows performance + spend
+    end
 ```
 
 ### For Companies
@@ -181,15 +203,21 @@ The economics work because:
 
 ### How Money Flows
 
-```
-Company deposits funds (Stripe) → Company balance
-Company activates campaign → Budget locked from balance
-Users post + get engagement → Billing calculates earnings (integer cents)
-    → 80% credited to user's pending balance
-    → 20% retained by Amplifier
-    → Deducted from campaign budget
-7 days pass → Pending earnings promoted to available
-User cashes out ($10 minimum) → Stripe Connect payout
+```mermaid
+flowchart LR
+    A["Company deposits<br/>(Stripe Checkout)"] --> B["Company<br/>Balance"]
+    B --> |"Activate campaign"| C["Campaign<br/>Budget"]
+    C --> |"User posts,<br/>gets engagement"| D{"Billing<br/>(cents math)"}
+    D --> |"80%"| E["User Pending<br/>Balance"]
+    D --> |"20%"| F["Amplifier<br/>Revenue"]
+    D --> |"100%"| G["Deduct from<br/>Campaign Budget"]
+    E --> |"7 days pass"| H["User Available<br/>Balance"]
+    H --> |"$10+ cash out"| I["Stripe Connect<br/>Payout"]
+
+    style D fill:#7c3aed,color:#fff
+    style F fill:#10b981,color:#fff
+    style E fill:#f59e0b,color:#000
+    style H fill:#3b82f6,color:#fff
 ```
 
 ---

@@ -6,30 +6,46 @@
 
 Amplifier is a two-sided marketplace: companies create campaigns, users (amplifiers) earn money by posting campaign content on their social media accounts. Three systems work together:
 
-```
-Company Dashboard (Vercel)          Amplifier Server (Vercel/Supabase)          User App (Local Desktop)
-     |                                      |                                        |
-     | create campaign                      |                                        |
-     |------------------------------------->|                                        |
-     |                                      | match users via AI                     |
-     |                                      |--------------------------------------->|
-     |                                      |                   poll for invitations  |
-     |                                      |<---------------------------------------|
-     |                                      |                                        |
-     |                                      | send campaign brief + assets           |
-     |                                      |--------------------------------------->|
-     |                                      |                   download product images
-     |                                      |                   generate text (AiManager)
-     |                                      |                   generate images (ImageManager)
-     |                                      |                   post via JSON script engine
-     |                                      |                   scrape metrics        |
-     |                                      |<---------------------------------------|
-     |                                      |                   submit metrics        |
-     | view stats, metrics                  |                                        |
-     |<-------------------------------------|  billing cycle (integer cents)         |
-     |                                      |--------------------------------------->|
-     |                                      |  7-day hold, then earnings available   |
-     |                                      |                   cash out at $10+     |
+```mermaid
+graph TB
+    subgraph Internet
+        V["Vercel Serverless<br/>FastAPI"]
+        DB["Supabase PostgreSQL<br/>aws-1-us-east-1"]
+        V --- DB
+    end
+
+    subgraph "Company Browser"
+        CD["Company Dashboard<br/>10 pages (Jinja2)"]
+    end
+
+    subgraph "Admin Browser"
+        AD["Admin Dashboard<br/>14 pages (Jinja2)"]
+    end
+
+    subgraph "Creator's Windows Desktop"
+        UI["Flask Web UI<br/>localhost:5222"]
+        BA["Background Agent<br/>6 async tasks"]
+        PW["Playwright<br/>Persistent Profiles"]
+        AI["AI Layer<br/>AiManager + ImageManager"]
+        LDB["Local SQLite<br/>13 tables, encrypted keys"]
+
+        UI --- BA
+        BA --- AI
+        BA --- PW
+        BA --- LDB
+        AI --- LDB
+    end
+
+    CD <-->|"Campaign CRUD<br/>Billing, Analytics"| V
+    AD <-->|"User/Company Mgmt<br/>Fraud, Payouts"| V
+    BA <-->|"Poll campaigns<br/>Submit posts+metrics"| V
+    PW -->|"Post to platforms"| SM["X  LinkedIn  Facebook  Reddit"]
+    PW -->|"Scrape metrics"| SM
+
+    style V fill:#3b82f6,color:#fff
+    style DB fill:#10b981,color:#fff
+    style AI fill:#7c3aed,color:#fff
+    style PW fill:#f59e0b,color:#000
 ```
 
 ---
@@ -112,11 +128,45 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). Deployed on Ver
 | Service | File | Key Functions |
 |---|---|---|
 | **Matching** | `matching.py` | `get_matched_campaigns()` — hard filters + Gemini AI scoring (0-100) + niche-overlap fallback. Tier-based campaign limits (seedling:3, grower:10, amplifier:unlimited). Score cache (24h). |
-| **Billing** | `billing.py` | `calculate_post_earnings_cents()` — all math in integer cents. `run_billing_cycle()` — incremental, dedup by metric ID, budget capping. `promote_pending_earnings()` — 7-day hold. `void_earnings_for_post()` — fraud clawback. `_check_tier_promotion()` — auto-promote (20 posts → grower, 100+trust>=80 → amplifier). Amplifier tier gets 2x CPM. |
+| **Billing** | `billing.py` | `calculate_post_earnings_cents()` — all math in integer cents. `run_billing_cycle()` — incremental, dedup by metric ID, budget capping. `promote_pending_earnings()` — 7-day hold. `void_earnings_for_post()` — fraud clawback. `_check_tier_promotion()` — auto-promote (20 posts → grower, 100+trust>=80 → amplifier). Amplifier tier gets 2x CPM. See earning lifecycle below. |
 | **Trust** | `trust.py` | `adjust_trust()` — events (+1 to -50). `detect_deletion_fraud()`, `detect_metrics_anomalies()` (>3x avg). `run_trust_check()`. Penalties created for negative events. |
 | **Payments** | `payments.py` | `create_company_checkout()` — Stripe Checkout for top-up. `process_pending_payouts()` — auto-send via Stripe Connect (marks paid in test mode). `run_payout_cycle()` — batch process eligible users. |
 | **Campaign Wizard** | `campaign_wizard.py` | `run_campaign_wizard()` — deep crawl URLs (BFS, 10 pages, 2 hops), Gemini generates brief + guidance + rates. `screen_campaign()` — AI content safety. `estimate_reach()` — count eligible users + follower sum. |
 | **Storage** | `storage.py` | `upload_file()`, `delete_file()` — Supabase Storage or local fallback. `extract_text_from_file()` — PDF/DOCX text extraction. |
+
+### Earning Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Metric submitted → billing cycle
+    pending --> available: 7 days pass\n(promote_pending_earnings)
+    pending --> voided: Fraud detected\n(void_earnings_for_post)
+    available --> processing: User requests payout ($10+ balance)
+    processing --> paid: Stripe Connect transfer succeeds
+    processing --> failed: Transfer fails → funds return to available
+
+    voided --> [*]: Funds return to campaign budget
+    paid --> [*]
+    failed --> available: Retry eligible
+```
+
+### Reputation Tier Progression
+
+```mermaid
+flowchart LR
+    S["Seedling<br/>Default<br/>Max 3 campaigns<br/>1x CPM"]
+    G["Grower<br/>20+ posts<br/>Max 10 campaigns<br/>1x CPM"]
+    A["Amplifier<br/>100+ posts, trust≥80<br/>Unlimited campaigns<br/>2x CPM"]
+
+    S -->|"20 successful posts"| G
+    G -->|"100 posts + trust ≥ 80"| A
+    A -->|"Fraud: trust drops"| G
+    G -->|"Fraud: trust drops"| S
+
+    style S fill:#fbbf24,color:#000
+    style G fill:#34d399,color:#000
+    style A fill:#818cf8,color:#fff
+```
 
 ### Utilities
 
@@ -164,6 +214,35 @@ Always-running async agent with 6 task loops:
 
 ### Content Generation Pipeline
 
+```mermaid
+flowchart TD
+    A["Campaign Brief + Assets"] --> B{"Has product<br/>photos?"}
+
+    B -->|"Yes"| C["Download product images<br/>to data/product_images/"]
+    B -->|"No"| D["Use AI image_prompt<br/>from text generation"]
+
+    A --> E["AiManager.generate()<br/>Gemini → Mistral → Groq"]
+    E --> F["Per-platform text captions<br/>+ image_prompt"]
+
+    C --> G["_pick_daily_image()<br/>rotate by day number"]
+    G --> H["ImageManager.transform()<br/>(img2img via Gemini)"]
+
+    D --> I["build_simple_prompt()<br/>8-category UGC framework"]
+    I --> J["ImageManager.generate()<br/>(txt2img: Gemini → Cloudflare → ...)"]
+
+    H --> K["postprocess_for_ugc()"]
+    J --> K
+
+    K --> L["Desaturation → Color cast → Film grain<br/>→ Vignetting → JPEG@80 → EXIF"]
+    L --> M["agent_draft<br/>(draft_text + image_path)"]
+    F --> M
+
+    style H fill:#7c3aed,color:#fff
+    style J fill:#3b82f6,color:#fff
+    style K fill:#f59e0b,color:#000
+    style M fill:#10b981,color:#fff
+```
+
 Three content modes:
 
 **Text → Text** (`ContentGenerator.generate()` via `AiManager`):
@@ -210,9 +289,56 @@ Two-layer architecture: JSON script engine (primary) + legacy hardcoded function
 | `facebook_post.json` | 14 | ClipboardEvent image paste, profile URL fallback for URL capture |
 | `reddit_post.json` | 16 | Shadow DOM Lexical editor JS focus, /submitted/?created= URL parsing |
 
-**Execution flow**: `post_to_platform()` loads JSON script → substitutes variables ({{text}}, {{image_path}}, {{image_b64}}) → `ScriptExecutor.execute()` runs steps → on failure, falls back to legacy `post_to_x()`, `post_to_linkedin()`, etc.
+**Execution flow**:
 
-**Post lifecycle states**: `queued → posting → posted | posted_no_url | failed`
+```mermaid
+flowchart LR
+    A["post_to_platform()"] --> B{"JSON script<br/>exists?"}
+    B -->|"Yes"| C["Load config/scripts/<br/>platform_post.json"]
+    B -->|"No"| D["Legacy hardcoded<br/>function"]
+
+    C --> E["Substitute variables<br/>{{text}}, {{image_path}}"]
+    E --> F["ScriptExecutor.execute()"]
+    F --> G{"All steps<br/>passed?"}
+    G -->|"Yes"| H["Return post URL"]
+    G -->|"No"| I{"Retry via<br/>ErrorRecovery?"}
+    I -->|"Yes"| F
+    I -->|"No"| D
+
+    D --> J{"Legacy<br/>succeeded?"}
+    J -->|"Yes"| H
+    J -->|"No"| K["Return None<br/>(failed)"]
+
+    style C fill:#3b82f6,color:#fff
+    style D fill:#6b7280,color:#fff
+    style F fill:#7c3aed,color:#fff
+```
+
+**Post lifecycle state machine**:
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: Draft approved + scheduled
+    queued --> posting: scheduled_at <= now
+    posting --> posted: Success (URL captured)
+    posting --> posted_no_url: Success (URL capture failed)
+    posting --> failed: Error
+
+    failed --> queued: retry_count < max_retries\n(exponential backoff)
+    failed --> [*]: AUTH_EXPIRED or\nmax retries reached
+
+    posted --> [*]
+    posted_no_url --> [*]
+
+    note right of failed
+        Error codes:
+        SELECTOR_FAILED → retry
+        TIMEOUT → retry
+        RATE_LIMITED → retry (longer backoff)
+        AUTH_EXPIRED → stop (user must re-login)
+        UNKNOWN → retry
+    end note
+```
 - Failed posts categorized: SELECTOR_FAILED, TIMEOUT, AUTH_EXPIRED, RATE_LIMITED, UNKNOWN
 - Exponential backoff retry: 30min × 2^retry_count (max 3 retries)
 - AUTH_EXPIRED skips retry (user must re-login)
