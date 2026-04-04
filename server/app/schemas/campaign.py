@@ -95,6 +95,8 @@ class CampaignBrief(BaseModel):
     campaign_goal: str | None = None
     tone: str | None = None
     disclaimer_text: str | None = None
+    # Repost campaign: pre-written posts
+    campaign_posts: list[CampaignPostResponse] = []
 
     model_config = {"from_attributes": True}
 
@@ -129,3 +131,25 @@ class ReachEstimateRequest(BaseModel):
     target_regions: list[str] = []
     required_platforms: list[str] = []
     min_followers: dict[str, int] = {}
+
+
+# ── Repost Campaign schemas ─────────────────────────────────────
+
+
+class CampaignPostCreate(BaseModel):
+    platform: str
+    content: str
+    image_url: str | None = None
+    post_order: int = 1
+    scheduled_offset_hours: int = 0
+
+
+class CampaignPostResponse(BaseModel):
+    id: int
+    platform: str
+    content: str
+    image_url: str | None
+    post_order: int
+    scheduled_offset_hours: int
+
+    model_config = {"from_attributes": True}

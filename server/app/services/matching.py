@@ -18,7 +18,7 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.invitation_log import CampaignInvitationLog
 from app.models.user import User
-from app.schemas.campaign import CampaignBrief
+from app.schemas.campaign import CampaignBrief, CampaignPostResponse
 
 logger = logging.getLogger(__name__)
 
@@ -397,6 +397,13 @@ async def _get_existing_assignments(
         if assignment.id in exclude_ids:
             continue
         campaign = assignment.campaign
+        # Include pre-written posts for repost campaigns
+        posts_data = []
+        if (campaign.campaign_type or "ai_generated") == "repost":
+            posts_data = [
+                CampaignPostResponse.model_validate(p)
+                for p in (campaign.campaign_posts or [])
+            ]
         result.append(
             CampaignBrief(
                 campaign_id=campaign.id,
@@ -408,6 +415,11 @@ async def _get_existing_assignments(
                 payout_rules=campaign.payout_rules,
                 payout_multiplier=1.0,
                 company_name=campaign.company.name if campaign.company else None,
+                campaign_type=campaign.campaign_type or "ai_generated",
+                campaign_goal=campaign.campaign_goal,
+                tone=campaign.tone,
+                disclaimer_text=campaign.disclaimer_text,
+                campaign_posts=posts_data,
             )
         )
     return result
@@ -539,6 +551,13 @@ async def get_matched_campaigns(
         )
         await db.flush()
 
+        # Include pre-written posts for repost campaigns
+        posts_data = []
+        if (campaign.campaign_type or "ai_generated") == "repost":
+            posts_data = [
+                CampaignPostResponse.model_validate(p)
+                for p in (campaign.campaign_posts or [])
+            ]
         new_assignments.append(
             CampaignBrief(
                 campaign_id=campaign.id,
@@ -550,6 +569,11 @@ async def get_matched_campaigns(
                 payout_rules=campaign.payout_rules,
                 payout_multiplier=1.0,
                 company_name=campaign.company.name if campaign.company else None,
+                campaign_type=campaign.campaign_type or "ai_generated",
+                campaign_goal=campaign.campaign_goal,
+                tone=campaign.tone,
+                disclaimer_text=campaign.disclaimer_text,
+                campaign_posts=posts_data,
             )
         )
 

@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.company import Company
 from app.models.campaign import Campaign
+from app.models.campaign_post import CampaignPost
 from app.models.assignment import CampaignAssignment
 from app.models.post import Post
 from app.models.metric import Metric
@@ -280,6 +281,12 @@ async def campaign_create_submit(
     file_urls_json: str = Form("[]"),
     file_contents_json: str = Form("[]"),
     scraped_knowledge_json: str = Form(""),
+    campaign_type: str = Form("ai_generated"),
+    repost_x: str = Form(""),
+    repost_linkedin: str = Form(""),
+    repost_facebook: str = Form(""),
+    repost_reddit_title: str = Form(""),
+    repost_reddit_body: str = Form(""),
     company: Company | None = Depends(get_company_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -342,12 +349,17 @@ async def campaign_create_submit(
         except json.JSONDecodeError:
             pass
 
+    # Validate campaign_type
+    if campaign_type not in ("ai_generated", "repost"):
+        campaign_type = "ai_generated"
+
     campaign = Campaign(
         company_id=company.id,
         title=title,
         brief=brief,
         budget_total=budget,
         budget_remaining=budget,
+        campaign_type=campaign_type,
         payout_rules={
             "rate_per_1k_impressions": rate_per_1k_impressions,
             "rate_per_like": rate_per_like,
@@ -375,6 +387,40 @@ async def campaign_create_submit(
     if campaign_status == "active":
         company.balance = float(company.balance) - budget
     await db.flush()
+
+    # Create CampaignPost records for repost campaigns
+    if campaign_type == "repost":
+        post_order = 1
+        repost_entries = [
+            ("x", repost_x.strip()),
+            ("linkedin", repost_linkedin.strip()),
+            ("facebook", repost_facebook.strip()),
+        ]
+        for platform, content in repost_entries:
+            if content:
+                db.add(CampaignPost(
+                    campaign_id=campaign.id,
+                    platform=platform,
+                    content=content,
+                    post_order=post_order,
+                ))
+                post_order += 1
+
+        # Reddit has title + body; combine into content with a separator
+        reddit_title = repost_reddit_title.strip()
+        reddit_body = repost_reddit_body.strip()
+        if reddit_title:
+            reddit_content = reddit_title
+            if reddit_body:
+                reddit_content += "\n---\n" + reddit_body
+            db.add(CampaignPost(
+                campaign_id=campaign.id,
+                platform="reddit",
+                content=reddit_content,
+                post_order=post_order,
+            ))
+
+        await db.flush()
 
     return RedirectResponse(url=f"/company/campaigns/{campaign.id}?success=Campaign+created+successfully", status_code=302)
 

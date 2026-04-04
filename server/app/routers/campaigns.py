@@ -19,7 +19,9 @@ from app.models.payout import Payout
 from app.schemas.campaign import (
     CampaignCreate, CampaignUpdate, CampaignResponse, CampaignBrief,
     BudgetTopUp, WizardRequest, ReachEstimateRequest,
+    CampaignPostCreate, CampaignPostResponse,
 )
+from app.models.campaign_post import CampaignPost
 from app.services.matching import get_matched_campaigns
 
 MINIMUM_CAMPAIGN_BUDGET = 50.0
@@ -57,6 +59,12 @@ async def create_campaign(
         end_date=data.end_date,
         max_users=data.max_users,
         status="draft",
+        # Phase C fields
+        campaign_type=data.campaign_type,
+        campaign_goal=data.campaign_goal,
+        tone=data.tone,
+        preferred_formats=data.preferred_formats,
+        disclaimer_text=data.disclaimer_text,
     )
     campaign.screening_status = "approved"
     db.add(campaign)
@@ -462,6 +470,110 @@ async def budget_topup(
 
     await db.flush()
     return campaign
+
+
+# ── Repost Campaign Posts (pre-written content) ──────────────────
+
+
+@router.post(
+    "/company/campaigns/{campaign_id}/posts",
+    response_model=CampaignPostResponse,
+    status_code=201,
+)
+async def add_campaign_post(
+    campaign_id: int,
+    data: CampaignPostCreate,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a pre-written post to a repost campaign."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if (campaign.campaign_type or "ai_generated") != "repost":
+        raise HTTPException(
+            status_code=400,
+            detail="Pre-written posts can only be added to repost campaigns",
+        )
+
+    post = CampaignPost(
+        campaign_id=campaign_id,
+        platform=data.platform,
+        content=data.content,
+        image_url=data.image_url,
+        post_order=data.post_order,
+        scheduled_offset_hours=data.scheduled_offset_hours,
+    )
+    db.add(post)
+    await db.flush()
+    return post
+
+
+@router.get(
+    "/company/campaigns/{campaign_id}/posts",
+    response_model=list[CampaignPostResponse],
+)
+async def list_campaign_posts(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """List pre-written posts for a repost campaign."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    posts_result = await db.execute(
+        select(CampaignPost)
+        .where(CampaignPost.campaign_id == campaign_id)
+        .order_by(CampaignPost.post_order)
+    )
+    return posts_result.scalars().all()
+
+
+@router.delete("/company/campaigns/{campaign_id}/posts/{post_id}")
+async def delete_campaign_post(
+    campaign_id: int,
+    post_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a pre-written post from a repost campaign."""
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    post_result = await db.execute(
+        select(CampaignPost).where(
+            and_(
+                CampaignPost.id == post_id,
+                CampaignPost.campaign_id == campaign_id,
+            )
+        )
+    )
+    post = post_result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Campaign post not found")
+
+    await db.delete(post)
+    await db.flush()
+    return {"status": "deleted", "post_id": post_id}
 
 
 # ── Reporting & Export ─────────────────────────────────────────────

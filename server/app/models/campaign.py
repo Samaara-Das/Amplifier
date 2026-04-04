@@ -93,3 +93,4 @@ class Campaign(Base):
     # Relationships
     company = relationship("Company", back_populates="campaigns")
     assignments = relationship("CampaignAssignment", back_populates="campaign", lazy="selectin")
+    campaign_posts = relationship("CampaignPost", back_populates="campaign", lazy="selectin")
