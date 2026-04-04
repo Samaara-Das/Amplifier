@@ -297,6 +297,17 @@ async def update_campaign(
                 status_code=400,
                 detail="Campaign was rejected during content review and cannot be activated.",
             )
+        # Quality gate — campaign must score >= 85 to activate
+        if data.status == "active":
+            from app.services.campaign_quality import score_campaign_quality
+            quality = await score_campaign_quality(campaign)
+            if not quality["passed"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Campaign quality score {quality['score']}/100 (needs 85+). "
+                           f"Issues: {'; '.join(quality['feedback'][:3])}",
+                )
+
         # Deduct budget on activation (not on draft creation)
         if data.status == "active" and campaign.status == "draft":
             if float(company.balance) < float(campaign.budget_total):
