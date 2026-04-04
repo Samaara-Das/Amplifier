@@ -213,8 +213,11 @@ Companies must be able to add funds to their campaign budget via Stripe Checkout
 - **Test mode**: When `STRIPE_SECRET_KEY` is not set, the billing page should offer instant balance credit for development testing. Currently the checkout function returns `None` when Stripe is not configured — the billing page needs to handle this by providing a manual credit form.
 - **Balance field**: `Company.balance_cents` in `server/app/models/company.py`. Campaign activation deducts from this balance.
 
+#### Stripe account
+Father's company already has a working Stripe account — use that for Amplifier. No need to create a new one.
+
 #### What to implement
-1. **Verify Stripe test mode**: Set `STRIPE_SECRET_KEY` to a Stripe test key (`sk_test_...`). Create a checkout session. Complete payment with Stripe test card `4242424242424242`. Verify `verify_checkout_session()` returns correct `amount_cents`.
+1. **Verify Stripe test mode**: Set `STRIPE_SECRET_KEY` to a Stripe test key (`sk_test_...`) from the existing Stripe account. Create a checkout session. Complete payment with Stripe test card `4242424242424242`. Verify `verify_checkout_session()` returns correct `amount_cents`.
 2. **Verify balance credit**: After successful checkout, `company.balance_cents` must increase. Check that the billing success handler in the company router actually calls `verify_checkout_session()` and updates the company model.
 3. **Verify dev fallback**: Without Stripe key, the billing page should still allow adding test funds. If this doesn't exist, add a simple form that directly credits `company.balance_cents` when `_get_stripe()` returns `None`.
 

@@ -949,17 +949,23 @@ def get_todays_draft_count(campaign_id: int, platform: str) -> int:
     return row["cnt"] if row else 0
 
 
-def get_pending_drafts(campaign_id: int = None) -> list[dict]:
-    """Get drafts pending review (approved=0). If campaign_id given, filter by it."""
+def get_pending_drafts(campaign_id: int = None, hours: int = 24) -> list[dict]:
+    """Get drafts pending review (approved=0) from the last N hours.
+
+    Filters by created_at to avoid showing stale drafts from previous days.
+    """
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     conn = _get_db()
     if campaign_id:
         rows = conn.execute(
-            "SELECT * FROM agent_draft WHERE approved = 0 AND campaign_id = ? ORDER BY created_at DESC",
-            (campaign_id,),
+            "SELECT * FROM agent_draft WHERE approved = 0 AND campaign_id = ? AND created_at >= ? ORDER BY created_at DESC",
+            (campaign_id, cutoff),
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT * FROM agent_draft WHERE approved = 0 ORDER BY created_at DESC"
+            "SELECT * FROM agent_draft WHERE approved = 0 AND created_at >= ? ORDER BY created_at DESC",
+            (cutoff,),
         ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
