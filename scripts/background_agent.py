@@ -378,22 +378,41 @@ async def execute_due_posts() -> dict:
         if successes:
             try:
                 # Build server-compatible post list from local_post records
-                from utils.local_db import get_unsynced_posts, mark_posts_synced
+                from utils.local_db import get_unsynced_posts, mark_posts_synced, _get_db
                 unsynced = get_unsynced_posts()
                 if unsynced:
+                    # Resolve assignment_ids from local_campaign
+                    conn = _get_db()
+                    campaign_assignments = {}
+                    for row in conn.execute("SELECT server_id, assignment_id FROM local_campaign").fetchall():
+                        campaign_assignments[row[0]] = row[1]
+                    conn.close()
+
                     server_posts = []
+                    local_ids_ordered = []
                     for p in unsynced:
+                        aid = p.get("assignment_id") or campaign_assignments.get(p.get("campaign_server_id"), 0)
                         server_posts.append({
-                            "assignment_id": p.get("assignment_id", 0),
+                            "assignment_id": aid,
                             "platform": p["platform"],
                             "post_url": p["post_url"],
                             "content_hash": p.get("content_hash", ""),
                             "posted_at": p.get("posted_at", ""),
                         })
+                        local_ids_ordered.append(p["id"])
+
                     result = report_posts(server_posts)
-                    post_ids = [p["id"] for p in unsynced]
-                    mark_posts_synced(post_ids)
-                    logger.info("Synced %d posts to server", len(post_ids))
+
+                    # Map server post IDs back to local posts
+                    server_post_ids = {}
+                    for created in result.get("created", []):
+                        # Server returns created posts in order
+                        idx = result["created"].index(created)
+                        if idx < len(local_ids_ordered):
+                            server_post_ids[local_ids_ordered[idx]] = created["id"]
+
+                    mark_posts_synced(local_ids_ordered, server_post_ids)
+                    logger.info("Synced %d posts to server", len(local_ids_ordered))
             except Exception as e:
                 logger.error("Failed to sync posts to server: %s", e)
 

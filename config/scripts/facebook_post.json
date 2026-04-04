@@ -121,13 +121,13 @@
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
-          { "by": "css", "value": "a[href*='/posts/']" },
-          { "by": "css", "value": "a[href*='/permalink/']" },
-          { "by": "css", "value": "a[href*='story_fbid=']" }
+          { "by": "css", "value": "a[href*='/posts/']:not([href*='comment'])" },
+          { "by": "css", "value": "a[href*='story_fbid=']:not([href*='comment_id'])" },
+          { "by": "css", "value": "a[href*='/permalink/']:not([href*='comment'])" }
         ]
       },
       "timeout_ms": 5000,
-      "description": "Extract post permalink from profile feed (first match = most recent post)"
+      "description": "Extract post permalink (exclude comment links)"
     },
     {
       "id": "extract_url_fallback",

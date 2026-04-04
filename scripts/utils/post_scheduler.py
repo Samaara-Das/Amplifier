@@ -404,10 +404,19 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
         )
 
         if post_url is not None:
-            # Platform function returned a URL (may be real URL or fallback placeholder)
+            # Resolve assignment_id from local_campaign
+            from utils.local_db import _get_db as _get_db_conn
+            _conn = _get_db_conn()
+            _row = _conn.execute(
+                "SELECT assignment_id FROM local_campaign WHERE server_id = ?",
+                (post["campaign_server_id"],),
+            ).fetchone()
+            _conn.close()
+            resolved_assignment_id = _row[0] if _row else 0
+
             local_post_id = add_post(
                 campaign_server_id=post["campaign_server_id"],
-                assignment_id=0,  # will be resolved by sync
+                assignment_id=resolved_assignment_id,
                 platform=post["platform"],
                 post_url=post_url,
                 content=post.get("content", ""),
@@ -429,7 +438,7 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
             placeholder_url = f"posted_but_url_unknown:{post['platform']}:{schedule_id}"
             local_post_id = add_post(
                 campaign_server_id=post["campaign_server_id"],
-                assignment_id=0,
+                assignment_id=resolved_assignment_id,
                 platform=post["platform"],
                 post_url=placeholder_url,
                 content=post.get("content", ""),

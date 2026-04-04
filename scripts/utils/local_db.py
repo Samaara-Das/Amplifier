@@ -450,6 +450,9 @@ def get_posts_for_scraping() -> list[dict]:
         SELECT lp.* FROM local_post lp
         JOIN local_campaign lc ON lp.campaign_server_id = lc.server_id
         WHERE lp.post_url IS NOT NULL
+        AND lp.post_url NOT LIKE 'posted_but%'
+        AND lp.post_url NOT LIKE '%/submitted%'
+        AND lp.post_url NOT LIKE '%/submitted'
         AND lc.status NOT IN ('skipped', 'cancelled')
         ORDER BY lp.posted_at ASC
     """).fetchall()
