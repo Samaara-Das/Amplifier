@@ -35,6 +35,7 @@
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <span>Campaigns</span>
+          <span id="badge-campaigns" class="nav-badge" style="display: none;">0</span>
         </a>
         <a href="{{ url_for('posts') }}" class="nav-item {{ 'active' if active_page == 'posts' else '' }}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -95,6 +96,21 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/user.js') }}"></script>
+  <script>
+    // CSRF protection: inject token into all POST forms
+    document.addEventListener('DOMContentLoaded', function() {
+      var token = '{{ csrf_token() }}';
+      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function(form) {
+        if (!form.querySelector('input[name="csrf_token"]')) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          input.value = token;
+          form.appendChild(input);
+        }
+      });
+    });
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

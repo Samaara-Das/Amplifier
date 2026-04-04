@@ -22,6 +22,7 @@ function pollStatus() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var pending = data.pending_drafts || 0;
+      var ready = data.ready_drafts || 0;
 
       // If new drafts appeared since last check, send notification
       if (pending > _lastPendingCount && _lastPendingCount >= 0) {
@@ -30,14 +31,21 @@ function pollStatus() {
           'New content ready for review',
           newCount + ' new draft' + (newCount > 1 ? 's' : '') + ' waiting for your approval.'
         );
-
-        // Update badge on Campaigns nav item if it exists
-        var badge = document.getElementById('badge-campaigns');
-        if (badge) {
-          badge.textContent = pending;
-          badge.style.display = pending > 0 ? 'inline-flex' : 'none';
-        }
       }
+
+      // Update badge on Campaigns nav item
+      var badge = document.getElementById('badge-campaigns');
+      if (badge) {
+        var total = pending + ready;
+        badge.textContent = total;
+        badge.style.display = total > 0 ? 'inline-flex' : 'none';
+      }
+
+      // Update dashboard stat cards if on dashboard page
+      var reviewEl = document.getElementById('stat-draft-review');
+      if (reviewEl) reviewEl.textContent = pending;
+      var readyEl = document.getElementById('stat-draft-ready');
+      if (readyEl) readyEl.textContent = ready;
 
       _lastPendingCount = pending;
     })

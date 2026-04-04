@@ -130,6 +130,21 @@ body {
   text-align: center;
 }
 
+.nav-badge {
+  margin-left: auto;
+  background: var(--error);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .sidebar-footer {
   padding: 12px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -201,7 +216,7 @@ body {
 /* ── Stats Grid ── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }

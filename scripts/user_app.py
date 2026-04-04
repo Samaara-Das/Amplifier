@@ -41,6 +41,7 @@ app.secret_key = os.urandom(24)
 # CSRF protection for all POST forms
 from flask_wtf.csrf import CSRFProtect
 csrf = CSRFProtect(app)
+app.config["WTF_CSRF_CHECK_DEFAULT"] = True
 
 PORT = 5222
 
@@ -323,6 +324,7 @@ def api_scraping_status():
 
 
 @app.route("/api/test-api-key", methods=["POST"])
+@csrf.exempt
 def api_test_api_key():
     """Test an AI provider API key by making a minimal API call."""
     data = request.get_json(silent=True) or {}
