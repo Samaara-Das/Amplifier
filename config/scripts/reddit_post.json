@@ -52,11 +52,16 @@
       "timeout_ms": 1500
     },
     {
-      "id": "focus_body_editor",
-      "type": "evaluate",
-      "js_code": "() => { function findInShadow(root) { const el = root.querySelector('div[contenteditable=\"true\"][data-lexical-editor=\"true\"]'); if (el) return el; for (const child of root.querySelectorAll('*')) { if (child.shadowRoot) { const found = findInShadow(child.shadowRoot); if (found) return found; } } return null; } const editor = findInShadow(document); if (editor) { editor.focus(); return true; } return false; }",
+      "id": "tab_to_body",
+      "type": "keyboard",
+      "key": "Tab",
       "delay_before_ms": { "min": 300, "max": 500 },
-      "description": "Focus the Lexical body editor inside shadow DOM via JS"
+      "description": "Tab from title to body editor (standard browser navigation)"
+    },
+    {
+      "id": "wait_body_focus",
+      "type": "wait",
+      "timeout_ms": 500
     },
     {
       "id": "type_body",
@@ -64,7 +69,7 @@
       "text": "{{body}}",
       "typing_speed": { "min": 20, "max": 50 },
       "delay_after_ms": { "min": 1000, "max": 3000 },
-      "description": "Type body via keyboard (element pre-focused by focus_body_editor JS)"
+      "description": "Type body via keyboard (focused via Tab from title)"
     },
     {
       "id": "click_post",

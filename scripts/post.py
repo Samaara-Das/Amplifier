@@ -968,33 +968,11 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         # ── Fill body if provided ──
         if body and body.strip():
             try:
-                # Lexical editor is inside shadow DOM — focus it via JS then type
-                focused = await page.evaluate('''() => {
-                    // Search through all shadow roots for the contenteditable
-                    function findInShadow(root) {
-                        const el = root.querySelector('div[contenteditable="true"][data-lexical-editor="true"]');
-                        if (el) return el;
-                        for (const child of root.querySelectorAll('*')) {
-                            if (child.shadowRoot) {
-                                const found = findInShadow(child.shadowRoot);
-                                if (found) return found;
-                            }
-                        }
-                        return null;
-                    }
-                    const editor = findInShadow(document);
-                    if (editor) {
-                        editor.focus();
-                        return true;
-                    }
-                    return false;
-                }''')
-                if focused:
-                    await human_delay(0.3, 0.5)
-                    await page.keyboard.type(body, delay=random.randint(20, 50))
-                    logger.info("Reddit: filled body text via JS focus")
-                else:
-                    logger.info("Reddit: Lexical editor not found in shadow DOM")
+                # Tab from title to body editor (reliable browser focus transfer)
+                await page.keyboard.press("Tab")
+                await human_delay(0.3, 0.5)
+                await page.keyboard.type(body, delay=random.randint(20, 50))
+                logger.info("Reddit: filled body text via Tab focus")
             except Exception as e:
                 logger.info("Reddit: body field not available: %s", e)
         await human_delay(1, 3)
