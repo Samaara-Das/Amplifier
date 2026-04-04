@@ -941,7 +941,7 @@
         "id": "60",
         "title": "Ensure metrics accuracy for billing (critical for trust)",
         "description": "Metrics must be accurate â€” earnings depend on them. Cross-validate, handle edge cases, consider APIs over scraping, add sanity checks and audit trails. See FUTURE.md.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -950,7 +950,7 @@
           "metrics"
         ],
         "subtasks": [],
-        "updatedAt": "2026-04-04T17:16:22.046Z"
+        "updatedAt": "2026-04-04T17:30:25.497Z"
       },
       {
         "id": "61",
@@ -1247,9 +1247,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-04T17:27:13.030Z",
+      "lastModified": "2026-04-04T17:30:25.498Z",
       "taskCount": 80,
-      "completedCount": 67,
+      "completedCount": 68,
       "tags": [
         "master"
       ]

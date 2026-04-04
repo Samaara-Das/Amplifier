@@ -51,6 +51,12 @@ app.include_router(invitations.router, prefix="/api/campaigns", tags=["invitatio
 APP_VERSION = "0.1.0"
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    import traceback
+    return {"error": str(exc), "traceback": traceback.format_exc()}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
