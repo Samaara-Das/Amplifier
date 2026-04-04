@@ -73,18 +73,63 @@
       </div>
     </div>
 
+    {% if alerts is defined and alerts %}
+    <div style="margin-bottom: 16px;">
+      {% for alert in alerts %}
+      <div style="padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px;
+        {% if alert.type == 'danger' %}background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5;
+        {% elif alert.type == 'warning' %}background: rgba(250,204,21,0.1); border: 1px solid rgba(250,204,21,0.2); color: #fde68a;
+        {% else %}background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #93bbfd;{% endif %}">
+        {% if alert.type == 'danger' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {% elif alert.type == 'warning' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        {% else %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>{% endif %}
+        {{ alert.msg }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="card">
       <div class="card-header">
         <h2>Recent Activity</h2>
       </div>
       <div class="card-body">
-        <div class="empty-state compact">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
-          <p>No recent activity yet.</p>
-          <p class="text-muted">Activity will appear here once you start accepting campaigns.</p>
-        </div>
+        {% if activity_feed is defined and activity_feed %}
+          <div style="max-height: 400px; overflow-y: auto;">
+            {% for item in activity_feed %}
+            <div style="padding: 10px 0; {% if not loop.first %}border-top: 1px solid var(--border);{% endif %} display: flex; align-items: flex-start; gap: 10px;">
+              <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+                {% if item.type == 'error' %}background: rgba(239,68,68,0.15);
+                {% elif item.type == 'post' %}background: rgba(34,197,94,0.15);
+                {% elif item.type == 'content' %}background: rgba(59,130,246,0.15);
+                {% elif item.type == 'campaign' %}background: rgba(250,204,21,0.15);
+                {% elif item.type == 'success' %}background: rgba(34,197,94,0.15);
+                {% elif item.type == 'warning' %}background: rgba(250,204,21,0.15);
+                {% else %}background: rgba(148,163,184,0.15);{% endif %}">
+                {% if item.type == 'error' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                {% elif item.type == 'post' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                {% elif item.type == 'content' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
+                {% elif item.type == 'campaign' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/></svg>
+                {% elif item.type == 'success' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                {% else %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>{% endif %}
+              </div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">{{ item.title }}</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ item.message }}</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">{{ item.created_at }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state compact">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <p>No recent activity yet.</p>
+            <p class="text-muted">Activity will appear here once you start accepting campaigns.</p>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

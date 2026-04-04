@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}{{ user.email }} — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.detail-title h1 { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+.detail-title .meta { font-size: 13px; color: #64748b; }
+.detail-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.detail-actions form { margin: 0; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.info-item { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); padding: 14px 18px; border-radius: 10px; border: 1px solid #334155; }
+.info-item .label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 4px; }
+.info-item .value { font-size: 18px; font-weight: 600; color: #f8fafc; }
+.info-item .value.green { color: #4ade80; }
+.info-item .value.red { color: #f87171; }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid #334155; margin-bottom: 20px; }
+.tab { padding: 10px 20px; font-size: 14px; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; font-weight: 500; }
+.tab:hover { color: #e2e8f0; }
+.tab.active { color: #f8fafc; border-bottom-color: #3b82f6; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.trust-adjust { display: inline-flex; align-items: center; gap: 6px; }
+.trust-adjust input[type="number"] { width: 70px; padding: 4px 8px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; font-size: 13px; }
+.platform-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.niche-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.niche-tag { font-size: 12px; padding: 2px 8px; background: #1e3a5f; color: #93bbfd; border-radius: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div class="detail-title">
+        <h1>{{ user.email }}</h1>
+        <div class="meta">User #{{ user.id }} &middot; Joined {{ user.created_at.strftime('%b %d, %Y') if user.created_at else 'Unknown' }}</div>
+    </div>
+    <div class="detail-actions">
+        {% if user.status == 'active' %}
+        <form method="POST" action="/admin/users/{{ user.id }}/suspend"><button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('Suspend this user?')">Suspend</button></form>
+        <form method="POST" action="/admin/users/{{ user.id }}/ban"><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Ban this user? This is hard to reverse.')">Ban</button></form>
+        {% elif user.status == 'suspended' %}
+        <form method="POST" action="/admin/users/{{ user.id }}/unsuspend"><button type="submit" class="btn btn-sm btn-success">Unsuspend</button></form>
+        <form method="POST" action="/admin/users/{{ user.id }}/ban"><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Ban this user?')">Ban</button></form>
+        {% elif user.status == 'banned' %}
+        <span class="badge badge-red" style="padding: 6px 12px;">Banned</span>
+        {% endif %}
+        <a href="/admin/users" class="btn btn-sm btn-secondary">&larr; Back</a>
+    </div>
+</div>
+
+<div class="info-grid">
+    <div class="info-item">
+        <div class="label">Status</div>
+        <div class="value">
+            {% if user.status == 'active' %}<span class="badge badge-green">Active</span>
+            {% elif user.status == 'suspended' %}<span class="badge badge-yellow">Suspended</span>
+            {% else %}<span class="badge badge-red">Banned</span>{% endif %}
+        </div>
+    </div>
+    <div class="info-item">
+        <div class="label">Trust Score</div>
+        <div class="value {{ 'green' if user.trust_score >= 70 else 'red' if user.trust_score < 40 else '' }}">{{ user.trust_score }}/100</div>
+        <div class="trust-bar" style="margin-top: 6px;">
+            <div class="trust-fill" style="width: {{ user.trust_score }}%; background: {{ '#22c55e' if user.trust_score >= 70 else '#facc15' if user.trust_score >= 40 else '#ef4444' }};"></div>
+        </div>
+    </div>
+    <div class="info-item">
+        <div class="label">Earnings Balance</div>
+        <div class="value green">${{ "%.2f"|format(user.earnings_balance) }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Total Earned</div>
+        <div class="value">${{ "%.2f"|format(user.total_earned) }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Mode</div>
+        <div class="value">{{ user.mode }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Region</div>
+        <div class="value">{{ user.audience_region }}</div>
+    </div>
+</div>
+
+<!-- Trust Score Adjustment -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-title">Adjust Trust Score</div>
+    <form method="POST" action="/admin/users/{{ user.id }}/adjust-trust" class="trust-adjust">
+        <input type="number" name="new_score" min="0" max="100" value="{{ user.trust_score }}" />
+        <button type="submit" class="btn btn-sm btn-primary">Update</button>
+        <span style="font-size: 12px; color: #64748b;">Current: {{ user.trust_score }}/100</span>
+    </form>
+</div>
+
+<!-- Connected Platforms -->
+{% if connected_platforms %}
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-title">Connected Platforms</div>
+    <div class="platform-badges">
+        {% for platform, data in connected_platforms.items() %}
+        <span class="badge badge-blue">{{ platform }}{% if data.get('username') %}: {{ data.username }}{% endif %}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Niche Tags -->
+{% if user.niche_tags %}
+<div class="niche-tags" style="margin-bottom: 20px;">
+    {% for tag in user.niche_tags %}
+    <span class="niche-tag">{{ tag }}</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab active" onclick="showTab('assignments')">Assignments ({{ assignments|length }})</button>
+    <button class="tab" onclick="showTab('posts')">Posts ({{ posts|length }})</button>
+    <button class="tab" onclick="showTab('payouts')">Payouts ({{ payouts|length }})</button>
+    <button class="tab" onclick="showTab('penalties')">Penalties ({{ penalties|length }})</button>
+</div>
+
+<div id="tab-assignments" class="tab-content active">
+    <div class="card">
+        {% if assignments %}
+        <table>
+            <thead><tr><th>Campaign</th><th>Status</th><th>Content Mode</th><th>Assigned</th></tr></thead>
+            <tbody>
+                {% for a in assignments %}
+                <tr onclick="window.location='/admin/campaigns/{{ a.campaign_id }}'">
+                    <td><a href="/admin/campaigns/{{ a.campaign_id }}">{{ a.campaign_title }}</a></td>
+                    <td><span class="badge badge-{{ 'green' if a.status in ('paid', 'posted') else 'blue' if a.status == 'accepted' else 'yellow' if a.status == 'pending_invitation' else 'red' if a.status in ('rejected', 'expired') else 'gray' }}">{{ a.status }}</span></td>
+                    <td>{{ a.content_mode }}</td>
+                    <td>{{ a.assigned_at.strftime('%Y-%m-%d') if a.assigned_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty"><p>No assignments yet.</p></div>{% endif %}
+    </div>
+</div>
+
+<div id="tab-posts" class="tab-content">
+    <div class="card">
+        {% if posts %}
+        <table>
+            <thead><tr><th>Platform</th><th>URL</th><th>Status</th><th>Impressions</th><th>Likes</th><th>Reposts</th><th>Posted</th></tr></thead>
+            <tbody>
+                {% for p in posts %}
+                <tr>
+                    <td><span class="badge badge-blue">{{ p.platform }}</span></td>
+                    <td><a href="{{ p.post_url }}" target="_blank" rel="noopener">View</a></td>
+                    <td><span class="badge badge-{{ 'green' if p.status == 'live' else 'red' }}">{{ p.status }}</span></td>
+                    <td>{{ "{:,}".format(p.impressions) }}</td>
+                    <td>{{ "{:,}".format(p.likes) }}</td>
+                    <td>{{ "{:,}".format(p.reposts) }}</td>
+                    <td>{{ p.posted_at.strftime('%Y-%m-%d') if p.posted_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty"><p>No posts yet.</p></div>{% endif %}
+    </div>
+</div>
+
+<div id="tab-payouts" class="tab-content">
+    <div class="card">
+        {% if payouts %}
+        <table>
+            <thead><tr><th>ID</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for p in payouts %}
+                <tr>
+                    <td>{{ p.id }}</td>
+                    <td>${{ "%.2f"|format(p.amount) }}</td>
+                    <td><span class="badge badge-{{ 'green' if p.status == 'paid' else 'yellow' if p.status == 'pending' else 'red' }}">{{ p.status }}</span></td>
+                    <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty"><p>No payouts yet.</p></div>{% endif %}
+    </div>
+</div>
+
+<div id="tab-penalties" class="tab-content">
+    <div class="card">
+        {% if penalties %}
+        <table>
+            <thead><tr><th>Reason</th><th>Amount</th><th>Description</th><th>Appealed</th><th>Result</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for p in penalties %}
+                <tr>
+                    <td><span class="badge badge-red">{{ p.reason }}</span></td>
+                    <td>${{ "%.2f"|format(p.amount) }}</td>
+                    <td>{{ p.description or '—' }}</td>
+                    <td>{{ 'Yes' if p.appealed else 'No' }}</td>
+                    <td>{{ p.appeal_result or '—' }}</td>
+                    <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty"><p>No penalties.</p></div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}

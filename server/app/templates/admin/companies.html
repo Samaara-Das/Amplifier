@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Companies — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.filter-bar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+.filter-bar input, .filter-bar select { padding: 8px 12px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; font-size: 13px; font-family: inherit; }
+.filter-bar input { min-width: 220px; }
+.filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: #2563eb; }
+.pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155; }
+.pagination-info { font-size: 13px; color: #64748b; }
+.pagination-links { display: flex; gap: 8px; }
+tr { cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Companies</h1>
+    <span class="badge badge-blue" style="font-size: 14px; padding: 6px 14px;">{{ pagination.total }} total</span>
+</div>
+
+<form method="GET" action="/admin/companies" class="filter-bar">
+    <input type="text" name="search" placeholder="Search by name or email..." value="{{ search }}" />
+    <select name="status" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        <option value="active" {{ 'selected' if current_status == 'active' }}>Active</option>
+        <option value="suspended" {{ 'selected' if current_status == 'suspended' }}>Suspended</option>
+    </select>
+    <select name="sort" onchange="this.form.submit()">
+        <option value="created_at" {{ 'selected' if sort == 'created_at' }}>Newest First</option>
+        <option value="balance" {{ 'selected' if sort == 'balance' }}>Balance</option>
+        <option value="name" {{ 'selected' if sort == 'name' }}>Name</option>
+    </select>
+    <input type="hidden" name="order" value="{{ order }}" />
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+</form>
+
+<div class="card">
+    {% if companies %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Balance</th>
+                <th>Campaigns</th>
+                <th>Total Spent</th>
+                <th>Status</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in companies %}
+            <tr onclick="window.location='/admin/companies/{{ c.id }}'">
+                <td>{{ c.id }}</td>
+                <td><a href="/admin/companies/{{ c.id }}">{{ c.name }}</a></td>
+                <td>{{ c.email }}</td>
+                <td style="font-weight: 600; color: {{ '#4ade80' if c.balance > 0 else '#94a3b8' }};">${{ "%.2f"|format(c.balance) }}</td>
+                <td>{{ c.campaign_count }}</td>
+                <td>${{ "%.2f"|format(c.total_spent) }}</td>
+                <td>
+                    {% if c.status == 'active' %}
+                    <span class="badge badge-green">active</span>
+                    {% else %}
+                    <span class="badge badge-red">suspended</span>
+                    {% endif %}
+                </td>
+                <td>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} companies)</div>
+        <div class="pagination-links">
+            {% if pagination.has_prev %}
+            <a href="/admin/companies?page={{ pagination.page - 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">&larr; Prev</a>
+            {% endif %}
+            {% if pagination.has_next %}
+            <a href="/admin/companies?page={{ pagination.page + 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">Next &rarr;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">
+        <h3>No companies found</h3>
+        <p>{% if search %}No companies match "{{ search }}"{% else %}No companies registered yet{% endif %}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

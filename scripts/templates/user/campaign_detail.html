@@ -105,14 +105,22 @@
         <h2>Today's Posts &mdash; {{ today_str }}</h2>
         {% if today_by_platform %}
           {% set has_pending = today_by_platform.values()|selectattr('approved', 'equalto', 0)|list|length > 0 %}
-          {% if has_pending %}
-            <form method="post" action="{{ url_for('approve_all_drafts', campaign_id=campaign.get('server_id', 0)) }}" id="approve-all-form" style="margin:0;">
-              <button type="submit" class="btn btn-success btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Approve All
+          <div style="display: flex; gap: 8px;">
+            {% if has_pending %}
+              <form method="post" action="{{ url_for('approve_all_drafts', campaign_id=campaign.get('server_id', 0)) }}" id="approve-all-form" style="margin:0;">
+                <button type="submit" class="btn btn-success btn-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  Approve All
+                </button>
+              </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('regenerate_drafts', campaign_id=campaign.get('server_id', 0)) }}" style="margin:0;" onsubmit="return confirm('Regenerate all unapproved drafts? This will replace them with fresh AI-generated content.')">
+              <button type="submit" class="btn btn-secondary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
+                Regenerate
               </button>
             </form>
-          {% endif %}
+          </div>
         {% endif %}
       </div>
       <div class="card-body">

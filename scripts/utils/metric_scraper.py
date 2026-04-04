@@ -326,9 +326,8 @@ def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[
     the scraper runs. No rigid time windows that can be missed.
 
     Early tiers: T+1h, T+6h, T+24h, T+72h (high frequency early on)
-    After T+72h: every 24h indefinitely while campaign is active.
-    is_final is always False — scraping continues while the campaign lives.
-    Billing uses the latest metric snapshot.
+    The T+72h scrape is marked as is_final=True for billing.
+    After T+72h: optional recurring scrapes every 24h (not final).
 
     Returns (should_scrape, is_final).
     """
@@ -354,11 +353,14 @@ def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[
                 due_tier_index = i
 
         if due_tier_index >= existing_scrape_count:
-            return True, False  # Never final — keep scraping
+            # Mark as final only when this is the LAST early tier scrape (T+72h)
+            # existing_scrape_count == 3 means we're about to do the 4th scrape (index 3 = 72h tier)
+            is_final = (existing_scrape_count == len(early_tiers) - 1)
+            return True, is_final
         return False, False
 
-    # Past early tiers — scrape every 24h indefinitely
-    # Calculate how many 24h cycles should have happened since T+72h
+    # Past early tiers — optional recurring scrapes every 24h
+    # These are NOT final — the T+72h scrape already provided the final metric
     hours_since_72h = hours_since - 72
     if hours_since_72h < 0:
         return False, False
@@ -367,7 +369,7 @@ def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[
     recurring_scrapes_done = existing_scrape_count - len(early_tiers)
 
     if recurring_scrapes_due > recurring_scrapes_done:
-        return True, False  # Never final — keep scraping
+        return True, False
 
     return False, False
 

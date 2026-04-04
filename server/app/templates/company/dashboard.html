@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ company.name }}{% endblock %}
+{% block brand %}{{ company.name }}{% endblock %}
+{% block brand_sub %}Amplifier for Business{% endblock %}
+{% block nav %}{% include "company/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome { margin-bottom: 24px; }
+.welcome h1 { font-size: 26px; font-weight: 700; background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 4px; }
+.welcome p { color: #64748b; font-size: 14px; }
+.alert-card { padding: 14px 18px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.alert-card.warning { background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.2); color: #fde68a; }
+.alert-card.danger { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.alert-card.info { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); color: #93bbfd; }
+.alert-card a { color: inherit; text-decoration: underline; margin-left: auto; white-space: nowrap; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.metric-card { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); padding: 16px 20px; border-radius: 12px; border: 1px solid #334155; }
+.metric-val { font-size: 24px; font-weight: 700; color: #3b82f6; letter-spacing: -0.5px; }
+.metric-val.green { color: #4ade80; }
+.metric-val.yellow { color: #facc15; }
+.metric-label { font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header h2 { font-size: 18px; font-weight: 700; color: #f8fafc; }
+.campaign-row { cursor: pointer; }
+.campaign-row:hover td { background: rgba(37, 99, 235, 0.06); }
+.budget-bar { height: 4px; background: #334155; border-radius: 2px; width: 60px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+.budget-fill { height: 100%; border-radius: 2px; }
+.quick-actions { display: flex; gap: 12px; margin-bottom: 24px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome">
+    <h1>Welcome back, {{ company.name }}</h1>
+    <p>Here's an overview of your campaigns and performance.</p>
+</div>
+
+{% for alert in alerts %}
+<div class="alert-card {{ alert.type }}">
+    <span>{{ alert.msg }}</span>
+    {% if alert.link %}<a href="{{ alert.link }}">View</a>{% endif %}
+</div>
+{% endfor %}
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <div class="metric-val green">${{ "%.2f"|format(balance) }}</div>
+        <div class="metric-label">Account Balance</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val">{{ active_campaigns }}</div>
+        <div class="metric-label">Active Campaigns</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val">{{ total_influencers }}</div>
+        <div class="metric-label">Influencers</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val">{{ total_posts }}</div>
+        <div class="metric-label">Total Posts</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val">{{ "{:,}".format(total_impressions) }}</div>
+        <div class="metric-label">Total Impressions</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val green">{{ "{:,}".format(total_engagement) }}</div>
+        <div class="metric-label">Total Engagement</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val yellow">${{ "%.2f"|format(total_spent) }}</div>
+        <div class="metric-label">Total Spent</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-val">${{ "%.2f"|format(cost_per_1k) }}</div>
+        <div class="metric-label">Cost per 1K Imp.</div>
+    </div>
+</div>
+
+<div class="quick-actions">
+    <a href="/company/campaigns/new" class="btn btn-primary">+ Create Campaign</a>
+    <a href="/company/billing" class="btn btn-secondary">Add Funds</a>
+    <a href="/company/stats" class="btn btn-secondary">View Analytics</a>
+</div>
+
+<div class="section-header">
+    <h2>Recent Campaigns</h2>
+    <a href="/company/campaigns" class="btn btn-sm btn-secondary">View All</a>
+</div>
+
+<div class="card">
+    {% if recent_campaigns %}
+    <table>
+        <thead>
+            <tr>
+                <th>Campaign</th>
+                <th>Status</th>
+                <th>Budget Used</th>
+                <th>Impressions</th>
+                <th>Engagement</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in recent_campaigns %}
+            <tr class="campaign-row" onclick="window.location='/company/campaigns/{{ c.id }}'">
+                <td style="font-weight: 500; color: #f8fafc;">{{ c.title }}</td>
+                <td>
+                    <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">{{ c.status }}</span>
+                </td>
+                <td>
+                    ${{ "%.0f"|format(c.spent) }} / ${{ "%.0f"|format(c.budget_total) }}
+                    <div class="budget-bar">
+                        <div class="budget-fill" style="width: {{ c.budget_pct }}%; background: {{ '#ef4444' if c.budget_pct > 90 else '#facc15' if c.budget_pct > 70 else '#22c55e' }};"></div>
+                    </div>
+                </td>
+                <td>{{ "{:,}".format(c.impressions) }}</td>
+                <td>{{ "{:,}".format(c.engagement) }}</td>
+                <td><a href="/company/campaigns/{{ c.id }}" class="btn btn-sm btn-secondary">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No campaigns yet</h3>
+        <p>Create your first campaign to start reaching influencers.</p>
+        <a href="/company/campaigns/new" class="btn btn-primary" style="margin-top: 16px;">Create Campaign</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Settings — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.setting-card { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+.setting-card h3 { font-size: 15px; font-weight: 600; color: #f8fafc; margin-bottom: 16px; }
+.setting-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(51, 65, 85, 0.4); }
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 13px; color: #94a3b8; }
+.setting-value { font-size: 14px; font-weight: 500; color: #f8fafc; }
+.setting-value.green { color: #4ade80; }
+.setting-value.red { color: #f87171; }
+.setting-value.yellow { color: #facc15; }
+.setting-value code { background: #0f172a; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>System Settings</h1>
+</div>
+
+<div class="alert alert-info" style="margin-bottom: 24px;">
+    Settings are configured via environment variables. This page is read-only.
+</div>
+
+<div class="settings-grid">
+    <div class="setting-card">
+        <h3>Platform</h3>
+        <div class="setting-row">
+            <span class="setting-label">Platform Cut</span>
+            <span class="setting-value">{{ config.platform_cut_percent }}%</span>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Min Payout Threshold</span>
+            <span class="setting-value">${{ "%.2f"|format(config.min_payout_threshold) }}</span>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Server URL</span>
+            <span class="setting-value"><code>{{ config.server_url }}</code></span>
+        </div>
+    </div>
+
+    <div class="setting-card">
+        <h3>Authentication</h3>
+        <div class="setting-row">
+            <span class="setting-label">JWT Algorithm</span>
+            <span class="setting-value"><code>{{ config.jwt_algorithm }}</code></span>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Token Expiry</span>
+            <span class="setting-value">{{ config.jwt_expire_minutes }} min ({{ (config.jwt_expire_minutes / 60)|int }}h)</span>
+        </div>
+    </div>
+
+    <div class="setting-card">
+        <h3>Database</h3>
+        <div class="setting-row">
+            <span class="setting-label">Connection</span>
+            <span class="setting-value"><code>{{ config.database_url }}</code></span>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Debug Mode</span>
+            <span class="setting-value {{ 'yellow' if config.debug else 'green' }}">{{ 'ON' if config.debug else 'OFF' }}</span>
+        </div>
+    </div>
+
+    <div class="setting-card">
+        <h3>Integrations</h3>
+        <div class="setting-row">
+            <span class="setting-label">Stripe</span>
+            <span class="setting-value {{ 'green' if config.stripe_status == 'Configured' else 'red' }}">{{ config.stripe_status }}</span>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Supabase Storage</span>
+            <span class="setting-value {{ 'green' if config.supabase_status == 'Configured' else 'red' }}">{{ config.supabase_status }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

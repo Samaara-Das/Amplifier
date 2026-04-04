@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.filter-bar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+.filter-bar select { padding: 8px 12px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; font-size: 13px; font-family: inherit; }
+.filter-bar select:focus { outline: none; border-color: #2563eb; }
+.pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155; }
+.pagination-info { font-size: 13px; color: #64748b; }
+.pagination-links { display: flex; gap: 8px; }
+.action-badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; font-family: monospace; }
+.action-badge.user { background: #1e3a5f; color: #93bbfd; }
+.action-badge.company { background: #14532d; color: #86efac; }
+.action-badge.campaign { background: #713f12; color: #fde68a; }
+.action-badge.system { background: #334155; color: #94a3b8; }
+.action-badge.penalty { background: #7f1d1d; color: #fca5a5; }
+.details-cell { font-size: 12px; color: #94a3b8; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.details-cell:hover { white-space: normal; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Audit Log</h1>
+    <span class="badge badge-gray" style="font-size: 14px; padding: 6px 14px;">{{ pagination.total }} entries</span>
+</div>
+
+<form method="GET" action="/admin/audit-log" class="filter-bar">
+    <select name="action" onchange="this.form.submit()">
+        <option value="">All Actions</option>
+        {% for a in action_types %}
+        <option value="{{ a }}" {{ 'selected' if action_filter == a }}>{{ a }}</option>
+        {% endfor %}
+    </select>
+    <select name="target_type" onchange="this.form.submit()">
+        <option value="">All Targets</option>
+        <option value="user" {{ 'selected' if target_type_filter == 'user' }}>User</option>
+        <option value="company" {{ 'selected' if target_type_filter == 'company' }}>Company</option>
+        <option value="campaign" {{ 'selected' if target_type_filter == 'campaign' }}>Campaign</option>
+        <option value="penalty" {{ 'selected' if target_type_filter == 'penalty' }}>Penalty</option>
+        <option value="system" {{ 'selected' if target_type_filter == 'system' }}>System</option>
+    </select>
+    {% if action_filter or target_type_filter %}
+    <a href="/admin/audit-log" class="btn btn-sm btn-secondary">Clear Filters</a>
+    {% endif %}
+</form>
+
+<div class="card">
+    {% if entries %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Details</th>
+                <th>IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr>
+                <td style="white-space: nowrap;">{{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '—' }}</td>
+                <td><code style="font-size: 12px; color: #e2e8f0;">{{ e.action }}</code></td>
+                <td>
+                    <span class="action-badge {{ e.target_type }}">{{ e.target_type }}</span>
+                    {% if e.target_id and e.target_id > 0 %}
+                    {% if e.target_type == 'user' %}
+                    <a href="/admin/users/{{ e.target_id }}" style="margin-left: 4px;">#{{ e.target_id }}</a>
+                    {% elif e.target_type == 'company' %}
+                    <a href="/admin/companies/{{ e.target_id }}" style="margin-left: 4px;">#{{ e.target_id }}</a>
+                    {% elif e.target_type == 'campaign' %}
+                    <a href="/admin/campaigns/{{ e.target_id }}" style="margin-left: 4px;">#{{ e.target_id }}</a>
+                    {% else %}
+                    <span style="margin-left: 4px; color: #64748b;">#{{ e.target_id }}</span>
+                    {% endif %}
+                    {% endif %}
+                </td>
+                <td class="details-cell" title="{{ e.details }}">
+                    {% for key, val in e.details.items() %}
+                    {{ key }}: {{ val }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td style="font-size: 12px; color: #64748b;">{{ e.admin_ip or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} entries)</div>
+        <div class="pagination-links">
+            {% if pagination.has_prev %}
+            <a href="/admin/audit-log?page={{ pagination.page - 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">&larr; Prev</a>
+            {% endif %}
+            {% if pagination.has_next %}
+            <a href="/admin/audit-log?page={{ pagination.page + 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">Next &rarr;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">
+        <h3>No audit entries</h3>
+        <p>Admin actions will be logged here automatically.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

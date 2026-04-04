@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ company.name }} — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.detail-title h1 { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+.detail-title .meta { font-size: 13px; color: #64748b; }
+.detail-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.detail-actions form { margin: 0; display: flex; align-items: center; gap: 6px; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.info-item { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); padding: 14px 18px; border-radius: 10px; border: 1px solid #334155; }
+.info-item .label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 4px; }
+.info-item .value { font-size: 18px; font-weight: 600; color: #f8fafc; }
+.info-item .value.green { color: #4ade80; }
+.funds-form { display: flex; align-items: center; gap: 8px; }
+.funds-form input[type="number"] { width: 100px; padding: 6px 10px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; font-size: 13px; }
+tr { cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div class="detail-title">
+        <h1>{{ company.name }}</h1>
+        <div class="meta">{{ company.email }} &middot; Company #{{ company.id }} &middot; Joined {{ company.created_at.strftime('%b %d, %Y') if company.created_at else 'Unknown' }}</div>
+    </div>
+    <div class="detail-actions">
+        {% if company.status == 'active' %}
+        <form method="POST" action="/admin/companies/{{ company.id }}/suspend"><button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('Suspend this company? All active campaigns will be paused.')">Suspend</button></form>
+        {% else %}
+        <form method="POST" action="/admin/companies/{{ company.id }}/unsuspend"><button type="submit" class="btn btn-sm btn-success">Unsuspend</button></form>
+        {% endif %}
+        <a href="/admin/companies" class="btn btn-sm btn-secondary">&larr; Back</a>
+    </div>
+</div>
+
+<div class="info-grid">
+    <div class="info-item">
+        <div class="label">Status</div>
+        <div class="value">
+            {% if company.status == 'active' %}<span class="badge badge-green">Active</span>
+            {% else %}<span class="badge badge-red">Suspended</span>{% endif %}
+        </div>
+    </div>
+    <div class="info-item">
+        <div class="label">Balance</div>
+        <div class="value green">${{ "%.2f"|format(company.balance) }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Total Campaigns</div>
+        <div class="value">{{ total_campaigns }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Active Campaigns</div>
+        <div class="value">{{ active_campaigns }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Total Budget</div>
+        <div class="value">${{ "%.2f"|format(total_budget) }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Total Spent</div>
+        <div class="value">${{ "%.2f"|format(total_spent) }}</div>
+    </div>
+</div>
+
+<!-- Fund Management -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-title">Manage Funds</div>
+    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+        <form method="POST" action="/admin/companies/{{ company.id }}/add-funds" class="funds-form">
+            <span style="font-size: 13px; color: #94a3b8;">Add:</span>
+            <span style="color: #64748b;">$</span>
+            <input type="number" name="amount" min="0.01" step="0.01" placeholder="100.00" required />
+            <button type="submit" class="btn btn-sm btn-success">Add Funds</button>
+        </form>
+        <form method="POST" action="/admin/companies/{{ company.id }}/deduct-funds" class="funds-form">
+            <span style="font-size: 13px; color: #94a3b8;">Deduct:</span>
+            <span style="color: #64748b;">$</span>
+            <input type="number" name="amount" min="0.01" step="0.01" placeholder="50.00" required />
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Deduct funds from this company?')">Deduct</button>
+        </form>
+    </div>
+</div>
+
+<!-- Campaigns -->
+<div class="card">
+    <div class="card-title">Campaigns</div>
+    {% if campaigns %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Budget</th>
+                <th>Remaining</th>
+                <th>Spent %</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in campaigns %}
+            <tr onclick="window.location='/admin/campaigns/{{ c.id }}'">
+                <td>{{ c.id }}</td>
+                <td><a href="/admin/campaigns/{{ c.id }}">{{ c.title }}</a></td>
+                <td>
+                    {% if c.status == 'active' %}<span class="badge badge-green">active</span>
+                    {% elif c.status == 'paused' %}<span class="badge badge-yellow">paused</span>
+                    {% elif c.status == 'completed' %}<span class="badge badge-blue">completed</span>
+                    {% elif c.status == 'cancelled' %}<span class="badge badge-red">cancelled</span>
+                    {% else %}<span class="badge badge-gray">{{ c.status }}</span>{% endif %}
+                </td>
+                <td>${{ "%.2f"|format(c.budget_total) }}</td>
+                <td>${{ "%.2f"|format(c.budget_remaining) }}</td>
+                <td>{{ "%.0f"|format((1 - c.budget_remaining / c.budget_total) * 100) if c.budget_total > 0 else 0 }}%</td>
+                <td>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><p>No campaigns yet.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

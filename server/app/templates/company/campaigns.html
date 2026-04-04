@@ -1,17 +1,22 @@
 {% extends "base.html" %}
-
 {% block title %}Campaigns — {{ company.name }}{% endblock %}
 {% block brand %}{{ company.name }}{% endblock %}
 {% block brand_sub %}Amplifier for Business{% endblock %}
+{% block nav %}{% include "company/_nav.html" %}{% endblock %}
 
-{% block nav %}
-<li><a href="/company/" class="{% if active == 'campaigns' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></svg> Campaigns</a></li>
-<li><a href="/company/campaigns/new" class="{% if active == 'create' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg> Create Campaign</a></li>
-<li><a href="/company/billing" class="{% if active == 'billing' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg> Billing</a></li>
-<li><a href="/company/stats" class="{% if active == 'stats' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg> Statistics</a></li>
-<li><a href="/company/settings" class="{% if active == 'settings' %}active{% endif %}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg> Settings</a></li>
-<div class="sidebar-section" style="margin-top: 24px;"></div>
-<li><a href="/company/logout"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg> Logout</a></li>
+{% block extra_css %}
+<style>
+.filter-bar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+.filter-bar input, .filter-bar select { padding: 8px 12px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; font-size: 13px; font-family: inherit; }
+.filter-bar input { min-width: 200px; }
+.filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: #2563eb; }
+.pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155; }
+.pagination-info { font-size: 13px; color: #64748b; }
+.pagination-links { display: flex; gap: 8px; }
+.budget-bar { height: 4px; background: #334155; border-radius: 2px; width: 60px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+.budget-fill { height: 100%; border-radius: 2px; }
+tr { cursor: pointer; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -21,61 +26,92 @@
 </div>
 
 {% if error %}
-<div style="padding:20px 24px; background:linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); border:2px solid rgba(239,68,68,0.4); border-radius:12px; margin-bottom:20px; display:flex; align-items:center; gap:14px;">
-    <div style="width:44px; height:44px; border-radius:50%; background:rgba(239,68,68,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
-    </div>
+<div style="padding: 16px 20px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
     <div>
-        <div style="color:#fca5a5; font-size:16px; font-weight:600; margin-bottom:2px;">{{ error }}</div>
-        <a href="/company/billing" style="color:#3b82f6; font-size:13px; text-decoration:underline;">Go to Billing &rarr;</a>
+        <div style="color: #fca5a5; font-weight: 600;">{{ error }}</div>
+        <a href="/company/billing" style="color: #3b82f6; font-size: 13px;">Go to Billing &rarr;</a>
     </div>
 </div>
 {% endif %}
 
-{% if campaigns %}
+<form method="GET" action="/company/campaigns" class="filter-bar">
+    <input type="text" name="search" placeholder="Search campaigns..." value="{{ search }}" />
+    <select name="status" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        <option value="draft" {{ 'selected' if current_status == 'draft' }}>Draft</option>
+        <option value="active" {{ 'selected' if current_status == 'active' }}>Active</option>
+        <option value="paused" {{ 'selected' if current_status == 'paused' }}>Paused</option>
+        <option value="completed" {{ 'selected' if current_status == 'completed' }}>Completed</option>
+        <option value="cancelled" {{ 'selected' if current_status == 'cancelled' }}>Cancelled</option>
+    </select>
+    <select name="sort" onchange="this.form.submit()">
+        <option value="created_at" {{ 'selected' if sort == 'created_at' }}>Newest First</option>
+        <option value="budget_total" {{ 'selected' if sort == 'budget_total' }}>Budget</option>
+        <option value="title" {{ 'selected' if sort == 'title' }}>Title</option>
+    </select>
+    <input type="hidden" name="order" value="{{ order }}" />
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+</form>
+
 <div class="card">
+    {% if campaigns %}
     <table>
         <thead>
             <tr>
                 <th>Title</th>
                 <th>Status</th>
                 <th>Budget</th>
-                <th>Remaining</th>
                 <th>Users</th>
                 <th>Posts</th>
                 <th>Impressions</th>
                 <th>Engagement</th>
-                <th>Actions</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
             {% for c in campaigns %}
-            <tr>
-                <td style="font-weight: 500; color: #f8fafc;">{{ c.title }}</td>
-                <td>
-                    <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">
-                        {{ c.status }}
-                    </span>
+            <tr onclick="window.location='/company/campaigns/{{ c.id }}'">
+                <td style="font-weight: 500; color: #f8fafc;">
+                    {{ c.title }}
+                    {% if c.screening_status == 'flagged' %}<span class="badge badge-red" style="margin-left: 6px; font-size: 10px;">Flagged</span>{% endif %}
                 </td>
-                <td>${{ "%.2f"|format(c.budget_total) }}</td>
-                <td>${{ "%.2f"|format(c.budget_remaining) }}</td>
+                <td>
+                    <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">{{ c.status }}</span>
+                </td>
+                <td>
+                    ${{ "%.0f"|format(c.budget_remaining) }} / ${{ "%.0f"|format(c.budget_total) }}
+                    <div class="budget-bar"><div class="budget-fill" style="width: {{ c.budget_pct }}%; background: {{ '#ef4444' if c.budget_pct > 90 else '#facc15' if c.budget_pct > 70 else '#22c55e' }};"></div></div>
+                </td>
                 <td>{{ c.user_count }}</td>
                 <td>{{ c.post_count }}</td>
                 <td>{{ "{:,}".format(c.impressions) }}</td>
                 <td>{{ "{:,}".format(c.engagement) }}</td>
-                <td>
-                    <a href="/company/campaigns/{{ c.id }}" class="btn btn-secondary btn-sm">View</a>
-                </td>
+                <td><a href="/company/campaigns/{{ c.id }}" class="btn btn-secondary btn-sm">View</a></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} campaigns)</div>
+        <div class="pagination-links">
+            {% if pagination.has_prev %}
+            <a href="/company/campaigns?page={{ pagination.page - 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">&larr; Prev</a>
+            {% endif %}
+            {% if pagination.has_next %}
+            <a href="/company/campaigns?page={{ pagination.page + 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">Next &rarr;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">
+        <h3>No campaigns found</h3>
+        <p>{% if search %}No campaigns match "{{ search }}"{% else %}Create your first campaign to start reaching influencers.{% endif %}</p>
+        <a href="/company/campaigns/new" class="btn btn-primary" style="margin-top: 16px;">Create Campaign</a>
+    </div>
+    {% endif %}
 </div>
-{% else %}
-<div class="empty">
-    <h3>No campaigns yet</h3>
-    <p>Create your first campaign to start reaching users.</p>
-    <a href="/company/campaigns/new" class="btn btn-primary" style="margin-top: 16px;">Create Campaign</a>
-</div>
-{% endif %}
 {% endblock %}

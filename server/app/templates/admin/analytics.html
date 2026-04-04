@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Platform Analytics</h1>
+</div>
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val">{{ total_posts }}</div>
+        <div class="stat-label">Total Posts</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ "{:,}".format(total_impressions) }}</div>
+        <div class="stat-label">Total Impressions</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val green">{{ "{:,}".format(total_engagement) }}</div>
+        <div class="stat-label">Total Engagement</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ platforms|length }}</div>
+        <div class="stat-label">Active Platforms</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-title">Platform Breakdown</div>
+    {% if platforms %}
+    <table>
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>Posts</th>
+                <th>Success Rate</th>
+                <th>Avg Impressions</th>
+                <th>Avg Likes</th>
+                <th>Total Impressions</th>
+                <th>Total Engagement</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in platforms %}
+            <tr>
+                <td><span class="badge badge-blue" style="text-transform: capitalize;">{{ p.platform }}</span></td>
+                <td>{{ p.total_posts }}</td>
+                <td>
+                    <span style="color: {{ '#4ade80' if p.success_rate >= 90 else '#facc15' if p.success_rate >= 70 else '#f87171' }};">
+                        {{ "%.1f"|format(p.success_rate) }}%
+                    </span>
+                </td>
+                <td>{{ "%.0f"|format(p.avg_impressions) }}</td>
+                <td>{{ "%.0f"|format(p.avg_likes) }}</td>
+                <td>{{ "{:,}".format(p.total_impressions) }}</td>
+                <td>{{ "{:,}".format(p.total_engagement) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><p>No platform data yet. Posts will appear here after metrics are collected.</p></div>
+    {% endif %}
+</div>
+
+{% if top_posts %}
+<div class="card">
+    <div class="card-title">Top Performing Posts</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>User</th>
+                <th>Impressions</th>
+                <th>Likes</th>
+                <th>Reposts</th>
+                <th>Comments</th>
+                <th>Total Engagement</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in top_posts %}
+            <tr>
+                <td><span class="badge badge-blue">{{ p.platform }}</span></td>
+                <td>{{ p.user_email }}</td>
+                <td>{{ "{:,}".format(p.impressions) }}</td>
+                <td>{{ "{:,}".format(p.likes) }}</td>
+                <td>{{ "{:,}".format(p.reposts) }}</td>
+                <td>{{ "{:,}".format(p.comments) }}</td>
+                <td style="font-weight: 600; color: #4ade80;">{{ "{:,}".format(p.total_engagement) }}</td>
+                <td><a href="{{ p.post_url }}" target="_blank" rel="noopener">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.title }} — Admin Dashboard{% endblock %}
+{% block brand %}Admin Dashboard{% endblock %}
+{% block brand_sub %}Amplifier{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.detail-title h1 { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+.detail-title .meta { font-size: 13px; color: #64748b; }
+.detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.detail-actions form { margin: 0; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.info-item { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); padding: 14px 18px; border-radius: 10px; border: 1px solid #334155; }
+.info-item .label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 4px; }
+.info-item .value { font-size: 18px; font-weight: 600; color: #f8fafc; }
+.info-item .value.green { color: #4ade80; }
+.budget-progress { height: 8px; background: #334155; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.budget-progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.brief-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-size: 14px; color: #cbd5e1; white-space: pre-wrap; line-height: 1.6; max-height: 300px; overflow-y: auto; }
+.json-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; font-size: 12px; color: #94a3b8; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid #334155; margin-bottom: 20px; }
+.tab { padding: 10px 20px; font-size: 14px; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; font-weight: 500; }
+.tab:hover { color: #e2e8f0; }
+.tab.active { color: #f8fafc; border-bottom-color: #3b82f6; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div class="detail-title">
+        <h1>{{ campaign.title }}</h1>
+        <div class="meta">
+            Campaign #{{ campaign.id }} &middot;
+            <a href="/admin/companies/{{ company.id }}">{{ company.name }}</a> &middot;
+            {{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else '' }}
+        </div>
+    </div>
+    <div class="detail-actions">
+        {% if campaign.status == 'active' %}
+        <form method="POST" action="/admin/campaigns/{{ campaign.id }}/pause"><button type="submit" class="btn btn-sm btn-secondary">Pause</button></form>
+        <form method="POST" action="/admin/campaigns/{{ campaign.id }}/cancel" onsubmit="return confirm('Cancel this campaign and refund remaining budget?')"><button type="submit" class="btn btn-sm btn-danger">Cancel</button></form>
+        {% elif campaign.status == 'paused' %}
+        <form method="POST" action="/admin/campaigns/{{ campaign.id }}/resume"><button type="submit" class="btn btn-sm btn-success">Resume</button></form>
+        <form method="POST" action="/admin/campaigns/{{ campaign.id }}/cancel" onsubmit="return confirm('Cancel this campaign?')"><button type="submit" class="btn btn-sm btn-danger">Cancel</button></form>
+        {% elif campaign.status == 'draft' %}
+        <form method="POST" action="/admin/campaigns/{{ campaign.id }}/cancel" onsubmit="return confirm('Cancel this draft?')"><button type="submit" class="btn btn-sm btn-danger">Cancel</button></form>
+        {% endif %}
+        <a href="/admin/campaigns" class="btn btn-sm btn-secondary">&larr; Back</a>
+    </div>
+</div>
+
+<div class="info-grid">
+    <div class="info-item">
+        <div class="label">Status</div>
+        <div class="value">
+            {% if campaign.status == 'active' %}<span class="badge badge-green">Active</span>
+            {% elif campaign.status == 'paused' %}<span class="badge badge-yellow">Paused</span>
+            {% elif campaign.status == 'completed' %}<span class="badge badge-blue">Completed</span>
+            {% elif campaign.status == 'cancelled' %}<span class="badge badge-red">Cancelled</span>
+            {% else %}<span class="badge badge-gray">{{ campaign.status }}</span>{% endif %}
+        </div>
+    </div>
+    <div class="info-item">
+        <div class="label">Screening</div>
+        <div class="value">
+            {% if campaign.screening_status == 'approved' %}<span class="badge badge-green">Approved</span>
+            {% elif campaign.screening_status == 'flagged' %}<span class="badge badge-red">Flagged</span>
+            {% elif campaign.screening_status == 'rejected' %}<span class="badge badge-red">Rejected</span>
+            {% else %}<span class="badge badge-yellow">Pending</span>{% endif %}
+        </div>
+    </div>
+    <div class="info-item">
+        <div class="label">Budget</div>
+        <div class="value">${{ "%.2f"|format(campaign.budget_total) }}</div>
+        <div class="budget-progress">
+            <div class="budget-progress-fill" style="width: {{ campaign.budget_pct }}%; background: {{ '#ef4444' if campaign.budget_pct > 90 else '#facc15' if campaign.budget_pct > 70 else '#22c55e' }};"></div>
+        </div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">{{ campaign.budget_pct }}% spent &middot; ${{ "%.2f"|format(campaign.budget_remaining) }} remaining</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Assigned Users</div>
+        <div class="value">{{ assignments|length }}{% if campaign.max_users %} / {{ campaign.max_users }}{% endif %}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Posts</div>
+        <div class="value">{{ posts|length }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Total Impressions</div>
+        <div class="value">{{ "{:,}".format(total_impressions) }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Total Engagement</div>
+        <div class="value green">{{ "{:,}".format(total_engagement) }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Dates</div>
+        <div class="value" style="font-size: 13px;">
+            {{ campaign.start_date.strftime('%b %d') if campaign.start_date else '?' }} — {{ campaign.end_date.strftime('%b %d, %Y') if campaign.end_date else '?' }}
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab active" onclick="showTab('brief')">Brief</button>
+    <button class="tab" onclick="showTab('users')">Users ({{ assignments|length }})</button>
+    <button class="tab" onclick="showTab('posts')">Posts ({{ posts|length }})</button>
+    <button class="tab" onclick="showTab('config')">Configuration</button>
+</div>
+
+<div id="tab-brief" class="tab-content active">
+    <div class="card">
+        <div class="card-title">Campaign Brief</div>
+        <div class="brief-box">{{ campaign.brief }}</div>
+        {% if campaign.content_guidance %}
+        <div class="card-title" style="margin-top: 16px;">Content Guidance</div>
+        <div class="brief-box">{{ campaign.content_guidance }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<div id="tab-users" class="tab-content">
+    <div class="card">
+        {% if assignments %}
+        <table>
+            <thead><tr><th>User</th><th>Status</th><th>Content Mode</th><th>Assigned</th></tr></thead>
+            <tbody>
+                {% for a in assignments %}
+                <tr>
+                    <td><a href="/admin/users/{{ a.user_id }}">{{ a.user_email }}</a></td>
+                    <td><span class="badge badge-{{ 'green' if a.status in ('paid', 'posted') else 'blue' if a.status == 'accepted' else 'yellow' if a.status == 'pending_invitation' else 'red' if a.status in ('rejected', 'expired') else 'gray' }}">{{ a.status }}</span></td>
+                    <td>{{ a.content_mode }}</td>
+                    <td>{{ a.assigned_at.strftime('%Y-%m-%d') if a.assigned_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty"><p>No users assigned yet.</p></div>{% endif %}
+    </div>
+</div>
+
+<div id="tab-posts" class="tab-content">
+    <div class="card">
+        {% if posts %}
+        <table>
+            <thead><tr><th>User</th><th>Platform</th><th>Status</th><th>Impressions</th><th>Likes</th><th>Reposts</th><th>Comments</th><th>URL</th></tr></thead>
+            <tbody>
+                {% for p in posts %}
+                <tr>
+                    <td>{{ p.user_email }}</td>
+                    <td><span class="badge badge-blue">{{ p.platform }}</span></td>
+                    <td><span class="badge badge-{{ 'green' if p.status == 'live' else 'red' }}">{{ p.status }}</span></td>
+                    <td>{{ "{:,}".format(p.impressions) }}</td>
+                    <td>{{ "{:,}".format(p.likes) }}</td>
+                    <td>{{ "{:,}".format(p.reposts) }}</td>
+                    <td>{{ "{:,}".format(p.comments) }}</td>
+                    <td><a href="{{ p.post_url }}" target="_blank" rel="noopener">View</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty"><p>No posts yet.</p></div>{% endif %}
+    </div>
+</div>
+
+<div id="tab-config" class="tab-content">
+    <div class="card">
+        <div class="card-title">Payout Rules</div>
+        <div class="json-box">{{ campaign.payout_rules }}</div>
+        <div class="card-title" style="margin-top: 16px;">Targeting</div>
+        <div class="json-box">{{ campaign.targeting }}</div>
+        <div class="card-title" style="margin-top: 16px;">Penalty Rules</div>
+        <div class="json-box">{{ campaign.penalty_rules }}</div>
+        {% if campaign.assets %}
+        <div class="card-title" style="margin-top: 16px;">Assets</div>
+        <div class="json-box">{{ campaign.assets }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}
