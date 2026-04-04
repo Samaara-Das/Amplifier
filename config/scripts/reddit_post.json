@@ -52,11 +52,17 @@
       "timeout_ms": 1500
     },
     {
-      "id": "tab_to_body",
-      "type": "keyboard",
-      "key": "Tab",
+      "id": "click_body_editor",
+      "type": "click",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "#post-composer_bodytext" },
+          { "by": "placeholder", "value": "Body text (optional)" }
+        ]
+      },
       "delay_before_ms": { "min": 300, "max": 500 },
-      "description": "Tab from title to body editor (standard browser navigation)"
+      "description": "Click body editor to focus it"
     },
     {
       "id": "wait_body_focus",
@@ -69,22 +75,27 @@
       "text": "{{body}}",
       "typing_speed": { "min": 20, "max": 50 },
       "delay_after_ms": { "min": 1000, "max": 3000 },
-      "description": "Type body via keyboard (focused via Tab from title)"
+      "description": "Type body via keyboard after clicking body editor"
+    },
+    {
+      "id": "wait_before_post",
+      "type": "wait",
+      "timeout_ms": 3000,
+      "description": "Wait for Post button to become enabled"
     },
     {
       "id": "click_post",
-      "type": "click",
-      "force": true,
+      "type": "dispatch_event",
+      "text": "click",
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
-          { "by": "css", "value": "button:has-text('Post'):last-of-type" },
-          { "by": "text", "value": "Post" },
-          { "by": "css", "value": "button[type='submit']:has-text('Post')" }
+          { "by": "css", "value": "button:has-text('Post')" },
+          { "by": "role", "value": "button:Post" }
         ]
       },
       "delay_before_ms": { "min": 1000, "max": 2000 },
-      "description": "Click Post button"
+      "description": "Dispatch click on Post button (shadow DOM, Playwright pierces automatically)"
     },
     {
       "id": "poll_redirect_url",

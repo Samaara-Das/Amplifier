@@ -140,6 +140,11 @@ async def _launch_context(pw, platform: str):
         user_data_dir=str(profile_dir),
         headless=headless,
         viewport={"width": 1280, "height": 800},
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/137.0.0.0 Safari/537.36"
+        ),
         args=[
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
@@ -968,11 +973,11 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         # ── Fill body if provided ──
         if body and body.strip():
             try:
-                # Tab from title to body editor (reliable browser focus transfer)
-                await page.keyboard.press("Tab")
+                body_editor = page.locator('#post-composer_bodytext')
+                await body_editor.click(timeout=5000)
                 await human_delay(0.3, 0.5)
                 await page.keyboard.type(body, delay=random.randint(20, 50))
-                logger.info("Reddit: filled body text via Tab focus")
+                logger.info("Reddit: filled body text via composer click")
             except Exception as e:
                 logger.info("Reddit: body field not available: %s", e)
         await human_delay(1, 3)
