@@ -53,10 +53,18 @@ app.include_router(invitations.router, prefix="/api/campaigns", tags=["invitatio
 APP_VERSION = "0.1.0"
 
 
+from fastapi.responses import JSONResponse
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     import traceback
-    return {"error": str(exc), "traceback": traceback.format_exc()}
+    tb = traceback.format_exc()
+    import logging
+    logging.getLogger("app").error("Unhandled: %s\n%s", exc, tb)
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc), "traceback": tb},
+    )
 
 
 @app.get("/health")
