@@ -79,6 +79,27 @@ class BudgetTopUp(BaseModel):
     amount: float
 
 
+# ── Repost Campaign schemas (must be before CampaignBrief) ─────
+
+class CampaignPostCreate(BaseModel):
+    platform: str
+    content: str
+    image_url: str | None = None
+    post_order: int = 1
+    scheduled_offset_hours: int = 0
+
+
+class CampaignPostResponse(BaseModel):
+    id: int
+    platform: str
+    content: str
+    image_url: str | None
+    post_order: int
+    scheduled_offset_hours: int
+
+    model_config = {"from_attributes": True}
+
+
 class CampaignBrief(BaseModel):
     """What the user app receives -- campaign info needed for content generation."""
     campaign_id: int
@@ -133,23 +154,5 @@ class ReachEstimateRequest(BaseModel):
     min_followers: dict[str, int] = {}
 
 
-# ── Repost Campaign schemas ─────────────────────────────────────
 
-
-class CampaignPostCreate(BaseModel):
-    platform: str
-    content: str
-    image_url: str | None = None
-    post_order: int = 1
-    scheduled_offset_hours: int = 0
-
-
-class CampaignPostResponse(BaseModel):
-    id: int
-    platform: str
-    content: str
-    image_url: str | None
-    post_order: int
-    scheduled_offset_hours: int
-
-    model_config = {"from_attributes": True}
+# (CampaignPostCreate and CampaignPostResponse defined above CampaignBrief)
