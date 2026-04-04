@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 
 import httpx
 
+from utils.crypto import decrypt_safe, encrypt_if_needed
+
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -23,14 +25,22 @@ def _get_server_url() -> str:
 def _load_auth() -> dict:
     if AUTH_FILE.exists():
         with open(AUTH_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        # Decrypt the token (returns as-is if already plaintext for migration)
+        if "access_token" in data and data["access_token"]:
+            data["access_token"] = decrypt_safe(data["access_token"])
+        return data
     return {}
 
 
 def _save_auth(data: dict) -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    # Encrypt the token before saving to disk
+    save_data = dict(data)
+    if "access_token" in save_data and save_data["access_token"]:
+        save_data["access_token"] = encrypt_if_needed(save_data["access_token"])
     with open(AUTH_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+        json.dump(save_data, f, indent=2)
 
 
 def _get_headers() -> dict:
