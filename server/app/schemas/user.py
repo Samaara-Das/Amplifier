@@ -10,6 +10,9 @@ class UserProfileUpdate(BaseModel):
     device_fingerprint: str | None = None
     scraped_profiles: dict | None = None  # Per-platform scraped summary data
     ai_detected_niches: list[str] | None = None  # AI-classified niches from content
+    subscription_tier: str | None = None  # free | pro
+    zip_code: str | None = None
+    state: str | None = None
 
 
 class UserProfileResponse(BaseModel):
@@ -21,6 +24,8 @@ class UserProfileResponse(BaseModel):
     audience_region: str
     trust_score: int
     mode: str
+    tier: str = "seedling"
+    subscription_tier: str = "free"
     earnings_balance: float
     total_earned: float
     status: str

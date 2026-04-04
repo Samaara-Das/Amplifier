@@ -445,12 +445,9 @@ async def get_matched_campaigns(
     5. Sort by score, take top 10, create invitations
     """
 
-    # v2/v3 upgrade: tier-based campaign limits
-    # Seedling: 3, Grower: 10, Amplifier: unlimited
-    from app.services.billing import get_tier_config
-    user_tier = getattr(user, "tier", "seedling") or "seedling"
-    tier_config = get_tier_config(user_tier)
-    max_active = tier_config["max_campaigns"]
+    # v2/v3 upgrade: tier-based campaign limits (reputation + subscription)
+    from app.services.billing import get_effective_max_campaigns
+    max_active = get_effective_max_campaigns(user)
 
     active_statuses = ("accepted", "content_generated", "posted", "metrics_collected")
     active_count_result = await db.execute(

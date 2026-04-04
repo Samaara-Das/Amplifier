@@ -34,6 +34,39 @@ TIER_CONFIG = {
 }
 
 
+# ── Subscription Tiers (orthogonal to reputation tiers) ─────────────────
+
+SUBSCRIPTION_TIERS = {
+    "free": {
+        "max_campaigns_override": None,  # uses reputation tier limit
+        "image_gen_enabled": False,
+        "advanced_analytics": False,
+        "priority_matching": False,
+        "max_posts_per_day": 4,
+        "price_cents_monthly": 0,
+    },
+    "pro": {
+        "max_campaigns_override": 20,  # overrides reputation tier if higher
+        "image_gen_enabled": True,
+        "advanced_analytics": True,
+        "priority_matching": True,
+        "max_posts_per_day": 20,
+        "price_cents_monthly": 1999,  # $19.99/mo
+    },
+}
+
+
+def get_effective_max_campaigns(user) -> int:
+    """Get effective max campaigns combining reputation + subscription tiers."""
+    rep_tier = getattr(user, "tier", "seedling") or "seedling"
+    sub_tier = getattr(user, "subscription_tier", "free") or "free"
+    rep_max = TIER_CONFIG.get(rep_tier, TIER_CONFIG["seedling"])["max_campaigns"]
+    sub_override = SUBSCRIPTION_TIERS.get(sub_tier, SUBSCRIPTION_TIERS["free"])["max_campaigns_override"]
+    if sub_override is not None:
+        return max(rep_max, sub_override)
+    return rep_max
+
+
 def get_tier_config(tier: str) -> dict:
     """Get configuration for a user's reputation tier."""
     return TIER_CONFIG.get(tier, TIER_CONFIG["seedling"])

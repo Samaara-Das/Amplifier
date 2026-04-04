@@ -50,6 +50,14 @@ async def update_profile(
         user.last_scraped_at = datetime.now(timezone.utc)
     if data.ai_detected_niches is not None:
         user.ai_detected_niches = data.ai_detected_niches
+    if data.subscription_tier is not None:
+        if data.subscription_tier not in ("free", "pro"):
+            raise HTTPException(status_code=400, detail="Invalid subscription tier")
+        user.subscription_tier = data.subscription_tier
+    if data.zip_code is not None:
+        user.zip_code = data.zip_code
+    if data.state is not None:
+        user.state = data.state
 
     await db.flush()
     return user
