@@ -148,8 +148,21 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
             budget_cost = float(campaign.budget_remaining)
             earning = budget_cost * (1 - settings.platform_cut_percent / 100.0)
 
+        # Load user first (needed for CPM multiplier)
+        user_result = await db.execute(
+            select(User).where(User.id == assignment.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            continue
+
         # Compute in cents for precision
         earning_cents = calculate_post_earnings_cents(metric, campaign)
+
+        # Apply tier CPM multiplier (amplifier tier gets 2x)
+        cpm_mult = get_cpm_multiplier(user)
+        earning_cents = int(earning_cents * cpm_mult)
+
         earning = earning_cents / 100.0
         if earning_cents <= 0:
             continue
@@ -164,14 +177,6 @@ async def run_billing_cycle(db: AsyncSession) -> dict:
             earning = earning_cents / 100.0
 
         budget_cost = budget_cost_cents / 100.0
-
-        # Credit user (both cents and legacy float fields)
-        user_result = await db.execute(
-            select(User).where(User.id == assignment.user_id)
-        )
-        user = user_result.scalar_one_or_none()
-        if not user:
-            continue
 
         user.earnings_balance = float(user.earnings_balance) + earning
         user.earnings_balance_cents = (user.earnings_balance_cents or 0) + earning_cents
