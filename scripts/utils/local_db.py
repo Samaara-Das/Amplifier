@@ -158,6 +158,8 @@ def init_db() -> None:
             campaign_id INTEGER,
             platform TEXT,
             draft_text TEXT,
+            image_path TEXT,
+            -- Path to generated image file (product photo img2img or txt2img from prompt)
             pillar_type TEXT,
             quality_score REAL DEFAULT 0,
             iteration INTEGER DEFAULT 1,
@@ -869,13 +871,19 @@ def get_research(campaign_id: int) -> list[dict]:
 
 def add_draft(campaign_id: int, platform: str, draft_text: str,
               pillar_type: str = None, quality_score: float = 0,
-              iteration: int = 1) -> int:
+              iteration: int = 1, image_path: str = None) -> int:
     conn = _get_db()
+    # Migration: add image_path column if it doesn't exist (for existing DBs)
+    try:
+        conn.execute("SELECT image_path FROM agent_draft LIMIT 1")
+    except Exception:
+        conn.execute("ALTER TABLE agent_draft ADD COLUMN image_path TEXT")
+        conn.commit()
     cursor = conn.execute("""
         INSERT INTO agent_draft (campaign_id, platform, draft_text, pillar_type,
-                                 quality_score, iteration)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (campaign_id, platform, draft_text, pillar_type, quality_score, iteration))
+                                 quality_score, iteration, image_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (campaign_id, platform, draft_text, pillar_type, quality_score, iteration, image_path))
     did = cursor.lastrowid
     conn.commit()
     conn.close()

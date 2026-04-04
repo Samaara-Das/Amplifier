@@ -29,26 +29,87 @@ HEALTH_CHECK_INTERVAL = 1800  # 30 minutes
 PROFILE_REFRESH_INTERVAL = 604800  # 7 days
 
 
+# ── Campaign asset helpers ──────────────────────────────────────────
+
+
+async def _download_campaign_product_image(campaign_data: dict) -> str | None:
+    """Extract and download the first product image from campaign assets.
+
+    Checks campaign.assets for image_urls, downloads the first one to local disk.
+    Returns local file path or None if no images available.
+    """
+    import httpx
+    from pathlib import Path
+
+    assets = campaign_data.get("assets") or {}
+    if isinstance(assets, str):
+        try:
+            assets = json.loads(assets)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+    # Look for image URLs in multiple places
+    image_urls = assets.get("image_urls") or assets.get("images") or []
+    if isinstance(image_urls, str):
+        image_urls = [image_urls]
+
+    if not image_urls:
+        return None
+
+    # Download first image to local cache
+    campaign_id = campaign_data.get("campaign_id", "unknown")
+    cache_dir = Path("data") / "product_images" / str(campaign_id)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    for url in image_urls:
+        if not isinstance(url, str) or not url.startswith("http"):
+            continue
+
+        # Check if already downloaded
+        filename = url.split("/")[-1].split("?")[0][:50] or "product.jpg"
+        local_path = cache_dir / filename
+        if local_path.exists():
+            logger.info("Using cached product image: %s", local_path)
+            return str(local_path)
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200 and len(resp.content) > 1000:
+                    local_path.write_bytes(resp.content)
+                    logger.info("Downloaded product image: %s → %s", url, local_path)
+                    return str(local_path)
+        except Exception as e:
+            logger.warning("Failed to download product image %s: %s", url, e)
+
+    return None
+
+
 # ── Individual task functions ────────────────────────────────────────
 
 
 async def poll_campaigns() -> dict:
-    """Poll server for new campaign invitations.
+    """Poll server for new campaign invitations and sync assignment statuses.
 
     Calls server_client.poll_campaigns(), stores new invitations in local_db.
+    Also checks for campaigns that were cancelled/completed on the server
+    and updates local status accordingly.
     Returns dict with count of new invitations.
     """
     from utils.server_client import poll_campaigns as server_poll
-    from utils.local_db import upsert_campaign, get_campaign
+    from utils.local_db import upsert_campaign, get_campaign, get_campaigns, update_campaign_status
 
     try:
         campaigns = server_poll()
         new_count = 0
+        server_campaign_ids = set()
 
         for campaign in campaigns:
             campaign_id = campaign.get("campaign_id")
             if campaign_id is None:
                 continue
+
+            server_campaign_ids.add(campaign_id)
 
             # Check if we already have this campaign locally
             existing = get_campaign(campaign_id)
@@ -56,14 +117,26 @@ async def poll_campaigns() -> dict:
                 upsert_campaign(campaign)
                 new_count += 1
             else:
+                # Check if server status changed (e.g., company cancelled the campaign)
+                server_status = campaign.get("status", "")
+                local_status = existing.get("status", "")
+                if server_status in ("cancelled", "completed", "expired") and local_status not in ("cancelled", "completed", "expired"):
+                    update_campaign_status(campaign_id, server_status)
+                    from utils.local_db import add_notification
+                    add_notification("campaign", "Campaign Status Changed", f"\"{campaign.get('title', 'Campaign')}\" is now {server_status}.")
                 # Update existing campaign data
                 upsert_campaign(campaign)
 
         logger.info("Campaign poll: %d total, %d new", len(campaigns), new_count)
+        if new_count > 0:
+            from utils.local_db import add_notification
+            add_notification("campaign", "New Campaign Invitations", f"{new_count} new campaign invitation(s) received.")
         return {"success": True, "total": len(campaigns), "new": new_count}
 
     except Exception as e:
         logger.error("Campaign poll failed: %s", e)
+        from utils.local_db import add_notification
+        add_notification("error", "Campaign Poll Failed", f"Could not reach server: {str(e)[:100]}")
         return {"success": False, "error": str(e), "total": 0, "new": 0}
 
 
@@ -140,16 +213,45 @@ async def generate_daily_content() -> dict:
 
                 if result:
                     content = result.get("content", result) if isinstance(result, dict) else result
+
+                    # ── Image generation (v2/v3 upgrade) ──
+                    # Generate an image for this campaign using:
+                    # 1. img2img from product photos in campaign assets (preferred)
+                    # 2. txt2img from the AI-generated image_prompt (fallback)
+                    draft_image_path = None
+                    try:
+                        image_prompt = content.get("image_prompt", "")
+                        product_image = await _download_campaign_product_image(campaign_data)
+
+                        if image_prompt or product_image:
+                            draft_image_path = await asyncio.to_thread(
+                                lambda ip=image_prompt, pi=product_image, b=campaign_data.get("brief", ""): asyncio.run(
+                                    gen.generate_image(
+                                        prompt=ip or campaign_data.get("title", "product lifestyle photo"),
+                                        platform="default",
+                                        product_image_path=pi,
+                                        campaign_brief=b,
+                                    )
+                                )
+                            )
+                            if draft_image_path:
+                                logger.info("Generated campaign image: %s (img2img=%s)", draft_image_path, bool(product_image))
+                    except Exception as img_err:
+                        logger.warning("Image generation failed for campaign %s: %s", campaign_id, img_err)
+
                     draft_ids = []
                     for platform in platforms:
                         text = content.get(platform, '')
                         if text:
                             if isinstance(text, dict):
                                 text = _json.dumps(text)
-                            did = add_draft(campaign_id, platform, str(text), iteration=day_number)
+                            did = add_draft(campaign_id, platform, str(text),
+                                            iteration=day_number, image_path=draft_image_path)
                             draft_ids.append(did)
                     generated_count += 1
                     logger.info("Daily content generated for campaign %s (day %d)", campaign_id, day_number)
+                    from utils.local_db import add_notification
+                    add_notification("content", "Drafts Ready", f"Generated {len(draft_ids)} draft(s) for \"{campaign.get('title', 'campaign')}\".")
 
                     # Send desktop notification for THIS campaign
                     try:
@@ -194,12 +296,15 @@ async def generate_daily_content() -> dict:
                                     platform=draft_data.get("platform", ""),
                                     scheduled_at=sched_time.isoformat(),
                                     content=draft_data.get("draft_text", ""),
+                                    image_path=draft_data.get("image_path"),
                                     draft_id=did,
                                 )
                         logger.info("Full-auto: approved + scheduled %d drafts for campaign %s", len(draft_ids), campaign_id)
 
             except Exception as e:
                 logger.error("Daily content gen failed for campaign %s: %s", campaign_id, e)
+                from utils.local_db import add_notification
+                add_notification("error", "Content Generation Failed", f"Failed for \"{campaign.get('title', 'campaign')}\": {str(e)[:100]}")
 
         return {"success": True, "generated": generated_count}
 
@@ -293,6 +398,16 @@ async def execute_due_posts() -> dict:
             "Post execution: %d due, %d succeeded, %d failed",
             len(due_posts), len(successes), len(failures),
         )
+
+        # Log notifications for post results
+        from utils.local_db import add_notification
+        if successes:
+            platforms_posted = ", ".join(set(p.get("platform", "?") for p in successes))
+            add_notification("post", "Posts Published", f"Successfully posted to {platforms_posted} ({len(successes)} post(s)).")
+        if failures:
+            platforms_failed = ", ".join(set(f["post"].get("platform", "?") for f in failures))
+            add_notification("error", "Posts Failed", f"Failed to post to {platforms_failed}. Will retry automatically.")
+
         return summary
 
     except Exception as e:
@@ -539,6 +654,15 @@ class BackgroundAgent:
                 except Exception as e:
                     logger.error("Due posts check crashed: %s", e)
                     results["posts"] = {"success": False, "error": str(e)}
+
+                # Re-queue failed posts for retry (max 3 attempts, 30-min delay)
+                try:
+                    from utils.local_db import requeue_failed_posts
+                    requeued = requeue_failed_posts()
+                    if requeued > 0:
+                        logger.info("Re-queued %d failed post(s) for retry", requeued)
+                except Exception as e:
+                    logger.warning("Failed post requeue error: %s", e)
 
                 # Every 10min: poll for campaigns
                 if now - self.last_poll >= POLL_INTERVAL:

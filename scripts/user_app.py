@@ -131,7 +131,7 @@ def logout():
 def dashboard():
     ctx = _base_context("dashboard")
     try:
-        from utils.local_db import get_all_posts, get_campaigns, get_earnings_summary
+        from utils.local_db import get_all_posts, get_campaigns, get_earnings_summary, get_notifications, get_scheduled_posts
 
         campaigns = get_campaigns()
         active_count = len(
@@ -163,6 +163,26 @@ def dashboard():
                 "health": "green" if connected else "red",
             }
 
+        # Activity feed — recent notifications from background agent
+        activity_feed = get_notifications(limit=15)
+
+        # Smart alerts
+        alerts = []
+        # Check for failed posts
+        try:
+            failed_posts = get_scheduled_posts("failed")
+            if failed_posts:
+                alerts.append({"type": "danger", "msg": f"{len(failed_posts)} post(s) failed to publish. Check Posts tab for details."})
+        except Exception:
+            pass
+        # Check for disconnected platforms
+        disconnected = [p for p, info in platforms.items() if not info["connected"]]
+        if disconnected:
+            alerts.append({"type": "warning", "msg": f"Platform(s) not connected: {', '.join(disconnected)}. Go to Settings to connect."})
+        # Check for pending invitations
+        if inv_count > 0:
+            alerts.append({"type": "info", "msg": f"You have {inv_count} campaign invitation(s) waiting for your response."})
+
         ctx.update(
             {
                 "active_campaigns": active_count,
@@ -170,6 +190,8 @@ def dashboard():
                 "post_count": len(posts_this_month),
                 "total_earned": earnings.get("total_earned", 0),
                 "platforms": platforms,
+                "activity_feed": activity_feed,
+                "alerts": alerts,
             }
         )
     except Exception as e:
@@ -418,16 +440,34 @@ def onboarding_connect(platform):
             except Exception as e:
                 logger.error("Connect %s: profile reset failed: %s", platform, e)
 
-        # Browser closed — scrape this platform
-        _scraping_platforms.add(platform)
-        try:
-            from utils.profile_scraper import scrape_all_profiles
-            aio.run(scrape_all_profiles([platform]))
-            logger.info("Auto-scraped %s after connect", platform)
-        except Exception as e:
-            logger.error("Auto-scrape failed for %s: %s", platform, e)
-        finally:
-            _scraping_platforms.discard(platform)
+        # Browser closed — verify login was successful by checking for session cookies
+        profile_dir_check = ROOT / "profiles" / f"{platform}-profile"
+        has_session = False
+        if profile_dir_check.exists():
+            # Check for Chromium session files that indicate a successful login
+            cookie_files = list(profile_dir_check.glob("**/Cookies")) + list(profile_dir_check.glob("**/Default/Cookies"))
+            state_files = list(profile_dir_check.glob("**/Local State"))
+            has_session = bool(cookie_files or state_files) and any(profile_dir_check.iterdir())
+
+        if not has_session:
+            logger.warning("Connect %s: no session data found after login — user may not have logged in", platform)
+            from utils.local_db import add_notification
+            add_notification("warning", f"{platform.title()} Login Incomplete", f"No login session detected for {platform}. Please try connecting again and make sure to log in before closing the browser.")
+        else:
+            # Scrape this platform
+            _scraping_platforms.add(platform)
+            try:
+                from utils.profile_scraper import scrape_all_profiles
+                aio.run(scrape_all_profiles([platform]))
+                logger.info("Auto-scraped %s after connect", platform)
+                from utils.local_db import add_notification
+                add_notification("success", f"{platform.title()} Connected", f"Successfully connected to {platform} and scraped your profile.")
+            except Exception as e:
+                logger.error("Auto-scrape failed for %s: %s", platform, e)
+                from utils.local_db import add_notification
+                add_notification("warning", f"{platform.title()} Scrape Failed", f"Connected to {platform} but profile scraping failed: {str(e)[:80]}")
+            finally:
+                _scraping_platforms.discard(platform)
 
     threading.Thread(target=_connect_scrape_classify, daemon=True).start()
     flash(f"Browser opened for {platform}. Log in and close the browser — profile will be scraped automatically.", "info")
@@ -840,6 +880,102 @@ def generate_content(campaign_id):
     return redirect(url_for("campaign_detail", campaign_id=campaign_id))
 
 
+@app.route("/campaigns/<int:campaign_id>/regenerate", methods=["POST"])
+def regenerate_drafts(campaign_id):
+    """Regenerate today's drafts for a campaign. Clears existing unapproved drafts and creates new ones."""
+    import asyncio
+
+    from utils.content_generator import ContentGenerator
+    from utils.local_db import (
+        get_campaign, get_todays_drafts, add_draft, get_all_drafts,
+        approve_draft, add_scheduled_post, get_setting,
+    )
+
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        flash("Campaign not found.", "error")
+        return redirect(url_for("campaigns"))
+
+    platforms = ["x", "linkedin", "facebook", "reddit"]
+    platform = request.form.get("platform", "")  # Optional: regenerate for specific platform
+
+    try:
+        # Delete today's unapproved drafts for this campaign
+        from utils.local_db import _get_db
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        conn = _get_db()
+        if platform:
+            # Regenerate single platform
+            conn.execute(
+                "DELETE FROM agent_draft WHERE campaign_server_id = ? AND platform = ? AND approved = 0 AND created_at LIKE ?",
+                (campaign_id, platform, f"{today}%"),
+            )
+            regen_platforms = [platform]
+        else:
+            # Regenerate all platforms
+            conn.execute(
+                "DELETE FROM agent_draft WHERE campaign_server_id = ? AND approved = 0 AND created_at LIKE ?",
+                (campaign_id, f"{today}%"),
+            )
+            regen_platforms = platforms
+        conn.commit()
+        conn.close()
+
+        # Get previous drafts for anti-repetition
+        previous = get_all_drafts(campaign_id)
+        previous_hooks = []
+        for d in previous[:12]:
+            text = d.get("draft_text", "")
+            if text:
+                first_line = text.split("\n")[0][:80]
+                previous_hooks.append(first_line)
+
+        unique_dates = set(d.get("created_at", "")[:10] for d in previous if d.get("created_at"))
+        day_number = len(unique_dates) + 1
+
+        gen = ContentGenerator()
+        campaign_data = {
+            "campaign_id": campaign_id,
+            "title": campaign.get("title", ""),
+            "brief": campaign.get("brief", ""),
+            "content_guidance": campaign.get("content_guidance", ""),
+            "assets": campaign.get("assets", {}),
+        }
+
+        result = asyncio.run(
+            gen.research_and_generate(
+                campaign_data,
+                enabled_platforms=regen_platforms,
+                day_number=day_number,
+                previous_hooks=previous_hooks,
+            )
+        )
+
+        if result:
+            content = result.get("content", result) if isinstance(result, dict) else result
+            new_count = 0
+            for p in regen_platforms:
+                text = content.get(p, "")
+                if text:
+                    if isinstance(text, dict):
+                        text = json.dumps(text)
+                    add_draft(campaign_id, p, str(text), iteration=day_number)
+                    new_count += 1
+
+            flash(f"Regenerated {new_count} draft(s). Review them below.", "success")
+            from utils.local_db import add_notification
+            add_notification("content", "Drafts Regenerated", f"Regenerated {new_count} draft(s) for \"{campaign.get('title', '')}\".")
+        else:
+            flash("Regeneration failed — no content returned.", "error")
+
+    except Exception as e:
+        logger.error("Regeneration failed for campaign %s: %s", campaign_id, e)
+        flash(f"Regeneration error: {e}", "error")
+
+    return redirect(url_for("campaign_detail", campaign_id=campaign_id))
+
+
 @app.route("/campaigns/<int:campaign_id>/approve", methods=["POST"])
 def approve_content(campaign_id):
     from utils.local_db import get_campaign, update_campaign_status
@@ -940,6 +1076,7 @@ def _schedule_draft(draft: dict):
         platform=platform,
         scheduled_at=scheduled_at.isoformat(),
         content=content,
+        image_path=draft.get("image_path"),
         draft_id=draft_id,
     )
     logger.info("Scheduled draft %d for %s at %s", draft_id, platform, scheduled_at.isoformat())
@@ -1398,4 +1535,4 @@ if __name__ == "__main__":
 
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.jinja_env.auto_reload = True
-    app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=True)
+    app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=True)
