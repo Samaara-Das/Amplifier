@@ -215,6 +215,7 @@ async def generate_daily_content() -> dict:
                 "content_guidance": campaign.get("content_guidance", ""),
                 "assets": campaign.get("assets", {}),
                 "scraped_data": campaign.get("scraped_data", {}),
+                "disclaimer_text": campaign.get("disclaimer_text"),
             }
             try:
                 result = await asyncio.to_thread(

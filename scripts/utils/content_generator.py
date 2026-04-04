@@ -91,6 +91,57 @@ def _parse_json_response(text: str) -> dict:
         raise ValueError(f"Could not parse JSON from response: {text[:200]}")
 
 
+# ── FTC disclosure ────────────────────────────────────────────────
+
+X_CHAR_LIMIT = 280
+
+
+def _append_ftc_disclosure(content: dict, disclaimer: str) -> dict:
+    """Append FTC advertising disclosure to generated content per platform.
+
+    US FTC requires paid promotional content to include clear disclosure.
+    Appends the disclaimer text to each platform's content appropriately:
+    - X: last line (trims content body if needed to fit 280-char limit)
+    - LinkedIn/Facebook: appended as a final paragraph
+    - Reddit: appended to body text only (title left untouched)
+    """
+    result = dict(content)
+
+    # ── X (Twitter) — respect 280-char limit ──
+    if "x" in result and isinstance(result["x"], str):
+        tweet = result["x"].rstrip()
+        suffix = f"\n{disclaimer}"
+        combined = tweet + suffix
+        if len(combined) <= X_CHAR_LIMIT:
+            result["x"] = combined
+        else:
+            # Trim the tweet body to make room for the disclaimer
+            max_body = X_CHAR_LIMIT - len(suffix)
+            if max_body > 0:
+                result["x"] = tweet[:max_body].rstrip() + suffix
+            else:
+                # Disclaimer alone exceeds limit — just append, let user handle
+                result["x"] = combined
+
+    # ── LinkedIn — append as last paragraph ──
+    if "linkedin" in result and isinstance(result["linkedin"], str):
+        result["linkedin"] = result["linkedin"].rstrip() + f"\n\n{disclaimer}"
+
+    # ── Facebook — append as last paragraph ──
+    if "facebook" in result and isinstance(result["facebook"], str):
+        result["facebook"] = result["facebook"].rstrip() + f"\n\n{disclaimer}"
+
+    # ── Reddit — append to body only, leave title untouched ──
+    if "reddit" in result and isinstance(result["reddit"], dict):
+        reddit = dict(result["reddit"])
+        body = reddit.get("body", "")
+        if isinstance(body, str):
+            reddit["body"] = body.rstrip() + f"\n\n{disclaimer}"
+        result["reddit"] = reddit
+
+    return result
+
+
 # ── Providers (via AiManager + ImageManager) ────────────────────
 # v2/v3 upgrade: providers extracted to scripts/ai/ with pluggable interfaces.
 # ContentGenerator uses AiManager for text and ImageManager for images.
@@ -279,7 +330,13 @@ class ContentGenerator:
 
         # v2/v3 upgrade: use AiManager with auto-fallback
         raw_text = await self._manager.generate(prompt)
-        return _parse_json_response(raw_text)
+        content = _parse_json_response(raw_text)
+
+        # Append FTC disclosure to all platform content
+        disclaimer = campaign.get("disclaimer_text") or "#ad"
+        content = _append_ftc_disclosure(content, disclaimer)
+
+        return content
 
     async def research_and_generate(
         self,

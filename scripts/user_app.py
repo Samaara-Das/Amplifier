@@ -38,6 +38,10 @@ app = Flask(
 )
 app.secret_key = os.urandom(24)
 
+# CSRF protection for all POST forms
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect(app)
+
 PORT = 5222
 
 
@@ -131,7 +135,7 @@ def logout():
 def dashboard():
     ctx = _base_context("dashboard")
     try:
-        from utils.local_db import get_all_posts, get_campaigns, get_earnings_summary, get_notifications, get_scheduled_posts
+        from utils.local_db import get_all_posts, get_approved_unposted_drafts, get_campaigns, get_earnings_summary, get_notifications, get_pending_drafts, get_scheduled_posts
 
         campaigns = get_campaigns()
         active_count = len(
@@ -188,10 +192,23 @@ def dashboard():
         if inv_count > 0:
             alerts.append({"type": "info", "msg": f"You have {inv_count} campaign invitation(s) waiting for your response."})
 
+        # Draft counts
+        drafts_pending_review = get_pending_drafts()
+        drafts_ready_to_post = get_approved_unposted_drafts()
+        review_count = len(drafts_pending_review)
+        ready_count = len(drafts_ready_to_post)
+
+        if review_count > 0:
+            alerts.append({"type": "info", "msg": f"{review_count} draft(s) waiting for your review."})
+        if ready_count > 0:
+            alerts.append({"type": "info", "msg": f"{ready_count} approved draft(s) ready to post."})
+
         ctx.update(
             {
                 "active_campaigns": active_count,
                 "invitation_count": inv_count,
+                "draft_review_count": review_count,
+                "draft_ready_count": ready_count,
                 "post_count": len(posts_this_month),
                 "total_earned": earnings.get("total_earned", 0),
                 "platforms": platforms,
@@ -205,6 +222,8 @@ def dashboard():
             {
                 "active_campaigns": 0,
                 "invitation_count": 0,
+                "draft_review_count": 0,
+                "draft_ready_count": 0,
                 "post_count": 0,
                 "total_earned": 0,
                 "platforms": {},
@@ -868,6 +887,7 @@ def generate_content(campaign_id):
                     "brief": campaign.get("brief", ""),
                     "content_guidance": campaign.get("content_guidance", ""),
                     "assets": campaign.get("assets", "{}"),
+                    "disclaimer_text": campaign.get("disclaimer_text"),
                 },
                 enabled_platforms=["x", "linkedin", "facebook", "reddit"],
             )
@@ -946,6 +966,7 @@ def regenerate_drafts(campaign_id):
             "brief": campaign.get("brief", ""),
             "content_guidance": campaign.get("content_guidance", ""),
             "assets": campaign.get("assets", {}),
+            "disclaimer_text": campaign.get("disclaimer_text"),
         }
 
         result = asyncio.run(
@@ -1485,16 +1506,18 @@ def stop_agent():
 
 @app.route("/api/status")
 def api_status():
-    """JSON endpoint for agent status + pending draft count (polled by frontend)."""
+    """JSON endpoint for agent status + draft counts (polled by frontend)."""
     from background_agent import get_agent
-    from utils.local_db import get_pending_drafts
+    from utils.local_db import get_approved_unposted_drafts, get_pending_drafts
 
     agent = get_agent()
     status = "running" if agent and agent.running else "stopped"
-    pending = get_pending_drafts()
+    pending_review = get_pending_drafts()
+    ready_to_post = get_approved_unposted_drafts()
     return jsonify({
         "agent_status": status,
-        "pending_drafts": len(pending),
+        "pending_drafts": len(pending_review),
+        "ready_drafts": len(ready_to_post),
     })
 
 

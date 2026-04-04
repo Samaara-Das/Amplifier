@@ -208,6 +208,8 @@ def init_db() -> None:
         "ALTER TABLE local_campaign ADD COLUMN scraped_data TEXT DEFAULT '{}'",
         # v4: company name for display
         "ALTER TABLE local_campaign ADD COLUMN company_name TEXT",
+        # v5: FTC disclosure text per campaign
+        "ALTER TABLE local_campaign ADD COLUMN disclaimer_text TEXT",
     ]
     for stmt in _safe_alter_columns:
         try:
@@ -948,7 +950,7 @@ def get_todays_draft_count(campaign_id: int, platform: str) -> int:
 
 
 def get_pending_drafts(campaign_id: int = None) -> list[dict]:
-    """Get unapproved drafts (approved=0). If campaign_id given, filter by it."""
+    """Get drafts pending review (approved=0). If campaign_id given, filter by it."""
     conn = _get_db()
     if campaign_id:
         rows = conn.execute(
@@ -958,6 +960,22 @@ def get_pending_drafts(campaign_id: int = None) -> list[dict]:
     else:
         rows = conn.execute(
             "SELECT * FROM agent_draft WHERE approved = 0 ORDER BY created_at DESC"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_approved_unposted_drafts(campaign_id: int = None) -> list[dict]:
+    """Get approved drafts that haven't been posted yet (approved=1, posted=0)."""
+    conn = _get_db()
+    if campaign_id:
+        rows = conn.execute(
+            "SELECT * FROM agent_draft WHERE approved = 1 AND posted = 0 AND campaign_id = ? ORDER BY created_at DESC",
+            (campaign_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM agent_draft WHERE approved = 1 AND posted = 0 ORDER BY created_at DESC"
         ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
