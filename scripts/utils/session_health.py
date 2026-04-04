@@ -59,6 +59,25 @@ PLATFORM_AUTH_SELECTORS: dict[str, list[str]] = {
     ],
 }
 
+# Lockout indicators: if ANY of these exist, the account is locked/suspended.
+PLATFORM_LOCKOUT_INDICATORS: dict[str, list[str]] = {
+    "x": [
+        'h1:has-text("Your account got locked")',
+        'h1:has-text("Account suspended")',
+        'a[href*="appeal"]',
+        ':has-text("Caution: This account is temporarily restricted")',
+    ],
+    "linkedin": [],
+    "facebook": [
+        ':has-text("Your Account Has Been Disabled")',
+        ':has-text("account is restricted")',
+    ],
+    "reddit": [
+        ':has-text("Your account has been suspended")',
+        ':has-text("This account has been suspended")',
+    ],
+}
+
 PLATFORM_LOGIN_INDICATORS: dict[str, list[str]] = {
     "x": [
         '[data-testid="loginButton"]',                      # Login button on X
@@ -99,6 +118,11 @@ async def _launch_context(pw, platform: str, headless: bool = True):
         user_data_dir=str(profile_dir),
         headless=headless,
         viewport={"width": 1280, "height": 800},
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/137.0.0.0 Safari/537.36"
+        ),
         args=[
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
@@ -135,85 +159,125 @@ async def check_session(platform: str, playwright) -> dict:
         "details": "Check not completed",
     }
 
-    context = None
+    # Shortcut: if a post succeeded recently (last 24h), session is definitely valid
     try:
-        context = await _launch_context(playwright, platform, headless=True)
-        page = context.pages[0] if context.pages else await context.new_page()
-
-        # Navigate to platform home URL
-        home_url = PLATFORMS.get(platform, {}).get("home_url", "")
-        if not home_url:
-            result["details"] = f"No home_url configured for {platform}"
+        from utils.local_db import _get_db
+        conn = _get_db()
+        recent = conn.execute(
+            "SELECT id FROM local_post WHERE platform = ? "
+            "AND posted_at > datetime('now', '-24 hours') AND status = 'posted'",
+            (platform,),
+        ).fetchone()
+        conn.close()
+        if recent:
+            result["status"] = "green"
+            result["details"] = f"Recent successful post on {platform}"
             return result
+    except Exception:
+        pass
 
-        logger.info("Session check %s: navigating to %s", platform, home_url)
-        await page.goto(home_url, wait_until="domcontentloaded",
-                        timeout=PAGE_LOAD_TIMEOUT_MS)
-        await page.wait_for_timeout(3000)  # Let page settle
+    context = None
+    max_attempts = 2
+    for attempt in range(max_attempts):
+        try:
+            context = await _launch_context(playwright, platform, headless=True)
+            page = context.pages[0] if context.pages else await context.new_page()
 
-        # Check for authenticated elements
-        auth_selectors = PLATFORM_AUTH_SELECTORS.get(platform, [])
-        login_selectors = PLATFORM_LOGIN_INDICATORS.get(platform, [])
+            # Navigate to platform home URL
+            home_url = PLATFORMS.get(platform, {}).get("home_url", "")
+            if not home_url:
+                result["details"] = f"No home_url configured for {platform}"
+                return result
 
-        auth_found = False
-        login_found = False
+            logger.info("Session check %s: navigating to %s (attempt %d)",
+                        platform, home_url, attempt + 1)
+            await page.goto(home_url, wait_until="domcontentloaded",
+                            timeout=PAGE_LOAD_TIMEOUT_MS)
+            await page.wait_for_timeout(5000)  # Extra settle time for reliability
 
-        # Check auth selectors — any one match = logged in
-        for selector in auth_selectors:
-            try:
-                locator = page.locator(selector)
-                if await locator.count() > 0:
-                    auth_found = True
-                    logger.info("Session check %s: auth element found (%s)",
-                                platform, selector)
-                    break
-            except Exception:
+            # Check for lockout first (most critical)
+            lockout_selectors = PLATFORM_LOCKOUT_INDICATORS.get(platform, [])
+            for selector in lockout_selectors:
+                try:
+                    locator = page.locator(selector)
+                    if await locator.count() > 0:
+                        result["status"] = "red"
+                        result["details"] = f"Account locked on {platform}"
+                        logger.warning("Session check %s: LOCKOUT detected (%s)",
+                                       platform, selector)
+                        return result
+                except Exception:
+                    continue
+
+            # Check for authenticated elements
+            auth_selectors = PLATFORM_AUTH_SELECTORS.get(platform, [])
+            login_selectors = PLATFORM_LOGIN_INDICATORS.get(platform, [])
+
+            auth_found = False
+            login_found = False
+
+            for selector in auth_selectors:
+                try:
+                    locator = page.locator(selector)
+                    if await locator.count() > 0:
+                        auth_found = True
+                        logger.info("Session check %s: auth element found (%s)",
+                                    platform, selector)
+                        break
+                except Exception:
+                    continue
+
+            for selector in login_selectors:
+                try:
+                    locator = page.locator(selector)
+                    if await locator.count() > 0:
+                        login_found = True
+                        logger.info("Session check %s: login indicator found (%s)",
+                                    platform, selector)
+                        break
+                except Exception:
+                    continue
+
+            # Determine status
+            if auth_found and not login_found:
+                result["status"] = "green"
+                result["details"] = f"Session authenticated — logged in to {platform}"
+                return result
+            elif login_found and not auth_found:
+                result["status"] = "red"
+                result["details"] = f"Session expired — {platform} login page detected"
+                return result
+            elif auth_found and login_found:
+                result["status"] = "green"
+                result["details"] = f"Session authenticated — logged in to {platform}"
+                return result
+            else:
+                # Yellow — uncertain. Retry once before giving up.
+                if attempt < max_attempts - 1:
+                    logger.info("Session check %s: uncertain, retrying...", platform)
+                    await asyncio.sleep(2)
+                    continue
+                result["status"] = "yellow"
+                result["details"] = (
+                    f"Could not confirm session state for {platform} — "
+                    f"page loaded but no auth or login elements detected"
+                )
+
+        except Exception as e:
+            logger.error("Session check %s failed (attempt %d): %s",
+                         platform, attempt + 1, e)
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(2)
                 continue
-
-        # Check login indicators — any one match = session expired
-        for selector in login_selectors:
-            try:
-                locator = page.locator(selector)
-                if await locator.count() > 0:
-                    login_found = True
-                    logger.info("Session check %s: login indicator found (%s)",
-                                platform, selector)
-                    break
-            except Exception:
-                continue
-
-        # Determine status
-        if auth_found and not login_found:
-            result["status"] = "green"
-            result["details"] = f"Session authenticated — logged in to {platform}"
-        elif login_found and not auth_found:
-            result["status"] = "red"
-            result["details"] = f"Session expired — {platform} login page detected"
-        elif auth_found and login_found:
-            # Unlikely but possible — treat as green (auth takes precedence)
-            result["status"] = "green"
-            result["details"] = (
-                f"Session authenticated — logged in to {platform} "
-                f"(login elements also detected, possibly part of page layout)"
-            )
-        else:
-            # Neither found — uncertain state
             result["status"] = "yellow"
-            result["details"] = (
-                f"Could not confirm session state for {platform} — "
-                f"page loaded but no auth or login elements detected"
-            )
-
-    except Exception as e:
-        logger.error("Session check %s failed: %s", platform, e)
-        result["status"] = "yellow"
-        result["details"] = f"Session check error for {platform}: {e}"
-    finally:
-        if context:
-            try:
-                await context.close()
-            except Exception:
-                pass
+            result["details"] = f"Session check error for {platform}: {e}"
+        finally:
+            if context:
+                try:
+                    await context.close()
+                except Exception:
+                    pass
+                context = None
 
     return result
 
