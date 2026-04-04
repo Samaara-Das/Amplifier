@@ -1,7 +1,7 @@
 {
   "platform": "facebook",
   "action": "post",
-  "version": "2026.04.03",
+  "version": "2026.04.04",
   "home_url": "https://www.facebook.com/",
   "variables_required": ["text"],
   "steps": [
@@ -83,17 +83,18 @@
     },
     {
       "id": "click_post",
-      "type": "click",
+      "type": "dispatch_event",
+      "text": "click",
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
-          { "by": "aria-label", "value": "Post" },
           { "by": "css", "value": "[aria-label='Post']" },
+          { "by": "css", "value": "div[aria-label='Post']" },
           { "by": "text", "value": "Post" }
         ]
       },
       "delay_before_ms": { "min": 800, "max": 2000 },
-      "description": "Click Post button"
+      "description": "Dispatch click on Post button (overlay div intercepts normal clicks)"
     },
     {
       "id": "wait_post_process",
@@ -111,12 +112,27 @@
     {
       "id": "wait_profile",
       "type": "wait",
-      "timeout_ms": 2000
+      "timeout_ms": 3000
     },
     {
-      "id": "extract_url",
+      "id": "extract_url_permalink",
       "type": "extract_url",
-      "description": "Use profile page URL as post reference (Facebook doesn't expose post permalinks easily)"
+      "optional": true,
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "a[href*='/posts/']" },
+          { "by": "css", "value": "a[href*='/permalink/']" },
+          { "by": "css", "value": "a[href*='story_fbid=']" }
+        ]
+      },
+      "timeout_ms": 5000,
+      "description": "Extract post permalink from profile feed (first match = most recent post)"
+    },
+    {
+      "id": "extract_url_fallback",
+      "type": "extract_url",
+      "description": "Fallback: use profile page URL if permalink extraction failed"
     },
     {
       "id": "post_browse",

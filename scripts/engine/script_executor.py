@@ -69,6 +69,12 @@ class ScriptExecutor:
             result = await self._run_step_with_recovery(step, script)
             self._log.append(result)
             if not result.success:
+                if step.optional:
+                    logger.warning(
+                        "Optional step %s failed (%s), continuing",
+                        step.id, result.message,
+                    )
+                    continue
                 return ExecutionResult(
                     success=False,
                     platform=script.platform,
@@ -184,13 +190,21 @@ class ScriptExecutor:
             logger.info("Step %s: text is empty, skipping", step.id)
             return
 
-        locator = await selector_chain.find_element(
-            self.page, step.target, timeout_ms=step.timeout_ms or 5000
-        )
-        logger.info("Step %s: typing %d chars", step.id, len(text))
-        await human_timing.type_text_in_locator(
-            self.page, locator, text, step.typing_speed
-        )
+        if step.target:
+            locator = await selector_chain.find_element(
+                self.page, step.target, timeout_ms=step.timeout_ms or 5000
+            )
+            logger.info("Step %s: typing %d chars", step.id, len(text))
+            await human_timing.type_text_in_locator(
+                self.page, locator, text, step.typing_speed
+            )
+        else:
+            # No target — type via keyboard (for shadow DOM where element is pre-focused)
+            delay_ms = 30
+            if step.typing_speed:
+                delay_ms = (step.typing_speed.min + step.typing_speed.max) // 2
+            logger.info("Step %s: typing %d chars via keyboard", step.id, len(text))
+            await self.page.keyboard.type(text, delay=delay_ms)
 
     async def _handle_file_upload(self, step: ScriptStep) -> None:
         file_path = self._resolve(step.file_path or "")
@@ -313,16 +327,26 @@ class ScriptExecutor:
             if locator:
                 href = await locator.get_attribute("href")
                 if href:
-                    url = href if href.startswith("http") else f"https://{href.lstrip('/')}"
+                    if href.startswith("http"):
+                        url = href
+                    elif href.startswith("/"):
+                        from urllib.parse import urlparse
+                        parsed = urlparse(self.page.url)
+                        url = f"{parsed.scheme}://{parsed.netloc}{href}"
+                    else:
+                        url = f"https://{href}"
                     self.post_url = url
                     self.variables["post_url"] = url
                     logger.info("Step %s: extracted URL %s", step.id, url)
                     return
 
-        # Fallback: use current page URL
-        self.post_url = self.page.url
-        self.variables["post_url"] = self.page.url
-        logger.info("Step %s: using page URL %s", step.id, self.page.url)
+        # Fallback: use current page URL only if no URL was captured yet
+        if not self.post_url:
+            self.post_url = self.page.url
+            self.variables["post_url"] = self.page.url
+            logger.info("Step %s: using page URL %s", step.id, self.page.url)
+        else:
+            logger.info("Step %s: keeping previously captured URL %s", step.id, self.post_url)
 
     async def _handle_browse_feed(self, step: ScriptStep) -> None:
         """Simulate brief feed browsing."""

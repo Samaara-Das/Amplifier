@@ -1,7 +1,7 @@
 {
   "platform": "reddit",
   "action": "post",
-  "version": "2026.04.03",
+  "version": "2026.04.04",
   "home_url": "https://www.reddit.com/",
   "variables_required": ["title"],
   "steps": [
@@ -29,31 +29,6 @@
       "id": "wait_submit_page",
       "type": "wait",
       "timeout_ms": 2000
-    },
-    {
-      "id": "switch_to_image_tab",
-      "type": "click",
-      "target": {
-        "strategy": "fallback_chain",
-        "selectors": [
-          { "by": "text", "value": "Images & Video" },
-          { "by": "css", "value": "button:has-text('Images & Video')" },
-          { "by": "css", "value": "button:has-text('Image')" }
-        ]
-      },
-      "delay_before_ms": { "min": 500, "max": 1500 },
-      "description": "Switch to Images & Video tab (only for image posts — skipped for text-only)"
-    },
-    {
-      "id": "wait_tab_switch",
-      "type": "wait",
-      "timeout_ms": 1500
-    },
-    {
-      "id": "upload_image",
-      "type": "evaluate",
-      "js_code": "async () => { const btn = document.querySelector('button'); const uploadBtns = [...document.querySelectorAll('button')].filter(b => b.textContent.includes('Upload')); return uploadBtns.length > 0 ? 'found' : 'not_found'; }",
-      "description": "Check for upload button (image upload handled by file_chooser step)"
     },
     {
       "id": "fill_title",
@@ -86,22 +61,15 @@
     {
       "id": "type_body",
       "type": "text_input",
-      "target": {
-        "strategy": "fallback_chain",
-        "selectors": [
-          { "by": "css", "value": "[role='textbox'][name='body']" },
-          { "by": "css", "value": "[contenteditable='true'][data-lexical-editor='true']" },
-          { "by": "css", "value": "[role='textbox']" }
-        ]
-      },
       "text": "{{body}}",
       "typing_speed": { "min": 20, "max": 50 },
       "delay_after_ms": { "min": 1000, "max": 3000 },
-      "description": "Type post body (skipped if empty)"
+      "description": "Type body via keyboard (element pre-focused by focus_body_editor JS)"
     },
     {
       "id": "click_post",
       "type": "click",
+      "force": true,
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
@@ -114,15 +82,46 @@
       "description": "Click Post button"
     },
     {
-      "id": "wait_for_redirect",
-      "type": "wait",
-      "timeout_ms": 10000,
-      "description": "Wait for redirect to /submitted/?created=t3_XXXXX"
+      "id": "poll_redirect_url",
+      "type": "evaluate",
+      "optional": true,
+      "js_code": "() => { return new Promise((resolve) => { let attempts = 0; const maxAttempts = 15; const check = () => { if (window.location.href.includes('/comments/')) { resolve(window.location.href); } else if (++attempts >= maxAttempts) { resolve('no_redirect'); } else { setTimeout(check, 1000); } }; check(); }); }",
+      "timeout_ms": 20000,
+      "description": "Poll page URL for up to 15s waiting for redirect to /comments/ URL"
     },
     {
-      "id": "extract_url",
+      "id": "extract_url_redirect",
       "type": "extract_url",
-      "description": "Extract post URL from page URL or redirect parameters"
+      "optional": true,
+      "timeout_ms": 2000,
+      "description": "Extract URL from page after redirect (should contain /comments/ if redirect succeeded)"
+    },
+    {
+      "id": "go_to_submitted",
+      "type": "goto",
+      "optional": true,
+      "url": "https://www.reddit.com/user/{{reddit_username}}/submitted/",
+      "wait_for": { "selector": "[role='main']", "timeout_ms": 15000 },
+      "description": "Fallback: navigate to user's submitted posts page"
+    },
+    {
+      "id": "wait_submitted_load",
+      "type": "wait",
+      "timeout_ms": 3000
+    },
+    {
+      "id": "extract_url_submitted",
+      "type": "extract_url",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "a[href*='/comments/']" },
+          { "by": "css", "value": "shreddit-post a[slot='full-post-link']" },
+          { "by": "css", "value": "a[data-click-id='body']" }
+        ]
+      },
+      "timeout_ms": 5000,
+      "description": "Extract URL from first post on submitted page (most recent = our post)"
     },
     {
       "id": "post_browse",

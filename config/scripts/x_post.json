@@ -107,27 +107,33 @@
       "description": "Capture state after posting"
     },
     {
-      "id": "wait_settle",
+      "id": "close_compose_overlay",
+      "type": "keyboard",
+      "key": "Escape",
+      "description": "Close compose overlay that intercepts pointer events"
+    },
+    {
+      "id": "wait_overlay_close",
       "type": "wait",
-      "timeout_ms": 3000
+      "timeout_ms": 2000
+    },
+    {
+      "id": "extract_username",
+      "type": "evaluate",
+      "js_code": "() => { const link = document.querySelector('a[data-testid=\"AppTabBar_Profile_Link\"]'); return link ? link.getAttribute('href').replace('/', '') : ''; }",
+      "description": "Extract username from profile sidebar link"
     },
     {
       "id": "go_to_profile",
-      "type": "click",
-      "target": {
-        "strategy": "fallback_chain",
-        "selectors": [
-          { "by": "css", "value": "a[data-testid='AppTabBar_Profile_Link']" },
-          { "by": "aria-label", "value": "Profile" }
-        ]
-      },
-      "delay_before_ms": { "min": 1000, "max": 2000 },
-      "description": "Navigate to profile to find posted tweet"
+      "type": "evaluate",
+      "js_code": "(_, username) => { if (username) window.location.href = 'https://x.com/' + username; return username; }",
+      "js_args": ["_result_extract_username"],
+      "description": "Navigate to profile page via JS (avoids overlay click interception)"
     },
     {
       "id": "wait_profile_load",
       "type": "wait",
-      "timeout_ms": 3000
+      "timeout_ms": 5000
     },
     {
       "id": "extract_post_url",

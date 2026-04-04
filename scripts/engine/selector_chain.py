@@ -45,7 +45,7 @@ def _selector_to_locator(page: Page, sel: Selector) -> Locator:
     elif by == "testid":
         return page.get_by_test_id(val)
     elif by == "aria_label" or by == "aria-label":
-        return page.get_by_label(val)
+        return page.locator(f'[aria-label="{val}"]')
     elif by == "xpath":
         return page.locator(f"xpath={val}")
     elif by == "placeholder":

@@ -1,7 +1,7 @@
 {
   "platform": "linkedin",
   "action": "post",
-  "version": "2026.04.03",
+  "version": "2026.04.04",
   "home_url": "https://www.linkedin.com/feed/",
   "variables_required": ["text"],
   "steps": [
@@ -83,21 +83,24 @@
     },
     {
       "id": "click_post",
-      "type": "click",
+      "type": "dispatch_event",
+      "text": "click",
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
-          { "by": "role", "value": "button:Post" },
           { "by": "css", "value": "button.share-actions__primary-action" },
-          { "by": "text", "value": "Post" }
+          { "by": "css", "value": ".share-box_actions button:has-text('Post')" },
+          { "by": "css", "value": "footer button:has-text('Post')" },
+          { "by": "css", "value": "[role='dialog'] button:has-text('Post')" }
         ]
       },
       "delay_before_ms": { "min": 800, "max": 2000 },
-      "description": "Click Post button"
+      "description": "Dispatch click on Post button (overlay #interop-outlet intercepts normal clicks)"
     },
     {
       "id": "extract_url_dialog",
       "type": "extract_url",
+      "optional": true,
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
@@ -105,12 +108,13 @@
           { "by": "text", "value": "View post" }
         ]
       },
-      "timeout_ms": 30000,
-      "description": "Extract URL from success dialog 'View post' link"
+      "timeout_ms": 15000,
+      "description": "Try to extract URL from success dialog (optional — may not appear for text-only posts)"
     },
     {
       "id": "dismiss_dialog",
       "type": "click",
+      "optional": true,
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
@@ -120,7 +124,33 @@
         ]
       },
       "delay_before_ms": { "min": 500, "max": 1000 },
-      "description": "Dismiss success dialog (best effort)"
+      "description": "Dismiss success dialog (optional — may not appear)"
+    },
+    {
+      "id": "go_to_activity",
+      "type": "goto",
+      "url": "https://www.linkedin.com/in/me/recent-activity/all/",
+      "wait_for": { "selector": "main", "timeout_ms": 15000 },
+      "delay_before_ms": { "min": 1000, "max": 2000 },
+      "description": "Navigate to recent activity page for URL fallback"
+    },
+    {
+      "id": "wait_activity_load",
+      "type": "wait",
+      "timeout_ms": 3000
+    },
+    {
+      "id": "extract_url_activity",
+      "type": "extract_url",
+      "target": {
+        "strategy": "fallback_chain",
+        "selectors": [
+          { "by": "css", "value": "a[href*='/feed/update/']" },
+          { "by": "css", "value": "a[href*='/activity/']" }
+        ]
+      },
+      "timeout_ms": 5000,
+      "description": "Extract URL of most recent post from activity page"
     },
     {
       "id": "post_browse",

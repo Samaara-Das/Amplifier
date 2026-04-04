@@ -165,6 +165,7 @@ class ScriptStep:
 
     # Misc
     description: str | None = None
+    optional: bool = False  # If True, step failure is logged but doesn't abort execution
 
     @classmethod
     def from_raw(cls, raw: dict) -> ScriptStep:
@@ -190,6 +191,7 @@ class ScriptStep:
             force=raw.get("force", False),
             click_count=raw.get("click_count", 1),
             description=raw.get("description"),
+            optional=raw.get("optional", False),
         )
 
 
