@@ -1,10 +1,10 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-04 (Session 28)
+**Last Updated**: 2026-04-04 (Session 28-29)
 
 ## Current Task
 
-**Task #28 — Verify: Scheduled Posting** — COMPLETE. URL capture fixed on all 4 platforms. Reddit body/title split fixed. Moving to Task #29 (Metric Scraping).
+**Phase A+B COMPLETE.** Moving to Phase C (Schema Extensions) then Phase D (Tier 4 Features).
 
 ## Task Progress Summary
 
@@ -12,124 +12,109 @@
 |------|-------|-------|--------|
 | 1 Foundation | AI Wizard, Onboarding | #15-#18 | All done |
 | 2 Core Loop | Matching, Polling, Content Gen, Review | #19-#26 | All done |
-| 3 Delivery | Posting (#27-#28), Metrics (#29-#30) | **#27-#28 done, #29-#30 pending** |
-| 4 Money | Billing, Earnings, Stripe, Campaign Detail | #31-#38 | All pending |
-| 5 Support | System Tray, Dashboard Stats | #39-#42 | All pending |
-| 6 Admin | Overview, Users, Campaigns, Payouts | #43-#50 | All pending |
-| Future | AI scrapers, content gen, video gen, tiers | #51-#80 | All pending |
+| 3 Delivery | Posting, Metrics | #27-#34 | All done |
+| 4 Money | Stripe, Campaign Detail | #35-#38 | All done |
+| 5 Support | System Tray, Dashboard Stats | #39-#42 | Pending |
+| 6 Admin | Overview, Users, Campaigns, Payouts | #43-#50 | Pending |
+| Security | CSRF, Lockout, Reset, Encryption | #66-#76 | All done |
+| Future | AI scrapers, content gen, video gen | #51-#65 | Pending |
 
-**28 done, 0 in-progress, 52 pending. 80 total tasks.**
+**44 done, 0 in-progress, 36 pending. 80 total tasks.**
 
-## Session 28 — What Was Done
+## Session 28-29 — What Was Done
 
-### Task #28 Completed: URL Capture + Posting Fixes (3 commits)
+### Phase A Complete (Tasks #28-#38) — 7 commits
 
-**Commit `4e8c314` — URL capture on all 4 platforms:**
-- `script_parser.py`: Added `optional` field to `ScriptStep` — non-critical steps continue on failure
-- `script_executor.py`: Handle optional steps, resolve relative hrefs against page origin (X URL was missing `x.com`), preserve first captured URL across multiple extract_url steps
-- `selector_chain.py`: Fixed `aria-label` matching to use exact CSS `[aria-label="X"]` instead of `page.get_by_label("X")` which was substring matching (Facebook "Post" matched "Create a post")
-- `text_input` handler: Falls back to `page.keyboard.type()` when no target selector (for shadow DOM)
-- LinkedIn script: `dispatch_event` for Post button (overlay `#interop-outlet` intercepts), dialog extract optional + activity page fallback
-- Facebook script: `dispatch_event` for Post button, permalink selectors (`a[href*="/posts/"]`, `a[href*="/permalink/"]`)
-- Reddit script: Removed image tab switch (broke text posts), keyboard body typing
-- X script: Escape to close compose overlay, JS navigation to profile (avoid `#layers` overlay click interception)
-- `post.py`: Removed stale `Chrome/124` user_agent (caused LinkedIn session invalidation — mismatch with `login_setup.py`)
+**Task #28 — URL Capture (3 commits):**
+- Fixed all 4 platforms: X (relative href), LinkedIn (dispatch_event + activity page fallback), Facebook (permalink selectors), Reddit (legacy poster)
+- Added `optional` field to ScriptStep, fixed `aria-label` exact matching, Chrome/137 UA consistency
+- Reddit body/title fix: click `#post-composer_bodytext` directly (JS focus didn't transfer keyboard focus)
 
-**Commit `e72f11a` — Reddit body/title fix (Tab approach, later replaced):**
-- JS `editor.focus()` in shadow DOM didn't transfer keyboard focus — body text typed into title field
-- Initial fix: Tab key from title to body (replaced in next commit)
+**Tasks #29-#32 — Metrics + Billing:**
+- All 4 platform scrapers verified (X aria-labels, LinkedIn body text, Reddit shreddit-post attrs, Facebook selectors)
+- Fixed metric scraper: Chrome/137 UA, headless=false default
+- Fixed post sync: assignment_id resolved from local_campaign (was hardcoded 0, server silently skipped all posts)
+- Fixed server_post_id mapping back to local posts after sync
+- Fixed CPM multiplier bug: `get_cpm_multiplier()` now called in billing cycle (amplifier tier 2x verified)
+- E2E billing verified: 1000 imp + 10 likes → seedling $4.80, amplifier $9.60
 
-**Commit `2bf0264` — Reddit body, Post button, user agent:**
-- Body text: Click `#post-composer_bodytext` directly (Tab didn't work with Lexical editor)
-- User agent: Added consistent `Chrome/137.0.0.0` to both `login_setup.py` AND `post.py` (Playwright default `HeadlessChrome/143` triggers Reddit network security block)
-- Reddit JSON script Post button: `dispatch_event` doesn't trigger shadow DOM components — legacy poster handles Reddit posting for now
+**Tasks #33-#34 — Earnings:**
+- Server earnings API verified ($14.40 total, per-campaign/platform breakdown)
+- Dashboard card fixed to use server API instead of empty local_earning table
 
-### Verified URL Capture Results
-| Platform | URL Format | Method |
-|----------|-----------|--------|
-| X | `https://x.com/SamaaraDas/status/{id}` | JSON script — Escape overlay → JS navigate to profile → extract `a[href*="/status/"]` |
-| LinkedIn | `https://www.linkedin.com/feed/update/urn:li:share:{id}/` | JSON script — dispatch_event Post → extract from "View post" dialog → activity page fallback |
-| Facebook | `https://www.facebook.com/permalink.php?story_fbid={id}` | JSON script — dispatch_event Post → extract `a[href*="/permalink/"]` from profile |
-| Reddit | `https://www.reddit.com/user/{user}/comments/{id}/` | Legacy poster — redirect URL capture with `?created=t3_` parsing |
+**Tasks #35-#38 — Stripe + Campaign Detail:**
+- Stripe test mode verified ($0→$50 instant credit)
+- Campaign detail API returns correct data (budget, remaining, status)
 
-### Other Fixes
-- **Server auth re-registered**: Old token expired (March 28). New account: `amplifier.test@gmail.com` / `Amplifier2026!` on deployed server
-- **Stripe account note**: Father's company has existing Stripe account — use for Amplifier (saved to REMAINING-WORK.md + memory)
+### Phase B Complete (Tasks #66-#76) — 6 commits
 
-### Bugs Discovered & Fixed
-1. **X URL missing domain**: `href="/SamaaraDas/status/..."` → `https://SamaaraDas/status/...` (missing `x.com`). Fixed: resolve relative URLs against `page.url` origin
-2. **Facebook wrong button**: `get_by_label("Post")` matched `aria-label="Create a post"` (substring). Fixed: exact CSS `[aria-label="Post"]`
-3. **LinkedIn session killed**: Stale `Chrome/124` user agent in `post.py` but no UA in `login_setup.py`. LinkedIn detected mismatch, invalidated session. Fixed: matching UA in both files
-4. **Reddit HeadlessChrome blocked**: Default Playwright UA includes "HeadlessChrome" → Reddit security block. Fixed: explicit `Chrome/137` UA
-5. **Reddit body in title**: JS `editor.focus()` doesn't transfer keyboard focus from title textarea in shadow DOM. Fixed: click `#post-composer_bodytext` directly
-6. **Reddit image tab breaks text posts**: Switching to Images tab for text-only posts disables Post button. Fixed: removed image tab steps from script
-7. **X compose overlay blocks profile click**: After Ctrl+Enter submit, `#layers` overlay intercepts clicks. Fixed: Escape key + JS navigation
+- **#72 CSRF**: Flask-WTF CSRFProtect + auto-inject via base.html JS
+- **#66 X lockout**: Lockout indicators + check before auth/login in session_health.py
+- **#67 Session health**: Retry logic, posting success shortcut (skip browser if posted < 24h), Chrome/137 UA
+- **#70 Draft count**: Filter by last 24h (was showing all-time stale drafts)
+- **#71 Password reset**: POST /api/auth/reset-password for users + companies
+- **#73 Encrypt auth**: Already implemented — re-encrypted current token
+- **#74 Campaign search**: Search bar on campaigns page, defaults to Active tab when searching
+- **#75 Draft UX**: Already implemented — char counts with platform limits
+- **FTC disclosure**: Already implemented — `_append_ftc_disclosure()` with X 280-char handling
+
+### Bug Fixes
+- Reddit 335 impressions on all posts: generic `/comments/` URLs (no post ID) → scraper visited same listing page. Fixed: filter out generic URLs from scraping
+- Facebook profile.php URLs excluded from scraping (not real post permalinks)
+- Cleaned up 23 incorrect metrics from generic URLs
+- Campaign search redirected to Invitations tab. Fixed: default to Active tab when `?q=` present
+
+### Server Auth Restored
+- Old user password found: `dassamaara@gmail.com` / `1304sammy#` (user ID 15)
+- 46 posts synced to deployed server with server_post_ids mapped back
+- Secondary test account: `amplifier.test@gmail.com` / `Amplifier2026!` (user ID 16, no assignments)
 
 ### Key Decisions
-- Reddit JSON script Post button not working (shadow DOM `dispatch_event` doesn't trigger) — using legacy poster for Reddit until fixed
-- Consistent user agent between login_setup.py and post.py is critical — session invalidation otherwise
-- `dispatch_event("click")` is the standard approach for overlay-intercepted buttons (X, LinkedIn, Facebook)
-- `optional` field on ScriptStep is the mechanism for graceful fallback chains
+- Use Chrome DevTools MCP for self-verification of UI changes
+- Rate limiting deferred to Phase G (Vercel has built-in DDoS protection)
+- Invitation UX (#76) deferred to Phase F (low-priority polish)
+- Reddit JSON script Post button still not working — using legacy poster
 
-## How to Start Next Session
+## What's Next: Phase C (Schema Extensions)
 
-**Phase A continues with Task #29 (Metric Scraping)**. Read `docs/REMAINING-WORK.md` for Task #29-30 specs.
+Per `docs/EXECUTION-ORDER.md`, Phase C is a one-day migration pass before Phase D features. Add all schema fields at once to avoid repeated ALTER TABLEs.
 
-The posting pipeline now works E2E on all 4 platforms with real URL capture. Metric scraping can verify against these real URLs.
+### Server Models (one migration):
+- Campaign: `campaign_goal`, `campaign_type`, `tone`, `preferred_formats`, `disclaimer_text`
+- User: `zip_code`, `state`, `political_campaigns_enabled`, `subscription_tier`
 
-## Remaining Blockers (Priority Order)
-1. ~~Posting URL capture broken~~ FIXED
-2. ~~Reddit body/title split~~ FIXED
-3. Metric scraping unverified E2E (Tasks #29-30) — NEXT
-4. Billing unverified E2E — plus `get_cpm_multiplier()` bug (Tasks #31-32)
-5. X account detection risk (locked during testing)
-6. Real Stripe payments (father's company Stripe account available)
-7. FTC disclosure not in content generator
-8. Distribution — no installable app yet
+### Local DB:
+- agent_draft: `format_type`, `variant_id`
+- local_campaign: `campaign_type`, `campaign_goal`, `tone` (disclaimer_text already added)
+- New table: `campaign_posts` (for repost campaigns)
+
+### Then Phase D (largest block):
+#68 Repost campaigns → #51/#59 AI profile scraping → #58 Quality gate → #52/#63 4-phase content agent → #64 All content formats → #65 Preview UI → #61 Self-learning → #62 Free/paid tiers → Political
 
 ## Key Reference Files
 
 ### Implementation Planning
-- `docs/REMAINING-WORK.md` — 58 tasks with implementation + verification specs
-- `docs/EXECUTION-ORDER.md` — 7 phases, dependency chains, gate criteria
-- `docs/SCHEMA-CHANGES.md` — All DB migrations in one manifest
-- `docs/FILE-CHANGE-INDEX.md` — File-to-task mapping + conflict map
+- `docs/REMAINING-WORK.md` — Task specs
+- `docs/EXECUTION-ORDER.md` — Phase ordering
+- `docs/SCHEMA-CHANGES.md` — All DB field additions
+- `docs/FILE-CHANGE-INDEX.md` — File-to-task mapping
 
-### Core Code (Posting Pipeline)
-- `scripts/post.py` — Posting orchestrator (script-first, legacy fallback). Line 174 `post_via_script()`, line 128 `_launch_context()`
-- `scripts/engine/script_executor.py` — 13 action types + optional step handling
-- `scripts/engine/script_parser.py` — `ScriptStep` dataclass with `optional` field
-- `scripts/engine/selector_chain.py` — Fallback selector chains, `aria-label` exact match
-- `config/scripts/` — Platform JSON scripts (x, linkedin, facebook, reddit)
-- `scripts/login_setup.py` — Manual login with matching Chrome/137 UA
-- `scripts/background_agent.py` — 6 async tasks, posts every 60s
-- `scripts/utils/post_scheduler.py` — `execute_scheduled_post()` line 374
-
-### Metric Scraping (Next Task)
-- `scripts/utils/metric_scraper.py` — Per-platform scrapers + tier schedule
-- `scripts/utils/metric_collector.py` — X/Reddit API + LinkedIn/Facebook Browser Use
-- `scripts/utils/local_db.py` — `local_metric` table, `add_metric()`, `sync_metrics_to_server()`
-- `server/app/services/billing.py` — `run_billing_cycle()` reads metrics
-
-### Server
-- `server/app/services/billing.py` — Cents math, hold periods, tier promotion. BUG: `get_cpm_multiplier()` exists but never called
-- `scripts/utils/server_client.py` — Auth file at `config/server_auth.json`
+### Core Code
+- `scripts/post.py` — Posting orchestrator
+- `scripts/engine/` — JSON posting engine
+- `scripts/utils/metric_scraper.py` — Per-platform scrapers
+- `scripts/utils/content_generator.py` — AI content gen + FTC disclosure
+- `scripts/utils/local_db.py` — Local SQLite (13 tables)
+- `scripts/utils/server_client.py` — Server API client (encrypted auth)
+- `server/app/services/billing.py` — Billing with CPM multiplier fix
+- `server/app/routers/auth.py` — Auth + password reset
 
 ## Deployed URLs
 - **Company**: https://server-five-omega-23.vercel.app/company/login
-- **Admin**: https://server-five-omega-23.vercel.app/admin/login (password: admin)
+- **Admin**: https://server-five-omega-23.vercel.app/admin/login
 - **User App**: http://localhost:5222
-- **GitHub**: https://github.com/Samaara-Das/Amplifier (private)
-
-## Test Commands
-```bash
-python scripts/user_app.py
-cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-python scripts/login_setup.py <platform>   # x | linkedin | facebook | reddit
-vercel deploy --yes --prod --cwd server
-```
 
 ## Server Auth
-- Email: `amplifier.test@gmail.com`
-- Password: `Amplifier2026!`
-- Auth file: `config/server_auth.json`
+- Primary: `dassamaara@gmail.com` / `1304sammy#` (ID 15)
+- Test: `amplifier.test@gmail.com` / `Amplifier2026!` (ID 16)
+- Auth file: `config/server_auth.json` (encrypted)
