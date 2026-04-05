@@ -706,10 +706,44 @@ When a campaign fails, return specific, actionable feedback per criterion:
 }
 ```
 
+### Two-Layer Scoring: Mechanical Rubric + AI Review
+
+**Layer 1 — Mechanical rubric (instant, no API call):** The 8-criterion scoring table above. Fast, deterministic, catches obvious gaps.
+
+**Layer 2 — AI review (server-side Gemini call):** After the rubric passes (score >= 85), run a Gemini AI review that catches what rules can't. Uses the **server's API keys** (not user's). Low volume — only runs on campaign activation, not per-post.
+
+**AI review prompt:**
+```
+Review this campaign for quality and safety before it goes live to creators.
+
+Campaign title: {title}
+Brief: {brief}
+Content guidance: {guidance}
+Payout rates: {rates}
+Targeting: {targeting}
+
+Check for:
+1. Is the brief coherent and specific? Or is it vague filler text?
+2. Are the payout rates competitive for this niche? (e.g., finance campaigns should pay more than lifestyle)
+3. Does the content guidance contain anything harmful? (attacking competitors, misleading claims, asking for fake reviews)
+4. Does the targeting make sense for the product? (finance product targeting fashion niche = mismatch)
+5. Is this a legitimate product or does it look like a scam/spam?
+
+Return JSON:
+{
+  "ai_passed": true/false,
+  "concerns": ["concern 1", "concern 2"],
+  "niche_rate_assessment": "competitive" | "below_average" | "too_low",
+  "brand_safety": "safe" | "caution" | "reject"
+}
+```
+
+**If AI review returns `ai_passed: false` or `brand_safety: "reject"`**, block activation with the AI's concerns as feedback. If `brand_safety: "caution"`, flag for admin review but allow activation.
+
 ### When It Runs
 
-1. **On activation attempt** — company clicks "Activate" or changes status to `active`
-2. **On campaign detail page** — show current score and feedback as a pre-flight check (informational, not blocking)
+1. **On activation attempt** — company clicks "Activate" or changes status to `active`. Run mechanical rubric first (instant). If passes, run AI review (1-2 second API call).
+2. **On campaign detail page** — show current score and feedback as a pre-flight check (mechanical rubric only — informational, not blocking)
 3. **After AI wizard generates** — score the wizard output and warn if low
 
 ### Special Cases
