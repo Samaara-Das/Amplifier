@@ -11,11 +11,13 @@ from pathlib import Path
 from flask import (
     Flask,
     Response,
+    abort,
     flash,
     jsonify,
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -1117,6 +1119,19 @@ def _schedule_draft(draft: dict):
 
 
 # ── Draft routes (daily content) ─────────────────────────────────
+
+
+@app.route("/drafts/<int:draft_id>/image")
+def draft_image(draft_id):
+    """Serve a draft's generated image from the local filesystem."""
+    from pathlib import Path
+    from utils.local_db import get_draft
+    draft = get_draft(draft_id)
+    if draft and draft.get("image_path"):
+        img_path = Path(draft["image_path"])
+        if img_path.exists():
+            return send_file(str(img_path))
+    abort(404)
 
 
 @app.route("/drafts/<int:draft_id>/approve", methods=["POST"])

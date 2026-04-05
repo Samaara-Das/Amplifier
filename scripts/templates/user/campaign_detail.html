@@ -1,6 +1,49 @@
 {% extends "user/base.html" %}
 
 {% block content %}
+<style>
+/* Platform preview mockups */
+.platform-preview { border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin-bottom: 8px; background: #fff; max-width: 520px; }
+.platform-preview .pv-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.platform-preview .pv-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; }
+.platform-preview .pv-name { font-weight: 700; font-size: 15px; color: #0f1419; }
+.platform-preview .pv-name .pv-handle { font-weight: 400; color: #536471; font-size: 14px; }
+.platform-preview .pv-time { font-size: 13px; color: #536471; }
+.platform-preview .pv-body { margin-bottom: 12px; word-break: break-word; }
+.platform-preview .pv-image { width: 100%; border-radius: 12px; margin-bottom: 12px; max-height: 280px; object-fit: cover; }
+.platform-preview .pv-actions { display: flex; gap: 24px; color: #536471; font-size: 13px; font-weight: 600; }
+.platform-preview .pv-action { display: flex; align-items: center; gap: 4px; cursor: default; }
+.platform-preview .pv-charcount { margin-top: 8px; font-size: 12px; color: #536471; text-align: right; }
+.platform-preview .pv-charcount.over { color: #e0245e; font-weight: 700; }
+
+/* X dark card */
+.preview-x { background: #000; border-color: #2f3336; }
+.preview-x .pv-name { color: #e7e9ea; }
+.preview-x .pv-name .pv-handle { color: #71767b; }
+.preview-x .pv-time { color: #71767b; }
+.preview-x .pv-body { color: #e7e9ea; }
+.preview-x .pv-charcount { color: #71767b; }
+.preview-x .pv-charcount.over { color: #f4212e; }
+
+/* LinkedIn white card */
+.preview-linkedin { background: #fff; border-color: #e0e0e0; }
+.preview-linkedin .pv-name { color: #000; font-size: 14px; }
+.preview-linkedin .pv-time { color: #666; font-size: 12px; }
+.preview-linkedin .pv-body { color: #000; }
+.preview-linkedin .pv-actions { color: #666; }
+
+/* Facebook white card */
+.preview-facebook { background: #fff; border-color: #e0e0e0; }
+.preview-facebook .pv-name { color: #050505; font-size: 15px; }
+.preview-facebook .pv-time { color: #65676B; font-size: 13px; }
+.preview-facebook .pv-body { color: #050505; }
+.preview-facebook .pv-actions { color: #65676B; }
+
+/* Reddit card */
+.preview-reddit { display: flex; gap: 8px; padding: 8px; background: #fff; }
+.preview-reddit .pv-reddit-votes { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
+.preview-reddit .pv-reddit-content { flex: 1; }
+</style>
 <div id="page-campaign-detail" class="page active">
   <!-- Back link -->
   <div style="margin-bottom: 16px;">
@@ -196,24 +239,106 @@
                     <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('draft-form-{{ draft['id'] }}').submit();">Save Edit</button>
                   </div>
                 {% else %}
-                  {# Read-only draft (approved, rejected, or posted) #}
-                  {% if is_reddit_json %}
-                    <div class="content-preview" style="background: var(--bg-secondary); padding: 12px; border-radius: var(--radius);">
-                      <div id="reddit-display-{{ draft['id'] }}"></div>
-                      <script>
-                      (function(){
-                        try {
-                          var data = JSON.parse({{ raw_text|tojson }});
-                          var el = document.getElementById('reddit-display-{{ draft["id"] }}');
-                          el.innerHTML = '<div style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">' + (data.title||'').replace(/</g,'&lt;') + '</div>' +
-                            '<div style="font-size:14px; line-height:1.6; color:var(--text-primary); white-space:pre-wrap;">' + (data.body||'').replace(/</g,'&lt;') + '</div>';
-                        } catch(e) {
-                          document.getElementById('reddit-display-{{ draft["id"] }}').textContent = {{ raw_text|tojson }};
-                        }
-                      })();
-                      </script>
+                  {# Read-only draft — platform-specific visual preview #}
+                  {% if platform == 'x' %}
+                    {# X (Twitter) tweet card mockup #}
+                    <div class="platform-preview preview-x">
+                      <div class="pv-header">
+                        <div class="pv-avatar" style="background:#1DA1F2;"></div>
+                        <div>
+                          <div class="pv-name">You <span class="pv-handle">@yourhandle</span></div>
+                          <div class="pv-time">Just now</div>
+                        </div>
+                      </div>
+                      <div class="pv-body" style="font-size:15px; line-height:1.4;">{{ raw_text }}</div>
+                      {% if draft.get('image_path') %}
+                        <img src="{{ url_for('draft_image', draft_id=draft['id']) }}" class="pv-image" alt="Post image" />
+                      {% endif %}
+                      <div class="pv-actions">
+                        <span class="pv-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+                        <span class="pv-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+                        <span class="pv-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+                        <span class="pv-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+                      </div>
+                      <div class="pv-charcount {% if raw_text|length > 280 %}over{% endif %}">{{ raw_text|length }}/280</div>
                     </div>
+
+                  {% elif platform == 'linkedin' %}
+                    {# LinkedIn post card mockup #}
+                    <div class="platform-preview preview-linkedin">
+                      <div class="pv-header">
+                        <div class="pv-avatar" style="background:#0A66C2;"></div>
+                        <div>
+                          <div class="pv-name">You</div>
+                          <div class="pv-time">1st &middot; Just now</div>
+                        </div>
+                      </div>
+                      <div class="pv-body" style="font-size:14px; line-height:1.5; white-space:pre-wrap;">{{ raw_text[:300] }}{% if raw_text|length > 300 %}<span style="color:#0A66C2; cursor:pointer;"> ...see more</span>{% endif %}</div>
+                      {% if draft.get('image_path') %}
+                        <img src="{{ url_for('draft_image', draft_id=draft['id']) }}" class="pv-image" alt="Post image" />
+                      {% endif %}
+                      <div class="pv-actions" style="border-top:1px solid #e0e0e0; margin-top:12px; padding-top:8px;">
+                        <span class="pv-action">Like</span>
+                        <span class="pv-action">Comment</span>
+                        <span class="pv-action">Repost</span>
+                        <span class="pv-action">Send</span>
+                      </div>
+                      <div class="pv-charcount {% if raw_text|length > 3000 %}over{% endif %}">{{ raw_text|length }}/3,000</div>
+                    </div>
+
+                  {% elif platform == 'facebook' %}
+                    {# Facebook post card mockup #}
+                    <div class="platform-preview preview-facebook">
+                      <div class="pv-header">
+                        <div class="pv-avatar" style="background:#1877F2;"></div>
+                        <div>
+                          <div class="pv-name">You</div>
+                          <div class="pv-time">Just now &middot; <svg width="12" height="12" viewBox="0 0 24 24" fill="#65676B"><circle cx="12" cy="12" r="10"/></svg></div>
+                        </div>
+                      </div>
+                      <div class="pv-body" style="font-size:15px; line-height:1.5; white-space:pre-wrap;">{{ raw_text }}</div>
+                      {% if draft.get('image_path') %}
+                        <img src="{{ url_for('draft_image', draft_id=draft['id']) }}" class="pv-image" alt="Post image" />
+                      {% endif %}
+                      <div class="pv-actions" style="border-top:1px solid #e0e0e0; margin-top:12px; padding-top:8px;">
+                        <span class="pv-action">Like</span>
+                        <span class="pv-action">Comment</span>
+                        <span class="pv-action">Share</span>
+                      </div>
+                    </div>
+
+                  {% elif is_reddit_json %}
+                    {# Reddit post card mockup #}
+                    <div class="platform-preview preview-reddit">
+                      <div class="pv-reddit-votes">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#878A8C" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                        <span style="font-weight:700; color:#1A1A1B; font-size:12px;">Vote</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#878A8C" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                      </div>
+                      <div class="pv-reddit-content">
+                        <div id="reddit-display-{{ draft['id'] }}"></div>
+                        <script>
+                        (function(){
+                          try {
+                            var data = JSON.parse({{ raw_text|tojson }});
+                            var el = document.getElementById('reddit-display-{{ draft["id"] }}');
+                            el.innerHTML = '<div style="font-size:18px; font-weight:600; color:#1A1A1B; margin-bottom:8px; line-height:1.3;">' + (data.title||'').replace(/</g,'&lt;') + '</div>' +
+                              '<div style="font-size:14px; line-height:1.6; color:#1A1A1B; white-space:pre-wrap;">' + (data.body||'').replace(/</g,'&lt;') + '</div>';
+                          } catch(e) {
+                            document.getElementById('reddit-display-{{ draft["id"] }}').textContent = {{ raw_text|tojson }};
+                          }
+                        })();
+                        </script>
+                        <div class="pv-actions" style="margin-top:8px;">
+                          <span class="pv-action" style="font-size:12px; color:#878A8C;">Comments</span>
+                          <span class="pv-action" style="font-size:12px; color:#878A8C;">Share</span>
+                          <span class="pv-action" style="font-size:12px; color:#878A8C;">Save</span>
+                        </div>
+                      </div>
+                    </div>
+
                   {% else %}
+                    {# Fallback: plain text #}
                     <div class="content-preview" style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--text-primary); background: var(--bg-secondary); padding: 12px; border-radius: var(--radius);">{{ raw_text }}</div>
                   {% endif %}
                   <div style="margin-top: 8px;">
