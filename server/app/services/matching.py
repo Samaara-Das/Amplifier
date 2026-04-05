@@ -202,6 +202,24 @@ def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
                 pd = profile_data["personal_details"]
                 section += f"\nPersonal details: {_json.dumps(pd, default=str)[:300]}"
 
+            # AI-enriched fields (from Gemini Vision profile scraping)
+            if profile_data.get("content_quality"):
+                section += f"\nAI-assessed content quality: {profile_data['content_quality']}"
+            if profile_data.get("audience_demographics_estimate"):
+                demo = profile_data["audience_demographics_estimate"]
+                section += f"\nEstimated audience demographics: {_json.dumps(demo, default=str)[:300]}"
+
+        # AI-detected niches (stored at top level in scraped data)
+        ai_niches = data.get("ai_detected_niches") or data.get("ai_niches")
+        if ai_niches:
+            if isinstance(ai_niches, str):
+                try:
+                    ai_niches = _json.loads(ai_niches)
+                except (ValueError, TypeError):
+                    ai_niches = []
+            if ai_niches:
+                section += f"\nAI-detected content niches: {ai_niches}"
+
         profile_sections.append(section)
 
     creator_profile = "\n".join(profile_sections) if profile_sections else "No scraped profile data available"

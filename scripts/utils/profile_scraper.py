@@ -210,6 +210,17 @@ async def scrape_x_profile(playwright) -> dict:
 
         await page.wait_for_timeout(3000)
 
+        # ── Try AI Vision extraction first ──
+        try:
+            from utils.ai_profile_scraper import ai_scrape_profile
+            ai_result = await ai_scrape_profile("x", page)
+            if ai_result and ai_result.get("follower_count", 0) > 0:
+                logger.info("X: AI extraction succeeded, skipping CSS selectors")
+                await context.close()
+                return ai_result
+        except Exception as e:
+            logger.warning("X: AI scraping failed, falling back to CSS selectors: %s", e)
+
         # Extract display name
         name_el = page.locator(X_DISPLAY_NAME)
         name_text = await _safe_text(name_el)
@@ -605,6 +616,17 @@ async def scrape_linkedin_profile(playwright) -> dict:
         await page.goto(LI_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
+        # ── Try AI Vision extraction first ──
+        try:
+            from utils.ai_profile_scraper import ai_scrape_profile
+            ai_result = await ai_scrape_profile("linkedin", page)
+            if ai_result and ai_result.get("follower_count", 0) > 0:
+                logger.info("LinkedIn: AI extraction succeeded, skipping CSS selectors")
+                await context.close()
+                return ai_result
+        except Exception as e:
+            logger.warning("LinkedIn: AI scraping failed, falling back to CSS selectors: %s", e)
+
         # Try CSS selectors first, then fall back to body text parsing.
         # LinkedIn frequently changes CSS classes, so body text is more reliable.
 
@@ -990,6 +1012,17 @@ async def scrape_facebook_profile(playwright) -> dict:
         await page.goto(FB_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
+        # ── Try AI Vision extraction first ──
+        try:
+            from utils.ai_profile_scraper import ai_scrape_profile
+            ai_result = await ai_scrape_profile("facebook", page)
+            if ai_result and ai_result.get("follower_count", 0) > 0:
+                logger.info("Facebook: AI extraction succeeded, skipping CSS selectors")
+                await context.close()
+                return ai_result
+        except Exception as e:
+            logger.warning("Facebook: AI scraping failed, falling back to CSS selectors: %s", e)
+
         # Extract display name — skip hidden h1 elements (e.g. "Notifications")
         h1_elements = page.locator('h1')
         h1_count = await h1_elements.count()
@@ -1299,6 +1332,19 @@ async def scrape_reddit_profile(playwright) -> dict:
         await page.goto(RD_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
+        # ── Try AI Vision extraction first ──
+        try:
+            from utils.ai_profile_scraper import ai_scrape_profile
+            ai_result = await ai_scrape_profile("reddit", page)
+            # Reddit may not show follower count — accept karma as a valid signal
+            karma = (ai_result or {}).get("profile_data", {}).get("karma", 0)
+            if ai_result and (ai_result.get("follower_count", 0) > 0 or karma > 0):
+                logger.info("Reddit: AI extraction succeeded, skipping CSS selectors")
+                await context.close()
+                return ai_result
+        except Exception as e:
+            logger.warning("Reddit: AI scraping failed, falling back to CSS selectors: %s", e)
+
         # Reddit may redirect to /user/{username}/ — read actual username from URL
         current_url = page.url
         logger.info("Reddit: landed on %s", current_url)
@@ -1509,14 +1555,33 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
                 # LinkedIn: about, experience, education
                 # Facebook: personal_details
                 # Reddit: karma, contributions, reddit_age, active_communities, cake_day
+                # AI extraction: profile_data dict, content_quality, audience_demographics_estimate
                 profile_data_dict = {}
+
+                # If AI extraction returned profile_data as a dict, merge it in
+                ai_profile_data = data.get("profile_data")
+                if isinstance(ai_profile_data, dict):
+                    profile_data_dict.update(ai_profile_data)
+
+                # Also pick up top-level extended keys (CSS scraper pattern)
                 for ext_key in ("about", "experience", "education",
                                 "personal_details",
                                 "karma", "contributions", "reddit_age", "active_communities", "cake_day",
                                 "profile_viewers", "post_impressions"):
                     if ext_key in data and data[ext_key]:
                         profile_data_dict[ext_key] = data[ext_key]
+
+                # Store AI-enriched fields in profile_data blob
+                if data.get("content_quality"):
+                    profile_data_dict["content_quality"] = data["content_quality"]
+                if data.get("audience_demographics_estimate"):
+                    profile_data_dict["audience_demographics_estimate"] = data["audience_demographics_estimate"]
+
                 profile_data_json = json.dumps(profile_data_dict) if profile_data_dict else None
+
+                # AI-detected niches: from AI extraction or empty
+                ai_niches = data.get("ai_detected_niches", [])
+                ai_niches_json = json.dumps(ai_niches) if ai_niches else "[]"
 
                 upsert_scraped_profile(
                     platform=platform,
@@ -1528,7 +1593,7 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
                     recent_posts=json.dumps(data.get("recent_posts", [])),
                     engagement_rate=data.get("engagement_rate", 0.0),
                     posting_frequency=data.get("posting_frequency", 0.0),
-                    ai_niches="[]",  # Filled later by AI niche classification
+                    ai_niches=ai_niches_json,
                     profile_data=profile_data_json,
                 )
                 logger.info(
@@ -1579,7 +1644,7 @@ def sync_profiles_to_server() -> dict | None:
         posting_frequencies[platform] = p.get("posting_frequency", 0.0)
 
         # Build scraped_profiles summary (no raw post content — stays local)
-        scraped_summary[platform] = {
+        summary = {
             "follower_count": p.get("follower_count", 0),
             "following_count": p.get("following_count", 0),
             "display_name": p.get("display_name"),
@@ -1588,6 +1653,28 @@ def sync_profiles_to_server() -> dict | None:
             "posting_frequency": p.get("posting_frequency", 0.0),
             "scraped_at": p.get("scraped_at"),
         }
+
+        # Include profile_data (extended fields + AI-enriched data) for server matching
+        profile_data_raw = p.get("profile_data")
+        if profile_data_raw:
+            try:
+                pd = json.loads(profile_data_raw) if isinstance(profile_data_raw, str) else profile_data_raw
+                if isinstance(pd, dict) and pd:
+                    summary["profile_data"] = pd
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Include AI-detected niches
+        ai_niches_raw = p.get("ai_niches")
+        if ai_niches_raw:
+            try:
+                niches = json.loads(ai_niches_raw) if isinstance(ai_niches_raw, str) else ai_niches_raw
+                if isinstance(niches, list) and niches:
+                    summary["ai_detected_niches"] = niches
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        scraped_summary[platform] = summary
 
     try:
         result = update_profile(
