@@ -179,35 +179,67 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 **Navigate to:** User's profile page (`https://www.facebook.com/me`)
 
+**Facebook profiles have tabs:** All (default), About, Friends, Photos, Reels, More ▼ (Check-ins, Likes). The "All" tab shows a personal details sidebar on the left and posts on the right.
+
+**Extraction flow:**
+1. Load profile (All tab) — extract header (name, friends count, subtitle, location) + personal details sidebar
+2. Scroll down on All tab — extract recent posts with engagement
+3. Click "About" tab — extract full personal details, work, education, contact info
+4. Click "Reels" tab — extract reel view counts (engagement signal)
+5. (Optional) Click "More → Likes" — extract pages/interests followed (helps with niche classification)
+
 **What to extract:**
 | Field | Where to find it | Example |
 |-------|-----------------|---------|
-| Display name | Large text at top | "Manjuz Editz" |
-| Bio/intro | "Intro" section on profile | Short text |
-| Friends count | Profile header or About section | "1,234 friends" |
-| Follower count | If separate from friends | "5,678 followers" |
-| Location (current city) | Intro section | "Lives in San Francisco" |
-| Hometown | Intro section | "From New York" |
-| Workplace | Intro section | "Works at Google" |
-| Education | Intro section | "Studied at MIT" |
-| Relationship status | Intro section | "Married" |
-| Profile picture | Circular photo | URL or description |
-| Cover photo | Banner at top | URL or description |
-| Recent posts (up to 5) | Timeline below profile | |
-| - Post text | Content | "..." |
-| - Likes count | Number next to thumbs-up | 3,900 |
-| - Comments count | "X comments" text | 133 |
-| - Shares count | "X shares" text | 103 |
-| - Posted at | Timestamp | "April 3 at 10:07 PM" |
-| - Has image/video | Whether post has media | true/false |
+| Display name | Header, large text | "Ogbeka Golden" |
+| Friends count | Below name | "4K friends" or "55 friends · 1 mutual" |
+| Subtitle | Below name (job or school) | "Software Engineer" |
+| Location | Header or personal details | "Lagos" |
+| Instagram handle | Header (if linked) | "@goldenogbeka" |
+| Cover photo | Banner at top | description |
+| Profile picture | Circular photo | description |
+| **Personal details sidebar (All tab):** | | |
+| Current city | "Lives in..." | "Lives in Lagos, Nigeria" |
+| Hometown | "From..." | "From Owerri, Imo" |
+| Birthday | Date | "January 6, 1980" |
+| Gender | If shown | "Male", "Female" |
+| Relationship status | If shown | "Single", "Married" |
+| Family members | Names + relationship | "Lilian Oragbakosi - Sister" |
+| Language | If shown | "English language" |
+| **Work (from sidebar or About tab):** | | |
+| Job title | Bold text | "Frontend Engineer" |
+| Company | Below title | "Alerzo" |
+| Duration | Date range | "Oct 2022 - Present · 2 years 5 months" |
+| **Education (from sidebar or About tab):** | | |
+| School | School name | "Covenant University" |
+| Degree | If shown | "MBA - Master in Business Administration" |
+| **About tab sub-sections:** | Click "About" tab | |
+| Personal details | Full details page | Hometown, birthday, gender |
+| Contact info | Phone, email, social links | Instagram, website |
+| Work history | Full employment history | Multiple entries |
+| Education history | All schools | College, high school |
+| **Recent posts (All tab, right column):** | | |
+| Post text | Content of post | "India almost broke a 7-year oil silence..." |
+| Likes count | Number next to thumbs-up | 3,900 |
+| Comments count | "X comments" | 133 |
+| Shares count | "X shares" | 103 |
+| Posted at | Timestamp | "March 25 at 5:54 PM" |
+| Has image/video | Whether post has media | true/false |
+| **Reels tab:** | Click "Reels" tab | |
+| Reel view counts | Numbers on thumbnails | 301, 67, 94, 139 |
+| **More → Likes:** | Click "More ▼" → Likes | |
+| Pages followed | Categorized: All, TV Shows, Artists, Sports Teams, Apps | "Silverpips", "UIX DSGNR" |
+| Likes categories | Tab names indicate interests | Which categories have most likes |
 
 **AI-inferred fields:**
 | Field | How |
 |-------|-----|
-| Posting frequency | From post timestamps |
-| Content niches | From post topics, bio, workplace |
-| Content quality | Engagement relative to friends/followers |
-| Privacy level | How much profile info is visible |
+| Posting frequency | From post timestamps on All tab |
+| Content niches | From posts + work + liked pages + education |
+| Content quality | Engagement (likes+comments+shares) relative to friends count |
+| Privacy level | How much profile info is visible (some profiles very private) |
+| Active on Reels? | Whether Reels tab has content (indicates video content interest) |
+| Interests depth | From Likes tab categories — what types of pages they follow |
 
 #### Reddit
 
