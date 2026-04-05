@@ -181,12 +181,21 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 **Facebook profiles have tabs:** All (default), About, Friends, Photos, Reels, More ▼ (Check-ins, Likes). The "All" tab shows a personal details sidebar on the left and posts on the right.
 
-**Extraction flow:**
-1. Load profile (All tab) — extract header (name, friends count, subtitle, location) + personal details sidebar
-2. Scroll down on All tab — extract recent posts with engagement
-3. Click "About" tab — extract full personal details, work, education, contact info
-4. Click "Reels" tab — extract reel view counts (engagement signal)
-5. (Optional) Click "More → Likes" — extract pages/interests followed (helps with niche classification)
+**Extraction flow (must click each tab and sub-tab):**
+1. Load profile (All tab) — extract header (name, friends count, subtitle, location) + personal details sidebar + scroll for posts
+2. Click **"About" tab** — then click EACH sub-tab on the left sidebar:
+   - Personal details → extract hometown, birthday, gender, relationship, family, language
+   - Contact info → extract phone, email, social links, Instagram
+   - Work → extract full work history
+   - Education → extract all schools/degrees
+   - Links → extract any linked websites
+   - Names → extract alternate names
+3. Click **"Reels" tab** — extract reel view counts (engagement signal)
+4. Click **"More ▼" dropdown** — then click EACH option and scrape that page:
+   - **Check-ins** → extract locations visited with dates
+   - **Likes** → extract pages followed (categorized: All Likes, TV Shows, Artists, Sports Teams, Athletes, Apps and Games) — each sub-tab reveals different interests
+   - **Events** → extract events attended (shows interests)
+   - **Reviews given** → extract reviews (shows what products/businesses they care about)
 
 **What to extract:**
 | Field | Where to find it | Example |
