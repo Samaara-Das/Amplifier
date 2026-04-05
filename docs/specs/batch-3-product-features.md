@@ -25,10 +25,9 @@ Before implementing, research the **most-used content formats on each platform i
 | **LinkedIn** | Text post | Already working | Single post |
 | **LinkedIn** | Text + image | Already working | Post with attached image |
 | **LinkedIn** | Poll | HIGH | Create a poll in compose modal. Question + 2-4 options. Duration 1-2 weeks. |
-| **LinkedIn** | Document/carousel | HIGH | Upload a PDF that displays as swipeable slides. Currently highest organic reach on LinkedIn. |
 | **Facebook** | Text post | Already working | Single post |
 | **Facebook** | Text + image | Already working | Post with attached image |
-| **Facebook** | Poll | MEDIUM | Create poll in compose. Question + options. |
+| ~~**Facebook**~~ | ~~Poll~~ | ~~REMOVED~~ | ~~Not possible on Facebook~~ |
 | **Facebook** | Photo album | LOW | Multiple images in one post. |
 | **Reddit** | Text post | Already working | Title + body |
 | **Reddit** | Image post | Already working | Title + image |
@@ -41,13 +40,22 @@ Each new format needs a JSON script in `config/scripts/`:
 - `x_thread.json` — compose first tweet → click "+" → type next tweet → repeat → post all
 - `x_poll.json` — compose tweet → click poll icon → fill question + options → set duration → post
 - `linkedin_poll.json` — click "Start a post" → click "Create a poll" → fill fields → post
-- `linkedin_carousel.json` — click "Start a post" → click "Add a document" → upload PDF → add title → post
-- `facebook_poll.json` — click "What's on your mind" → click "Poll" → fill fields → post
 - `reddit_link.json` — navigate to submit → click "Link" tab → fill title + URL → post
 
-### Content Agent Integration
+### Content Agent Decides Format
 
-The content agent's strategy phase determines the format per platform per post. The creation phase must produce format-specific JSON output:
+The content agent's **strategy phase** decides for each post:
+- Which **format** to use (text, image_text, thread, poll, link post)
+- Whether to include **image only, text only, or image+text**
+- This is per-post, per-platform — not a global setting
+
+The AI makes this decision based on campaign goal, platform norms, and what format best serves the content angle for that day. For example:
+- A stat-heavy post on X → text only (no image needed)
+- A product showcase on Facebook → image + text
+- An educational deep-dive on X → thread (3-5 tweets)
+- An engagement play on LinkedIn → poll
+
+The creation phase produces format-specific JSON output:
 
 **Thread output:**
 ```json
@@ -62,17 +70,6 @@ The content agent's strategy phase determines the format per platform per post. 
     "question": "What's your biggest challenge with X?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "duration_days": 3
-}}
-```
-
-**Carousel output (LinkedIn):**
-```json
-{"platform": "linkedin", "format": "carousel", "content": {
-    "title": "5 Things I Learned About X",
-    "slides": [
-        {"text": "Slide 1: The problem", "image_prompt": "..."},
-        {"text": "Slide 2: The solution", "image_prompt": "..."}
-    ]
 }}
 ```
 
@@ -213,20 +210,38 @@ The company dashboard needs a UI for creating repost campaigns — where the com
 
 **What's actually missing (from the audit):** The repost content textareas in `campaign_create.html` exist but the form submission may not properly save the repost content to the `campaign_posts` table. Need to verify the end-to-end flow.
 
+### Repost Campaign Rules
+
+1. **Companies don't have to provide content for every platform.** If they only write X and LinkedIn content, those are the only platforms that get posted. Other platforms are simply skipped.
+
+2. **All content formats are supported for reposts.** A company can provide a thread (multiple tweets), a poll, or plain text. The repost creation UI must support format selection per platform:
+   - Text (default)
+   - Text + image (with image upload)
+   - Thread (X only — multiple text fields)
+   - Poll (X and LinkedIn only — question + options)
+   - Link post (Reddit only — title + URL)
+
+3. **Users cannot edit repost content.** In semi-auto mode, users see the repost content for review but the text fields are **read-only**. They can only approve or reject, not modify. In full-auto mode, reposts are scheduled directly without review.
+
 ### What to Verify/Fix
 
-1. **Form submission flow:** When company selects "Repost" type and fills in per-platform text, on form submit:
+1. **Form submission flow:** When company selects "Repost" type and fills in per-platform content, on form submit:
    - `campaign_type` must be set to `"repost"` in the campaign record
-   - Each platform's text must be saved as a `CampaignPost` row linked to the campaign
+   - Each platform's content must be saved as a `CampaignPost` row linked to the campaign (including format type)
+   - Platforms left blank are simply not saved — no empty rows
    - The brief should be auto-generated from the repost content (already in JS: lines 362-367 of campaign_create.html)
 
-2. **Editing repost content:** On the campaign detail/edit page, if `campaign_type == "repost"`, show the per-platform text editors pre-filled with existing `campaign_posts` content. Allow editing.
+2. **Format selection per platform:** Each platform's repost editor should have a format dropdown (text, thread, poll, link) that changes the input fields accordingly.
 
-3. **Character counts:** Each platform editor shows remaining chars (X: 280, LinkedIn: 3000, Reddit title: 300).
+3. **Editing repost content:** On the campaign detail/edit page, if `campaign_type == "repost"`, show the per-platform editors pre-filled. Allow the **company** to edit.
 
-4. **Preview:** Show how the repost content will look on each platform (use the platform preview CSS from Task #65).
+4. **Character counts:** Each platform editor shows remaining chars (X: 280, LinkedIn: 3000, Reddit title: 300).
 
-5. **Validation:** Don't allow activation of a repost campaign with zero platform content. At least one platform must have text.
+5. **Preview:** Show how the repost content will look on each platform (use the platform preview CSS from Task #65).
+
+6. **Validation:** Don't allow activation of a repost campaign with zero platform content. At least one platform must have content.
+
+7. **User-side read-only:** When a user views a repost campaign's drafts, the content is displayed but NOT editable. Approve/Reject buttons only.
 
 ### API Endpoints (verify these exist and work)
 
