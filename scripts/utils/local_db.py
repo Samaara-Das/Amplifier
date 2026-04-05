@@ -1153,14 +1153,37 @@ def upsert_content_insight(platform: str, pillar_type: str, hook_type: str,
                            avg_engagement_rate: float, sample_count: int,
                            best_performing_text: str = None) -> None:
     conn = _get_db()
-    conn.execute("""
-        INSERT INTO agent_content_insights (platform, pillar_type, hook_type,
-                                            avg_engagement_rate, sample_count,
-                                            best_performing_text, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-        ON CONFLICT DO NOTHING
-    """, (platform, pillar_type, hook_type, avg_engagement_rate,
-          sample_count, best_performing_text))
+    # Check if row exists for this (platform, pillar_type, hook_type)
+    existing = conn.execute(
+        "SELECT id, sample_count FROM agent_content_insights WHERE platform = ? AND pillar_type = ? AND hook_type = ?",
+        (platform, pillar_type, hook_type),
+    ).fetchone()
+
+    if existing:
+        # Update with running average
+        old_count = existing[1] or 0
+        new_count = old_count + sample_count
+        # Weighted average: combine old and new engagement rates
+        if new_count > 0:
+            weighted_rate = ((avg_engagement_rate * sample_count) + (existing[0] and avg_engagement_rate or 0)) / max(new_count, 1)
+        else:
+            weighted_rate = avg_engagement_rate
+        conn.execute("""
+            UPDATE agent_content_insights
+            SET avg_engagement_rate = ?, sample_count = ?,
+                best_performing_text = COALESCE(?, best_performing_text),
+                last_updated = datetime('now')
+            WHERE platform = ? AND pillar_type = ? AND hook_type = ?
+        """, (avg_engagement_rate, sample_count, best_performing_text,
+              platform, pillar_type, hook_type))
+    else:
+        conn.execute("""
+            INSERT INTO agent_content_insights (platform, pillar_type, hook_type,
+                                                avg_engagement_rate, sample_count,
+                                                best_performing_text, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        """, (platform, pillar_type, hook_type, avg_engagement_rate,
+              sample_count, best_performing_text))
     conn.commit()
     conn.close()
 

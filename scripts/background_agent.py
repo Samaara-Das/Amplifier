@@ -519,6 +519,16 @@ async def run_metric_scraping() -> dict:
     try:
         await scrape_all_posts()
         sync_metrics_to_server()
+
+        # Self-learning: analyze post performance and update content insights
+        try:
+            from utils.content_performance import update_insights_from_metrics
+            updated = update_insights_from_metrics()
+            if updated > 0:
+                logger.info("Content insights updated: %d hook/format combos analyzed", updated)
+        except Exception as perf_err:
+            logger.warning("Content performance analysis failed (non-critical): %s", perf_err)
+
         return {"success": True}
     except Exception as e:
         logger.error("Metric scraping failed: %s", e)
