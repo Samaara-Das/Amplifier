@@ -24,11 +24,44 @@ When a user connects a social media platform, Amplifier scrapes their profile to
 5. Parses the structured JSON response
 6. Stores the result in `scraped_profile` table (local) and syncs to server `User.scraped_profiles` JSONB
 
-### AI Provider
+### API Key Ownership
 
-**Gemini 2.0 Flash** (free tier). ~4 API calls per full scrape (one per platform). Negligible cost.
+All AI operations on the user app use the **user's own API keys** (entered during onboarding). This includes profile scraping, content generation, and image generation. The server uses its own keys for matching and the campaign wizard.
 
-Fallback: if Gemini API key is not set or call fails, fall back to existing CSS selector-based scraping.
+| Operation | Runs on | API key |
+|-----------|---------|---------|
+| Profile scraping | User app | User's Gemini key |
+| Content generation | User app | User's Gemini/Mistral/Groq |
+| Image generation | User app | User's Gemini/Cloudflare/Together |
+| Campaign matching | Server | Server's Gemini key |
+| Campaign wizard | Server | Server's Gemini key |
+| Quality gate | Server | No AI needed |
+
+### Token-Efficient Extraction (3-Tier Pipeline)
+
+Screenshots are expensive (~5000+ vision tokens per image). Use a smarter approach that minimizes token usage:
+
+**Tier 1 — Text extraction (cheapest, try first):**
+1. Run `page.inner_text('body')` via Playwright — extracts ALL visible text from the page
+2. Send the raw text to a **text model** (Gemini Flash, NOT Vision) with the extraction prompt
+3. Cost: ~500-1500 input tokens (text is much cheaper than images)
+4. This captures 80%+ of profile data — follower counts, bio, post text, engagement numbers are all in the page text
+
+**Tier 2 — Targeted CSS selectors (free, supplement tier 1):**
+1. Use Playwright selectors for specific structured data that text extraction might miss
+2. Example: `shreddit-post[score]` attribute on Reddit, `[data-testid="UserName"]` on X
+3. Cost: 0 tokens (no API call, just DOM queries)
+4. Fill gaps from tier 1
+
+**Tier 3 — Screenshot + Vision (expensive, last resort):**
+1. Only if tier 1+2 fail to find key fields (follower_count = 0, no display_name)
+2. Take a targeted screenshot (profile header area, not full page)
+3. Send to Gemini Vision
+4. Cost: ~3000-5000+ tokens
+
+**This pipeline cuts token usage by 60-80%** compared to always sending full-page screenshots.
+
+Fallback: if no API key is set, use CSS selectors only (existing behavior).
 
 ### Per-Platform Data Extraction
 
@@ -181,13 +214,17 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 ### Navigation Strategy
 
-The AI scraper should take **multiple screenshots** if needed to capture all data:
+The scraper navigates and extracts in stages to capture all data:
 
-1. **Screenshot 1:** Profile header (name, bio, stats, follower counts)
-2. **Screenshot 2:** Scroll down to see recent posts with engagement metrics
-3. **For LinkedIn only:** Navigate to "About" section and "Experience" section if not visible on main profile
+1. **Navigate to profile page.** Wait for page load (5s).
+2. **Extract page text:** `page.inner_text('body')` — captures header, bio, follower counts, visible posts.
+3. **Scroll down** 1-2 viewport heights to load more posts.
+4. **Extract page text again** — captures posts that were below the fold.
+5. **Combine both text extractions** and send to AI text model as one prompt.
+6. **For LinkedIn:** Also navigate to `/in/{username}/details/experience/` to get full work history if the main profile text doesn't include it.
+7. **Only if text extraction fails** (key fields missing), fall back to screenshot + Vision.
 
-Implementation: after the initial screenshot, scroll down 1-2 viewport heights, take another screenshot. Send both to Gemini Vision and ask it to merge the data.
+This approach gets richer data than a single screenshot (scrolling reveals more posts) while using text tokens instead of image tokens.
 
 ### Output Schema
 
