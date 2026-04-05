@@ -1913,7 +1913,9 @@ def get_effective_max_campaigns(user) -> int:
 ### Task #64 — All Content Formats Across 6 Platforms
 
 **Priority**: High
-**Dependencies**: Task #63 (4-phase content agent)
+**Dependencies**: Task #63 (4-phase content agent) — DONE
+
+> **CRITICAL NOTE (added 2026-04-05):** Before implementing, research the MOST USED content formats on each platform (X, LinkedIn, Facebook, Reddit, Instagram, TikTok) **as of 2026**. Don't just implement what's technically possible — **prioritize formats by actual usage and engagement.** For example: X threads get 2-3x more engagement than single tweets, LinkedIn carousels (PDF) get highest organic reach, Instagram Reels dominate over static posts. Build the formats people actually use and that drive the most engagement, not an exhaustive list of everything each platform supports. Use Brave Search or web research to verify current format performance data before writing any code.
 
 #### What it is
 
