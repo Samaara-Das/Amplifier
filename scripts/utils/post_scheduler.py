@@ -397,6 +397,16 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
     update_schedule_status(schedule_id, "posting")
 
     try:
+        # Resolve assignment_id upfront (needed by both success and no-url branches)
+        from utils.local_db import _get_db as _get_db_conn
+        _conn = _get_db_conn()
+        _row = _conn.execute(
+            "SELECT assignment_id FROM local_campaign WHERE server_id = ?",
+            (post["campaign_server_id"],),
+        ).fetchone()
+        _conn.close()
+        resolved_assignment_id = _row[0] if _row else 0
+
         post_url = await _post_to_platform(
             platform=post["platform"],
             draft=post,
@@ -404,16 +414,6 @@ async def execute_scheduled_post(schedule_id: int) -> bool:
         )
 
         if post_url is not None:
-            # Resolve assignment_id from local_campaign
-            from utils.local_db import _get_db as _get_db_conn
-            _conn = _get_db_conn()
-            _row = _conn.execute(
-                "SELECT assignment_id FROM local_campaign WHERE server_id = ?",
-                (post["campaign_server_id"],),
-            ).fetchone()
-            _conn.close()
-            resolved_assignment_id = _row[0] if _row else 0
-
             local_post_id = add_post(
                 campaign_server_id=post["campaign_server_id"],
                 assignment_id=resolved_assignment_id,

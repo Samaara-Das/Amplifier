@@ -101,16 +101,18 @@
       "id": "poll_redirect_url",
       "type": "evaluate",
       "optional": true,
-      "js_code": "() => { return new Promise((resolve) => { let attempts = 0; const maxAttempts = 15; const check = () => { if (window.location.href.includes('/comments/')) { resolve(window.location.href); } else if (++attempts >= maxAttempts) { resolve('no_redirect'); } else { setTimeout(check, 1000); } }; check(); }); }",
+      "js_code": "() => { return new Promise((resolve) => { let attempts = 0; const maxAttempts = 15; const check = () => { const url = window.location.href; if (url.includes('/comments/')) { resolve(url); } else if (url.includes('created=')) { const match = url.match(/created=t3_([^&]+)/); if (match) { const parts = url.match(/\\/user\\/([^/]+)/); const user = parts ? parts[1] : ''; resolve('https://www.reddit.com/user/' + user + '/comments/' + match[1] + '/'); } else { resolve(url); } } else if (++attempts >= maxAttempts) { resolve('no_redirect'); } else { setTimeout(check, 1000); } }; check(); }); }",
       "timeout_ms": 20000,
-      "description": "Poll page URL for up to 15s waiting for redirect to /comments/ URL"
+      "description": "Poll page URL for up to 15s — detects /comments/ redirect OR ?created=t3_xxx param"
     },
     {
       "id": "extract_url_redirect",
       "type": "extract_url",
       "optional": true,
+      "url_variable": "_result_poll_redirect_url",
+      "url_pattern": "/comments/",
       "timeout_ms": 2000,
-      "description": "Extract URL from page after redirect (should contain /comments/ if redirect succeeded)"
+      "description": "Extract URL from poll result or page redirect — requires /comments/ in URL"
     },
     {
       "id": "go_to_submitted",
@@ -128,6 +130,7 @@
     {
       "id": "extract_url_submitted",
       "type": "extract_url",
+      "optional": true,
       "target": {
         "strategy": "fallback_chain",
         "selectors": [

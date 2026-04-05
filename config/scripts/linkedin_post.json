@@ -142,6 +142,7 @@
     {
       "id": "extract_url_activity",
       "type": "extract_url",
+      "optional": true,
       "target": {
         "strategy": "fallback_chain",
         "selectors": [

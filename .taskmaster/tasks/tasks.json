@@ -2,349 +2,493 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Fix URL capture for LinkedIn, Facebook, Reddit",
         "description": "URL capture fails on 3/4 platforms. Only X works. Without post URLs, metric scraping and billing cannot run.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 1 }
+        "metadata": {
+          "tier": 1
+        },
+        "updatedAt": "2026-04-05T13:27:24.129Z",
+        "subtasks": []
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Stripe top-up verification + idempotency fix",
         "description": "Verify test-mode Stripe Checkout credits company balance correctly. Fix double-credit bug on success redirect.",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 2 }
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Verify CSRF tokens in all Flask forms",
         "description": "flask-wtf installed but need to verify every POST form has csrf_token() hidden input and CSRFProtect is initialized.",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 2 }
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Install slowapi + apply rate limiting to auth endpoints",
         "description": "slowapi not installed on server. Add rate limiting to login/register endpoints (5/minute).",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 2 }
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Invitation UX — countdown timers, expired badge, decline reason",
         "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 2 }
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Metrics accuracy — populate anomaly_flag, cross-validation",
         "description": "anomaly_flag column exists but never populated. No cross-validation between Playwright and API metrics.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [1],
-        "metadata": { "tier": 2 }
+        "dependencies": [
+          "1"
+        ],
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Repost campaign company creation UI",
         "description": "Backend model exists for repost campaigns but no company dashboard UI to input per-platform post text.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 2 }
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Admin payout void/approve actions",
         "description": "Admin payout page is read-only. Need void and approve buttons for fraud management.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 2 }
+        "metadata": {
+          "tier": 2
+        },
+        "subtasks": []
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Metric scraping — detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Verify against real posts. Needs deeper spec first.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [1],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "dependencies": [
+          "1"
+        ],
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Billing — detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: CPM multiplier, budget cap, hold period, platform cut, tier promotion. Verify with real metrics.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [9],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "dependencies": [
+          "9"
+        ],
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Earnings display — server-to-local sync, withdrawal, verify E2E",
         "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [10],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "dependencies": [
+          "10"
+        ],
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "AI matching — detailed spec for scoring logic, verify accuracy",
         "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 13,
+        "id": "13",
         "title": "AI profile scraping — Gemini Vision, per-platform detailed spec",
         "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 14,
+        "id": "14",
         "title": "4-phase content agent — research, strategy, creation, review",
         "description": "Current strategy is static dict. Needs deeper spec for goal-driven strategy, creator voice matching, trending topics, platform-native content.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [13],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "dependencies": [
+          "13"
+        ],
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 15,
+        "id": "15",
         "title": "AI campaign quality gate — detailed rubric spec",
         "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 16,
+        "id": "16",
         "title": "Content formats — threads, polls, carousels across platforms",
         "description": "Research most-used formats per platform by engagement data. Build JSON posting scripts for top formats. Re-enable Instagram/TikTok.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [14],
-        "metadata": { "tier": 3, "needs_spec": true }
+        "dependencies": [
+          "14"
+        ],
+        "metadata": {
+          "tier": 3,
+          "needs_spec": true
+        },
+        "subtasks": []
       },
       {
-        "id": 17,
+        "id": "17",
         "title": "Free/Pro tiers — wire Stripe subscription billing",
         "description": "SUBSCRIPTION_TIERS config exists. Wire Stripe subscription checkout, webhook handler, enforce feature gates.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 3 }
+        "metadata": {
+          "tier": 3
+        },
+        "subtasks": []
       },
       {
-        "id": 18,
+        "id": "18",
         "title": "Write automated test suite (pytest)",
         "description": "Zero automated tests. Create pytest infrastructure, server/client/integration tests covering the full money loop.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [10, 11],
-        "metadata": { "tier": 3 }
+        "dependencies": [
+          "10",
+          "11"
+        ],
+        "metadata": {
+          "tier": 3
+        },
+        "subtasks": []
       },
       {
-        "id": 19,
+        "id": "19",
         "title": "Stripe live integration — company Checkout + user Connect onboarding",
         "description": "Live Stripe keys on Vercel. Webhook endpoint for payment confirmation. User Stripe Connect Express onboarding for real payouts.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [2, 10],
-        "metadata": { "tier": 4, "launch": true }
+        "dependencies": [
+          "2",
+          "10"
+        ],
+        "metadata": {
+          "tier": 4,
+          "launch": true
+        },
+        "subtasks": []
       },
       {
-        "id": 20,
+        "id": "20",
         "title": "PyInstaller packaging — Windows installer",
         "description": "Update amplifier.spec for current codebase. Bundle all modules + Playwright + templates. Build Inno Setup installer.",
         "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": 4, "launch": true }
+        "metadata": {
+          "tier": 4,
+          "launch": true
+        },
+        "subtasks": []
       },
       {
-        "id": 21,
+        "id": "21",
         "title": "Mac support — cross-platform audit + packaging",
         "description": "Audit Windows-specific code (fonts, paths, crypto). Fix for Mac. Build Mac package. Test full pipeline.",
         "status": "pending",
         "priority": "medium",
-        "dependencies": [20],
-        "metadata": { "tier": 4, "launch": true }
+        "dependencies": [
+          "20"
+        ],
+        "metadata": {
+          "tier": 4,
+          "launch": true
+        },
+        "subtasks": []
       },
       {
-        "id": 22,
+        "id": "22",
         "title": "Landing page — public-facing site for acquisition",
         "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
         "status": "pending",
         "priority": "medium",
-        "dependencies": [20],
-        "metadata": { "tier": 4, "launch": true }
+        "dependencies": [
+          "20"
+        ],
+        "metadata": {
+          "tier": 4,
+          "launch": true
+        },
+        "subtasks": []
       },
       {
-        "id": 23,
+        "id": "23",
         "title": "Periodic DB backup in background agent",
         "description": "Copy data/local.db to data/local.db.bak every 6 hours in background agent loop.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": 5 }
+        "metadata": {
+          "tier": 5
+        },
+        "subtasks": []
       },
       {
-        "id": 24,
+        "id": "24",
         "title": "Status label renaming in user app templates",
         "description": "Replace internal names: pending_invitation to Invited, content_generated to Draft Ready, posted to Live, paid to Earned.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": 5 }
+        "metadata": {
+          "tier": 5
+        },
+        "subtasks": []
       },
       {
-        "id": 25,
+        "id": "25",
         "title": "Clipboard copy button for post URLs",
         "description": "Add Copy URL button next to each post URL on Posts tab.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": 5 }
+        "metadata": {
+          "tier": 5
+        },
+        "subtasks": []
       },
       {
-        "id": 26,
+        "id": "26",
         "title": "Client-side form validation in user app",
         "description": "Add required attributes, email format, number range validation to all forms.",
         "status": "pending",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": 5 }
+        "metadata": {
+          "tier": 5
+        },
+        "subtasks": []
       },
       {
-        "id": 27,
+        "id": "27",
         "title": "Server-side post URL dedup",
         "description": "Prevent same post URL registered twice via POST /api/posts. Return error on duplicate.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 5 }
+        "metadata": {
+          "tier": 5
+        },
+        "subtasks": []
       },
       {
-        "id": 28,
+        "id": "28",
         "title": "ToS and privacy policy acceptance in registration",
         "description": "Add ToS checkbox to registration. Block if unchecked. Create /privacy and /terms pages.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": 5 }
+        "metadata": {
+          "tier": 5
+        },
+        "subtasks": []
       },
       {
-        "id": 29,
+        "id": "29",
         "title": "[DEFERRED] Political campaigns — geo-targeting, FEC compliance",
         "description": "Post-launch. Requires US legal entity. Geo micro-targeting, political content mode, FEC disclaimers, rapid deployment.",
         "status": "deferred",
         "priority": "high",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 30,
+        "id": "30",
         "title": "[DEFERRED] Self-learning content generation",
         "description": "Post-launch. Performance feedback loop from metrics into content strategy. Needs real post data first.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 31,
+        "id": "31",
         "title": "[DEFERRED] Video generation integration",
         "description": "Post-launch. Short-form UGC videos for TikTok, Reels, LinkedIn, Facebook. Research free/cheap video gen tools.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 32,
+        "id": "32",
         "title": "[DEFERRED] Flux.1 image generation upgrade",
         "description": "Post-launch. Higher quality images via Flux.1. Current 5-provider free pipeline works for now.",
         "status": "deferred",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 33,
+        "id": "33",
         "title": "[DEFERRED] GDPR export and account deletion",
         "description": "Post-launch. User data export + account deletion cascade. Not needed for US-only launch.",
         "status": "deferred",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 34,
+        "id": "34",
         "title": "[DEFERRED] ARIA accessibility audit",
         "description": "Post-launch. ARIA labels, WCAG color contrast, keyboard navigation.",
         "status": "deferred",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 35,
+        "id": "35",
         "title": "[DEFERRED] CSV export for earnings",
         "description": "Post-launch. Download per-campaign earnings breakdown as CSV.",
         "status": "deferred",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 36,
+        "id": "36",
         "title": "[DEFERRED] Mobile responsive dashboard",
         "description": "Post-launch. Media queries for tablet (768px) and mobile (480px).",
         "status": "deferred",
         "priority": "low",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       },
       {
-        "id": 37,
+        "id": "37",
         "title": "[DEFERRED] Local lightweight LLM for user-side AI operations",
         "description": "Post-launch. Replace cloud API calls with a lightweight local LLM on user's desktop/laptop for profile scraping, content generation, and other AI tasks. Eliminates API key dependency and cost.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [],
-        "metadata": { "tier": "post-launch" }
+        "metadata": {
+          "tier": "post-launch"
+        },
+        "subtasks": []
       }
     ],
     "metadata": {
-      "version": "2.0.0",
-      "lastModified": "2026-04-05T10:30:00.000Z",
-      "taskCount": 36,
-      "completedCount": 0,
+      "version": "1.0.0",
+      "lastModified": "2026-04-05T13:27:24.130Z",
+      "taskCount": 37,
+      "completedCount": 1,
       "tags": [
         "master"
-      ],
-      "created": "2026-04-05T10:30:00.000Z",
-      "description": "Amplifier remaining work — 28 active tasks + 8 deferred post-launch"
+      ]
     }
   }
 }

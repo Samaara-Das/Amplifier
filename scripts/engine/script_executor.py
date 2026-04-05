@@ -320,6 +320,15 @@ class ScriptExecutor:
 
     async def _handle_extract_url(self, step: ScriptStep) -> None:
         """Extract a URL from an element or the page and store it as post_url."""
+        # Check url_variable first (e.g. result of a previous evaluate step)
+        if step.url_variable:
+            var_url = self.variables.get(step.url_variable, "")
+            if var_url and var_url.startswith("http"):
+                self.post_url = var_url
+                self.variables["post_url"] = var_url
+                logger.info("Step %s: URL from variable %s: %s", step.id, step.url_variable, var_url)
+                return
+
         if step.target:
             locator = await selector_chain.find_element_soft(
                 self.page, step.target, timeout_ms=step.timeout_ms or 5000
@@ -340,11 +349,19 @@ class ScriptExecutor:
                     logger.info("Step %s: extracted URL %s", step.id, url)
                     return
 
-        # Fallback: use current page URL only if no URL was captured yet
+        # Fallback: use current page URL (with optional pattern check)
+        page_url = self.page.url
+        if step.url_pattern and step.url_pattern not in page_url:
+            logger.info(
+                "Step %s: page URL %s does not match pattern '%s', skipping",
+                step.id, page_url, step.url_pattern,
+            )
+            return
+
         if not self.post_url:
-            self.post_url = self.page.url
-            self.variables["post_url"] = self.page.url
-            logger.info("Step %s: using page URL %s", step.id, self.page.url)
+            self.post_url = page_url
+            self.variables["post_url"] = page_url
+            logger.info("Step %s: using page URL %s", step.id, page_url)
         else:
             logger.info("Step %s: keeping previously captured URL %s", step.id, self.post_url)
 

@@ -132,6 +132,7 @@
     {
       "id": "extract_url_fallback",
       "type": "extract_url",
+      "optional": true,
       "description": "Fallback: use profile page URL if permalink extraction failed"
     },
     {

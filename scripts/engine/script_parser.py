@@ -163,6 +163,10 @@ class ScriptStep:
     force: bool = False
     click_count: int = 1
 
+    # URL extraction
+    url_pattern: str | None = None  # Only capture page URL if it contains this substring
+    url_variable: str | None = None  # Variable name to read URL from (e.g. _result_poll_redirect_url)
+
     # Misc
     description: str | None = None
     optional: bool = False  # If True, step failure is logged but doesn't abort execution
@@ -190,6 +194,8 @@ class ScriptStep:
             screenshot=raw.get("screenshot", False),
             force=raw.get("force", False),
             click_count=raw.get("click_count", 1),
+            url_pattern=raw.get("url_pattern"),
+            url_variable=raw.get("url_variable"),
             description=raw.get("description"),
             optional=raw.get("optional", False),
         )

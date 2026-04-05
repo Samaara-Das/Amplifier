@@ -285,7 +285,7 @@ async def post_via_script(draft: dict, pw, platform: str) -> str | None:
         if execution.success:
             post_url = execution.post_url
             logger.info("Script posting to %s succeeded (URL: %s)", platform, post_url)
-            return post_url or f"https://{platform}.com/posted"
+            return post_url
         else:
             logger.error(
                 "Script posting to %s failed at step '%s': %s",
@@ -512,7 +512,7 @@ async def post_to_x(draft: dict, pw) -> str | None:
         await browse_feed(page, "x")
 
         logger.info("Successfully posted to X")
-        return post_url or "https://x.com/posted"
+        return post_url
 
     except Exception as e:
         logger.error("Failed to post to X: %s", e, exc_info=True)
@@ -838,7 +838,7 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
         await browse_feed(page, "facebook")
 
         logger.info("Successfully posted to Facebook")
-        return post_url or "https://facebook.com/posted"
+        return post_url
 
     except Exception as e:
         logger.error("Failed to post to Facebook: %s", e, exc_info=True)
@@ -1029,7 +1029,7 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         await browse_feed(page, "reddit")
 
         logger.info("Successfully posted to Reddit (u/%s)", username)
-        return post_url or f"https://reddit.com/user/{username}/submitted"
+        return post_url
 
     except Exception as e:
         logger.error("Failed to post to Reddit: %s", e, exc_info=True)
