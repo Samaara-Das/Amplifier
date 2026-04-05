@@ -71,38 +71,65 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 **Navigate to:** User's profile page (`https://x.com/{username}`)
 
+**X profiles have tabs:** Posts, Replies, Highlights, Articles, Media, Likes (some also have Subs). The header shows all key stats. Posts tab has full engagement metrics per tweet.
+
+**Extraction flow:**
+1. Load profile — extract header (name, handle, verified, bio, category, website, joined date, following, followers, post count, "Followed by" mutuals)
+2. Scroll **Posts tab** — extract recent tweets with all engagement metrics (comments, reposts, likes, views). Note any **Pinned** posts.
+3. Click **Media tab** — extract total media count ("3,454 photos & videos") — indicates how visual the creator is
+4. Click **Highlights tab** — extract curated/pinned content with engagement (these are their best-performing posts)
+5. (Optional) Click **Likes tab** — see what they engage with (reveals interests beyond their own posts)
+
 **What to extract:**
 | Field | Where to find it | Example |
 |-------|-----------------|---------|
-| Display name | Large bold text at top | "Mia The mystery girl" |
-| Username/handle | Below display name with @ | "@GirlMia9079" |
-| Bio | Text below username | "Content creator, dog lover..." |
-| Follower count | "Followers" link in profile header | 45.2K |
-| Following count | "Following" link in profile header | 892 |
-| Post count | Shown in profile header or tab | "3,421 posts" |
-| Location | Below bio (if set) | "Los Angeles, CA" |
-| Website | Below bio (if set) | "linktr.ee/mia" |
-| Join date | Below bio | "Joined March 2019" |
-| Verified badge | Blue checkmark next to name | true/false |
-| Banner image | Top of profile | URL or description |
-| Profile picture | Circular image | URL or description |
-| Recent posts (up to 10) | Cards below profile header, each with: |
-| - Post text | Main text of the tweet | "When the dog ate the..." |
-| - Likes | Heart icon with count | 2,600 |
-| - Comments | Speech bubble icon with count | 25 |
-| - Reposts | Arrow icon with count | 300 |
-| - Views | Bar chart icon with count | 149K |
-| - Posted at | Timestamp on tweet | "16h" or "Apr 3" |
-| - Has image/video | Whether tweet has media | true/false |
+| Display name | Large bold text | "Shubham Saboo", "non aesthetic things" |
+| Handle | Below name with @ | "@Saboo_Shubham_", "@PicturesFolder" |
+| Verified badge | Blue checkmark | true/false |
+| Bio | Text below handle | "Senior AI Product Manager @google \| Open Source..." |
+| Category/profession | Below bio with icon | "AI Agents & RAG Tutorials →" |
+| Website | Link below bio | "theunwindai.com" |
+| Location | Below bio (if set) | "San Francisco" |
+| Joined date | Below bio | "Joined June 2020" |
+| Following count | In stats row | 426 |
+| Followers count | In stats row | 113.2K |
+| Post count | Small text in header area | "19.5K posts", "5 posts" |
+| "Followed by" | Mutual followers shown | "Followed by KK, Daniel Das, and Peter Steinberger" |
+| Subscribe button | If premium creator | true/false |
+| Banner image | Top of profile | description |
+| Profile picture | Circular image | description |
+| **Posts tab (default):** | | |
+| Tweet text | Main content | "Heard whispers about something that helps level..." |
+| Comments count | Speech bubble icon | 15, 25 |
+| Reposts count | Arrows icon | 67, 300 |
+| Likes count | Heart icon | 298, 2600 |
+| Views count | Bar chart icon | 88.3K, 149K |
+| Posted at | Timestamp | "Mar 23", "4h", "16h" |
+| Has media | Image/video attached | true/false |
+| Is pinned | "Pinned" label | true/false |
+| Is quote tweet | Embeds another tweet | true/false |
+| Paid partnership | "Paid partnership" label | true/false |
+| **Media tab:** | Click "Media" tab | |
+| Total media count | Header text | "3,454 photos & videos" |
+| Media grid | Thumbnails of images/videos | visual assessment |
+| **Highlights tab:** | Click "Highlights" tab | |
+| Highlighted posts | Curated best content | same fields as Posts |
+| Video with view counts | Duration + views | "1:33:21 · 15.8K views" |
+| **Articles tab:** | Click "Articles" tab | |
+| Article titles | Long-form content | "Best AI PMs in 2026 Will Be Agent Managers" |
+| Article engagement | Comments, reposts, likes, views | 17, 23, 190, 48K |
 
-**AI-inferred fields (not directly visible but deducible):**
-| Field | How AI infers it |
-|-------|-----------------|
-| Posting frequency | Count posts with timestamps, estimate posts/day |
-| Content niches (1-5) | Classify from bio + post topics (e.g., "entertainment", "animals", "humor") |
-| Content quality | low/medium/high based on engagement rates relative to follower count |
-| Audience demographics | Estimate from content type, language, engagement patterns |
+**AI-inferred fields:**
+| Field | How |
+|-------|-----|
+| Posting frequency | Post count / account age, or from recent post timestamps |
+| Content niches | From bio + category + post topics + hashtags used |
+| Content quality | Engagement rates relative to follower count. High views but low likes = viral reach. High likes/views ratio = engaged audience. |
+| Audience demographics | From content type, language, "Followed by" mutual accounts |
 | Engagement rate | (avg likes + comments + reposts) / followers |
+| Content format preference | Ratio of text-only vs image vs video posts from Media tab count vs post count |
+| Is premium creator | Subscribe button present, Articles tab has content |
+| Influence level | Follower count + verified + "Followed by" notable accounts |
 
 #### LinkedIn
 
