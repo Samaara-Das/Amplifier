@@ -17,12 +17,10 @@ When a user connects a social media platform, Amplifier scrapes their profile to
 
 ### How It Works
 
-1. User connects a platform (Playwright opens browser, user logs in manually)
+1. User connects a platform (browser opens, user logs in manually)
 2. After browser closes, the profile scraper navigates to the user's profile page
-3. Takes a full-page screenshot
-4. Sends screenshot to Gemini 2.0 Flash Vision API with a platform-specific extraction prompt
-5. Parses the structured JSON response
-6. Stores the result in `scraped_profile` table (local) and syncs to server `User.scraped_profiles` JSONB
+3. Extracts profile data using the 3-tier pipeline (text first, element queries second, screenshot last resort)
+4. Stores the result locally and syncs to the server
 
 ### API Key Ownership
 
@@ -42,22 +40,13 @@ All AI operations on the user app use the **user's own API keys** (entered durin
 Screenshots are expensive (~5000+ vision tokens per image). Use a smarter approach that minimizes token usage:
 
 **Tier 1 — Text extraction (cheapest, try first):**
-1. Run `page.inner_text('body')` via Playwright — extracts ALL visible text from the page
-2. Send the raw text to a **text model** (Gemini Flash, NOT Vision) with the extraction prompt
-3. Cost: ~500-1500 input tokens (text is much cheaper than images)
-4. This captures 80%+ of profile data — follower counts, bio, post text, engagement numbers are all in the page text
+Extract all visible text from the page and send it to a text AI model (not vision). This captures 80%+ of profile data — follower counts, bio, post text, engagement numbers are all in the page text. Cost: ~500-1500 tokens per platform.
 
-**Tier 2 — Targeted CSS selectors (free, supplement tier 1):**
-1. Use Playwright selectors for specific structured data that text extraction might miss
-2. Example: `shreddit-post[score]` attribute on Reddit, `[data-testid="UserName"]` on X
-3. Cost: 0 tokens (no API call, just DOM queries)
-4. Fill gaps from tier 1
+**Tier 2 — Targeted element queries (free, supplement tier 1):**
+Use browser automation to query specific structured elements that text extraction might miss (e.g., score attributes, hidden metadata). Cost: 0 tokens.
 
 **Tier 3 — Screenshot + Vision (expensive, last resort):**
-1. Only if tier 1+2 fail to find key fields (follower_count = 0, no display_name)
-2. Take a targeted screenshot (profile header area, not full page)
-3. Send to Gemini Vision
-4. Cost: ~3000-5000+ tokens
+Only if tier 1+2 fail to find key fields (no follower count, no display name). Take a targeted screenshot of the profile header area (not full page) and send to Gemini Vision. Cost: ~3000-5000+ tokens.
 
 **This pipeline cuts token usage by 60-80%** compared to always sending full-page screenshots.
 
@@ -343,15 +332,15 @@ The AI must be told specifically what to look for on each platform. Each platfor
 The scraper navigates, scrolls, AND clicks to capture all data. Just scrolling is NOT enough — LinkedIn, Facebook, and others hide data behind "Show all →" arrows and "...more" expand buttons.
 
 **General flow per platform:**
-1. **Navigate to profile page.** Wait for page load (5s).
-2. **Click all expand buttons visible:** "...more", "Show all →", "See more" — these reveal hidden content.
-3. **Extract page text:** `page.inner_text('body')` — captures header, bio, follower counts, visible content.
-4. **Scroll down** 2-3 viewport heights to load below-fold content.
-5. **Click more expand buttons** that appeared after scrolling.
-6. **Extract page text again** — captures posts, experience, skills, etc.
-7. **Repeat scrolling + clicking** until reaching the bottom of the profile.
-8. **Combine all text extractions** and send to AI text model as one prompt.
-9. **Only if text extraction fails** (key fields missing), fall back to targeted screenshot + Vision.
+1. Navigate to profile page. Wait for page load.
+2. Click all expand buttons visible: "...more", "Show all →", "See more" — these reveal hidden content.
+3. Extract all visible page text.
+4. Scroll down 2-3 viewport heights to load below-fold content.
+5. Click more expand buttons that appeared after scrolling.
+6. Extract page text again — captures posts, experience, skills, etc.
+7. Repeat scrolling + clicking until reaching the bottom of the profile.
+8. Combine all text extractions and send to AI for structured data extraction.
+9. Only if text extraction fails (key fields missing), fall back to targeted screenshot + Vision.
 
 **Platform-specific clicks needed:**
 - **LinkedIn:** Click "...more" on About, "Show all →" on Skills/Experience/Awards, "Posts" tab in Activity section
@@ -361,63 +350,39 @@ The scraper navigates, scrolls, AND clicks to capture all data. Just scrolling i
 
 This approach gets richer data than screenshots while using text tokens instead of image tokens.
 
-### Output Schema
+### Normalized Output (all platforms)
 
-All platforms return the same normalized schema:
+All platforms return the same normalized structure containing:
 
-```json
-{
-  "platform": "x",
-  "display_name": "Mia The mystery girl",
-  "username": "GirlMia9079",
-  "bio": "Content creator, dog lover...",
-  "follower_count": 45200,
-  "following_count": 892,
-  "post_count": 3421,
-  "location": "Los Angeles, CA",
-  "website": "linktr.ee/mia",
-  "join_date": "March 2019",
-  "verified": false,
-  "recent_posts": [
-    {
-      "text": "When the dog ate the...",
-      "likes": 2600,
-      "comments": 25,
-      "reposts": 300,
-      "views": 149000,
-      "posted_at": "2026-04-04",
-      "subreddit": null,
-      "has_media": true
-    }
-  ],
-  "posting_frequency": 2.5,
-  "profile_data": {
-    "about": "Full about section text...",
-    "experience": [{"title": "...", "company": "...", "duration": "..."}],
-    "education": [{"school": "...", "degree": "..."}],
-    "skills": ["Python", "ML"],
-    "karma": null,
-    "reddit_age": null,
-    "active_subreddits": null,
-    "personal_details": {"location": "...", "hometown": "...", "workplace": "..."}
-  },
-  "ai_detected_niches": ["entertainment", "animals", "humor"],
-  "content_quality": "high",
-  "audience_demographics_estimate": {
-    "age_range": "18-34",
-    "interests": ["entertainment", "pets", "memes"]
-  },
-  "engagement_rate": 0.065
-}
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| platform | text | Which platform (x, linkedin, facebook, reddit) |
+| display_name | text | User's display name |
+| username | text | Handle/username |
+| bio | text | Bio, headline, or description |
+| follower_count | number | Followers (or friends on Facebook, karma on Reddit) |
+| following_count | number | Following count |
+| post_count | number | Total posts if visible |
+| location | text | Location if shown |
+| website | text | Website if shown |
+| join_date | text | Account creation date |
+| verified | boolean | Verified badge present |
+| recent_posts | list | Up to 10 recent posts with: text, likes, comments, reposts, views, timestamp, subreddit (Reddit), has_media |
+| posting_frequency | number | Estimated posts per day |
+| profile_data | object | Extended data: about section, experience, education, skills, karma, active subreddits, personal details |
+| ai_detected_niches | list | AI-classified content niches (1-5) |
+| content_quality | text | "low", "medium", or "high" |
+| audience_demographics_estimate | object | Estimated age range and interests |
+| engagement_rate | number | Average (likes + comments + reposts) / followers |
 
-### Verification
+### Acceptance Criteria
 
-1. Connect X in Playwright. Profile scraper runs. Check `scraped_profile` table: `follower_count > 0`, `display_name` not null, at least 3 `recent_posts` with engagement.
-2. Disconnect Gemini key. Scraper falls back to CSS selectors. Still returns data (less rich but functional).
-3. Connect LinkedIn. Check: `profile_data.experience` has at least 1 entry, `headline` in bio.
-4. Connect Reddit. Check: `karma > 0`, `active_subreddits` has entries, posts have scores.
-5. Sync to server. `GET /api/users/me` returns `scraped_profiles` with all 4 platforms.
+1. Connect X. Profile scraper runs. Result includes: follower count > 0, display name, at least 3 recent posts with engagement metrics.
+2. Disconnect AI key. Scraper falls back to element-based extraction. Still returns data (less rich but functional).
+3. Connect LinkedIn. Result includes: at least 1 work experience entry, headline.
+4. Connect Reddit. Result includes: karma > 0, active subreddits, posts with scores.
+5. All 4 platform profiles sync to the server successfully.
+6. Token usage for text-first extraction is under 2000 tokens per platform (no vision calls for normal profiles).
 
 ---
 
@@ -504,13 +469,15 @@ If all Gemini models fail, use niche overlap scoring:
 - TTL: 24 hours
 - Invalidated on: campaign edit, user profile refresh
 
-### Verification
+### Acceptance Criteria
 
-1. User with finance niche, recent posts about trading. Campaign for trading indicator. Expect: score > 75.
-2. User with cooking niche, recent posts about recipes. Same trading campaign. Expect: score < 30.
-3. User posts about finance on X but food on Facebook. Campaign requires X. Expect: score reflects X content (>70), not Facebook content.
-4. Gemini fails. Expect: fallback niche overlap scoring, no crash.
-5. Same user + campaign scored twice within 24h. Expect: second call uses cache (no API call).
+1. A finance creator with trading posts matched against a trading indicator campaign scores above 75 (strong fit).
+2. A cooking creator with recipe posts matched against the same trading campaign scores below 30 (weak fit).
+3. A user who posts about finance on X but food on Facebook, matched against an X-only campaign, scores based on their X content (>70), not averaged with Facebook.
+4. A tech creator who self-selected "lifestyle" and "food" niches receives lifestyle and food campaign invitations — self-selected niches are respected.
+5. When all AI models fail, fallback niche-overlap scoring produces a reasonable score without crashing.
+6. The same user + campaign combination scored twice within 24 hours uses the cached score (no duplicate API call).
+7. The minimum score to create an invitation is 40 — users scoring below 40 are not invited.
 
 ---
 
@@ -527,31 +494,24 @@ Generates campaign content across 4 platforms that feels like a real person reco
 **Purpose:** Understand the product deeply so content is specific and credible, not generic.
 
 **What it does:**
-1. Scrape company URLs from campaign `assets.company_urls` (up to 3 URLs via webcrawler CLI)
+1. Scrape company URLs from the campaign (up to 3 URLs) to understand the product deeply
 2. Extract: product name, features, benefits, pricing, testimonials, competitors
-3. Analyze campaign images (if any) via Gemini Vision — what does the product look like?
-4. **Search for recent niche news** — webcrawler `search "{campaign_niche} latest news 2026"` → grab 3-5 headlines + snippets. This gives the content agent current events to reference, making posts feel timely and authentic instead of generic AI content. (1 search per weekly research refresh — minimal token cost.)
-5. Synthesize into a structured research context
+3. Analyze campaign images (if any) via AI vision — what does the product look like?
+4. **Search for recent niche news** — search the web for 3-5 recent news headlines in the campaign's niche. This gives the content agent current events to reference, making posts feel timely and authentic instead of generic. (1 search per weekly refresh — minimal cost.)
+5. Synthesize all findings into a structured research context
 
-**Research output:**
-```json
-{
-  "product_summary": "1-2 sentence description of what the product is",
-  "key_features": ["feature 1", "feature 2", "feature 3"],
-  "target_audience": "who benefits from this product",
-  "competitive_angle": "what makes this different from alternatives",
-  "content_angles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"],
-  "emotional_hooks": ["emotional trigger 1", "trigger 2", "trigger 3"],
-  "pricing_info": "if found on the website",
-  "testimonials": ["quote 1", "quote 2"],
-  "recent_niche_news": [
-    {"headline": "Fed holds rates steady, markets drop 2%", "source": "Reuters", "date": "2026-04-04"},
-    {"headline": "Retail traders pile into AI stocks", "source": "Bloomberg", "date": "2026-04-03"}
-  ]
-}
-```
+**Research output includes:**
+- Product summary (1-2 sentences)
+- Key features (3-5 bullet points)
+- Target audience description
+- Competitive angle (what makes this different)
+- Content angles (5 different approaches for posts)
+- Emotional hooks (3 triggers to use in content)
+- Pricing info (if found on company website)
+- Testimonials (if found)
+- Recent niche news (3-5 headlines from web search — makes content timely)
 
-**Cached in:** `agent_research` table. Refreshed weekly or when campaign brief changes.
+**Cached for 7 days.** Refreshed weekly or when the campaign brief changes.
 
 #### Phase 2: Strategy (built per campaign, refreshed weekly)
 
@@ -578,20 +538,12 @@ Generates campaign content across 4 platforms that feels like a real person reco
 - The user's profile (what tone does this user typically post in)
 - Past performance data (if available — which hooks worked best)
 
-**Strategy prompt to AI:**
-```
-Given this campaign (goal: {goal}, tone: {tone}, product: {product_summary})
-and this creator (niches: {niches}, typical tone: {typical_tone}, 
-engagement rate: {engagement_rate}):
-
+**The AI strategy prompt should reason about:**
 1. What content angles will resonate with this creator's audience?
-2. How many posts per day per platform? (X can handle 2-3, LinkedIn 1, Reddit <1)
+2. How many posts per day per platform? (X can handle 2-3, LinkedIn 1, Reddit less than 1)
 3. Should posts include images? (depends on the product and platform)
 4. What hook styles should we use? (question, story, stat, contrarian, etc.)
 5. What time of day works best for this creator's audience region?
-
-Return a JSON strategy plan.
-```
 
 #### Phase 3: Creation (runs daily)
 
@@ -627,7 +579,7 @@ Return a JSON strategy plan.
 
 #### Phase 4: Review
 
-**Semi-auto mode:** Store drafts in `agent_draft`, notify user, wait for approval.
+**Semi-auto mode:** Store drafts, send desktop notification, wait for user to review and approve.
 **Full-auto mode:** Auto-approve and schedule immediately using strategy's posting times.
 
 ### Content Quality Checks
@@ -642,15 +594,17 @@ Before storing a draft, verify:
 
 If any phase fails, fall back to the existing single-prompt `ContentGenerator.generate()`. This ensures content is always produced, even if the AI pipeline has issues.
 
-### Verification
+### Acceptance Criteria
 
-1. Campaign with `goal=virality`, `tone=edgy`. X content should use contrarian/surprising hooks, not gentle storytelling.
-2. Campaign with `goal=leads`. Every post should mention the product and have a CTA.
-3. Same campaign, day 1 vs day 5. Content must be genuinely different (different angle, different hook).
-4. Reddit post includes both positives and a caveat/negative about the product.
-5. X post is under 280 chars including the FTC disclosure.
-6. Strategy for brand_awareness generates 1 post/day on X but only every other day on Reddit.
-7. Gemini fails. Content falls back to basic generator. No crash, still produces content.
+1. A virality campaign with edgy tone produces X content using contrarian or surprising hooks — not gentle storytelling.
+2. A leads campaign produces posts that mention the product and include a clear call-to-action on every platform.
+3. Content for the same campaign on day 1 vs day 5 is genuinely different — different angle, different hook, different structure.
+4. Reddit posts include both positives AND a caveat or negative about the product (authentic tone).
+5. X posts are under 280 characters including the FTC disclosure that gets appended.
+6. A brand_awareness strategy generates 1 post/day on X but only every other day on Reddit.
+7. If the AI provider fails entirely, content falls back to the basic single-prompt generator. No crash, still produces content.
+8. Research phase includes recent niche news headlines. At least one post per week references a current event when relevant.
+9. The strategy adapts based on the creator's profile — a casual creator gets casual tone, a professional creator gets professional tone.
 
 ---
 
@@ -679,32 +633,16 @@ Low-quality campaigns waste user time and produce bad content. If a brief says "
 
 **Activation threshold: 85/100**
 
-### Feedback Format
+### Feedback
 
-When a campaign fails, return specific, actionable feedback per criterion:
-
-```json
-{
-  "score": 62,
-  "passed": false,
-  "feedback": [
-    "Brief is too short (89 chars). Describe your product, its key features, and who it's for. Aim for 300+ characters.",
-    "No content guidance provided. Add tone instructions (casual/professional), must-include phrases (hashtags, links), or content examples.",
-    "No product images or company URLs provided. Add at least one image or website link so creators can see and research your product.",
-    "Budget is below recommended minimum. Campaigns under $100 reach fewer creators."
-  ],
-  "breakdown": {
-    "brief_completeness": 5,
-    "content_guidance": 0,
-    "payout_rates": 12,
-    "targeting": 10,
-    "assets_provided": 0,
-    "title_quality": 10,
-    "dates_valid": 5,
-    "budget_sufficient": 5
-  }
-}
-```
+When a campaign fails, the system returns:
+- **Overall score** (0-100) and pass/fail status
+- **Per-criterion score breakdown** (how many points each criterion earned)
+- **Actionable feedback messages** for each failed criterion, telling the company exactly what to fix. Examples:
+  - "Brief is too short (89 chars). Describe your product, its key features, and who it's for. Aim for 300+ characters."
+  - "No content guidance provided. Add tone instructions, must-include phrases, or content examples."
+  - "No product images or company URLs provided. Add at least one image or website link."
+  - "Budget is below recommended minimum. Campaigns under $100 reach fewer creators."
 
 ### Two-Layer Scoring: Mechanical Rubric + AI Review
 
@@ -712,33 +650,23 @@ When a campaign fails, return specific, actionable feedback per criterion:
 
 **Layer 2 — AI review (server-side Gemini call):** After the rubric passes (score >= 85), run a Gemini AI review that catches what rules can't. Uses the **server's API keys** (not user's). Low volume — only runs on campaign activation, not per-post.
 
-**AI review prompt:**
-```
-Review this campaign for quality and safety before it goes live to creators.
-
-Campaign title: {title}
-Brief: {brief}
-Content guidance: {guidance}
-Payout rates: {rates}
-Targeting: {targeting}
-
-Check for:
+**The AI review checks for:**
 1. Is the brief coherent and specific? Or is it vague filler text?
-2. Are the payout rates competitive for this niche? (e.g., finance campaigns should pay more than lifestyle)
+2. Are the payout rates competitive for this niche? (finance campaigns should pay more than lifestyle)
 3. Does the content guidance contain anything harmful? (attacking competitors, misleading claims, asking for fake reviews)
 4. Does the targeting make sense for the product? (finance product targeting fashion niche = mismatch)
 5. Is this a legitimate product or does it look like a scam/spam?
 
-Return JSON:
-{
-  "ai_passed": true/false,
-  "concerns": ["concern 1", "concern 2"],
-  "niche_rate_assessment": "competitive" | "below_average" | "too_low",
-  "brand_safety": "safe" | "caution" | "reject"
-}
-```
+**AI review returns:**
+- Pass/fail decision
+- List of specific concerns (if any)
+- Niche rate assessment: competitive, below average, or too low
+- Brand safety rating: safe, caution, or reject
 
-**If AI review returns `ai_passed: false` or `brand_safety: "reject"`**, block activation with the AI's concerns as feedback. If `brand_safety: "caution"`, flag for admin review but allow activation.
+**Actions based on AI review:**
+- **"reject" brand safety** → block activation, show AI's concerns as feedback
+- **"caution" brand safety** → flag for admin review but allow activation
+- **AI passes** → campaign can go live
 
 ### When It Runs
 
@@ -751,10 +679,12 @@ Return JSON:
 - **Repost campaigns** (`campaign_type = "repost"`): Don't require content_guidance (company provides the exact content). Do require the repost content to be filled in.
 - **Wizard-generated campaigns**: Usually score high (85+) because the wizard produces comprehensive briefs. The gate mainly catches manually-created campaigns with minimal info.
 
-### Verification
+### Acceptance Criteria
 
-1. Campaign with brief "Buy our product" (16 chars), no guidance, no assets, $25 budget. Expect: score < 50, blocked, feedback says "Brief is too short", "No content guidance", "No assets", "Budget below minimum".
-2. Campaign created via AI wizard. Expect: score >= 85, passes.
-3. Campaign with great brief but $0 payout rates. Expect: score fails on payout rates, feedback says "Set payout rates".
-4. Fix the issues from test 1 (lengthen brief, add guidance, add image, increase budget). Re-attempt activation. Expect: passes.
-5. Repost campaign with no content_guidance but repost content filled in. Expect: guidance criterion doesn't penalize.
+1. A campaign with a 16-character brief, no guidance, no assets, $25 budget scores below 50 and is blocked. Feedback includes: "Brief is too short", "No content guidance", "No assets", "Budget below minimum."
+2. A campaign created via the AI wizard scores >= 85 and passes automatically.
+3. A campaign with a great brief but $0 payout rates fails on the payout rates criterion with specific feedback.
+4. After fixing all issues from test 1 (longer brief, guidance added, image uploaded, budget increased), re-activation succeeds.
+5. A repost campaign with no content guidance but repost content filled in passes — the guidance criterion does not penalize repost campaigns.
+6. A campaign with a coherent brief but harmful content guidance ("write fake negative reviews of competitor X") is caught by the AI review layer and blocked with a brand safety concern.
+7. A campaign targeting "fashion" but whose brief describes a financial product is caught by the AI review as a targeting mismatch.
