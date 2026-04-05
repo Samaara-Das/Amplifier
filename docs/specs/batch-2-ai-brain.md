@@ -108,40 +108,72 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 **Navigate to:** User's profile page (`https://www.linkedin.com/in/{username}/`)
 
+**LinkedIn profiles are VERY long** — 7+ scrolls to see everything. Sections are behind "Show all →" arrows and "...more" expand buttons. The scraper must CLICK these, not just scroll.
+
+**Extraction flow (order matters):**
+1. Load profile page, extract header text (name, headline, location, followers, connections)
+2. Scroll to "About" section → click "...more" if truncated → extract full text
+3. Extract "Top skills" visible below About
+4. Scroll to "Featured" section → extract featured post titles + engagement (reactions, comments)
+5. Scroll to "Activity" section → note follower count shown here → click "Posts" tab → extract recent posts with reactions/comments/reposts
+6. Scroll to "Experience" section → click "Show all →" if present → extract all entries
+7. Scroll to "Education" section → extract entries
+8. Scroll to "Skills" section → click "Show all →" → extract all skills
+9. (Optional) Scroll to "Honors & awards", "Interests" sections
+
 **What to extract:**
 | Field | Where to find it | Example |
 |-------|-----------------|---------|
-| Display name | Large text at top | "Savita Pareek" |
-| Headline | Below name (used as bio) | "Postdoctoral Associate (MIT Sloan)" |
-| About section | "About" section below header | Full text |
-| Follower count | Near profile photo or connections | "500+ connections" |
-| Connection count | Near follower count | "500+" |
-| Location | Below headline | "Cambridge, Massachusetts" |
-| Profile picture | Circular photo | URL or description |
-| Banner image | Background photo | URL or description |
-| Experience (up to 5) | "Experience" section | |
-| - Job title | Bold text per entry | "Postdoctoral Associate" |
-| - Company | Below job title | "MIT Sloan School of Management" |
-| - Duration | Date range | "2024 - Present" |
-| Education (up to 3) | "Education" section | |
-| - School | Bold text | "Indian Institute of Technology, Bombay" |
-| - Degree | Below school | "PhD, Statistics" |
-| Skills (up to 10) | "Skills" section | ["Machine Learning", "R", "Python"] |
-| Recent posts (up to 5) | "Activity" section or feed | |
-| - Post text | Content of the post | "Grateful to return to..." |
-| - Reactions count | Number next to reaction icons | 293 |
-| - Comments count | "X comments" text | 10 |
-| - Reposts count | "X reposts" text | 1 |
-| - Posted at | Timestamp | "7h" |
+| Display name | Large text at top | "Rahul Jain" |
+| Verified badge | Checkmark next to name | true/false |
+| Headline | Below name (used as bio) | "Fund Manager @ Rahul Jain Capital \| Double MBA..." |
+| Location | Below headline | "Delhi, India" |
+| Follower count | Header area or Activity section | 14,531 |
+| Connection count | Header area | "500+ connections" |
+| Has Premium | Badge below connections | true/false |
+| Website | "Visit my website" button | URL if present |
+| About section | "About" card — MUST click "...more" to expand | Full text including awards, description |
+| Top skills | Below About | ["Finance", "Stock Market", "Trading", "Investments", "Entrepreneurship"] |
+| Featured posts | "Featured" section with thumbnails | |
+| - Title | Post preview text | "Featured among '2026's Most Inspiring...'" |
+| - Reactions | Number with emoji icons | 79 |
+| - Comments | "X comments" text | 18 |
+| Activity (recent posts) | "Activity" section → click "Posts" tab | |
+| - Post text | First ~100 chars of post | "India almost broke a 7-year oil silence..." |
+| - Reactions | Number next to reaction emojis | 98, 301 |
+| - Comments | "X comments" text | 15, 21 |
+| - Reposts | "X reposts" text | 2, 5 |
+| - Posted at | Timestamp | "23h", "1d" |
+| - Has image/video | Whether post has media | true/false |
+| Experience (all) | "Experience" section → click "Show all →" | |
+| - Job title | Bold text | "Investment Partner", "Education Mentor" |
+| - Company | Below title | "IVY Growth Associates", "Market Kya Kehti Hai" |
+| - Employment type | If shown | "Full-time", "Self-employed" |
+| - Duration | Date range | "Aug 2024 - Present · 1 yr 9 mos" |
+| - Location | Below duration | "Surat, Gujarat, India" |
+| - Associated skills | If shown | "Trading, Stock Market and +9 skills" |
+| Education (all) | "Education" section | |
+| - School | Bold text | "Harvard Business School" |
+| - Degree | Below school | "Finance, Accounting and Finance" |
+| - Dates | Below degree | "Jan 2018 – Aug 2018" |
+| Skills (all) | "Skills" section → click "Show all →" | |
+| - Skill names | Listed entries | ["Entrepreneurship", "Investments", ...] |
+| - Skill count | Number in header | 14, 28 |
+| Honors & awards | If present — "Show all →" | |
+| - Award name | Bold text | "Bharat Business Award 2025" |
+| - Issuer | Below name | "Issued by Udyog Bhawan · Jun 2025" |
+| Interests | Bottom of profile, has tabs (Companies/Groups/Newsletters/Schools) | |
+| - Companies followed | Company names | "Sammaan Capital Limited", "LinkedIn News" |
 
 **AI-inferred fields:**
 | Field | How |
 |-------|-----|
-| Posting frequency | Estimate from visible post timestamps |
-| Content niches | From headline + about + post topics (e.g., "ai", "education", "technology") |
-| Content quality | Based on engagement relative to connection count |
-| Industry | From experience entries |
-| Seniority level | From job titles (junior, mid, senior, executive) |
+| Posting frequency | Estimate from Activity post timestamps |
+| Content niches | From headline + about + skills + post topics |
+| Content quality | Based on reactions/comments relative to follower count |
+| Industry | From experience companies and headline |
+| Seniority level | From job titles (junior, mid, senior, executive, founder) |
+| Credibility signals | Awards, premium badge, verified status, follower count |
 
 #### Facebook
 
@@ -214,17 +246,26 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 ### Navigation Strategy
 
-The scraper navigates and extracts in stages to capture all data:
+The scraper navigates, scrolls, AND clicks to capture all data. Just scrolling is NOT enough — LinkedIn, Facebook, and others hide data behind "Show all →" arrows and "...more" expand buttons.
 
+**General flow per platform:**
 1. **Navigate to profile page.** Wait for page load (5s).
-2. **Extract page text:** `page.inner_text('body')` — captures header, bio, follower counts, visible posts.
-3. **Scroll down** 1-2 viewport heights to load more posts.
-4. **Extract page text again** — captures posts that were below the fold.
-5. **Combine both text extractions** and send to AI text model as one prompt.
-6. **For LinkedIn:** Also navigate to `/in/{username}/details/experience/` to get full work history if the main profile text doesn't include it.
-7. **Only if text extraction fails** (key fields missing), fall back to screenshot + Vision.
+2. **Click all expand buttons visible:** "...more", "Show all →", "See more" — these reveal hidden content.
+3. **Extract page text:** `page.inner_text('body')` — captures header, bio, follower counts, visible content.
+4. **Scroll down** 2-3 viewport heights to load below-fold content.
+5. **Click more expand buttons** that appeared after scrolling.
+6. **Extract page text again** — captures posts, experience, skills, etc.
+7. **Repeat scrolling + clicking** until reaching the bottom of the profile.
+8. **Combine all text extractions** and send to AI text model as one prompt.
+9. **Only if text extraction fails** (key fields missing), fall back to targeted screenshot + Vision.
 
-This approach gets richer data than a single screenshot (scrolling reveals more posts) while using text tokens instead of image tokens.
+**Platform-specific clicks needed:**
+- **LinkedIn:** Click "...more" on About, "Show all →" on Skills/Experience/Awards, "Posts" tab in Activity section
+- **X:** Scroll to load more tweets (infinite scroll)
+- **Facebook:** Click "See more" on bio, scroll timeline
+- **Reddit:** Click "Posts" tab if not default, scroll to load posts
+
+This approach gets richer data than screenshots while using text tokens instead of image tokens.
 
 ### Output Schema
 
@@ -349,11 +390,12 @@ The current prompt says "DO NOT penalize for low follower counts" which is corre
 
 1. **Brand safety check:** If the user's recent posts contain controversial, offensive, or politically divisive content, score lower (20-40 range) even if topic is relevant. Companies don't want their brand associated with controversy.
 
-2. **Engagement quality check:** 10 likes from real people is better than 1000 likes from bots. If engagement patterns look unnatural (very high likes but zero comments), note it but don't hard-reject.
 
 3. **Cross-platform consistency:** If a user posts about finance on X but food on LinkedIn, the score should reflect which platform(s) are relevant to the campaign, not average across all.
 
 4. **Niche specificity:** A user who posts exclusively about "day trading" is a BETTER match for a trading indicator campaign than a user who posts about "finance" broadly. Reward niche depth over breadth.
+
+5. **Self-selected niches override profile analysis:** Users select their own niches during onboarding. If a tech person selects "lifestyle" and "food" as niches, they SHOULD receive lifestyle and food campaigns — even if their profile is all tech. The user knows what they want to post about. Self-selected niches should be weighted EQUALLY to profile-detected niches in the scoring prompt. The AI should be told: "The creator has chosen to post about these niches: {self_selected_niches}. Respect this — they may want to expand into new topics."
 
 #### Fallback (when AI fails)
 
