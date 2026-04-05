@@ -944,7 +944,7 @@
         "id": "61",
         "title": "Self-learning content generation (learn from performance + trends)",
         "description": "AI learns from: 1) what competitors/industry post, 2) own post performance (which hooks/formats worked), 3) social/cultural trends. Experiments with styles, doubles down on winners. See FUTURE.md.",
-        "status": "done",
+        "status": "cancelled",
         "priority": "medium",
         "dependencies": [
           "54"
@@ -954,7 +954,7 @@
           "content-generation"
         ],
         "subtasks": [],
-        "updatedAt": "2026-04-05T02:29:52.541Z"
+        "updatedAt": "2026-04-05T07:38:47.930Z"
       },
       {
         "id": "62",
@@ -1238,9 +1238,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-05T03:34:01.429Z",
+      "lastModified": "2026-04-05T07:38:47.931Z",
       "taskCount": 79,
-      "completedCount": 74,
+      "completedCount": 73,
       "tags": [
         "master"
       ]
