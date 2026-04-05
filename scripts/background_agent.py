@@ -164,7 +164,7 @@ async def generate_daily_content() -> dict:
         get_todays_draft_count, add_draft, get_all_drafts, approve_draft,
         add_scheduled_post, get_todays_drafts,
     )
-    from utils.content_generator import ContentGenerator
+    from utils.content_agent import ContentAgent
     import json as _json
 
     try:
@@ -176,7 +176,7 @@ async def generate_daily_content() -> dict:
         if not active:
             return {"success": True, "generated": 0}
 
-        gen = ContentGenerator()
+        gen = ContentAgent()
         generated_count = 0
         platforms = ['x', 'linkedin', 'facebook', 'reddit']
         mode = get_setting("mode", "semi_auto") or "semi_auto"
@@ -264,7 +264,7 @@ async def generate_daily_content() -> dict:
             unique_dates = set(d.get('created_at', '')[:10] for d in previous if d.get('created_at'))
             day_number = len(unique_dates) + 1
 
-            # Generate content (with research phase if URLs available)
+            # Generate content via 4-phase ContentAgent pipeline
             campaign_data = {
                 "campaign_id": campaign.get("server_id"),
                 "title": campaign.get("title", ""),
@@ -273,11 +273,14 @@ async def generate_daily_content() -> dict:
                 "assets": campaign.get("assets", {}),
                 "scraped_data": campaign.get("scraped_data", {}),
                 "disclaimer_text": campaign.get("disclaimer_text"),
+                "campaign_goal": campaign.get("campaign_goal", "brand_awareness"),
+                "tone": campaign.get("tone"),
+                "preferred_formats": campaign.get("preferred_formats", {}),
             }
             try:
                 result = await asyncio.to_thread(
                     lambda c=campaign_data, dn=day_number, ph=previous_hooks: asyncio.run(
-                        gen.research_and_generate(c, enabled_platforms=platforms, day_number=dn, previous_hooks=ph)
+                        gen.generate_content(c, enabled_platforms=platforms, day_number=dn, previous_hooks=ph)
                     )
                 )
 

@@ -215,6 +215,7 @@ def init_db() -> None:
         "ALTER TABLE local_campaign ADD COLUMN campaign_type TEXT DEFAULT 'ai_generated'",
         "ALTER TABLE local_campaign ADD COLUMN campaign_goal TEXT",
         "ALTER TABLE local_campaign ADD COLUMN tone TEXT",
+        "ALTER TABLE local_campaign ADD COLUMN preferred_formats TEXT DEFAULT '{}'",
         # Phase C: agent_draft format type and variant tracking
         "ALTER TABLE agent_draft ADD COLUMN format_type TEXT DEFAULT 'text'",
         "ALTER TABLE agent_draft ADD COLUMN variant_id INTEGER DEFAULT 0",
@@ -309,8 +310,8 @@ def upsert_campaign(campaign: dict) -> None:
              payout_rules, payout_multiplier, status,
              invitation_status, invited_at, expires_at, responded_at,
              company_name, campaign_type, campaign_goal, tone, disclaimer_text,
-             updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+             preferred_formats, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         """, (
             campaign_id,
             campaign["assignment_id"],
@@ -330,6 +331,7 @@ def upsert_campaign(campaign: dict) -> None:
             campaign.get("campaign_goal"),
             campaign.get("tone"),
             campaign.get("disclaimer_text"),
+            json.dumps(campaign.get("preferred_formats", {})),
         ))
     else:
         # Existing campaign — update data but PRESERVE the local status
@@ -340,6 +342,7 @@ def upsert_campaign(campaign: dict) -> None:
                 invitation_status = ?, invited_at = ?, expires_at = ?,
                 responded_at = ?, company_name = ?,
                 campaign_type = ?, campaign_goal = ?, tone = ?, disclaimer_text = ?,
+                preferred_formats = ?,
                 updated_at = datetime('now')
             WHERE server_id = ?
         """, (
@@ -359,6 +362,7 @@ def upsert_campaign(campaign: dict) -> None:
             campaign.get("campaign_goal"),
             campaign.get("tone"),
             campaign.get("disclaimer_text"),
+            json.dumps(campaign.get("preferred_formats", {})),
             campaign_id,
         ))
 

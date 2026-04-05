@@ -418,6 +418,7 @@ async def _get_existing_assignments(
                 campaign_type=campaign.campaign_type or "ai_generated",
                 campaign_goal=campaign.campaign_goal,
                 tone=campaign.tone,
+                preferred_formats=campaign.preferred_formats or {},
                 disclaimer_text=campaign.disclaimer_text,
                 campaign_posts=posts_data,
             )
@@ -569,6 +570,7 @@ async def get_matched_campaigns(
                 campaign_type=campaign.campaign_type or "ai_generated",
                 campaign_goal=campaign.campaign_goal,
                 tone=campaign.tone,
+                preferred_formats=campaign.preferred_formats or {},
                 disclaimer_text=campaign.disclaimer_text,
                 campaign_posts=posts_data,
             )

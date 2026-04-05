@@ -115,6 +115,7 @@ class CampaignBrief(BaseModel):
     campaign_type: str = "ai_generated"
     campaign_goal: str | None = None
     tone: str | None = None
+    preferred_formats: dict = {}
     disclaimer_text: str | None = None
     # Repost campaign: pre-written posts
     campaign_posts: list[CampaignPostResponse] = []
