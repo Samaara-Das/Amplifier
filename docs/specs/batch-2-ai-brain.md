@@ -530,7 +530,8 @@ Generates campaign content across 4 platforms that feels like a real person reco
 1. Scrape company URLs from campaign `assets.company_urls` (up to 3 URLs via webcrawler CLI)
 2. Extract: product name, features, benefits, pricing, testimonials, competitors
 3. Analyze campaign images (if any) via Gemini Vision — what does the product look like?
-4. Synthesize into a structured research context
+4. **Search for recent niche news** — webcrawler `search "{campaign_niche} latest news 2026"` → grab 3-5 headlines + snippets. This gives the content agent current events to reference, making posts feel timely and authentic instead of generic AI content. (1 search per weekly research refresh — minimal token cost.)
+5. Synthesize into a structured research context
 
 **Research output:**
 ```json
@@ -542,7 +543,11 @@ Generates campaign content across 4 platforms that feels like a real person reco
   "content_angles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"],
   "emotional_hooks": ["emotional trigger 1", "trigger 2", "trigger 3"],
   "pricing_info": "if found on the website",
-  "testimonials": ["quote 1", "quote 2"]
+  "testimonials": ["quote 1", "quote 2"],
+  "recent_niche_news": [
+    {"headline": "Fed holds rates steady, markets drop 2%", "source": "Reuters", "date": "2026-04-04"},
+    {"headline": "Retail traders pile into AI stocks", "source": "Bloomberg", "date": "2026-04-03"}
+  ]
 }
 ```
 
@@ -604,6 +609,9 @@ Return a JSON strategy plan.
 | **LinkedIn** | 500-1500 chars. Story format. First 2 lines visible before "see more" — make them count. End with a question. 3-5 hashtags at bottom. Aggressive line breaks. |
 | **Facebook** | 200-800 chars. Conversational, like telling friends. Ask a question for comments. 0-2 hashtags max. |
 | **Reddit** | Title: 60-120 chars (descriptive, NOT clickbait). Body: 500-1500 chars. Write like a community member sharing a genuine find. No hashtags, no emojis, no self-promotion tone. Include both positives AND negatives about the product. |
+
+**Timeliness rule (makes content feel real):**
+- If `recent_niche_news` is available from the research phase, the AI SHOULD reference current events when relevant. Example: instead of "this indicator shows institutional flow" → "after yesterday's Fed decision, this indicator lit up showing institutions were buying the dip." Not every post needs a news reference — use it when it naturally fits the hook or angle.
 
 **Anti-AI language rules (critical):**
 - NEVER use: "game-changer", "unlock your potential", "leverage", "dive in", "let's explore", "in today's fast-paced world", "synergy", "innovative solution", "cutting-edge"
