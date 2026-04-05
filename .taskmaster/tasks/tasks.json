@@ -2,1248 +2,340 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
-        "title": "Companies can create campaigns with AI assistance",
-        "description": "DONE. Campaign wizard with product name, description, features, public links, AI generation, scraping, payout rates, max_users, min_engagement. Deployed and tested on Vercel.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "slice-1",
-          "company"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "2",
-        "title": "AI matching connects campaigns to the right users",
-        "description": "DONE. Hard filters (platforms, followers, engagement, region, max_users, 3-campaign limit). AI scoring via Gemini with fallback. Combined score formula. Code written and deployed.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "1"
-        ],
-        "tags": [
-          "slice-1",
-          "server"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "3",
-        "title": "Campaign detail page shows verified stats and analytics",
-        "description": "DONE. Stats cards, per-platform breakdown, influencer table, invitation funnel, budget management. Clicks bug fixed. 19 unit tests passing.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "1",
-          "2"
-        ],
-        "tags": [
-          "slice-1",
-          "company"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "4",
-        "title": "Users can onboard: connect platforms, choose niches, set up API keys",
-        "description": "5-step onboarding flow.\n\nAcceptance: complete onboarding  ->  profile scraped correctly  ->  niches saved  ->  API key tested  ->  agent starts.\n\nINTEGRATION TEST (Slice 2):\n1. Register new account  ->  login page works\n2. Step 1: Connect all 4 platforms  ->  browser opens, user logs in, closes browser  ->  scraping starts automatically\n3. Verify scraped data: each platform must have display_name, follower_count, following_count, bio, recent_posts (with engagement per post), engagement_rate > 0, profile_pic_url\n4. Step 2: Niche checkboxes NOT pre-selected. AI suggestions shown as hint text only. Region auto-detected and shown read-only.\n5. Step 3: Pick operating mode\n6. Step 4: Paste Gemini API key  ->  click Test  ->  green check. At least 1 key required.\n7. Step 5: Summary shows all data correctly  ->  click Start\n8. Dashboard loads, background agent starts\n\nBLOCKER: Scrapers return zero engagement/posts for X, Facebook, Reddit. LinkedIn gets followers but no engagement. UAT PASSED 8/8. BUG-001 fixed.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "slice-2",
-          "user"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "5",
-        "title": "Content generation agent creates researched, platform-native UGC content",
-        "description": "Dedicated AI agent for UGC content creation.\n\nAcceptance: accept a campaign  ->  agent generates distinct content per platform  ->  content feels like real UGC.\n\nINTEGRATION TEST (Slice 2):\n1. Go to Campaigns tab  ->  see Nike: Stay Fit invitation\n2. Accept the campaign\n3. Wait for background agent to generate content (runs every 2 min)\n4. Go to campaign detail  ->  see today's drafts per platform (X, LinkedIn, Facebook, Reddit)\n5. Each draft should be UGC-style, platform-native, genuinely different per platform\n6. Drafts reference the product (Nike) and include must-include hashtags\n\nDONE: 116 drafts generated across 3 campaigns. UGC style verified ' authentic per-platform content. Research phase working.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "4"
-        ],
-        "tags": [
-          "slice-2",
-          "user"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "6",
-        "title": "Users can review, edit, approve/reject daily content drafts",
-        "description": "Semi-auto review flow.\n\nUAT PASSED 7/7: approve, reject, restore, edit all work. Approve All works after UTC fix. Post scheduled on approve. UTC/local time bug (BUG-01) fixed.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "5"
-        ],
-        "tags": [
-          "slice-2",
-          "user"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "7",
-        "title": "Posts are executed via Playwright and URLs are captured correctly",
-        "description": "Posting pipeline verification.\n\nINTEGRATION TEST (Slice 2):\n1. Approved drafts appear in post_schedule with scheduled times\n2. Background agent picks up due posts (every 60s)\n3. Playwright opens browser, posts content to platform\n4. Post URL captured by navigating to own profile\n5. local_post record created with correct post_url\n6. Post synced to server (check /api/posts)\n7. Desktop notification: 'Posted to [platform] for [campaign]'\n8. Test on at least 1 platform (X or LinkedIn) end-to-end\n9. IMPORTANT: Do NOT like or repost during pre/post browsing. Just browse and click around.\n\nPOSTING WORKS: LinkedIn post sent successfully (posted_no_url status). URL capture still fails but post is delivered. Retry logic added with 3 attempts + scroll. Graceful fallback creates local_post with placeholder URL. User should verify the post actually appeared on LinkedIn.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "6"
-        ],
-        "tags": [
-          "slice-2",
-          "user"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "8",
-        "title": "System tray icon and desktop notifications",
-        "description": "Desktop presence.\n\nINTEGRATION TEST (Slice 2):\n1. On app launch: tray icon appears in Windows taskbar\n2. Right-click tray  ->  menu shows: Open Dashboard, Agent status, Pause/Resume Agent, Quit\n3. Click Open Dashboard  ->  browser opens to localhost:5222\n4. Close browser tab  ->  app keeps running (tray still visible)\n5. Click Quit  ->  app fully exits\n6. Desktop notifications appear for: new campaign invitations, drafts ready for review, post succeeded/failed\n\nCODE DONE. UAT confirms tray icon is created (likely in Windows overflow area). Menu code correct. Desktop notifications wired. User should verify visually.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "4"
-        ],
-        "tags": [
-          "slice-2",
-          "user"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "9",
-        "title": "Metric scraping captures all data needed for billing",
-        "description": "Metric scraping verification.\n\nINTEGRATION TEST (Slice 3):\n1. After a post goes live, wait for T+1h scrape (or trigger manually)\n2. Check local_metric table  ->  impressions, likes, reposts, comments captured\n3. Compare scraped values to actual platform numbers\n4. Metrics synced to server  ->  check /api/metrics\n5. Billing triggered on submission  ->  check payout records created\n6. Repeat for at least 2 platforms\n\nBLOCKER: LinkedIn post didn't actually land (Playwright typed content but post didn't appear on profile). Need user to debug with headed browser. Metric scraping code is ready but needs a real post URL to test against.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "7"
-        ],
-        "tags": [
-          "slice-3",
-          "money"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-03-26T04:21:08.729Z"
-      },
-      {
-        "id": "10",
-        "title": "Billing correctly calculates earnings from metrics",
-        "description": "Billing verification. 19 unit tests passing ' formula, platform cut, budget cap, CPM/CPE, zero-division all verified. Integration test with real metrics blocked by #9.\n\nUnit tests cover: earnings formula, 20% platform cut, budget capping, CPM/CPE calculations, zero-division handling, payout rate suggestions.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "9"
-        ],
-        "tags": [
-          "slice-3",
-          "money"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "11",
-        "title": "Companies can add funds via Stripe (test mode)",
-        "description": "CODE COMPLETE: Stripe checkout session, success verification, balance crediting. Fallback instant-credit for dev without Stripe key. Needs STRIPE_SECRET_KEY on Vercel for live test.\n\nINTEGRATION TEST (Slice 3):\n1. Company billing page  ->  enter test card 4242 4242 4242 4242\n2. Balance increases by charged amount\n3. Activate campaign  ->  balance deducted\n4. Delete draft campaign  ->  balance refunded\n5. Payment history shows on billing page",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "1"
-        ],
-        "tags": [
-          "slice-3",
-          "company"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "12",
-        "title": "Users can see earnings and request withdrawal",
-        "description": "Earnings page loads correctly (UAT TC-010 PASS). Shows $0.00 totals (no real earnings yet ' blocked by metric scraping). Withdrawal route exists. Full integration test with real earnings blocked by #9.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "10"
-        ],
-        "tags": [
-          "slice-3",
-          "user"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "13",
-        "title": "Fix bugs, edge cases, and labels",
-        "description": "Polish fixes.\n\nDONE:\n1. Posts This Month ' fixed to filter by current month\n2. Admin API auth ' added cookie-based auth via router dependency\n3. API keys ' config/.env not tracked in git\n4. 3-campaign limit ' enforced in matching (code) and invitations (cap=3)\n\nREMAINING:\n5. Full-auto mode verification ' needs posting to work\n6. Styled error pages ' nice-to-have\n\nMost items complete. Remaining items are low priority.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "7",
-          "10"
-        ],
-        "tags": [
-          "slice-4",
-          "polish"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "14",
-        "title": "UI and UX improvements across all dashboards",
-        "description": "DONE: Tag-style chip inputs for must-include/must-avoid in campaign wizard. Type + Enter to add pill tags with X to remove. Dark theme consistent.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "13"
-        ],
-        "tags": [
-          "slice-4",
-          "polish"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "15",
-        "title": "Explain: Company AI Wizard",
-        "description": "Walk through how the campaign AI wizard currently works. Fix issues found by user.\n\nIMPLEMENTED:\n1. IMAGE UPLOADS: Drag-and-drop upload to Supabase Storage, thumbnails preview, stored in Campaign.assets.image_urls\n2. DEEP WEB CRAWLING: BFS crawler (httpx+BS4) follows same-domain links up to 10 pages, depth 2. Replaces shallow single-page scrape.\n3. FILE UPLOADS: PDF/DOCX/TXT upload to Supabase Storage with text extraction (PyPDF2, python-docx). Stored in Campaign.assets.file_contents.\n4. AI GENERATION FIX: Enhanced Gemini prompt uses all sources (deep-scraped content, uploaded files, images, product info). Fallback clearly marks [AI generation failed]. Error response now shows actual error.\n5. BALANCE GATE: Companies with <$50 balance blocked from wizard.\n\nKEY INSIGHT: The detailed campaign brief IS the single content source for amplifiers (users). It must contain everything needed to create posts: product details, scraped knowledge, file contents, images, must-include/avoid, content direction.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "tier-1",
-          "company",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-03-26T07:33:31.608Z"
-      },
-      {
-        "id": "16",
-        "title": "Verify: Company AI Wizard",
-        "description": "Ask the user what the acceptance criteria is for the AI wizard so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "15"
-        ],
-        "tags": [
-          "tier-1",
-          "company",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-03-26T07:33:40.090Z"
-      },
-      {
-        "id": "17",
-        "title": "Explain: User Onboarding + Scraping",
-        "description": "Walk through how user onboarding and profile/metric scraping currently works ' registration, platform connections, API key setup, LinkedIn scraping, niche selection, region detection. If the user finds it's not implemented the way they want, fix it.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "tier-1",
-          "user",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-03-26T12:42:46.892Z"
-      },
-      {
-        "id": "18",
-        "title": "Verify: User Onboarding + Scraping",
-        "description": "Ask the user what the acceptance criteria is for onboarding and profile scraping so that we know when it's fully done. Then test against those criteria.\n\nMUST TEST: Profile scraping works for each platform (X, LinkedIn, Facebook, Reddit) after the user logs in. Verify that display_name, follower_count, bio, recent_posts, and engagement_rate are scraped correctly for each connected platform.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "17"
-        ],
-        "tags": [
-          "tier-1",
-          "user",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-03-26T16:01:12.071Z"
-      },
-      {
-        "id": "19",
-        "title": "Explain: Campaign Matching",
-        "description": "Walk through how campaign-to-user matching currently works -- hard filters, soft scoring, Gemini AI scoring, combined formula, max_users, 3-campaign limit. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: Scraped profile data (follower counts, engagement rates, niches, posting frequency, bio) from onboarding is used as input to the matching algorithm. Verify this data flows correctly from the user app to the server and is used in matching decisions.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "15"
-        ],
-        "tags": [
-          "tier-2",
-          "company",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-03-26T16:15:30.059Z"
-      },
-      {
-        "id": "20",
-        "title": "Verify: Campaign Matching",
-        "description": "Ask the user what the acceptance criteria is for campaign matching so that we know when it's fully done. Then test against those criteria.\n\nTEST WITH: The Cluely campaign (AI-generated, detailed brief). Verify that the onboarded user gets matched to it based on their scraped profile data, niches, platforms, and region.\n\nPARTIALLY VERIFIED: User with finance/technology/ai niches and 4 platforms matched to Cluely campaign (tech/ai). Platform format bug fixed (True vs {connected:True}). User marked not fully done  needs further verification.\n\nVERIFIED: Matching works. 4 campaigns matched to user with tech/finance LinkedIn profile (including Cluely). E2E test with 3 fake users x 3 campaigns passed 6/7. BUG FOUND: background agent auto-generates content for pending_invitation campaigns without waiting for user to accept/reject. Noted in tasks 21 and 23.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "19"
-        ],
-        "tags": [
-          "tier-2",
-          "company",
-          "verify"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "21",
-        "title": "Explain: Campaign Polling (User Side)",
-        "description": "Walk through how the user app polls the server for matched campaigns -- polling interval, campaign display, accept/reject flow, local storage. If the user finds it's not implemented the way they want, fix it.\n\nIMPORTANT: When a matched campaign is displayed to the user, it must be highly detailed -- show ALL info the company filled in: brief, content guidance, images, files, payout rates, must-include/avoid, campaign goal. The user should have everything they need to decide whether to accept.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nBUG: Background agent auto-generates content for campaigns still in pending_invitation status. User never gets to accept/reject before content is created. The invitation flow must show invitations first, let user accept/reject, THEN generate content only for accepted campaigns.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "17"
-        ],
-        "tags": [
-          "tier-2",
-          "user",
-          "explain"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "22",
-        "title": "Verify: Campaign Polling (User Side)",
-        "description": "Ask the user what the acceptance criteria is for campaign polling so that we know when it's fully done. Then test against those criteria.\n\nVERIFIED: Invitations display full campaign info (brief+ReadMore, guidance, images, files, payout rates). Accept/reject works. Content generates only for accepted campaigns. Auto-reload on state changes. Per-campaign desktop notifications. Accepted campaigns preserved across re-polls.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "21"
-        ],
-        "tags": [
-          "tier-2",
-          "user",
-          "verify"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "23",
-        "title": "Explain: AI Content Generation",
-        "description": "Walk through how AI content generation currently works. Identify gaps between current implementation and what it should be. The user will specify what to fix.\n\nCURRENT STATE: Basic single-prompt content generation. No strategy phase, no competitor research, no goal-driven content.\n\nWHAT IT SHOULD BE (user-specified):\n\nAI AGENT: An actual AI agent should handle content generation through all 4 phases (research, strategy, creation, review). Not a single prompt call.\n\nPHASE 1 - RESEARCH (weekly per campaign):\n- Competitor research: what are competitors posting? What works for them?\n- Trend research: what is trending in this niche right now?\n- Product deep-dive: use ALL campaign sources (brief, scraped URLs, uploaded files, images)\n- Research runs ONCE PER WEEK per active campaign, results cached and reused daily\n\nPHASE 2 - STRATEGY (per campaign, refreshed weekly):\n- Campaign goal drives content strategy:\n  * LEADS: content has links to product, strong CTAs, landing page mentions\n  * VIRALITY: emotionally triggering content, images/videos, high posting frequency to stay in peoples heads\n  * BRAND AWARENESS: product mentions woven naturally, lifestyle content, consistent presence\n  * ENGAGEMENT: questions, polls, controversial takes, discussion starters\n- Post type per platform: text-only, image+text, or image-only (based on what performs best)\n- Posting frequency: how many posts per day per platform\n- Tone and angle: derived from research + campaign goal (NOT hardcoded)\n\nPHASE 3 - CONTENT CREATION:\n- Platform-native content that looks like REAL UGC (not polished marketing):\n  * Hooks that stop the scroll (emotional triggers, curiosity gaps, contrarian takes)\n  * Real-life scenarios and personal stories\n  * Imperfect language (typos-level casual, not corporate-perfect)\n  * Each platform has its own writing style (X: punchy + hashtags, LinkedIn: story format with line breaks, Reddit: genuine community member, Facebook: conversational)\n- NOT compulsory to use all assets/hashtags in every draft\n- Must-include items woven naturally where they fit, not forced\n- Campaign images used where appropriate (not every post)\n- Content types: text-only, image-only, image+text\n\nPHASE 4 - REVIEW:\n- Semi-auto: drafts shown to user with desktop notification\n- Full-auto: auto-approved and scheduled\n\nFREE API CREDITS: All content creation within free-tier limits. Gemini -> Mistral -> Groq fallback chain. Design to stay within daily free quotas.\n\nIMPACTS: Task 25 (review must handle image+text drafts), Task 27 (posting must handle all content types), Task 39 (notifications per campaign), Task 52 (future image/video gen tools plug into Phase 3)\n\nIMAGE INTELLIGENCE: When the company provides product images (Campaign.assets.image_urls), the AI must analyze each image (via vision API like Gemini Vision), understand what it shows (product shot, lifestyle photo, screenshot, infographic etc.), and decide WHICH posts should include WHICH images based on relevance. Not every post gets an image. The AI matches image content to post content â€” e.g., a product screenshot goes with a feature-focused post, a lifestyle photo goes with a story post. Images should NOT be blindly attached to every draft.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "21"
-        ],
-        "tags": [
-          "tier-2",
-          "user",
-          "explain"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "24",
-        "title": "Verify: AI Content Generation",
-        "description": "Ask the user what the acceptance criteria is for AI content generation so that we know when it's fully done. Then test against those criteria.\n\nSKIPPED: Current content gen is known to be inadequate (single-prompt, no strategy, no research). Requirements fully documented in task 23. Will be rebuilt as 4-phase AI agent (task 63) after all verification tasks complete.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "23"
-        ],
-        "tags": [
-          "tier-2",
-          "user",
-          "verify"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "25",
-        "title": "Explain: Content Review/Approval",
-        "description": "Walk through how the content review and approval flow currently works ' draft display, per-platform previews, edit capability, approve/reject/restore, approve all, scheduling on approve. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nDONE: Review flow works â€” approve/reject/edit/restore/unapprove/approve-all. Reddit JSON formatted as title+body. Company name added. Auto-reload on state changes.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "23"
-        ],
-        "tags": [
-          "tier-2",
-          "user",
-          "explain"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "26",
-        "title": "Verify: Content Review/Approval",
-        "description": "Ask the user what the acceptance criteria is for content review/approval so that we know when it's fully done. Then test against those criteria.\n\nDONE: Verified approve, reject, restore, unapprove, edit, approve-all. Reddit display fixed. Past posts formatted. Desktop notification fires on posting. Company name display added (requires eager loading fix).",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "25"
-        ],
-        "tags": [
-          "tier-2",
-          "user",
-          "verify"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "27",
-        "title": "Explain: Scheduled Posting",
-        "description": "Walk through how scheduled posting currently works ' post scheduling logic, time slot system, Playwright browser automation, platform-specific posting functions, URL capture, human behavior emulation, error handling. If the user finds it's not implemented the way they want, fix it.\n\nCRITICAL: X (Twitter) locks user accounts when controlled by Playwright automation. Amplifier must detect when X has locked the account (e.g., by checking for lockout page/modal after login) and notify the user to log back in manually. This is a known blocker for X posting.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nCONTENT TYPES: Some content drafts may be image-only, text-only, or image+text. The posting pipeline must handle all 3 types correctly for each platform. For image-only posts, upload the image without text. For text-only, post without image. For image+text, upload both. Each platform has different upload flows for these cases.\n\nBUGS FOUND DURING TESTING:\n1. Reddit post URL broken (posted_no_url status) â€” URL capture failed, placeholder stored. User clicked the URL and got a 404 in the app.\n2. Reddit post not actually appearing on Reddit â€” Playwright reported success but the post may not have landed (similar to LinkedIn issue from earlier sessions). Need to verify in headed mode.\n3. Post URL links in the Posts page route to local app URLs instead of platform URLs â€” causes 404.\n\nX LOCKOUT DETECTION (noted for later): When any activity opens X (posting, scraping), detect the locked account page (white page with heading like \"Your account got locked\") and notify user to unlock manually. Out of scope for current verify task.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "25"
-        ],
-        "tags": [
-          "tier-3",
-          "user",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-02T12:09:33.507Z"
-      },
-      {
-        "id": "28",
-        "title": "Verify: Scheduled Posting",
-        "description": "Ask the user what the acceptance criteria is for scheduled posting so that we know when it's fully done. Then test against those criteria.\n\nMUST TEST: Both semi-auto and full-auto modes work correctly. Semi-auto: AI generates content, user reviews and approves before posting. Full-auto: AI generates and posts automatically without user review.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "27"
-        ],
-        "tags": [
-          "tier-3",
-          "user",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T14:57:24.135Z"
-      },
-      {
-        "id": "29",
-        "title": "Explain: Metric Scraping",
-        "description": "Walk through how metric scraping currently works ' scraping schedule (T+1h/6h/24h/72h), per-platform scraping methods (API vs browser), data captured (impressions, likes, reposts, comments), server sync. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nIMPORTANT: Scraped profile data must be re-synced to the server DAILY (not just once during onboarding). The background agent already re-scrapes profiles weekly â€” but it does NOT send the updated data to the server. The server needs fresh profile data for AI matching to work well. Fix the background agent to sync scraped_profiles to server after every profile refresh. Consider increasing refresh frequency from weekly to daily.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "27"
-        ],
-        "tags": [
-          "tier-3",
-          "user",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:25:31.976Z"
-      },
-      {
-        "id": "30",
-        "title": "Verify: Metric Scraping",
-        "description": "Ask the user what the acceptance criteria is for metric scraping so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "29"
-        ],
-        "tags": [
-          "tier-3",
-          "user",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:25:41.515Z"
-      },
-      {
-        "id": "31",
-        "title": "Explain: Billing",
-        "description": "Walk through how billing/earnings calculation currently works ' per-metric rates (CPM/CPE), platform cut (20%), budget capping, deduplication, payout creation, earning triggers. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "29"
-        ],
-        "tags": [
-          "tier-4",
-          "company",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:25:50.834Z"
-      },
-      {
-        "id": "32",
-        "title": "Verify: Billing",
-        "description": "Ask the user what the acceptance criteria is for billing so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "31"
-        ],
-        "tags": [
-          "tier-4",
-          "company",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:26:00.215Z"
-      },
-      {
-        "id": "33",
-        "title": "Explain: Earnings/Stats",
-        "description": "Walk through how the earnings and statistics display currently works ' total earnings, pending/paid breakdown, per-campaign earnings, withdrawal flow, stats calculations on user dashboard. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "31"
-        ],
-        "tags": [
-          "tier-4",
-          "user",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:28:06.604Z"
-      },
-      {
-        "id": "34",
-        "title": "Verify: Earnings/Stats",
-        "description": "Ask the user what the acceptance criteria is for earnings and statistics so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "33"
-        ],
-        "tags": [
-          "tier-4",
-          "user",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:28:16.066Z"
-      },
-      {
-        "id": "35",
-        "title": "Explain: Stripe Top-up",
-        "description": "Walk through how company Stripe top-up currently works ' checkout session creation, success verification, balance crediting, fallback instant-credit for dev, payment history. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "15"
-        ],
-        "tags": [
-          "tier-4",
-          "company",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:29:54.632Z"
-      },
-      {
-        "id": "36",
-        "title": "Verify: Stripe Top-up",
-        "description": "Ask the user what the acceptance criteria is for Stripe top-up so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "35"
-        ],
-        "tags": [
-          "tier-4",
-          "company",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:30:06.157Z"
-      },
-      {
-        "id": "37",
-        "title": "Explain: Campaign Detail Page",
-        "description": "Walk through how the campaign detail page currently works ' stats cards, per-platform breakdown, influencer table, invitation funnel, budget display, post performance. If the user finds it's not implemented the way they want, fix it.\n\nNEEDED: Add image and file upload capability to the Edit Campaign modal on the campaign detail page. Companies should be able to upload additional product images and files AFTER the campaign is created (same Supabase Storage upload as the wizard). Also remove Rate/Click from the edit modal (matches wizard change).\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "19"
-        ],
-        "tags": [
-          "tier-4",
-          "company",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:30:15.926Z"
-      },
-      {
-        "id": "38",
-        "title": "Verify: Campaign Detail Page",
-        "description": "Ask the user what the acceptance criteria is for the campaign detail page so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "37"
-        ],
-        "tags": [
-          "tier-4",
-          "company",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T15:30:25.445Z"
-      },
-      {
-        "id": "39",
-        "title": "Explain: System Tray + Notifications",
-        "description": "Walk through how the system tray and desktop notifications currently work ' tray icon, right-click menu, dashboard launch, notification triggers, background agent integration. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.\n\nNOTE: Desktop notifications must be sent whenever new content drafts are generated for a campaign. User should know content is ready for review without having to check the dashboard.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "17"
-        ],
-        "tags": [
-          "tier-5",
-          "user",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:25:32.172Z"
-      },
-      {
-        "id": "40",
-        "title": "Verify: System Tray + Notifications",
-        "description": "Ask the user what the acceptance criteria is for system tray and notifications so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "39"
-        ],
-        "tags": [
-          "tier-5",
-          "user",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:25:40.942Z"
-      },
-      {
-        "id": "41",
-        "title": "Explain: Company Dashboard Stats",
-        "description": "Walk through how company dashboard statistics currently work ' overview metrics, campaign counts, total spend, active users, recent activity. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "15"
-        ],
-        "tags": [
-          "tier-5",
-          "company",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:25:49.900Z"
-      },
-      {
-        "id": "42",
-        "title": "Verify: Company Dashboard Stats",
-        "description": "Ask the user what the acceptance criteria is for company dashboard stats so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "41"
-        ],
-        "tags": [
-          "tier-5",
-          "company",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:25:58.851Z"
-      },
-      {
-        "id": "43",
-        "title": "Explain: Admin Overview",
-        "description": "Walk through how the admin overview dashboard currently works ' system stats, user counts, campaign counts, revenue metrics, recent activity. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [],
-        "tags": [
-          "tier-6",
-          "admin",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:23:44.260Z"
-      },
-      {
-        "id": "44",
-        "title": "Verify: Admin Overview",
-        "description": "Ask the user what the acceptance criteria is for the admin overview so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "43"
-        ],
-        "tags": [
-          "tier-6",
-          "admin",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:23:55.790Z"
-      },
-      {
-        "id": "45",
-        "title": "Explain: Admin Users",
-        "description": "Walk through how admin user management currently works ' user list, user details, trust scores, platform connections, ban/suspend actions. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [],
-        "tags": [
-          "tier-6",
-          "admin",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:24:07.115Z"
-      },
-      {
-        "id": "46",
-        "title": "Verify: Admin Users",
-        "description": "Ask the user what the acceptance criteria is for admin user management so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "45"
-        ],
-        "tags": [
-          "tier-6",
-          "admin",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:24:16.434Z"
-      },
-      {
-        "id": "47",
-        "title": "Explain: Admin Campaigns",
-        "description": "Walk through how admin campaign management currently works ' campaign list, campaign details, approval/rejection, status management, company association. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [],
-        "tags": [
-          "tier-6",
-          "admin",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:24:25.639Z"
-      },
-      {
-        "id": "48",
-        "title": "Verify: Admin Campaigns",
-        "description": "Ask the user what the acceptance criteria is for admin campaign management so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "47"
-        ],
-        "tags": [
-          "tier-6",
-          "admin",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:24:34.379Z"
-      },
-      {
-        "id": "49",
-        "title": "Explain: Admin Payouts",
-        "description": "Walk through how admin payout management currently works ' payout list, payout approval, payment processing, payout history, user earnings summary. If the user finds it's not implemented the way they want, fix it.\n\nIMPACT AUDIT: After explaining, list which other features this touches. Format: IMPACTS: feature1 (what changes), feature2 (what changes). This helps track cascading changes across tasks.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [],
-        "tags": [
-          "tier-6",
-          "admin",
-          "explain"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:24:43.656Z"
-      },
-      {
-        "id": "50",
-        "title": "Verify: Admin Payouts",
-        "description": "Ask the user what the acceptance criteria is for admin payouts so that we know when it's fully done. Then test against those criteria.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "49"
-        ],
-        "tags": [
-          "tier-6",
-          "admin",
-          "verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:24:53.492Z"
-      },
-      {
-        "id": "51",
-        "title": "Upgrade scrapers to use AI vision for robust profile extraction",
-        "description": "Replace brittle CSS selector-based profile scraping with AI-powered extraction. Send screenshots or page text to Gemini Vision API to extract structured profile data. AI reads pages like a human  no selectors to break. Can also extract insights: content style, niche, audience, tone. See FUTURE.md for full spec.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "future",
-          "user",
-          "scraping"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-05T03:33:53.524Z"
-      },
-      {
-        "id": "52",
-        "title": "Sophisticated AI content generation -- images, videos, memes for campaign goals",
-        "description": "Replace basic text-only content generation with rich media UGC. Content should be tailored to campaign goals (viral views, lead gen, brand awareness, FOMO, hype). Use ultra-cheap AI tools: FLUX.2 locally for images, LTX+TTS for videos, Supermeme.ai for memes, Canva/CapCut for polish. Train LoRAs per-user for face/style consistency. See FUTURE.md for full tool comparison and pipeline design.\n\nCRITICAL: Do NOT lock in specific tools now. Re-research at implementation time. Build for where models will be in 3-6 months: cheaper, faster, running on phones. Architecture must be model-agnostic (pluggable providers). Prefer open-weight models that run locally over proprietary APIs.\n\nACTION ITEM: Add FLUX.1 as an image generation option for users. Cost: ~$0.30/hour on vast.ai. Give users this as an opt-in option for generating images to use in their posts. Ultra cheap and produces high-quality content. Ensure FLUX works smoothly for users end-to-end: generates content AND is posted to platforms successfully.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "future",
-          "user",
-          "content-generation"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-05T02:29:35.381Z"
-      },
-      {
-        "id": "53",
-        "title": "Update SLC spec to reflect verified functionality",
-        "description": "After all explain/verify tasks (20-50) are complete, update SLC.md to accurately reflect what Amplifier does TODAY. This is the single living doc. Remove anything that doesn't exist, add anything that was changed during verify tasks. The result should be: if someone reads only this doc, they understand exactly what Amplifier does.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "docs",
-          "post-verify"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-05T03:34:01.429Z"
-      },
-      {
-        "id": "55",
-        "title": "Flux.1 image generation for campaign posts (~$0.30/session)",
-        "description": "Add Flux.1 (vast.ai GPU rental) as an opt-in image generation option for users. ~$0.30 per session generates multiple high-quality UGC images per campaign.\n\nWhat to build:\n1. Integrate vast.ai API  spin up Flux.1 instance, send prompt, receive images, tear down\n2. Add image gen step to content generation pipeline (after text gen)\n3. Platform-specific formats: landscape (LinkedIn/Facebook), square (Instagram), vertical (TikTok)\n4. Update draft model to store image file paths\n5. Update posting pipeline to upload images (most platform functions already support this)\n6. User settings: opt-in toggle for image gen\n7. Campaign wizard: companies can request image content\n\nCost: user pays ~$0.30 per vast.ai GPU session. Amplifier does NOT subsidize this.\n\nSee FUTURE.md for full spec. Do NOT start until all verify tasks (20-50) are done.",
-        "status": "pending",
-        "priority": "medium",
-        "dependencies": [
-          "54"
-        ],
-        "tags": [
-          "future",
-          "user",
-          "content-generation",
-          "image-gen"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "54",
-        "title": "Write tests for all verified features",
-        "description": "After all explain/verify tasks are done and docs are updated, write tests to lock down the verified behavior. Cover: company wizard + AI generation, campaign matching, user onboarding + scraping, content generation pipeline, posting pipeline, metric scraping, billing calculation, earnings display, Stripe top-up, admin pages. Tests should test the actual behavior confirmed during verify tasks  not hypothetical behavior.",
+        "id": 1,
+        "title": "Fix URL capture for LinkedIn, Facebook, Reddit",
+        "description": "URL capture fails on 3/4 platforms. Only X works. Without post URLs, metric scraping and billing cannot run.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [
-          "53"
-        ],
-        "tags": [
-          "tests",
-          "post-verify"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "56",
-        "title": "Integrate video generation (Seedance 2 or similar) as user-toggleable feature",
-        "description": "Add video generation integration to Amplifier. Users can enable/disable from settings. Content pipeline produces short-form UGC videos for TikTok, Instagram Reels, LinkedIn, Facebook. Requirements: 1) Research best ultra-cheap video gen tool at implementation time 2) Plug-and-play toggle in user settings 3) Enable/disable per platform 4) Videos stored locally, attached to drafts 5) Campaign wizard: companies can request video content 6) Model-agnostic architecture. Do NOT lock in a specific tool now.",
-        "status": "pending",
-        "priority": "medium",
-        "dependencies": [
-          "54"
-        ],
-        "tags": [
-          "future",
-          "user",
-          "content-generation",
-          "video-gen"
-        ],
-        "subtasks": []
-      },
-      {
-        "id": "58",
-        "title": "AI campaign quality gate (85% minimum before activation)",
-        "description": "AI checks campaign completeness and quality before company can activate. Below 85% gets specific feedback. Needs further discussion on whether to block or warn. See FUTURE.md.",
-        "status": "done",
-        "priority": "medium",
         "dependencies": [],
-        "tags": [
-          "future",
-          "company",
-          "quality"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:57:41.347Z"
+        "metadata": { "tier": 1 }
       },
       {
-        "id": "59",
-        "title": "AI browser agent for profile scraping (browser-use or similar)",
-        "description": "Replace fixed CSS selector scraping with AI browser agents that navigate profiles like humans. More robust, deeper insights, better anti-detection. Evaluate browser-use, AgentQL, Skyvern. See FUTURE.md.",
+        "id": 2,
+        "title": "Stripe top-up verification + idempotency fix",
+        "description": "Verify test-mode Stripe Checkout credits company balance correctly. Fix double-credit bug on success redirect.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "metadata": { "tier": 2 }
+      },
+      {
+        "id": 3,
+        "title": "Verify CSRF tokens in all Flask forms",
+        "description": "flask-wtf installed but need to verify every POST form has csrf_token() hidden input and CSRFProtect is initialized.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "metadata": { "tier": 2 }
+      },
+      {
+        "id": 4,
+        "title": "Install slowapi + apply rate limiting to auth endpoints",
+        "description": "slowapi not installed on server. Add rate limiting to login/register endpoints (5/minute).",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "metadata": { "tier": 2 }
+      },
+      {
+        "id": 5,
+        "title": "Invitation UX — countdown timers, expired badge, decline reason",
+        "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
         "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "tags": [
-          "future",
-          "user",
-          "scraping"
-        ],
-        "subtasks": []
+        "metadata": { "tier": 2 }
       },
       {
-        "id": "60",
-        "title": "Ensure metrics accuracy for billing (critical for trust)",
-        "description": "Metrics must be accurate â€” earnings depend on them. Cross-validate, handle edge cases, consider APIs over scraping, add sanity checks and audit trails. See FUTURE.md.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "future",
-          "money",
-          "metrics"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:30:25.497Z"
-      },
-      {
-        "id": "61",
-        "title": "Self-learning content generation (learn from performance + trends)",
-        "description": "AI learns from: 1) what competitors/industry post, 2) own post performance (which hooks/formats worked), 3) social/cultural trends. Experiments with styles, doubles down on winners. See FUTURE.md.",
-        "status": "cancelled",
-        "priority": "medium",
-        "dependencies": [
-          "54"
-        ],
-        "tags": [
-          "future",
-          "content-generation"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-05T07:38:47.930Z"
-      },
-      {
-        "id": "62",
-        "title": "Free and paid tiers for amplifiers (users) and companies",
-        "description": "Design and implement tiered pricing. Free tier: limited campaigns, basic content gen, standard features. Paid tier: unlimited campaigns, AI image/video gen, priority matching, advanced analytics. Free tier must be genuinely useful. See FUTURE.md for full spec.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "future",
-          "business",
-          "monetization"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:15:22.268Z"
-      },
-      {
-        "id": "63",
-        "title": "Build 4-phase AI content agent (research, strategy, creation, review)",
-        "description": "Replace single-prompt content generator with a sophisticated 4-phase AI agent. See FUTURE.md for full architecture.\n\nPhases: 1) Weekly research (product, competitors, trends, image analysis via vision API), 2) Goal-driven strategy (leads vs virality vs awareness vs engagement), 3) Daily platform-native UGC creation (hooks, stories, real language, image matching), 4) Review flow (semi-auto or full-auto).\n\nBEFORE BUILDING: Research existing AI tools/frameworks that could handle this. Evaluate: Jasper API, Copy.ai API, CrewAI, AutoGen, LangGraph, FeedHive API, Predis.ai. Goal is leverage â€” use an existing tool if it does 80% of what we need. Only build custom if nothing fits.\n\nIf building custom: use Gemini/Mistral/Groq APIs with the 4-phase ContentAgent architecture (see FUTURE.md for class diagram).\n\nDo NOT start until all verification tasks (25-50) are done.\n\nSCHEDULING: The content agent (Phase 2 Strategy) should determine the scheduled posting time for each draft, not the review/approval flow. The agent decides WHEN to post based on campaign goal, target region timezone, platform peak hours, and posting frequency strategy.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          "54"
-        ],
-        "tags": [
-          "major",
-          "content-generation",
-          "ai-agent"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-05T02:29:43.891Z"
-      },
-      {
-        "id": "64",
-        "title": "Upgrade posting system for all content formats across 6 platforms (incl. TikTok + Instagram)",
-        "description": "Update post.py to handle all common content formats per platform: X (threads, multi-image, polls), LinkedIn (carousels/PDFs, polls, articles, video), Facebook (albums, polls, video, stories), Reddit (link posts, image posts, polls, cross-posting), Instagram (carousels, Reels, Stories), TikTok (video, slideshows, duets). Re-enable Instagram and TikTok. Content generator must produce format-specific drafts. See FUTURE.md for full format list per platform.",
+        "id": 6,
+        "title": "Metrics accuracy — populate anomaly_flag, cross-validation",
+        "description": "anomaly_flag column exists but never populated. No cross-validation between Playwright and API metrics.",
         "status": "pending",
         "priority": "high",
-        "dependencies": [
-          "63"
-        ],
-        "tags": [
-          "major",
-          "posting",
-          "platforms"
-        ],
-        "subtasks": []
+        "dependencies": [1],
+        "metadata": { "tier": 2 }
       },
       {
-        "id": "65",
-        "title": "Platform-specific content preview in review UI",
-        "description": "Show draft content as a visual mockup of how it would appear on each platform (X tweet card, LinkedIn post card, Reddit post, etc.) instead of plain text. This is a UI improvement, not functional â€” drafts already work as plain text.",
-        "status": "done",
-        "priority": "low",
-        "dependencies": [
-          "63"
-        ],
-        "tags": [
-          "future",
-          "ui",
-          "content-review"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-05T02:32:35.159Z"
-      },
-      {
-        "id": "66",
-        "title": "Detect X (Twitter) account lockout and notify user to unlock",
-        "description": "When Amplifier opens X for posting or scraping, detect if the account is locked. X shows a minimal white page with heading like \"Your account got locked\" when automation is detected. Amplifier must: 1) Check for lockout page after navigating to X, 2) If detected, skip posting/scraping for X, 3) Send desktop notification telling user to manually unlock their X account, 4) Mark X session as \"locked\" in session health so it stops retrying until user re-authenticates.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "posting",
-          "x",
-          "detection"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:06:48.763Z"
-      },
-      {
-        "id": "67",
-        "title": "Improve session health check reliability",
-        "description": "Current session_health.py returns yellow (uncertain) for platforms that are actually logged in (LinkedIn, Reddit, X). Auth element selectors need updating to match current platform UIs. Reduce false-positive expired notifications. Consider: retry logic before notifying, use actual posting success as a health signal instead of element detection, suppress notifications if posts are succeeding on that platform.",
-        "status": "done",
+        "id": 7,
+        "title": "Repost campaign company creation UI",
+        "description": "Backend model exists for repost campaigns but no company dashboard UI to input per-platform post text.",
+        "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": {
-          "created": "2026-04-01",
-          "source": "task-28-verification"
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:08:16.244Z"
+        "metadata": { "tier": 2 }
       },
       {
-        "id": "68",
-        "title": "Repost campaign type â€” companies provide ready-made posts for users to repost",
-        "description": "Add a new campaign type: repost campaigns. Instead of AI-generating content, companies provide pre-written posts per platform (X, LinkedIn, Facebook, Reddit) as part of the campaign. Users accept the campaign and Amplifier reposts these exact posts on a schedule to the user's social media profiles.\n\nCompany side:\n- New campaign type selector: \"AI Generated\" (existing) vs \"Repost\" (new)\n- For repost campaigns, company provides per-platform post content (text, images, links) directly in the campaign creation form\n- Each campaign can have multiple posts (a content calendar the company defines)\n- Company can specify posting order, frequency, and date range\n\nUser side:\n- Repost campaigns show the actual posts in the invitation (so users know what they're agreeing to post)\n- On accept, posts are scheduled automatically â€” no content generation step, no review step needed\n- User can optionally preview before each post goes live (semi_auto mode) or let them auto-post (full_auto)\n- Posts execute via existing Playwright posting engine (post.py)\n- Metrics scraped and billed the same as AI-generated campaigns\n\nServer side:\n- New campaign_type field on Campaign model (\"ai_generated\" or \"repost\")\n- New campaign_posts table: campaign_id, platform, content, image_url, post_order, scheduled_offset\n- Matching works the same â€” repost campaigns still matched to users by niche/platform/followers\n- Billing works the same â€” pay per impression/engagement\n\nThis is simpler than AI campaigns (no content generation, no research, no strategy) and gives companies more control over exact messaging.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "metadata": {
-          "created": "2026-04-01",
-          "source": "user-request"
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:57:52.595Z"
-      },
-      {
-        "id": "69",
-        "title": "Update all docs to match verified codebase",
-        "description": "Run the docs-updater agent to sync all 16 docs in docs/ with the actual codebase after all explain/verify tasks (#15-#50) are complete. Do NOT run this until all verify tasks are done â€” code changes during verify will invalidate doc updates. Single pass: read current code, update every doc, commit.",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          "50"
-        ],
-        "metadata": {
-          "created": "2026-04-02",
-          "source": "user-request"
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:27:13.030Z"
-      },
-      {
-        "id": "70",
-        "title": "Fix draft notification count â€” shows stale drafts from all days",
-        "description": "Two bugs in the pending drafts notification: (1) get_pending_drafts() counts ALL unapproved drafts across all dates, not just today. Stale drafts from days ago inflate the count (showed 54 when only 12 were from today). Fix: filter to today only, or at minimum only count drafts from the last 24h. (2) On first page load, _lastPendingCount in user.js starts at 0, so the first /api/status poll always fires a notification (pending - 0 = pending). Fix: initialize _lastPendingCount to -1 or fetch initial count before enabling notifications. Files: scripts/utils/local_db.py (get_pending_drafts), scripts/user_app.py (/api/status), scripts/static/js/user.js (pollStatus).",
-        "status": "done",
+        "id": 8,
+        "title": "Admin payout void/approve actions",
+        "description": "Admin payout page is read-only. Need void and approve buttons for fraud management.",
+        "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "metadata": {
-          "created": "2026-04-02",
-          "source": "task-28-verification"
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:08:24.959Z"
+        "metadata": { "tier": 2 }
       },
       {
-        "id": "71",
-        "title": "User App: Password reset flow",
-        "description": "Add email-based password reset with time-limited tokens. No reset mechanism exists — users locked out permanently if they forget password. Add /api/auth/forgot-password and /api/auth/reset-password endpoints. Send reset link via email (or display token for MVP).",
-        "status": "done",
+        "id": 9,
+        "title": "Metric scraping — detailed spec per platform, verify E2E",
+        "description": "Write detailed spec for what each platform scraper extracts. Verify against real posts. Needs deeper spec first.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [1],
+        "metadata": { "tier": 3, "needs_spec": true }
+      },
+      {
+        "id": 10,
+        "title": "Billing — detailed spec for earnings calc, verify E2E",
+        "description": "Spec for billing pipeline: CPM multiplier, budget cap, hold period, platform cut, tier promotion. Verify with real metrics.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [9],
+        "metadata": { "tier": 3, "needs_spec": true }
+      },
+      {
+        "id": 11,
+        "title": "Earnings display — server-to-local sync, withdrawal, verify E2E",
+        "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [10],
+        "metadata": { "tier": 3, "needs_spec": true }
+      },
+      {
+        "id": 12,
+        "title": "AI matching — detailed spec for scoring logic, verify accuracy",
+        "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
+        "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "tags": [
-          "user-app",
-          "security"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:08:33.637Z"
+        "metadata": { "tier": 3, "needs_spec": true }
       },
       {
-        "id": "72",
-        "title": "User App: CSRF protection on all Flask forms",
-        "description": "Add CSRF tokens to all POST forms in user_app.py. Install flask-wtf or implement manual CSRF tokens. Currently no CSRF protection exists — POST endpoints vulnerable to cross-site request forgery.",
-        "status": "done",
+        "id": 13,
+        "title": "AI profile scraping — Gemini Vision, per-platform detailed spec",
+        "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
+        "status": "pending",
         "priority": "high",
         "dependencies": [],
-        "tags": [
-          "user-app",
-          "security"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:08:42.980Z"
+        "metadata": { "tier": 3, "needs_spec": true }
       },
       {
-        "id": "73",
-        "title": "User App: Encrypt stored credentials",
-        "description": "Auth tokens in server_auth.json and API keys in local SQLite are plaintext. Use OS keychain (keyring lib) or AES encryption at rest. If device is compromised, all tokens and keys are exposed.",
-        "status": "done",
+        "id": 14,
+        "title": "4-phase content agent — research, strategy, creation, review",
+        "description": "Current strategy is static dict. Needs deeper spec for goal-driven strategy, creator voice matching, trending topics, platform-native content.",
+        "status": "pending",
         "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "user-app",
-          "security"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:08:52.841Z"
+        "dependencies": [13],
+        "metadata": { "tier": 3, "needs_spec": true }
       },
       {
-        "id": "74",
-        "title": "User App: Rate limiting + API key validation + campaign search",
-        "description": "Three items: (1) Add rate limiting on login/register (5 attempts/min). (2) Test API key validity on save in settings — call the provider and verify before accepting. (3) Add search by title and filter by status to campaign list on dashboard.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "user-app",
-          "dashboard"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:09:01.446Z"
-      },
-      {
-        "id": "75",
-        "title": "User App: Improve content draft UX",
-        "description": "Five items: (1) Show campaign content_guidance alongside draft during review. (2) Add draft versioning — store original AI-generated + user-edited versions. (3) Add character counts for all platforms (LinkedIn 3000, Facebook 63206, Reddit 40000). (4) Fix Reddit JSON format error handling with try/except. (5) Add \"preview exactly what will be posted\" step before posting.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "user-app",
-          "content"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T16:09:10.373Z"
-      },
-      {
-        "id": "76",
-        "title": "User App: Fix invitation UX gaps",
-        "description": "Four items: (1) Add expiry countdown timers (\"expires in 2h 15m\") instead of raw timestamps. (2) Clearly mark expired invitations with EXPIRED badge and gray them out. (3) Capture optional decline reason when user rejects campaigns — send to company. (4) Require at least 1 niche during onboarding for campaign matching to work.",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "tags": [
-          "user-app",
-          "ux"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:26:28.522Z"
-      },
-      {
-        "id": "77",
-        "title": "User App: Data integrity improvements",
-        "description": "Medium priority. (1) Periodic local DB backup to a second file. (2) Sync approved drafts to server so laptop crash doesn't lose them. (3) Wrap SQLite operations in proper transactions. (4) Check campaign_version on detail view to detect stale cached data.",
-        "status": "done",
+        "id": 15,
+        "title": "AI campaign quality gate — detailed rubric spec",
+        "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
+        "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "tags": [
-          "user-app",
-          "data"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:26:37.413Z"
+        "metadata": { "tier": 3, "needs_spec": true }
       },
       {
-        "id": "78",
-        "title": "User App: Settings, metrics, and performance improvements",
-        "description": "Medium priority. Settings: auto-populate follower counts from scraped data, per-platform auto/manual mode, sync settings with server on startup. Metrics: manual metric entry fallback, resilient CSS selectors, 3-day profile refresh. Performance: campaign pagination, API response caching (5min TTL), limit concurrent Playwright to 2-3, parallel image generation.",
-        "status": "done",
+        "id": 16,
+        "title": "Content formats — threads, polls, carousels across platforms",
+        "description": "Research most-used formats per platform by engagement data. Build JSON posting scripts for top formats. Re-enable Instagram/TikTok.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [14],
+        "metadata": { "tier": 3, "needs_spec": true }
+      },
+      {
+        "id": 17,
+        "title": "Free/Pro tiers — wire Stripe subscription billing",
+        "description": "SUBSCRIPTION_TIERS config exists. Wire Stripe subscription checkout, webhook handler, enforce feature gates.",
+        "status": "pending",
         "priority": "medium",
         "dependencies": [],
-        "tags": [
-          "user-app",
-          "performance"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:26:46.357Z"
+        "metadata": { "tier": 3 }
       },
       {
-        "id": "79",
-        "title": "User App: UX polish and integration fixes",
-        "description": "Medium priority. UX: rename confusing statuses (pending_invitation→Invited, content_generated→Draft Ready), copy-to-clipboard for post URLs, mobile responsive, client-side form validation, CSV export for earnings. Integration: server-side post URL dedup, client-side invitation expiry warnings, campaign conflict detection.",
-        "status": "done",
-        "priority": "medium",
+        "id": 18,
+        "title": "Write automated test suite (pytest)",
+        "description": "Zero automated tests. Create pytest infrastructure, server/client/integration tests covering the full money loop.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [10, 11],
+        "metadata": { "tier": 3 }
+      },
+      {
+        "id": 19,
+        "title": "Stripe live integration — company Checkout + user Connect onboarding",
+        "description": "Live Stripe keys on Vercel. Webhook endpoint for payment confirmation. User Stripe Connect Express onboarding for real payouts.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [2, 10],
+        "metadata": { "tier": 4, "launch": true }
+      },
+      {
+        "id": 20,
+        "title": "PyInstaller packaging — Windows installer",
+        "description": "Update amplifier.spec for current codebase. Bundle all modules + Playwright + templates. Build Inno Setup installer.",
+        "status": "pending",
+        "priority": "high",
         "dependencies": [],
-        "tags": [
-          "user-app",
-          "ux"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:26:55.310Z"
+        "metadata": { "tier": 4, "launch": true }
       },
       {
-        "id": "80",
-        "title": "User App: Compliance, accessibility, and testing",
-        "description": "Low priority. Compliance: ToS acceptance on registration, privacy policy, GDPR data export/deletion, account deletion. Accessibility: ARIA labels, WCAG color contrast, keyboard navigation, form label associations. Testing: E2E tests (full flow), unit tests (scraping, generation, scheduling), mock server fixtures, load testing.",
-        "status": "done",
+        "id": 21,
+        "title": "Mac support — cross-platform audit + packaging",
+        "description": "Audit Windows-specific code (fonts, paths, crypto). Fix for Mac. Build Mac package. Test full pipeline.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [20],
+        "metadata": { "tier": 4, "launch": true }
+      },
+      {
+        "id": 22,
+        "title": "Landing page — public-facing site for acquisition",
+        "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [20],
+        "metadata": { "tier": 4, "launch": true }
+      },
+      {
+        "id": 23,
+        "title": "Periodic DB backup in background agent",
+        "description": "Copy data/local.db to data/local.db.bak every 6 hours in background agent loop.",
+        "status": "pending",
         "priority": "low",
         "dependencies": [],
-        "tags": [
-          "user-app",
-          "compliance",
-          "testing"
-        ],
-        "subtasks": [],
-        "updatedAt": "2026-04-04T17:27:04.235Z"
+        "metadata": { "tier": 5 }
+      },
+      {
+        "id": 24,
+        "title": "Status label renaming in user app templates",
+        "description": "Replace internal names: pending_invitation to Invited, content_generated to Draft Ready, posted to Live, paid to Earned.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": 5 }
+      },
+      {
+        "id": 25,
+        "title": "Clipboard copy button for post URLs",
+        "description": "Add Copy URL button next to each post URL on Posts tab.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": 5 }
+      },
+      {
+        "id": 26,
+        "title": "Client-side form validation in user app",
+        "description": "Add required attributes, email format, number range validation to all forms.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": 5 }
+      },
+      {
+        "id": 27,
+        "title": "Server-side post URL dedup",
+        "description": "Prevent same post URL registered twice via POST /api/posts. Return error on duplicate.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [],
+        "metadata": { "tier": 5 }
+      },
+      {
+        "id": 28,
+        "title": "ToS and privacy policy acceptance in registration",
+        "description": "Add ToS checkbox to registration. Block if unchecked. Create /privacy and /terms pages.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [],
+        "metadata": { "tier": 5 }
+      },
+      {
+        "id": 29,
+        "title": "[DEFERRED] Political campaigns — geo-targeting, FEC compliance",
+        "description": "Post-launch. Requires US legal entity. Geo micro-targeting, political content mode, FEC disclaimers, rapid deployment.",
+        "status": "deferred",
+        "priority": "high",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 30,
+        "title": "[DEFERRED] Self-learning content generation",
+        "description": "Post-launch. Performance feedback loop from metrics into content strategy. Needs real post data first.",
+        "status": "deferred",
+        "priority": "medium",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 31,
+        "title": "[DEFERRED] Video generation integration",
+        "description": "Post-launch. Short-form UGC videos for TikTok, Reels, LinkedIn, Facebook. Research free/cheap video gen tools.",
+        "status": "deferred",
+        "priority": "medium",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 32,
+        "title": "[DEFERRED] Flux.1 image generation upgrade",
+        "description": "Post-launch. Higher quality images via Flux.1. Current 5-provider free pipeline works for now.",
+        "status": "deferred",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 33,
+        "title": "[DEFERRED] GDPR export and account deletion",
+        "description": "Post-launch. User data export + account deletion cascade. Not needed for US-only launch.",
+        "status": "deferred",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 34,
+        "title": "[DEFERRED] ARIA accessibility audit",
+        "description": "Post-launch. ARIA labels, WCAG color contrast, keyboard navigation.",
+        "status": "deferred",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 35,
+        "title": "[DEFERRED] CSV export for earnings",
+        "description": "Post-launch. Download per-campaign earnings breakdown as CSV.",
+        "status": "deferred",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 36,
+        "title": "[DEFERRED] Mobile responsive dashboard",
+        "description": "Post-launch. Media queries for tablet (768px) and mobile (480px).",
+        "status": "deferred",
+        "priority": "low",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
       }
     ],
     "metadata": {
-      "version": "1.0.0",
-      "lastModified": "2026-04-05T07:38:47.931Z",
-      "taskCount": 79,
-      "completedCount": 73,
+      "version": "2.0.0",
+      "lastModified": "2026-04-05T10:30:00.000Z",
+      "taskCount": 36,
+      "completedCount": 0,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2026-04-05T10:30:00.000Z",
+      "description": "Amplifier remaining work — 28 active tasks + 8 deferred post-launch"
     }
   }
 }
