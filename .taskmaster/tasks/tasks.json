@@ -30,13 +30,14 @@
         "id": "3",
         "title": "Verify CSRF tokens in all Flask forms",
         "description": "flask-wtf installed but need to verify every POST form has csrf_token() hidden input and CSRFProtect is initialized.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T13:32:30.705Z"
       },
       {
         "id": "4",
@@ -483,9 +484,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-05T13:27:24.130Z",
+      "lastModified": "2026-04-05T13:32:30.706Z",
       "taskCount": 37,
-      "completedCount": 1,
+      "completedCount": 2,
       "tags": [
         "master"
       ]

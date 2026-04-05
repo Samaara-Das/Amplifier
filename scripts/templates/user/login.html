@@ -166,5 +166,20 @@
   <style>
     input.input-error { border-color: var(--error) !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
   </style>
+  <script>
+    // CSRF protection: inject token into all POST forms
+    document.addEventListener('DOMContentLoaded', function() {
+      var token = '{{ csrf_token() }}';
+      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function(form) {
+        if (!form.querySelector('input[name="csrf_token"]')) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          input.value = token;
+          form.appendChild(input);
+        }
+      });
+    });
+  </script>
 </body>
 </html>
