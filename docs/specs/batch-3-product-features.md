@@ -4,107 +4,74 @@
 
 ---
 
-## Task #16 — Content Formats (Threads, Polls, Carousels)
+## Task #16 -- Content Formats (Threads, Polls, Carousels)
 
 ### What It Does
 
 Expand posting beyond single text + image to the most-used content formats per platform. The content agent decides which format to use based on the campaign goal and platform strategy.
 
-### IMPORTANT: Research First
+### Research Requirement
 
-Before implementing, research the **most-used content formats on each platform in 2026** by actual engagement data. Build formats people use, not an exhaustive list.
+Before implementing, research the most-used content formats on each platform in 2026 by actual engagement data. Build formats people use, not an exhaustive list.
 
-### Formats to Implement (by platform)
+### Content Formats by Platform
 
-| Platform | Format | Priority | How it works |
+| Platform | Format | Priority | Description |
 |----------|--------|----------|-------------|
-| **X** | Text post | Already working | Single tweet ≤280 chars |
-| **X** | Text + image | Already working | Tweet with attached image |
-| **X** | Thread | HIGH | Multiple linked tweets. Click "+" in compose to add tweet to thread. Post all at once. |
-| **X** | Poll | MEDIUM | Tweet with poll options. Duration 1-7 days. |
+| **X** | Text post | Already working | Single post, 280 character limit |
+| **X** | Text + image | Already working | Post with attached image |
+| **X** | Thread | HIGH | Multiple linked posts published together. 3-5 posts typical. |
+| **X** | Poll | MEDIUM | Post with poll options. Duration 1-7 days. |
 | **LinkedIn** | Text post | Already working | Single post |
 | **LinkedIn** | Text + image | Already working | Post with attached image |
-| **LinkedIn** | Poll | HIGH | Create a poll in compose modal. Question + 2-4 options. Duration 1-2 weeks. |
+| **LinkedIn** | Poll | HIGH | Poll with question + 2-4 options. Duration 1-2 weeks. |
 | **Facebook** | Text post | Already working | Single post |
 | **Facebook** | Text + image | Already working | Post with attached image |
 | ~~**Facebook**~~ | ~~Poll~~ | ~~REMOVED~~ | ~~Not possible on Facebook~~ |
-| **Facebook** | Photo album | LOW | Multiple images in one post. |
+| **Facebook** | Photo album | LOW | Multiple images in one post |
 | **Reddit** | Text post | Already working | Title + body |
 | **Reddit** | Image post | Already working | Title + image |
-| **Reddit** | Link post | MEDIUM | Title + external URL. Different submit tab. |
+| **Reddit** | Link post | MEDIUM | Title + external URL |
 
-### New JSON Posting Scripts Needed
+### Format Selection Logic
 
-Each new format needs a JSON script in `config/scripts/`:
+The content agent's strategy phase decides for each post:
+- Which format to use (text, image+text, thread, poll, link post)
+- Whether to include image only, text only, or image+text
+- This is per-post, per-platform -- not a global setting
 
-- `x_thread.json` — compose first tweet → click "+" → type next tweet → repeat → post all
-- `x_poll.json` — compose tweet → click poll icon → fill question + options → set duration → post
-- `linkedin_poll.json` — click "Start a post" → click "Create a poll" → fill fields → post
-- `reddit_link.json` — navigate to submit → click "Link" tab → fill title + URL → post
+The AI makes this decision based on campaign goal, platform norms, and what format best serves the content angle for that day. Examples:
+- A stat-heavy post on X --> text only (no image needed)
+- A product showcase on Facebook --> image + text
+- An educational deep-dive on X --> thread (3-5 posts)
+- An engagement play on LinkedIn --> poll
 
-### Content Agent Decides Format
+### Content Structure per Format
 
-The content agent's **strategy phase** decides for each post:
-- Which **format** to use (text, image_text, thread, poll, link post)
-- Whether to include **image only, text only, or image+text**
-- This is per-post, per-platform — not a global setting
+| Format | Required Fields |
+|--------|----------------|
+| Text | Platform, text body |
+| Text + image | Platform, text body, image |
+| Thread (X only) | Platform, ordered list of post texts (each within 280 chars) |
+| Poll (X, LinkedIn) | Platform, question text, 2-4 option labels, duration in days |
+| Link post (Reddit only) | Platform, title, external URL |
 
-The AI makes this decision based on campaign goal, platform norms, and what format best serves the content angle for that day. For example:
-- A stat-heavy post on X → text only (no image needed)
-- A product showcase on Facebook → image + text
-- An educational deep-dive on X → thread (3-5 tweets)
-- An engagement play on LinkedIn → poll
+### Graceful Fallback
 
-The creation phase produces format-specific JSON output:
+If a format is not supported on a given platform (e.g., thread on Reddit), the system must gracefully fall back to the default text post format for that platform.
 
-**Thread output:**
-```json
-{"platform": "x", "format": "thread", "content": {
-    "tweets": ["First tweet (hook)", "Second tweet (detail)", "Third tweet (CTA)"]
-}}
-```
+### Acceptance Criteria
 
-**Poll output:**
-```json
-{"platform": "linkedin", "format": "poll", "content": {
-    "question": "What's your biggest challenge with X?",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "duration_days": 3
-}}
-```
-
-### Posting Orchestrator Update
-
-`scripts/post.py` `post_to_platform()` must select the right JSON script based on `content_format`:
-
-```python
-def _get_script_path(platform: str, content_format: str) -> Path:
-    script_name = f"{platform}_{content_format}.json"
-    path = ROOT / "config" / "scripts" / script_name
-    if path.exists():
-        return path
-    return ROOT / "config" / "scripts" / f"{platform}_post.json"  # fallback to basic
-```
-
-### Local DB Changes
-
-Add `format_type` column to `post_schedule` table so the posting engine knows which script to use:
-```sql
-ALTER TABLE post_schedule ADD COLUMN format_type TEXT DEFAULT 'text';
-```
-
-The `agent_draft` table already has `format_type` from Phase C migration.
-
-### Verification
-
-1. Generate content for X with `goal=virality`. Strategy should sometimes produce a thread (3-5 tweets). Post via `x_thread.json`. Verify thread appears on X as linked tweets.
-2. Generate content for LinkedIn with `goal=engagement`. Strategy should produce a poll. Post via `linkedin_poll.json`. Verify poll appears with all options.
-3. Attempt thread format on Reddit (not supported). Must gracefully fall back to text post.
-4. All existing text + image posting still works (no regressions).
+1. The content agent can generate thread content for X consisting of 3-5 linked posts. The thread appears on X as properly linked posts.
+2. The content agent can generate a poll for LinkedIn with a question and 2-4 options. The poll appears on LinkedIn with all options functional.
+3. The content agent can generate a link post for Reddit with a title and external URL. The link post appears on Reddit correctly.
+4. When a format is requested on an unsupported platform, the system falls back to a text post without errors.
+5. All existing text + image posting continues to work with no regressions.
+6. The scheduled post record stores which format was selected so the posting engine uses the correct automation flow.
 
 ---
 
-## Task #5 — Invitation UX (Countdown, Expired Badge, Decline Reason)
+## Task #5 -- Invitation UX (Countdown, Expired Badge, Decline Reason)
 
 ### What It Does
 
@@ -112,240 +79,196 @@ Improve the campaign invitation interface so users can see how much time they ha
 
 ### Current State
 
-The invitation card (in `campaigns.html`) shows:
+The invitation card shows:
 - Campaign title, company name, brief, content guidance, product images, payout rates
 - "Expires {date}" as static text
 - Accept and Reject buttons
 
 ### What's Missing
 
-1. **Countdown timer** — show "2h 15m remaining" that updates in real-time
-2. **Expired visual state** — red badge, grayed-out card, disabled buttons
-3. **Decline reason** — optional text input when rejecting
+1. **Countdown timer** -- show time remaining that updates in real-time
+2. **Expired visual state** -- clear badge, dimmed card, disabled buttons
+3. **Decline reason** -- optional feedback when rejecting
 
-### Countdown Timer Implementation
+### Countdown Timer Behavior
 
-Add JavaScript to the invitation card that computes time remaining from `expires_at`:
+Each invitation card must display a live countdown showing time remaining until expiry:
 
-```javascript
-function updateCountdown(element, expiresAt) {
-    const diff = new Date(expiresAt) - new Date();
-    if (diff <= 0) {
-        element.textContent = "EXPIRED";
-        element.style.color = "#ef4444";
-        // Gray out parent card, disable buttons
-        const card = element.closest('.invitation-card');
-        card.style.opacity = '0.5';
-        card.querySelectorAll('button').forEach(b => b.disabled = true);
-        return false; // stop updating
-    }
-    const hours = Math.floor(diff / 3600000);
-    const mins = Math.floor((diff % 3600000) / 60000);
-    if (hours > 24) {
-        const days = Math.floor(hours / 24);
-        element.textContent = `${days}d ${hours % 24}h remaining`;
-    } else {
-        element.textContent = `${hours}h ${mins}m remaining`;
-    }
-    if (hours < 6) element.style.color = "#f59e0b"; // yellow warning
-    if (hours < 1) element.style.color = "#ef4444"; // red urgent
-    return true; // keep updating
-}
+| Time Remaining | Display Format | Visual Treatment |
+|----------------|---------------|------------------|
+| More than 24 hours | "Xd Yh remaining" | Default color |
+| 6-24 hours | "Xh Ym remaining" | Default color |
+| 1-6 hours | "Xh Ym remaining" | Warning color (yellow/amber) |
+| Less than 1 hour | "Xh Ym remaining" | Urgent color (red) |
+| Expired | "EXPIRED" | Red text |
 
-// Update every minute
-setInterval(() => {
-    document.querySelectorAll('[data-expires]').forEach(el => {
-        updateCountdown(el, el.dataset.expires);
-    });
-}, 60000);
-```
+The countdown must update automatically every minute without requiring a page refresh.
 
-### Expired Badge
+### Expired Invitation Behavior
 
-When `expires_at < now`:
-- Show red "EXPIRED" badge next to campaign title
-- Gray out the entire invitation card (opacity 0.5)
-- Disable Accept/Reject buttons
-- Move expired invitations to the bottom of the list
+When an invitation's expiry time has passed:
+- A red "EXPIRED" badge appears next to the campaign title
+- The entire invitation card is visually dimmed (grayed out)
+- The Accept and Reject buttons are disabled and non-clickable
+- Expired invitations are sorted to the bottom of the invitation list
+- If a countdown is running and the invitation expires while the user is viewing the page, the card must transition to the expired state automatically
 
 ### Decline Reason
 
-When user clicks "Reject":
-1. Show a small text input (optional): "Why are you declining? (optional)"
-2. Common quick-select reasons: "Not relevant to my audience", "Payout too low", "Don't have time", "Other"
-3. Send the reason with the reject API call: `POST /api/campaigns/invitations/{id}/reject` with body `{"reason": "..."}`
-4. Server stores the reason on `CampaignAssignment.decline_reason` (new column)
-5. Company can see decline reasons on their campaign detail page — helps them improve targeting
+When a user clicks "Reject" on an invitation:
+1. A small input area appears with the prompt: "Why are you declining? (optional)"
+2. Quick-select reason buttons are available: "Not relevant to my audience", "Payout too low", "Don't have time", "Other"
+3. The user can select a quick reason, type a custom reason, or skip entirely
+4. The decline reason is sent to the server with the rejection
+5. The server stores the reason on the invitation record
+6. Companies can see aggregated decline reasons on their campaign detail page to improve future targeting
 
-### Server Changes
+### Acceptance Criteria
 
-Add `decline_reason` column to `CampaignAssignment` model:
-```python
-decline_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-```
-
-Update reject endpoint in `server/app/routers/invitations.py` to accept and store the reason.
-
-### Verification
-
-1. View invitation expiring in 2 hours. Expect: countdown shows "2h 0m remaining", updates every minute.
-2. View invitation expired 1 hour ago. Expect: red "EXPIRED" badge, card grayed out, buttons disabled.
-3. Reject with reason "Payout too low". Expect: reason stored on server. Company sees it on campaign detail.
-4. Reject without reason (leave empty). Expect: works fine, reason is null.
+1. An invitation expiring in 2 hours displays "2h 0m remaining" in the warning color, and the countdown updates every minute.
+2. An invitation that expired 1 hour ago shows a red "EXPIRED" badge, the card is dimmed, and both buttons are disabled.
+3. Declining with the reason "Payout too low" stores the reason on the server. The company can see it on their campaign detail page.
+4. Declining without a reason (leaving it blank) succeeds without error; the stored reason is empty.
+5. Expired invitations appear at the bottom of the list, below all active invitations.
+6. If a user is viewing the page and an invitation expires, the card transitions to the expired state without a page refresh.
 
 ---
 
-## Task #7 — Repost Campaign Company Creation UI
+## Task #7 -- Repost Campaign Company Creation UI
 
 ### What It Does
 
-The company dashboard needs a UI for creating repost campaigns — where the company provides exact pre-written post text per platform instead of using AI generation.
+The company dashboard needs a complete UI for creating repost campaigns, where the company provides exact pre-written post text per platform instead of using AI generation.
 
 ### Current State
 
-- Campaign type toggle exists in `campaign_create.html` (AI Generated vs Repost buttons)
-- Repost text editors exist for X (280 char limit), LinkedIn (3000), Facebook, Reddit (title + body)
-- Backend `CampaignPost` model and API endpoints exist
-- Background agent handles repost campaigns (skips AI gen, schedules pre-written content directly)
+- Campaign type toggle exists (AI Generated vs Repost)
+- Per-platform text editors exist with character limits (X: 280, LinkedIn: 3000, Reddit: title 300 + body)
+- The backend data model and API for campaign posts exist
+- The user-side background agent handles repost campaigns (skips AI generation, schedules pre-written content directly)
 
-**What's actually missing (from the audit):** The repost content textareas in `campaign_create.html` exist but the form submission may not properly save the repost content to the `campaign_posts` table. Need to verify the end-to-end flow.
+**Gap:** The form submission flow may not properly save repost content to the database end-to-end. This needs verification and fixing.
 
 ### Repost Campaign Rules
 
-1. **Companies don't have to provide content for every platform.** If they only write X and LinkedIn content, those are the only platforms that get posted. Other platforms are simply skipped.
+1. **Companies do not have to provide content for every platform.** If they only write X and LinkedIn content, only those platforms get posted. Other platforms are simply skipped for that campaign.
 
-2. **All content formats are supported for reposts.** A company can provide a thread (multiple tweets), a poll, or plain text. The repost creation UI must support format selection per platform:
-   - Text (default)
-   - Text + image (with image upload)
-   - Thread (X only — multiple text fields)
-   - Poll (X and LinkedIn only — question + options)
-   - Link post (Reddit only — title + URL)
+2. **All content formats are supported for reposts.** A company can provide a thread, a poll, or plain text. The repost creation UI must support format selection per platform:
 
-3. **Users cannot edit repost content.** In semi-auto mode, users see the repost content for review but the text fields are **read-only**. They can only approve or reject, not modify. In full-auto mode, reposts are scheduled directly without review.
+   | Platform | Supported Repost Formats |
+   |----------|--------------------------|
+   | X | Text, Text + image, Thread (multiple text fields) |
+   | LinkedIn | Text, Text + image, Poll (question + options) |
+   | Facebook | Text, Text + image |
+   | Reddit | Text (title + body), Image (title + image), Link post (title + URL) |
 
-### What to Verify/Fix
+3. **Users cannot edit repost content.** In semi-auto mode, users see the repost content for review but all text fields are read-only. They can only approve or reject, not modify the content. In full-auto mode, reposts are scheduled directly without any review step.
 
-1. **Form submission flow:** When company selects "Repost" type and fills in per-platform content, on form submit:
-   - `campaign_type` must be set to `"repost"` in the campaign record
-   - Each platform's content must be saved as a `CampaignPost` row linked to the campaign (including format type)
-   - Platforms left blank are simply not saved — no empty rows
-   - The brief should be auto-generated from the repost content (already in JS: lines 362-367 of campaign_create.html)
+### End-to-End Flow Requirements
 
-2. **Format selection per platform:** Each platform's repost editor should have a format dropdown (text, thread, poll, link) that changes the input fields accordingly.
+1. **Campaign creation:** When a company selects "Repost" type and fills in per-platform content:
+   - The campaign record must be stored as type "repost"
+   - Each platform's content must be saved as a separate record linked to the campaign, including which format was selected
+   - Platforms left blank are not saved (no empty records)
+   - A brief is auto-generated from the repost content
 
-3. **Editing repost content:** On the campaign detail/edit page, if `campaign_type == "repost"`, show the per-platform editors pre-filled. Allow the **company** to edit.
+2. **Format selection per platform:** Each platform's editor must have a format selector (text, thread, poll, link) that dynamically changes the input fields to match the selected format.
 
-4. **Character counts:** Each platform editor shows remaining chars (X: 280, LinkedIn: 3000, Reddit title: 300).
+3. **Editing after creation:** On the campaign detail/edit page, if the campaign is a repost campaign, the per-platform editors appear pre-filled with existing content. The company can edit their content at any time.
 
-5. **Preview:** Show how the repost content will look on each platform (use the platform preview CSS from Task #65).
+4. **Character counts:** Each platform editor shows remaining characters against the platform's limit.
 
-6. **Validation:** Don't allow activation of a repost campaign with zero platform content. At least one platform must have content.
+5. **Preview:** The repost content is shown in a platform-specific preview style so the company can see how it will appear.
 
-7. **User-side read-only:** When a user views a repost campaign's drafts, the content is displayed but NOT editable. Approve/Reject buttons only.
+6. **Validation:** A repost campaign cannot be activated with zero platform content. At least one platform must have content filled in.
 
-### API Endpoints (verify these exist and work)
+7. **User-side display:** When a user views a repost campaign's drafts, the content is displayed as read-only. Only approve/reject actions are available.
 
-- `POST /company/campaigns/{id}/posts` — add a campaign post
-- `GET /company/campaigns/{id}/posts` — list campaign posts
-- `DELETE /company/campaigns/{id}/posts/{post_id}` — delete a campaign post
+### Acceptance Criteria
 
-### Verification
-
-1. Company creates repost campaign. Fills X text "Check out our product #ad" and LinkedIn text. Submits. Expect: `campaign_type = "repost"` in DB, 2 rows in `campaign_posts`.
-2. User polls. Repost campaign appears with `repost_content` populated. Content matches what company typed.
-3. User accepts. Background agent does NOT call ContentAgent. Drafts are pre-filled from repost content.
-4. Company edits the repost text after creation. Changes are saved and reflected on next user poll.
-5. Company tries to activate repost campaign with zero content filled. Expect: validation error.
+1. A company creates a repost campaign with X text "Check out our product #ad" and LinkedIn text. After submission, the campaign is stored as type "repost" with two platform content records.
+2. A user polls the server. The repost campaign appears with the pre-written content matching exactly what the company typed.
+3. A user accepts the repost campaign. The system does not invoke AI content generation. Drafts are pre-filled directly from the company's repost content.
+4. A company edits repost text after campaign creation. The changes are saved and reflected when users next poll.
+5. A company tries to activate a repost campaign with no platform content filled in. The system shows a validation error and prevents activation.
+6. A user in semi-auto mode views a repost draft. The content is visible but all text fields are read-only. Only approve and reject buttons are available.
+7. A company selects "Thread" format for X and provides 3 separate post texts. All 3 are saved and delivered to users as a thread.
 
 ---
 
-## Task #8 — Admin Payout Void/Approve Actions
+## Task #8 -- Admin Payout Void/Approve Actions
 
 ### What It Does
 
-The admin financial dashboard currently shows a read-only list of payouts. Admin needs to be able to void fraudulent payouts and manually approve payouts that are stuck.
+The admin financial dashboard currently shows a read-only list of payouts. Admins need the ability to void fraudulent payouts and manually approve payouts that are stuck in the hold period.
 
 ### Current State
 
-`server/app/routers/admin/financial.py` has:
-- `GET /admin/financial` — payout list with stats, filtering by status, search by email
-- `POST /admin/financial/run-billing` — trigger billing cycle
-- `POST /admin/financial/run-payout` — trigger payout processing
-- `POST /admin/financial/run-earning-promotion` — promote pending → available
-- `POST /admin/financial/run-payout-processing` — process available → paid
+The admin financial dashboard supports:
+- Viewing the payout list with stats, filtering by status, and searching by email
+- Triggering a billing cycle
+- Triggering payout processing
+- Promoting pending earnings to available
+- Processing available payouts to paid
 
-**Missing:** Per-payout actions (void, approve, reject).
+**Missing:** Per-payout actions (void, approve).
 
-### Actions to Add
+### Void Payout Action
 
-#### Void Payout
-- Admin clicks "Void" on a pending or available payout
-- Payout status changes to `"voided"`
-- `payout.amount_cents` is returned to `campaign.budget_remaining`
-- `user.earnings_balance_cents` is decremented by the voided amount
-- Audit log entry created with admin action + reason
+**When to use:** Suspected fake metrics, post was deleted, user violated terms.
 
-**When to void:** Suspected fake metrics, post was deleted, user violated terms.
+**Who can trigger:** Admin only.
 
-#### Force-Approve Payout
-- Admin clicks "Approve" on a pending payout to skip the 7-day hold
-- Payout status changes from `"pending"` to `"available"` immediately
-- No change to amounts — just accelerates the hold period
+**Eligible payout statuses:** Pending or Available.
 
-**When to force-approve:** User request, manual verification completed, time-sensitive situation.
+**What happens when a payout is voided:**
 
-### Implementation
+| Step | Effect |
+|------|--------|
+| 1 | Payout status changes to "voided" |
+| 2 | The payout amount is returned to the campaign's remaining budget |
+| 3 | If the payout was in "available" status, the user's earnings balance is decremented by the voided amount |
+| 4 | An audit log entry is created recording the admin, the action, and the reason provided |
 
-Add two POST endpoints to `server/app/routers/admin/financial.py`:
+The admin must provide a reason when voiding (e.g., "Suspected fake metrics").
 
-```python
-@router.post("/financial/void/{payout_id}")
-async def void_payout(payout_id: int, request: Request, ...):
-    reason = (await request.form()).get("reason", "Admin voided")
-    payout = await db.get(Payout, payout_id)
-    if payout.status not in ("pending", "available"):
-        # Can't void already-paid or already-voided payouts
-        return error
+### Force-Approve Payout Action
 
-    old_status = payout.status
-    payout.status = "voided"
+**When to use:** User request, manual verification completed, time-sensitive situation.
 
-    # Return funds to campaign budget
-    campaign = await db.get(Campaign, payout.campaign_id)
-    if campaign:
-        campaign.budget_remaining += payout.amount  # or amount_cents
+**Who can trigger:** Admin only.
 
-    # Decrement user balance
-    user = await db.get(User, payout.user_id)
-    if user and old_status == "available":
-        user.earnings_balance_cents -= payout.amount_cents
+**Eligible payout status:** Pending only.
 
-    await log_admin_action(db, request, "payout_voided", "payout", payout_id, {"reason": reason})
-    await db.commit()
+**What happens when a payout is force-approved:**
 
-@router.post("/financial/approve/{payout_id}")
-async def force_approve_payout(payout_id: int, request: Request, ...):
-    payout = await db.get(Payout, payout_id)
-    if payout.status != "pending":
-        return error
-    payout.status = "available"
-    payout.available_at = func.now()
-    await log_admin_action(db, request, "payout_force_approved", "payout", payout_id, {})
-    await db.commit()
-```
+| Step | Effect |
+|------|--------|
+| 1 | Payout status changes from "pending" to "available" immediately |
+| 2 | The 7-day hold period is skipped |
+| 3 | No change to amounts -- the funds are simply made available sooner |
+| 4 | An audit log entry is created recording the admin and the action |
 
-### UI Changes
+### Button Visibility Rules
 
-In `server/app/templates/admin/financial.html`, add action buttons per payout row:
+| Payout Status | Void Button | Approve Button |
+|---------------|-------------|----------------|
+| Pending | Shown | Shown |
+| Available | Shown | Hidden |
+| Paid | Hidden | Hidden |
+| Voided | Hidden | Hidden |
+| Failed | Hidden | Hidden |
 
-- **Void button** (red) — shown for `pending` and `available` payouts. Clicking opens a modal/prompt for reason.
-- **Approve button** (green) — shown only for `pending` payouts. Immediately moves to `available`.
-- **Neither** for `paid`, `voided`, or `failed` payouts (terminal states).
+Paid, voided, and failed are terminal states with no available actions.
 
-### Verification
+### Void Reason Input
 
-1. Payout with `status=pending`. Click Void with reason "Suspected fake metrics". Expect: status → "voided", campaign budget restored, audit log entry.
-2. Payout with `status=pending`. Click Approve. Expect: status → "available" immediately (hold period skipped).
-3. Payout with `status=paid`. Expect: no Void or Approve buttons shown (terminal state).
-4. Void an `available` payout. Expect: status → "voided", user's earnings_balance_cents decremented, campaign budget restored.
-5. Check audit log. Expect: both actions logged with admin details and timestamp.
+When an admin clicks "Void", a prompt or modal appears requesting a reason before the action is confirmed. The reason is stored in the audit log.
+
+### Acceptance Criteria
+
+1. A payout with status "pending" is voided with reason "Suspected fake metrics". The payout status becomes "voided", the campaign's remaining budget increases by the payout amount, and an audit log entry is created with the reason.
+2. A payout with status "pending" is force-approved. The payout status becomes "available" immediately, skipping the 7-day hold. An audit log entry is created.
+3. A payout with status "paid" has no Void or Approve buttons visible (terminal state).
+4. A payout with status "available" is voided. The payout status becomes "voided", the user's earnings balance is decremented by the voided amount, and the campaign budget is restored.
+5. Both void and force-approve actions appear in the audit log with the admin's identity and a timestamp.
