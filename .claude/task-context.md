@@ -1,137 +1,160 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-05 (Session 31)
+**Last Updated**: 2026-04-05 (Session 32)
 
-## Current Task
+## Current State
 
-**Phases A-F COMPLETE. Phase D AI features in progress.** 72/79 tasks done (#57 removed). 7 remaining.
+**Full audit completed. Task list reset. Detailed product specs written. Ready for implementation.**
 
-## Task Progress Summary
+The old 80-task list was audited and found to have ~20 tasks marked "done" that were incomplete or not implemented. The task list was reset to 37 tasks (28 active + 9 deferred). Detailed product specs were written for 16 tasks across 4 batches.
 
-| Phase | Focus | Tasks | Status |
-|-------|-------|-------|--------|
-| A Foundation | URL capture, metrics, billing, earnings, Stripe | #28-#38 | All done |
-| B Security | CSRF, lockout, reset, encryption, FTC | #66-#76 | All done |
-| C Schema | DB migrations for Tier 4 | — | Done |
-| D Features | Repost, quality gate, subscriptions | #58, #62, #68 | Done |
-| D Features | 4-phase content agent, self-learning, preview UI | #52/#63, #61, #65 | Done (session 31) |
-| D Features | AI scraping, formats, browser agent | #51, #64, #59 | In progress / pending |
-| E Integrity | Metrics accuracy | #60 | Done |
-| F Admin/Polish | Admin dashboard, system tray, UX | #39-#50, #76-#80 | All done |
+## Task List (37 total)
 
-**67 done, 0 in-progress, 13 pending. 80 total tasks.**
+### Tier 1: Fix Broken Foundation (1 task)
+| # | Task | Status | Priority |
+|---|------|--------|----------|
+| 1 | Fix URL capture (LinkedIn, Facebook, Reddit) | pending | high |
 
-## Session 30 — What Was Done
+### Tier 2: Incomplete Security & Product Gaps (7 tasks)
+| # | Task | Status | Priority |
+|---|------|--------|----------|
+| 2 | Stripe top-up verification + idempotency fix | pending | high |
+| 3 | Verify CSRF tokens in all Flask forms | pending | high |
+| 4 | Install slowapi + apply rate limiting | pending | high |
+| 5 | Invitation UX (countdown, expired badge, decline reason) | pending | medium |
+| 6 | Metrics accuracy (deleted post detection, rate limits) | pending | high |
+| 7 | Repost campaign company creation UI | pending | medium |
+| 8 | Admin payout void/approve actions | pending | medium |
 
-### Phase D Progress — 3 features implemented
+### Tier 3: Features Needing Deeper Specs (10 tasks)
+| # | Task | Status | Priority | Depends on |
+|---|------|--------|----------|------------|
+| 9 | Metric scraping per platform | pending | high | 1 |
+| 10 | Billing (earnings calc, verify E2E) | pending | high | 9 |
+| 11 | Earnings display (server→local sync, withdrawal) | pending | high | 10 |
+| 12 | AI matching (scoring logic, verify) | pending | high | — |
+| 13 | AI profile scraping (Gemini Vision, per-platform) | pending | high | — |
+| 14 | 4-phase content agent | pending | high | 13 |
+| 15 | AI campaign quality gate | pending | medium | — |
+| 16 | Content formats (threads, polls) | pending | high | 14 |
+| 17 | Free/Pro tiers (Stripe subscription) | pending | medium | — |
+| 18 | Write automated test suite | pending | high | 10, 11 |
 
-**#68 Repost Campaigns (3 commits):**
-- Server: CampaignPost model, 3 API endpoints (add/list/delete posts), matching includes campaign_posts in CampaignBrief
-- Company dashboard: Campaign type toggle (AI Generated/Repost) in wizard, per-platform text editors with char limits
-- User app: background_agent skips AI gen for repost campaigns, loads pre-written content from campaign_posts table
-- Local DB: upsert_campaign stores campaign_type/goal/tone/disclaimer_text + repost_content
+### Tier 4: Launch Tasks (4 tasks)
+| # | Task | Status | Priority | Depends on |
+|---|------|--------|----------|------------|
+| 19 | Stripe live integration (Checkout + Connect) | pending | high | 2, 10 |
+| 20 | PyInstaller packaging (Windows) | pending | high | — |
+| 21 | Mac support | pending | medium | 20 |
+| 22 | Landing page | pending | medium | 20 |
 
-**#58 Quality Gate:**
-- `server/app/services/campaign_quality.py` — 8-rubric scoring (brief length, guidance, payout rates, targeting, assets, title, dates, budget)
-- Blocks activation below 85/100, returns actionable feedback
-- Integrated into campaign status update in campaigns.py
+### Tier 5: Quick Polish (6 tasks)
+| # | Task | Status | Priority |
+|---|------|--------|----------|
+| 23 | Periodic DB backup | pending | low |
+| 24 | Status label renaming | pending | low |
+| 25 | Clipboard copy for post URLs | pending | low |
+| 26 | Client-side form validation | pending | low |
+| 27 | Server-side post URL dedup | pending | medium |
+| 28 | ToS/privacy acceptance | pending | medium |
 
-**#62 Free/Pro Subscription Tiers:**
-- SUBSCRIPTION_TIERS config in billing.py (free: 4 posts/day, pro: $19.99/mo, 20 campaigns, image gen)
-- `get_effective_max_campaigns()` combines reputation + subscription limits
-- User model/schema updated with subscription_tier field
+### Deferred (9 tasks — post-launch)
+29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
+37: Local lightweight LLM for user-side AI
 
-### Phase E — Metrics Accuracy (#60)
-- Anomaly detection: `_check_metric_anomaly()` flags 10x+ jumps, `anomaly_flag` column
-- Deleted post detection: all 6 scrapers detect platform-specific deletion phrases
-- Rate limit detection: CAPTCHA detection, consecutive limit counter, platform skip after 3 hits
-- `update_post_status()` marks posts as "deleted", excluded from future scraping
+## Session 32 — What Was Done
 
-### Phase F — Admin + Support Verified
-- All 12 admin pages verified via Chrome DevTools on deployed server (overview, users, companies, campaigns, financial, fraud, analytics, review, settings, audit)
-- System tray notifications already integrated in background_agent
-- Tasks #39-50, #76-80 marked done
+### Full Audit of All 80 Tasks
+- Ran comprehensive audit of every implemented feature
+- Found ~20 tasks marked "done" that were incomplete or not implemented
+- Key findings:
+  - URL capture broken on 3/4 platforms (only X works)
+  - CSRF tokens not verified in Flask forms
+  - Rate limiting (slowapi) not installed
+  - Invitation UX (countdown, expired badge) not implemented
+  - Multiple Tier 5 items (#77-80) marked done but code doesn't exist
+  - Repost campaign has backend but no company creation UI
+  - Admin payouts are read-only (no void/approve)
+  - Earnings display may not sync from server to local
 
-### Deployment Fixes (Critical)
+### Task List Reset
+- Removed all 80 old tasks from task-master
+- Created 37 new tasks (28 active + 9 deferred) reflecting actual state
+- Organized into 5 tiers by priority + launch tasks + deferred
 
-**Root cause: Supabase PostgreSQL missing columns.** SQLAlchemy `create_all()` auto-creates on local SQLite but doesn't ALTER existing tables on PostgreSQL. Multiple columns added to models over sessions but never migrated on Supabase.
+### Detailed Product Specs Written (4 batches)
+All specs at `docs/specs/`:
 
-**Columns added to Supabase via psycopg2 ALTER TABLE:**
-- users: `tier`, `successful_post_count`, `earnings_balance_cents`, `total_earned_cents`, `scraped_profiles`, `ai_detected_niches`, `last_scraped_at`, `zip_code`, `state`, `political_campaigns_enabled`, `subscription_tier`
-- companies: `balance_cents`, `status`
-- campaigns: `campaign_goal`, `campaign_type`, `tone`, `preferred_formats`, `disclaimer_text`
-- payouts: `amount_cents`, `available_at`
-- penalties: `amount_cents`
-- campaign_assignments: `content_mode`, `payout_multiplier`, `assigned_at`
-- posts: `status`
-- New table: `campaign_posts`
+**Batch 1 — Money Loop** (`batch-1-money-loop.md`):
+- Task #1: URL capture — test first, per-platform fix strategies
+- Task #9: Metric scraping — every 24h for campaign lifetime, per-platform metrics (views X only, likes/comments all, reposts not Reddit), PRAW for Reddit, deleted post detection
+- Task #10: Billing — formula with rate_per_comment added, rate_per_click removed, rate_per_1k_views X-only, 7-day hold, tier promotion, budget management
+- Task #11: Earnings display — test first, server→local sync, withdrawal flow
 
-**Python 3.12 forward reference crash:** `CampaignPostResponse` defined after `CampaignBrief` which references it. Python 3.14 handles this via lazy evaluation but 3.12 (Vercel) crashes. Fixed by moving class definition before usage.
+**Batch 2 — AI Brain** (`batch-2-ai-brain.md`):
+- Task #13: AI profile scraping — 3-tier token-efficient pipeline (text→elements→vision), per-platform extraction from real screenshots (X, LinkedIn, Facebook, Reddit), navigation: scroll AND click "Show all"/"...more"
+- Task #12: AI matching — scoring weights (topic 40%, audience 25%, authenticity 20%, quality 15%), self-selected niches override profile, min score 40
+- Task #14: Content agent — 4 phases (research with niche news, AI-driven strategy, creation, review), timeliness rule, anti-AI language
+- Task #15: Quality gate — 2-layer (mechanical rubric 85/100 + server-side AI review for scams/harmful content)
 
-**Other deploy fixes:**
-- Skip `init_tables()` on Vercel (VERCEL env var check)
-- JSON global exception handler for debugging
-- Billing page dev-mode top-up form when Stripe not configured
-- Removed accidentally committed `.env.prod` with secrets
+**Batch 3 — Product Features** (`batch-3-product-features.md`):
+- Task #16: Content formats — threads (X), polls (X, LinkedIn), link posts (Reddit). No LinkedIn carousel, no Facebook poll. Content agent decides format per-post.
+- Task #5: Invitation UX — countdown timers with color coding, expired badge + gray-out, decline reason with quick-select
+- Task #7: Repost campaign UI — partial platforms OK, all formats supported, users can't edit (read-only approve/reject)
+- Task #8: Admin payouts — void (returns funds) and force-approve (skips hold) with audit logging
 
-### Vercel Deploy Notes
-- Must be logged in to correct Vercel account (`araamas` not `kingsdxb2025`)
-- Project: `araamas-projects/server` linked via `.vercel/project.json`
-- Deploy command: `cd server && vercel deploy --yes --prod`
-- Python 3.12 specified in `.python-version`
-- Supabase migrations must be run manually via psycopg2 (not auto-created)
+**Batch 4 — Business & Launch** (`batch-4-business-launch.md`):
+- Task #17: Free/Pro tiers ($19.99/mo) — image gen on both tiers, post limit is gate (4 vs 20), 20% matching boost for Pro
+- Task #19: Stripe live — existing father's Stripe account, company Checkout with idempotency, user Connect Express onboarding
+- Task #22: Landing page — dual audience (companies + users), sections, mobile, SEO
+- Task #6: Metrics accuracy — deleted post detection, rate limit handling, dedup
 
-## Remaining Tasks (13)
+### Key Decisions Made This Session
+1. **rate_per_click removed** — clicks can't be scraped from post pages
+2. **Self-learning (#61) cancelled** — moved to deferred/post-launch
+3. **Political campaigns removed** — out of scope
+4. **Task #57 removed** — official APIs not part of implementation
+5. **Image gen on both Free and Pro tiers** — no restriction
+6. **Metric scraping: every 24h** (not tiered T+1h/6h/24h/72h schedule)
+7. **Per-platform metrics**: views X only, likes all 4, comments all 4, reposts not Reddit
+8. **Profile scraping: text-first** — 3-tier pipeline to minimize tokens (text→elements→vision)
+9. **AI matching: self-selected niches override** profile analysis
+10. **Quality gate: 2-layer** — mechanical rubric + server AI review
+11. **Content agent: niche news** in research phase for timely content
+12. **Repost campaigns: users can't edit** content (read-only)
+13. **Father's Stripe account** available for Amplifier
+14. **Local LLM** added as deferred task #37
 
-```
-#51  AI profile scraping (Browser Use / AI vision)
-#52  Sophisticated AI content generation
-#53  Update SLC spec (docs)
-#54  Write automated tests
-#55  Flux.1 image generation
-#56  Video generation integration
-#57  Official social media APIs
-#59  AI browser agent for profile scraping
-#61  Self-learning content gen
-#63  4-phase AI content agent
-#64  Content formats (threads, polls, carousels)
-#65  Platform content preview UI
-```
-
-## Key Lessons Learned
-
-1. **Always test on deployed server, not just local** — SQLite masks PostgreSQL schema issues
-2. **Run Supabase migrations manually** — `create_all()` doesn't ALTER existing tables
-3. **Python 3.12 vs 3.14** — forward references in type hints behave differently
-4. **Vercel account matters** — wrong account = wrong project = deploy to wrong URL
-5. **Chrome DevTools MCP for self-verification** — don't claim "works" without visual proof on deployed
-
-## Key Reference Files
-
-- `server/app/main.py` — FastAPI entry + JSON exception handler
-- `server/app/core/database.py` — Supabase connection (SSL, NullPool, pgbouncer)
-- `server/app/schemas/campaign.py` — CampaignPostResponse BEFORE CampaignBrief
-- `server/app/services/campaign_quality.py` — Quality gate (85/100 threshold)
-- `server/app/services/billing.py` — SUBSCRIPTION_TIERS + CPM multiplier
-- `server/app/models/campaign_post.py` — Repost campaign posts
-- `scripts/utils/metric_scraper.py` — Anomaly detection, deleted post handling
-- `scripts/background_agent.py` — Repost campaign support
+### Session 31 Work (earlier in same day)
+- Implemented #52/#63 (content agent), #61 (self-learning), #65 (preview UI), #51 (AI scraping), #53 (SLC spec)
+- All later found to need deeper specs and re-implementation
+- Removed click-based payouts
+- Fixed Flask reloader tab spam
+- Deployed to Vercel
 
 ## Deployed URLs
 - **Production**: https://server-five-omega-23.vercel.app
 - **Company dashboard**: /company/login
-- **Admin dashboard**: /admin/login (password: admin, cookie: admin_token=valid)
+- **Admin dashboard**: /admin/login
 - **User App**: localhost:5222
 
 ## Server Auth
-- Primary: `dassamaara@gmail.com` / `1304sammy#` (ID 15)
+- Primary: `dassamaara@gmail.com` / `1304sammy#`
 - Company test: `amplifier.testco@gmail.com` / `TestCo2026!`
 - Auth file: `config/server_auth.json` (encrypted)
 
+## Key Constraints
+- All AI must be free or very cheap (Gemini, Mistral, Groq free tiers)
+- User's own API keys used for all user-app AI operations
+- Server's keys used for matching and campaign wizard
+- Father's Stripe account for payments
+- US-only audience targeting
+- Windows-primary, Mac support planned
+
 ## Test Commands
 ```bash
-python scripts/user_app.py
+python scripts/user_app.py                    # Start user app on localhost:5222
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-cd server && vercel deploy --yes --prod
-python scripts/login_setup.py <platform>
+cd server && vercel deploy --yes --prod       # Deploy to production
+task-master list                              # See all tasks
 ```
