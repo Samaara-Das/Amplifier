@@ -249,7 +249,7 @@ async def ai_generate_campaign(
             "title": f"[EDIT] {body.get('product_name', body.get('product_description', 'Campaign'))[:50]}",
             "brief": f"[AI generation failed: {e}]\n\nPlease edit this brief manually.\n\n{body.get('product_description', '')}",
             "content_guidance": "Create authentic, engaging content about this product.",
-            "payout_rules": {"rate_per_1k_impressions": 0.50, "rate_per_like": 0.01, "rate_per_repost": 0.05, "rate_per_click": 0.10},
+            "payout_rules": {"rate_per_1k_impressions": 0.50, "rate_per_like": 0.01, "rate_per_repost": 0.05},
             "suggested_budget": 100,
             "reach_estimate": {"matching_users": 0, "estimated_impressions_low": 0, "estimated_impressions_high": 0},
             "ai_error": str(e),

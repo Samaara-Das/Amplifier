@@ -6,7 +6,7 @@ class PayoutRules(BaseModel):
     rate_per_1k_impressions: float = 0.50
     rate_per_like: float = 0.01
     rate_per_repost: float = 0.05
-    rate_per_click: float = 0.10
+    rate_per_click: float = 0.0  # Not trackable — clicks can't be scraped from post pages
 
 
 class Targeting(BaseModel):

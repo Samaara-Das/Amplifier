@@ -494,21 +494,21 @@ def suggest_payout_rates(niches: list[str]) -> dict:
             "rate_per_1k_impressions": 1.00,
             "rate_per_like": 0.02,
             "rate_per_repost": 0.10,
-            "rate_per_click": 0.15,
+            "rate_per_click": 0.0,
         }
     elif niche_set & _ENGAGEMENT_NICHES:
         return {
             "rate_per_1k_impressions": 0.30,
             "rate_per_like": 0.015,
             "rate_per_repost": 0.08,
-            "rate_per_click": 0.10,
+            "rate_per_click": 0.0,
         }
     else:
         return {
             "rate_per_1k_impressions": 0.50,
             "rate_per_like": 0.01,
             "rate_per_repost": 0.05,
-            "rate_per_click": 0.10,
+            "rate_per_click": 0.0,
         }
 
 

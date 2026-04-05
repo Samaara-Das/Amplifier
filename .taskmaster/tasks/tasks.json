@@ -807,7 +807,7 @@
         "id": "51",
         "title": "Upgrade scrapers to use AI vision for robust profile extraction",
         "description": "Replace brittle CSS selector-based profile scraping with AI-powered extraction. Send screenshots or page text to Gemini Vision API to extract structured profile data. AI reads pages like a human  no selectors to break. Can also extract insights: content style, niche, audience, tone. See FUTURE.md for full spec.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -815,13 +815,14 @@
           "user",
           "scraping"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T03:33:53.524Z"
       },
       {
         "id": "52",
         "title": "Sophisticated AI content generation -- images, videos, memes for campaign goals",
         "description": "Replace basic text-only content generation with rich media UGC. Content should be tailored to campaign goals (viral views, lead gen, brand awareness, FOMO, hype). Use ultra-cheap AI tools: FLUX.2 locally for images, LTX+TTS for videos, Supermeme.ai for memes, Canva/CapCut for polish. Train LoRAs per-user for face/style consistency. See FUTURE.md for full tool comparison and pipeline design.\n\nCRITICAL: Do NOT lock in specific tools now. Re-research at implementation time. Build for where models will be in 3-6 months: cheaper, faster, running on phones. Architecture must be model-agnostic (pluggable providers). Prefer open-weight models that run locally over proprietary APIs.\n\nACTION ITEM: Add FLUX.1 as an image generation option for users. Cost: ~$0.30/hour on vast.ai. Give users this as an opt-in option for generating images to use in their posts. Ultra cheap and produces high-quality content. Ensure FLUX works smoothly for users end-to-end: generates content AND is posted to platforms successfully.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -829,13 +830,14 @@
           "user",
           "content-generation"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T02:29:35.381Z"
       },
       {
         "id": "53",
         "title": "Update SLC spec to reflect verified functionality",
         "description": "After all explain/verify tasks (20-50) are complete, update SLC.md to accurately reflect what Amplifier does TODAY. This is the single living doc. Remove anything that doesn't exist, add anything that was changed during verify tasks. The result should be: if someone reads only this doc, they understand exactly what Amplifier does.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "tags": [
@@ -843,7 +845,7 @@
           "post-verify"
         ],
         "subtasks": [],
-        "updatedAt": "2026-04-04T17:16:47.950Z"
+        "updatedAt": "2026-04-05T03:34:01.429Z"
       },
       {
         "id": "55",
@@ -895,20 +897,6 @@
         "subtasks": []
       },
       {
-        "id": "57",
-        "title": "Use official social media APIs for profile data (X, LinkedIn, Reddit, Facebook)",
-        "description": "Replace/supplement Playwright scraping with official platform APIs for richer, more reliable profile data. See FUTURE.md.",
-        "status": "pending",
-        "priority": "medium",
-        "dependencies": [],
-        "tags": [
-          "future",
-          "user",
-          "scraping"
-        ],
-        "subtasks": []
-      },
-      {
         "id": "58",
         "title": "AI campaign quality gate (85% minimum before activation)",
         "description": "AI checks campaign completeness and quality before company can activate. Below 85% gets specific feedback. Needs further discussion on whether to block or warn. See FUTURE.md.",
@@ -956,7 +944,7 @@
         "id": "61",
         "title": "Self-learning content generation (learn from performance + trends)",
         "description": "AI learns from: 1) what competitors/industry post, 2) own post performance (which hooks/formats worked), 3) social/cultural trends. Experiments with styles, doubles down on winners. See FUTURE.md.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [
           "54"
@@ -965,7 +953,8 @@
           "future",
           "content-generation"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T02:29:52.541Z"
       },
       {
         "id": "62",
@@ -986,7 +975,7 @@
         "id": "63",
         "title": "Build 4-phase AI content agent (research, strategy, creation, review)",
         "description": "Replace single-prompt content generator with a sophisticated 4-phase AI agent. See FUTURE.md for full architecture.\n\nPhases: 1) Weekly research (product, competitors, trends, image analysis via vision API), 2) Goal-driven strategy (leads vs virality vs awareness vs engagement), 3) Daily platform-native UGC creation (hooks, stories, real language, image matching), 4) Review flow (semi-auto or full-auto).\n\nBEFORE BUILDING: Research existing AI tools/frameworks that could handle this. Evaluate: Jasper API, Copy.ai API, CrewAI, AutoGen, LangGraph, FeedHive API, Predis.ai. Goal is leverage â€” use an existing tool if it does 80% of what we need. Only build custom if nothing fits.\n\nIf building custom: use Gemini/Mistral/Groq APIs with the 4-phase ContentAgent architecture (see FUTURE.md for class diagram).\n\nDo NOT start until all verification tasks (25-50) are done.\n\nSCHEDULING: The content agent (Phase 2 Strategy) should determine the scheduled posting time for each draft, not the review/approval flow. The agent decides WHEN to post based on campaign goal, target region timezone, platform peak hours, and posting frequency strategy.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "54"
@@ -996,7 +985,8 @@
           "content-generation",
           "ai-agent"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T02:29:43.891Z"
       },
       {
         "id": "64",
@@ -1018,7 +1008,7 @@
         "id": "65",
         "title": "Platform-specific content preview in review UI",
         "description": "Show draft content as a visual mockup of how it would appear on each platform (X tweet card, LinkedIn post card, Reddit post, etc.) instead of plain text. This is a UI improvement, not functional â€” drafts already work as plain text.",
-        "status": "pending",
+        "status": "done",
         "priority": "low",
         "dependencies": [
           "63"
@@ -1028,7 +1018,8 @@
           "ui",
           "content-review"
         ],
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T02:32:35.159Z"
       },
       {
         "id": "66",
@@ -1247,9 +1238,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-04T17:30:25.498Z",
-      "taskCount": 80,
-      "completedCount": 68,
+      "lastModified": "2026-04-05T03:34:01.429Z",
+      "taskCount": 79,
+      "completedCount": 74,
       "tags": [
         "master"
       ]

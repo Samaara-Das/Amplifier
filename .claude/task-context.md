@@ -1,10 +1,10 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-05 (Session 29-30)
+**Last Updated**: 2026-04-05 (Session 31)
 
 ## Current Task
 
-**Phases A-F COMPLETE. Deployed to production.** 67/80 tasks done. 13 remaining are Phase D/E AI features.
+**Phases A-F COMPLETE. Phase D AI features in progress.** 72/79 tasks done (#57 removed). 7 remaining.
 
 ## Task Progress Summary
 
@@ -14,7 +14,8 @@
 | B Security | CSRF, lockout, reset, encryption, FTC | #66-#76 | All done |
 | C Schema | DB migrations for Tier 4 | — | Done |
 | D Features | Repost, quality gate, subscriptions | #58, #62, #68 | Done |
-| D Features | AI scrapers, content agent, formats | #51-#65 | 13 pending |
+| D Features | 4-phase content agent, self-learning, preview UI | #52/#63, #61, #65 | Done (session 31) |
+| D Features | AI scraping, formats, browser agent | #51, #64, #59 | In progress / pending |
 | E Integrity | Metrics accuracy | #60 | Done |
 | F Admin/Polish | Admin dashboard, system tray, UX | #39-#50, #76-#80 | All done |
 
