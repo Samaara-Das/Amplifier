@@ -324,6 +324,15 @@
         "priority": "low",
         "dependencies": [],
         "metadata": { "tier": "post-launch" }
+      },
+      {
+        "id": 37,
+        "title": "[DEFERRED] Local lightweight LLM for user-side AI operations",
+        "description": "Post-launch. Replace cloud API calls with a lightweight local LLM on user's desktop/laptop for profile scraping, content generation, and other AI tasks. Eliminates API key dependency and cost.",
+        "status": "deferred",
+        "priority": "medium",
+        "dependencies": [],
+        "metadata": { "tier": "post-launch" }
       }
     ],
     "metadata": {

@@ -254,36 +254,62 @@ The AI must be told specifically what to look for on each platform. Each platfor
 
 **Navigate to:** User's profile page (`https://www.reddit.com/user/{username}/`)
 
+**Reddit profiles have tabs:** Overview, Posts, Comments (and private-only: Saved, History, Hidden, Upvoted, Downvoted). The right sidebar shows stats and achievements. Some profiles are **private** ("likes to keep their posts hidden").
+
+**Extraction flow:**
+1. Load Overview tab — extract header (username, display name, avatar) + right sidebar stats (karma, age, followers, achievements, trophy case)
+2. Click **"Posts" tab** — extract recent posts with title, subreddit, score, comments, timestamp
+3. Click **"Comments" tab** — extract recent comments with subreddit context, text, upvotes (reveals which communities they're active in)
+
 **What to extract:**
 | Field | Where to find it | Example |
 |-------|-----------------|---------|
-| Username | Profile header | "u/some_user" |
-| Display name | If set (optional on Reddit) | "Some User" |
+| Username | Profile header with u/ prefix | "u/SamaaraDas" |
+| Display name | Above username (if custom set) | "SamaaraDas" or custom like "mujhe kya mein toh foolgobhi hu" |
 | Bio | Below username (if set) | "Trader, coder, coffee addict" |
-| Post karma | Profile stats | 15,234 |
-| Comment karma | Profile stats | 48,921 |
-| Total karma | Combined | 64,155 |
-| Cake day (account age) | Profile stats | "October 15, 2018" |
-| Follower count | If visible | 234 |
-| Profile picture | Avatar image | URL or description |
-| Banner image | If set | URL or description |
-| Active subreddits | From recent posts | ["r/wallstreetbets", "r/stocks", "r/daytrading"] |
-| Recent posts (up to 10) | Listed on profile | |
-| - Title | Post title | "My honest take on..." |
-| - Subreddit | Where posted | "r/Daytrading" |
-| - Score (upvotes) | Number next to arrows | 756 |
-| - Comments | Comment count | 20 |
-| - Posted at | Timestamp | "1 day ago" |
-| - Post type | Text, image, link, video | "image" |
+| Avatar | Profile picture | description |
+| Banner | If customized | description |
+| **Right sidebar stats:** | | |
+| Total karma | Sidebar stat | 223 |
+| Post karma / Comment karma | If shown separately | split values |
+| Contributions count | Sidebar stat | 17 |
+| Account age | Sidebar stat | "6y" or "new to Reddit" |
+| Follower count | Sidebar stat | 0, 1.83K |
+| **Achievements section:** | Right sidebar | |
+| Achievement badges | Named badges with icons | "30 Day Streak", "Nice Post", "Banana Baby" |
+| Achievement count | Total + "View All" link | "+16 more" |
+| **Trophy Case:** | Right sidebar (below achievements) | |
+| Trophies | Named awards | "Six-Year Club", "Verified Email", "First Place '22" |
+| **Posts tab:** | Click "Posts" tab | |
+| Post title | Bold text | "My honest take on the 'Smart Money Indicator Beta'..." |
+| Subreddit | r/ prefix above post | "r/IndianStockMarket" |
+| Score (upvotes) | Number with up/down arrows | 2, 5, 21 |
+| Comments count | Number next to comment icon | 2, 3 |
+| Shares count | If shown | 3 |
+| Views count | Shown for own posts | "21 views", "330 views" |
+| Posted at | Timestamp | "1 yr ago", "10 days ago" |
+| Post status | If removed | "[removed]" by moderators |
+| Has media | Image/video/link | true/false |
+| **Comments tab:** | Click "Comments" tab | |
+| Comment text | The user's comment | "What I would do: find high value skills..." |
+| Parent subreddit | r/ prefix | "r/IndianStockMarket" |
+| Parent post title | Post they commented on | "Just turned 18 what should I invest in..." |
+| Comment upvotes | Number | 4, 1 |
+| Comment views | If shown (own comments) | 330, 1 |
+| Comment timestamp | When posted | "10 days ago" |
+
+**Handling private profiles:** If the Overview shows "likes to keep their posts hidden" with a Welcome mascot, the profile is private. Extract only sidebar stats (karma, age, achievements). Mark `profile_privacy = "private"` in the output.
 
 **AI-inferred fields:**
 | Field | How |
 |-------|-----|
-| Posting frequency | From post timestamps |
-| Content niches | From subreddits + post topics |
-| Content quality | Score-to-subreddit-average ratio |
-| Community reputation | Karma + account age |
-| Top subreddits | Ranked by post frequency |
+| Posting frequency | From post timestamps on Posts tab |
+| Content niches | From subreddit names (posts + comments) — if they post in r/daytrading, r/stocks, r/IndianStockMarket → niche is "trading", "finance" |
+| Content quality | Post scores relative to subreddit norms |
+| Community reputation | Karma + account age + trophy case badges |
+| Active subreddits | Ranked by frequency from both Posts and Comments tabs |
+| Engagement style | Ratio of posts vs comments — heavy commenter vs heavy poster |
+| Expertise signals | Trophy case (verified email, year clubs), achievements (streaks), karma level |
 
 ### Navigation Strategy
 
