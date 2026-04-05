@@ -154,14 +154,37 @@ Not all metrics are visible on all platforms. Only scrape what's actually shown 
 
 **Scrapes:** likes (upvote score), comments. NO reposts, NO views.
 
-1. Navigate to the post URL (`https://www.reddit.com/r/{sub}/comments/{id}/`)
-2. Wait for page load (5s)
-3. Find upvote score: number between up/down arrows, or `shreddit-post[score]` attribute
-4. Find comments: number next to comment icon, or `shreddit-post[comment-count]` attribute
-5. Set reposts = 0, views = 0 (not available on Reddit)
+**Preferred approach: Use PRAW (Python Reddit API Wrapper)** instead of Playwright scraping. PRAW is free, reliable, no risk of bans (respects 60 req/min rate limit), and returns structured data directly.
+
+Setup:
+1. `pip install praw` (already available or add to requirements.txt)
+2. Create a Reddit app at https://www.reddit.com/prefs/apps → get `client_id` + `client_secret`
+3. For read-only public data, username/password are optional
+
+```python
+import praw
+reddit = praw.Reddit(client_id='XXX', client_secret='XXX', user_agent='amplifier-metrics/1.0')
+
+# Get any user's posts
+for submission in reddit.redditor("some_user").submissions.new(limit=10):
+    print(submission.title, submission.score, submission.num_comments)
+
+# Get a specific post by URL
+submission = reddit.submission(url="https://www.reddit.com/r/sub/comments/abc123/...")
+print(submission.score, submission.num_comments)
+```
+
+PRAW returns: `submission.score` (upvotes - downvotes), `submission.num_comments`, `submission.author`, `submission.created_utc`, `submission.is_self`, `submission.selftext`, `submission.url`.
+
+**Fallback:** If PRAW is not configured (no client_id/secret), fall back to Playwright scraping:
+1. Navigate to the post URL
+2. Find upvote score: number between up/down arrows, or `shreddit-post[score]` attribute
+3. Find comments: number next to comment icon, or `shreddit-post[comment-count]` attribute
+
+Set reposts = 0, views = 0 (not available on Reddit).
 
 **Edge cases:**
-- Post removed: "[removed]" or "[deleted]" → mark deleted
+- Post removed: PRAW raises `prawcore.exceptions.Forbidden` or returns `[removed]` → mark deleted
 - Subreddit private/banned → mark deleted
 - Score is negative → store as-is (valid data)
 
