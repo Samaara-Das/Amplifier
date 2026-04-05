@@ -1551,9 +1551,10 @@ if __name__ == "__main__":
 
     # use_reloader spawns a child process — only start tray/agent in the child
     # (the parent is the reloader watcher, not the actual app)
-    is_reloader_parent = os.environ.get("WERKZEUG_RUN_MAIN") != "true"
+    # With reloader disabled, this is always the main process
+    is_main_process = True
 
-    if not is_reloader_parent:
+    if is_main_process:
         # Start system tray icon (only in the actual app process)
         try:
             from utils.tray import start_tray, stop_tray, send_notification
@@ -1577,9 +1578,7 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.error("Failed to start background agent: %s", e)
 
-        # Only open browser on initial launch, not on reloader restarts
-        if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-            threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
 
     print(f"\n  Amplifier is running at http://localhost:{PORT}")
     print("  The app is in your system tray — keep it running for campaigns to work.\n")
