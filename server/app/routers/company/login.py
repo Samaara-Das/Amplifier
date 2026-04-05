@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +15,7 @@ from app.routers.company import _render
 
 router = APIRouter()
 settings = get_settings()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -21,6 +24,7 @@ async def login_page(request: Request, error: str | None = None):
 
 
 @router.post("/login")
+@limiter.limit("5/minute")
 async def login_submit(
     request: Request,
     email: str = Form(...),
@@ -45,6 +49,7 @@ async def login_submit(
 
 
 @router.post("/register")
+@limiter.limit("5/minute")
 async def register_submit(
     request: Request,
     name: str = Form(...),

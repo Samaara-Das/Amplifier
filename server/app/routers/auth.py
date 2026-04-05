@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,10 +11,12 @@ from app.models.company import Company
 from app.schemas.auth import UserRegister, CompanyRegister, LoginRequest, PasswordResetRequest, TokenResponse
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register_user(request: Request, data: UserRegister, db: AsyncSession = Depends(get_db)):
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
@@ -30,7 +34,8 @@ async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login_user(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login_user(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
     if not user or not verify_password(data.password, user.password_hash):
@@ -43,7 +48,8 @@ async def login_user(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/reset-password")
-async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/minute")
+async def reset_password(request: Request, data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
     """Reset password using current password as verification."""
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
@@ -58,7 +64,8 @@ async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(
 
 
 @router.post("/company/reset-password")
-async def reset_company_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/minute")
+async def reset_company_password(request: Request, data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
     """Reset company password using current password as verification."""
     result = await db.execute(select(Company).where(Company.email == data.email))
     company = result.scalar_one_or_none()
@@ -73,7 +80,8 @@ async def reset_company_password(data: PasswordResetRequest, db: AsyncSession = 
 
 
 @router.post("/company/register", response_model=TokenResponse)
-async def register_company(data: CompanyRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register_company(request: Request, data: CompanyRegister, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company).where(Company.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -91,7 +99,8 @@ async def register_company(data: CompanyRegister, db: AsyncSession = Depends(get
 
 
 @router.post("/company/login", response_model=TokenResponse)
-async def login_company(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login_company(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Company).where(Company.email == data.email))
     company = result.scalar_one_or_none()
     if not company or not verify_password(data.password, company.password_hash):

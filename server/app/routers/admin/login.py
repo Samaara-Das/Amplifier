@@ -2,10 +2,13 @@
 
 from fastapi import APIRouter, Cookie, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.routers.admin import _render, ADMIN_PASSWORD, ADMIN_TOKEN_VALUE
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -14,7 +17,8 @@ async def login_page(request: Request, error: str = None):
 
 
 @router.post("/login")
-async def login_submit(password: str = Form(...)):
+@limiter.limit("5/minute")
+async def login_submit(request: Request, password: str = Form(...)):
     if password == ADMIN_PASSWORD:
         response = RedirectResponse(url="/admin/", status_code=303)
         response.set_cookie("admin_token", ADMIN_TOKEN_VALUE, httponly=True, samesite="lax")

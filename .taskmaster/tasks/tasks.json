@@ -43,13 +43,14 @@
         "id": "4",
         "title": "Install slowapi + apply rate limiting to auth endpoints",
         "description": "slowapi not installed on server. Add rate limiting to login/register endpoints (5/minute).",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T13:36:37.821Z"
       },
       {
         "id": "5",
@@ -484,9 +485,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-05T13:32:30.706Z",
+      "lastModified": "2026-04-05T13:36:37.821Z",
       "taskCount": 37,
-      "completedCount": 2,
+      "completedCount": 3,
       "tags": [
         "master"
       ]
