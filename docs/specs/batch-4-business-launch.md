@@ -16,7 +16,7 @@ Users (amplifiers) can subscribe to a Pro plan ($19.99/month) that unlocks premi
 |---------|------|-----------------|
 | Max posts per day | 4 | 20 |
 | Max active campaigns | Based on reputation tier only | Reputation tier OR 20 (whichever is higher) |
-| AI image generation | Disabled | Enabled |
+| AI image generation | Enabled | Enabled |
 | Priority in campaign matching | Standard | 20% score boost |
 | Metric scraping frequency | Every 24 hours | Every 24 hours (same) |
 
@@ -43,7 +43,7 @@ Users (amplifiers) can subscribe to a Pro plan ($19.99/month) that unlocks premi
 
 When a feature is gated behind Pro:
 
-- **Image generation:** Before generating an image, check the user's subscription tier. If "free", skip image generation (text-only posts). Show a note: "Upgrade to Pro for AI-generated images."
+- **Image generation:** Available on both Free and Pro tiers. No restriction.
 - **Post limit:** Before scheduling a post, count today's posts. If free tier and already at 4, don't schedule more. Show: "Daily post limit reached. Upgrade to Pro for up to 20 posts/day."
 - **Campaign limit:** When checking max campaigns, use the higher of reputation tier limit and subscription tier limit (Pro = 20).
 - **Matching priority:** When scoring matches on the server, if user is Pro, multiply their score by 1.2 (20% boost). This means Pro users appear higher in campaign invitation lists.
@@ -68,7 +68,7 @@ When a feature is gated behind Pro:
 
 1. New user registers. Default tier is "free". Max 4 posts/day, no image generation.
 2. User subscribes to Pro. After Stripe payment, tier shows "pro" in Settings. Max 20 posts/day, images generate.
-3. Free user tries to generate an image. Image generation is skipped. Post is text-only.
+3. Free user generates content. Image generation works (same as Pro).
 4. Pro user appears higher in matching results than equivalent Free user for the same campaign.
 5. User cancels Pro. Features remain until billing period ends. After that, reverts to Free limits.
 6. Stripe payment fails. User gets 7-day grace period. After 7 days without payment, reverts to Free.
@@ -84,6 +84,8 @@ Stripe must work in both directions for real money to flow:
 - **Users get paid OUT** via Stripe Connect Express (receive earnings)
 
 Currently: company Checkout exists in test mode. User payouts are a stub (always marks "paid" without sending money).
+
+**Existing Stripe account:** Father's company has a live, working Stripe account that will be used for Amplifier. No need to create a new Stripe account.
 
 ### Company Side: Checkout (already built, needs live keys)
 
