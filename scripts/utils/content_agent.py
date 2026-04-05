@@ -29,43 +29,75 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 
 GOAL_STRATEGY = {
     "leads": {
-        "x": {"formats": ["text", "image_text"], "cta": "link_in_bio", "frequency": "2x/day",
+        "x": {"formats": ["text", "image_text"], "cta": "link_in_bio",
+               "posts_per_day": 2, "post_times_est": ["08:00", "18:00"],
+               "image_probability": 0.5,
                "hooks": ["problem_solution", "social_proof", "stat"]},
-        "linkedin": {"formats": ["text", "image_text"], "cta": "comment_link", "frequency": "daily",
+        "linkedin": {"formats": ["text", "image_text"], "cta": "comment_link",
+                     "posts_per_day": 1, "post_times_est": ["10:00"],
+                     "image_probability": 0.7,
                      "hooks": ["story", "stat", "contrarian"]},
-        "facebook": {"formats": ["text", "image_text"], "cta": "link_post", "frequency": "daily",
+        "facebook": {"formats": ["text", "image_text"], "cta": "link_post",
+                     "posts_per_day": 1, "post_times_est": ["13:00"],
+                     "image_probability": 0.6,
                      "hooks": ["social_proof", "curiosity"]},
-        "reddit": {"formats": ["text"], "cta": "subtle_mention", "frequency": "3x/week",
+        "reddit": {"formats": ["text"], "cta": "subtle_mention",
+                   "posts_per_day": 0.5, "post_times_est": ["13:00"],
+                   "image_probability": 0.0,
                    "hooks": ["story", "contrarian"]},
     },
     "virality": {
-        "x": {"formats": ["text", "image_text"], "cta": "retweet", "frequency": "3x/day",
+        "x": {"formats": ["text", "image_text"], "cta": "retweet",
+               "posts_per_day": 3, "post_times_est": ["08:00", "13:00", "18:00"],
+               "image_probability": 0.6,
                "hooks": ["contrarian", "curiosity", "surprising_result"]},
-        "linkedin": {"formats": ["text", "image_text"], "cta": "share", "frequency": "daily",
+        "linkedin": {"formats": ["text", "image_text"], "cta": "share",
+                     "posts_per_day": 1, "post_times_est": ["10:00"],
+                     "image_probability": 0.8,
                      "hooks": ["contrarian", "story", "stat"]},
-        "facebook": {"formats": ["text", "image_text"], "cta": "share", "frequency": "2x/day",
+        "facebook": {"formats": ["text", "image_text"], "cta": "share",
+                     "posts_per_day": 2, "post_times_est": ["13:00", "20:00"],
+                     "image_probability": 0.7,
                      "hooks": ["curiosity", "surprising_result"]},
-        "reddit": {"formats": ["text"], "cta": "upvote", "frequency": "daily",
+        "reddit": {"formats": ["text"], "cta": "upvote",
+                   "posts_per_day": 1, "post_times_est": ["13:00"],
+                   "image_probability": 0.1,
                    "hooks": ["contrarian", "story"]},
     },
     "brand_awareness": {
-        "x": {"formats": ["text", "image_text"], "cta": "natural_mention", "frequency": "daily",
+        "x": {"formats": ["text", "image_text"], "cta": "natural_mention",
+               "posts_per_day": 1, "post_times_est": ["08:00"],
+               "image_probability": 0.4,
                "hooks": ["story", "social_proof", "curiosity"]},
-        "linkedin": {"formats": ["text", "image_text"], "cta": "natural_mention", "frequency": "3x/week",
+        "linkedin": {"formats": ["text", "image_text"], "cta": "natural_mention",
+                     "posts_per_day": 0.5, "post_times_est": ["10:00"],
+                     "image_probability": 0.6,
                      "hooks": ["story", "stat"]},
-        "facebook": {"formats": ["text", "image_text"], "cta": "natural_mention", "frequency": "3x/week",
+        "facebook": {"formats": ["text", "image_text"], "cta": "natural_mention",
+                     "posts_per_day": 0.5, "post_times_est": ["20:00"],
+                     "image_probability": 0.5,
                      "hooks": ["story", "social_proof"]},
-        "reddit": {"formats": ["text"], "cta": "genuine_review", "frequency": "2x/week",
+        "reddit": {"formats": ["text"], "cta": "genuine_review",
+                   "posts_per_day": 0.3, "post_times_est": ["13:00"],
+                   "image_probability": 0.0,
                    "hooks": ["story", "contrarian"]},
     },
     "engagement": {
-        "x": {"formats": ["text"], "cta": "reply", "frequency": "2x/day",
+        "x": {"formats": ["text"], "cta": "reply",
+               "posts_per_day": 2, "post_times_est": ["08:00", "18:00"],
+               "image_probability": 0.2,
                "hooks": ["curiosity", "contrarian", "question"]},
-        "linkedin": {"formats": ["text"], "cta": "comment", "frequency": "daily",
+        "linkedin": {"formats": ["text"], "cta": "comment",
+                     "posts_per_day": 1, "post_times_est": ["10:00"],
+                     "image_probability": 0.3,
                      "hooks": ["question", "contrarian", "stat"]},
-        "facebook": {"formats": ["text"], "cta": "comment", "frequency": "daily",
+        "facebook": {"formats": ["text"], "cta": "comment",
+                     "posts_per_day": 1, "post_times_est": ["20:00"],
+                     "image_probability": 0.2,
                      "hooks": ["question", "curiosity"]},
-        "reddit": {"formats": ["text"], "cta": "discussion", "frequency": "3x/week",
+        "reddit": {"formats": ["text"], "cta": "discussion",
+                   "posts_per_day": 0.5, "post_times_est": ["13:00"],
+                   "image_probability": 0.0,
                    "hooks": ["question", "contrarian"]},
     },
 }
@@ -475,6 +507,79 @@ class ContentAgent:
     @property
     def has_providers(self) -> bool:
         return self._manager.has_providers
+
+    def get_posting_plan(self, campaign: dict, enabled_platforms: list[str] = None,
+                         day_number: int = 1) -> dict:
+        """Get the posting plan for today based on campaign strategy.
+
+        The strategy determines per-platform:
+        - How many posts today (posts_per_day, fractional = skip some days)
+        - What EST times to post at
+        - Whether each post should have an image
+
+        Returns: {
+            "platforms": {
+                "x": {"post_count": 2, "times_est": ["08:00", "18:00"],
+                       "include_image": [True, False]},
+                "linkedin": {"post_count": 1, "times_est": ["10:00"],
+                             "include_image": [True]},
+                "reddit": {"post_count": 0, ...},  # skipped today
+            }
+        }
+        """
+        import random
+
+        if enabled_platforms is None:
+            enabled_platforms = ["x", "linkedin", "facebook", "reddit"]
+
+        # Build strategy (lightweight — no AI calls)
+        research = {"content_angles": [], "emotional_hooks": []}
+        try:
+            from utils.local_db import get_content_insights
+            insights = get_content_insights()
+        except Exception:
+            insights = None
+        strategy = _build_strategy(campaign, research, insights)
+
+        plan = {"platforms": {}}
+
+        for platform in enabled_platforms:
+            plat_strategy = strategy.get("platforms", {}).get(platform, {})
+            ppd = plat_strategy.get("posts_per_day", 1)
+            times = plat_strategy.get("post_times_est", ["08:00"])
+            img_prob = plat_strategy.get("image_probability", 0.5)
+
+            # Handle fractional posts_per_day (e.g., 0.5 = every other day)
+            if ppd < 1:
+                # Post on this day? Use day_number to deterministically decide
+                if (day_number % round(1 / ppd)) != 0:
+                    plan["platforms"][platform] = {
+                        "post_count": 0, "times_est": [], "include_image": [],
+                        "skip_reason": f"Scheduled every {round(1/ppd)} days (next: day {day_number + round(1/ppd) - (day_number % round(1/ppd))})",
+                    }
+                    continue
+                post_count = 1
+                times = times[:1]
+            else:
+                post_count = int(ppd)
+                times = times[:post_count]
+                # Pad times if we need more than defined
+                while len(times) < post_count:
+                    # Add evenly spaced times
+                    last_h = int(times[-1].split(":")[0])
+                    next_h = min(last_h + 3, 22)
+                    times.append(f"{next_h:02d}:00")
+
+            # Decide image per post slot
+            include_image = [random.random() < img_prob for _ in range(post_count)]
+
+            plan["platforms"][platform] = {
+                "post_count": post_count,
+                "times_est": times,
+                "include_image": include_image,
+            }
+
+        return plan
 
     async def generate_content(
         self,

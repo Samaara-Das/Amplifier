@@ -184,14 +184,21 @@ async def generate_daily_content() -> dict:
         for campaign in active:
             campaign_id = campaign.get("server_id")
 
-            # Check if we already generated today's drafts for all platforms
-            needs_generation = False
-            for platform in platforms:
-                if get_todays_draft_count(campaign_id, platform) == 0:
-                    needs_generation = True
-                    break
+            # Get posting plan from strategy (decides posts/day per platform)
+            posting_plan = gen.get_posting_plan(campaign, platforms, day_number=1)
 
-            if not needs_generation:
+            # Check which platforms need drafts today based on the plan
+            platforms_needing_drafts = []
+            for platform in platforms:
+                plat_plan = posting_plan.get("platforms", {}).get(platform, {})
+                post_count = plat_plan.get("post_count", 1)
+                if post_count <= 0:
+                    continue  # Strategy says skip this platform today
+                existing_count = get_todays_draft_count(campaign_id, platform)
+                if existing_count < post_count:
+                    platforms_needing_drafts.append(platform)
+
+            if not platforms_needing_drafts:
                 continue
 
             # ── Repost campaigns: skip AI gen, use pre-written content ──
@@ -279,49 +286,57 @@ async def generate_daily_content() -> dict:
             }
             try:
                 result = await asyncio.to_thread(
-                    lambda c=campaign_data, dn=day_number, ph=previous_hooks: asyncio.run(
-                        gen.generate_content(c, enabled_platforms=platforms, day_number=dn, previous_hooks=ph)
+                    lambda c=campaign_data, pf=platforms_needing_drafts, dn=day_number, ph=previous_hooks: asyncio.run(
+                        gen.generate_content(c, enabled_platforms=pf, day_number=dn, previous_hooks=ph)
                     )
                 )
 
                 if result:
                     content = result.get("content", result) if isinstance(result, dict) else result
 
-                    # ── Image generation (v2/v3 upgrade) ──
-                    # Generate an image for this campaign using:
-                    # 1. img2img from product photos in campaign assets (preferred, daily rotation)
-                    # 2. txt2img from the AI-generated image_prompt (fallback)
-                    draft_image_path = None
-                    try:
-                        image_prompt = content.get("image_prompt", "")
-                        all_product_images = await _download_campaign_product_images(campaign_data)
-                        product_image = _pick_daily_image(all_product_images, day_number)
-
-                        if image_prompt or product_image:
-                            draft_image_path = await asyncio.to_thread(
-                                lambda ip=image_prompt, pi=product_image, b=campaign_data.get("brief", ""): asyncio.run(
-                                    gen.generate_image(
-                                        prompt=ip or campaign_data.get("title", "product lifestyle photo"),
-                                        platform="default",
-                                        product_image_path=pi,
-                                        campaign_brief=b,
-                                    )
-                                )
-                            )
-                            if draft_image_path:
-                                logger.info("Generated campaign image: %s (img2img=%s)", draft_image_path, bool(product_image))
-                    except Exception as img_err:
-                        logger.warning("Image generation failed for campaign %s: %s", campaign_id, img_err)
+                    # ── Image generation (strategy-driven) ──
+                    # The posting plan decides which platforms get images
+                    all_product_images = await _download_campaign_product_images(campaign_data)
+                    product_image = _pick_daily_image(all_product_images, day_number)
 
                     draft_ids = []
-                    for platform in platforms:
+                    for platform in platforms_needing_drafts:
                         text = content.get(platform, '')
-                        if text:
-                            if isinstance(text, dict):
-                                text = _json.dumps(text)
-                            did = add_draft(campaign_id, platform, str(text),
-                                            iteration=day_number, image_path=draft_image_path)
-                            draft_ids.append(did)
+                        if not text:
+                            continue
+                        if isinstance(text, dict):
+                            text = _json.dumps(text)
+
+                        # Check if strategy says this platform needs an image
+                        plat_plan = posting_plan.get("platforms", {}).get(platform, {})
+                        include_images = plat_plan.get("include_image", [True])
+                        needs_image = include_images[0] if include_images else False
+
+                        draft_image_path = None
+                        if needs_image:
+                            try:
+                                image_prompt = content.get("image_prompt", "")
+                                if image_prompt or product_image:
+                                    draft_image_path = await asyncio.to_thread(
+                                        lambda ip=image_prompt, pi=product_image, b=campaign_data.get("brief", ""): asyncio.run(
+                                            gen.generate_image(
+                                                prompt=ip or campaign_data.get("title", "product lifestyle photo"),
+                                                platform=platform,
+                                                product_image_path=pi,
+                                                campaign_brief=b,
+                                            )
+                                        )
+                                    )
+                                    if draft_image_path:
+                                        logger.info("Generated image for %s: %s", platform, draft_image_path)
+                            except Exception as img_err:
+                                logger.warning("Image gen failed for %s/%s: %s", campaign_id, platform, img_err)
+                        else:
+                            logger.info("Strategy: skipping image for %s (image_probability low)", platform)
+
+                        did = add_draft(campaign_id, platform, str(text),
+                                        iteration=day_number, image_path=draft_image_path)
+                        draft_ids.append(did)
                     generated_count += 1
                     logger.info("Daily content generated for campaign %s (day %d)", campaign_id, day_number)
                     from utils.local_db import add_notification
@@ -350,7 +365,7 @@ async def generate_daily_content() -> dict:
                         except Exception:
                             pass
 
-                    # Full auto mode: auto-approve all drafts and schedule them
+                    # Full auto mode: auto-approve all drafts and schedule at strategy times
                     if mode == "full_auto" and draft_ids:
                         from utils.local_db import get_draft as _get_draft
                         from datetime import datetime as _dt, timedelta as _td
@@ -359,20 +374,41 @@ async def generate_daily_content() -> dict:
                         for did in draft_ids:
                             approve_draft(did)
 
-                        # Schedule approved drafts with 30-min spacing
-                        base_time = _dt.now() + _td(minutes=5)
+                        # Schedule using strategy's EST times (converted to local)
+                        # IST = EST + 10.5 hours (India → US East)
+                        now = _dt.now()
                         for i, did in enumerate(draft_ids):
                             draft_data = _get_draft(did)
-                            if draft_data:
-                                sched_time = base_time + _td(minutes=30 * i + _rnd.randint(0, 10))
-                                add_scheduled_post(
-                                    campaign_server_id=campaign_id,
-                                    platform=draft_data.get("platform", ""),
-                                    scheduled_at=sched_time.isoformat(),
-                                    content=draft_data.get("draft_text", ""),
-                                    image_path=draft_data.get("image_path"),
-                                    draft_id=did,
-                                )
+                            if not draft_data:
+                                continue
+                            plat = draft_data.get("platform", "")
+                            plat_plan = posting_plan.get("platforms", {}).get(plat, {})
+                            times_est = plat_plan.get("times_est", ["08:00"])
+                            # Pick the time slot for this draft index
+                            time_str = times_est[i % len(times_est)] if times_est else "08:00"
+                            est_hour, est_min = int(time_str.split(":")[0]), int(time_str.split(":")[1])
+                            # Convert EST to IST: add 10h 30m
+                            ist_hour = est_hour + 10
+                            ist_min = est_min + 30
+                            if ist_min >= 60:
+                                ist_hour += 1
+                                ist_min -= 60
+                            if ist_hour >= 24:
+                                ist_hour -= 24
+                            sched_time = now.replace(hour=ist_hour, minute=ist_min, second=0, microsecond=0)
+                            # If the time already passed today, schedule for tomorrow
+                            if sched_time <= now:
+                                sched_time += _td(days=1)
+                            # Add small jitter (0-5 min) to avoid exact-time patterns
+                            sched_time += _td(minutes=_rnd.randint(0, 5))
+                            add_scheduled_post(
+                                campaign_server_id=campaign_id,
+                                platform=draft_data.get("platform", ""),
+                                scheduled_at=sched_time.isoformat(),
+                                content=draft_data.get("draft_text", ""),
+                                image_path=draft_data.get("image_path"),
+                                draft_id=did,
+                            )
                         logger.info("Full-auto: approved + scheduled %d drafts for campaign %s", len(draft_ids), campaign_id)
 
             except Exception as e:

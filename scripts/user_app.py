@@ -1577,13 +1577,13 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.error("Failed to start background agent: %s", e)
 
-        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+        # Only open browser on initial launch, not on reloader restarts
+        if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+            threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
 
     print(f"\n  Amplifier is running at http://localhost:{PORT}")
     print("  The app is in your system tray — keep it running for campaigns to work.\n")
-    if not is_reloader_parent:
-        print("  Hot reload enabled — Python and template changes auto-apply.\n")
 
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.jinja_env.auto_reload = True
-    app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=True)
+    app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
