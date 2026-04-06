@@ -129,7 +129,12 @@ async def _scrape_x(page, post_url: str) -> tuple[dict, str | None]:
     metrics = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0}
     try:
         await page.goto(post_url, wait_until="domcontentloaded", timeout=15000)
-        await page.wait_for_timeout(3000)
+        # Wait for engagement group to render (viral posts can take longer)
+        try:
+            await page.wait_for_selector('[role="group"]', timeout=8000)
+        except Exception:
+            pass  # Fall through — page may be deleted or still loading
+        await page.wait_for_timeout(1000)
 
         body_text = await page.inner_text("body")
         title = await page.title()
@@ -231,32 +236,58 @@ async def _scrape_linkedin(page, post_url: str) -> tuple[dict, str | None]:
         if imp_match:
             metrics["impressions"] = _parse_number(imp_match.group(1))
 
-        # Reactions (likes) — try selector first, body text fallback
-        reactions_el = page.locator(".social-details-social-counts__reactions-count")
-        if await reactions_el.count() > 0:
-            text = await reactions_el.first.inner_text()
-            metrics["likes"] = _parse_number(text)
-        else:
-            reaction_match = re.search(r'([\d,]+)\s*reactions?', body_text, re.IGNORECASE)
+        # Reactions (likes) — multiple strategies since LinkedIn changes CSS frequently
+        # Strategy 1: aria-label like "Name and N others" (reaction summary, 2+ reactions)
+        react_summary = page.locator('[aria-label*=" and "][aria-label*=" other"]')
+        if await react_summary.count() > 0:
+            label = await react_summary.first.get_attribute("aria-label") or ""
+            # "Soheb Dawoodani and 333 others" → 333 + 1 = 334
+            others_match = re.search(r'and\s+([\d,]+)\s+other', label)
+            if others_match:
+                metrics["likes"] = _parse_number(others_match.group(1)) + 1
+        # Strategy 2: "N Reactions" text in body (handles single digit counts too)
+        if metrics["likes"] == 0:
+            # Match standalone number right before "Reactions" line in body text
+            reaction_match = re.search(r'(\d[\d,]*)\n\s*(?:\S+ and \d|\S+)\n|(\d[\d,]*)\s*reactions?', body_text, re.IGNORECASE)
             if reaction_match:
-                metrics["likes"] = _parse_number(reaction_match.group(1))
+                val = reaction_match.group(1) or reaction_match.group(2)
+                if val:
+                    metrics["likes"] = _parse_number(val)
+        # Strategy 3: old CSS class
+        if metrics["likes"] == 0:
+            reactions_el = page.locator(".social-details-social-counts__reactions-count")
+            if await reactions_el.count() > 0:
+                text = await reactions_el.first.inner_text()
+                metrics["likes"] = _parse_number(text)
+        # Strategy 4: aria-label "See N more reactions" — sometimes visible on posts
+        if metrics["likes"] == 0:
+            see_more = page.locator('[aria-label*="more reaction"]')
+            if await see_more.count() > 0:
+                label = await see_more.first.get_attribute("aria-label") or ""
+                num = _parse_number(label)
+                if num > 0:
+                    metrics["likes"] = num
 
-        # Comments — try selector first, body text fallback
-        comments_el = page.locator("button:has-text('comment')")
-        if await comments_el.count() > 0:
-            text = await comments_el.first.inner_text()
-            metrics["comments"] = _parse_number(text)
-        else:
+        # Comments — aria-label first ("N comments on X's post"), then button text, then regex
+        comment_aria = page.locator('[aria-label*="comments on"]')
+        if await comment_aria.count() > 0:
+            label = await comment_aria.first.get_attribute("aria-label") or ""
+            num = _parse_number(label)
+            if num > 0:
+                metrics["comments"] = num
+        if metrics["comments"] == 0:
             comment_match = re.search(r'([\d,]+)\s*comments?', body_text, re.IGNORECASE)
             if comment_match:
                 metrics["comments"] = _parse_number(comment_match.group(1))
 
-        # Reposts
-        reposts_el = page.locator("button:has-text('repost')")
-        if await reposts_el.count() > 0:
-            text = await reposts_el.first.inner_text()
-            metrics["reposts"] = _parse_number(text)
-        else:
+        # Reposts — aria-label first ("N reposts of X's post"), then button text, then regex
+        repost_aria = page.locator('[aria-label*="reposts of"]')
+        if await repost_aria.count() > 0:
+            label = await repost_aria.first.get_attribute("aria-label") or ""
+            num = _parse_number(label)
+            if num > 0:
+                metrics["reposts"] = num
+        if metrics["reposts"] == 0:
             repost_match = re.search(r'([\d,]+)\s*reposts?', body_text, re.IGNORECASE)
             if repost_match:
                 metrics["reposts"] = _parse_number(repost_match.group(1))
@@ -305,16 +336,25 @@ async def _scrape_facebook(page, post_url: str) -> tuple[dict, str | None]:
             logger.warning("Facebook auth wall detected while scraping: %s", post_url)
             return metrics, "rate_limited"
 
-        # Reactions via aria-label
+        # Reactions via aria-label (multiple patterns — Facebook changes these)
         reactions = page.locator('[aria-label*="reaction"]')
         if await reactions.count() > 0:
             text = await reactions.first.get_attribute("aria-label") or ""
             metrics["likes"] = _parse_number(text)
         else:
-            # Fallback: "X people reacted" or just a number near like button
-            reaction_match = re.search(r'([\d,]+)\s*(?:people reacted|reactions?)', body_text, re.IGNORECASE)
-            if reaction_match:
-                metrics["likes"] = _parse_number(reaction_match.group(1))
+            # Pattern: aria-label="Like: 21 people" on Like buttons
+            like_count_els = page.locator('[aria-label^="Like:"]')
+            if await like_count_els.count() > 0:
+                for i in range(await like_count_els.count()):
+                    label = await like_count_els.nth(i).get_attribute("aria-label") or ""
+                    num = _parse_number(label)
+                    if num > metrics["likes"]:
+                        metrics["likes"] = num
+            else:
+                # Fallback: "X people reacted" or just a number near like button
+                reaction_match = re.search(r'([\d,]+)\s*(?:people reacted|reactions?)', body_text, re.IGNORECASE)
+                if reaction_match:
+                    metrics["likes"] = _parse_number(reaction_match.group(1))
 
         # Comments
         comment_match = re.search(r'(\d+)\s*comments?', body_text, re.IGNORECASE)
