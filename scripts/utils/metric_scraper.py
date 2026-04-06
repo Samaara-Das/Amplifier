@@ -135,17 +135,19 @@ async def _scrape_x(page, post_url: str) -> tuple[dict, str | None]:
         title = await page.title()
 
         # Detect deleted / unavailable posts
+        # Normalize unicode: replace curly quotes with straight, ellipsis with dots
+        body_lower = body_text.lower().replace("\u2019", "'").replace("\u2018", "'").replace("\u2026", "...")
         unavailable_phrases = [
             "this post is unavailable",
             "this account doesn't exist",
             "this post was deleted",
             "hmm...this page doesn't exist",
+            "this page doesn't exist",
             "account suspended",
             "this tweet is unavailable",
             "this tweet has been deleted",
             "page not found",
         ]
-        body_lower = body_text.lower()
         if any(phrase in body_lower for phrase in unavailable_phrases):
             logger.warning("Post deleted/unavailable on X: %s", post_url)
             return metrics, "deleted"
@@ -208,6 +210,7 @@ async def _scrape_linkedin(page, post_url: str) -> tuple[dict, str | None]:
             "page not found",
             "this content isn't available",
             "this post has been removed",
+            "this post cannot be displayed",
             "content unavailable",
         ]
         if any(phrase in body_lower for phrase in unavailable_phrases):
@@ -356,11 +359,15 @@ async def _scrape_reddit(page, post_url: str) -> tuple[dict, str | None]:
         title_lower = title.lower()
         unavailable_phrases = [
             "sorry, this post was removed",
+            "sorry, this post was deleted",
             "this post was removed by",
+            "this post was deleted by",
             "this post has been removed",
             "this post is no longer available",
             "page not found",
             "sorry, this page isn't available",
+            "[deleted]",
+            "[removed]",
         ]
         if any(phrase in body_lower for phrase in unavailable_phrases):
             logger.warning("Post deleted/removed on Reddit: %s", post_url)
