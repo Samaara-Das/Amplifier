@@ -47,6 +47,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# CSRF protection for HTML form routes (double-submit cookie pattern)
+from app.core.csrf import CSRFMiddleware
+app.add_middleware(CSRFMiddleware)
+
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(campaigns.router, prefix="/api", tags=["campaigns"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])

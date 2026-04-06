@@ -131,6 +131,22 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+    <script>
+    // CSRF token auto-injection: read cookie, inject hidden input into all POST forms
+    (function() {
+        var token = document.cookie.split('; ').find(function(c) { return c.startsWith('csrf_token='); });
+        if (!token) return;
+        token = token.split('=')[1];
+        document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function(form) {
+            if (form.querySelector('input[name="csrf_token"]')) return;
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = token;
+            form.appendChild(input);
+        });
+    })();
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
