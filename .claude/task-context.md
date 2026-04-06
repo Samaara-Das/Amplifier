@@ -4,9 +4,9 @@
 
 ## Current State
 
-**Tasks #1 and #2 complete. Ready for Task #3 (CSRF verification).**
+**Tasks #1–4 complete. Next up: Task #5 (Invitation UX) or #6 (Metrics accuracy).**
 
-37 total tasks: 2 done, 26 pending, 9 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
+37 total tasks: 4 done, 24 pending, 9 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
 
 ## Task List (37 total)
 
@@ -19,8 +19,8 @@
 | # | Task | Status | Priority |
 |---|------|--------|----------|
 | 2 | Stripe top-up verification + idempotency fix | **done** | high |
-| 3 | Verify CSRF tokens in all Flask forms | pending | high |
-| 4 | Install slowapi + apply rate limiting | pending | high |
+| 3 | CSRF tokens in all server HTML forms | **done** | high |
+| 4 | Slowapi rate limiting on auth endpoints | **done** | high |
 | 5 | Invitation UX (countdown, expired badge, decline reason) | pending | medium |
 | 6 | Metrics accuracy (deleted post detection, rate limits) | pending | high |
 | 7 | Repost campaign company creation UI | pending | medium |
@@ -62,84 +62,61 @@
 29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
 37: Local lightweight LLM for user-side AI
 
-## Session 34 — Task #2: Stripe Top-Up Idempotency Fix (2026-04-06)
+## Session 34 — Tasks #2, #3, #4 (2026-04-06)
 
-### What Was Done
+### Task #2: Stripe Top-Up Idempotency Fix
 
 **Fixed the double-credit bug in company billing top-up flow.**
 
-#### The Bug
-- `/billing/success` handler credited `company.balance` on every visit with no idempotency check
-- Refreshing the success URL, hitting back/forward, or replaying the session_id would credit the balance again
-- No transaction records existed — zero audit trail
+**The bug:** `/billing/success` handler credited `company.balance` on every visit with no idempotency check. Refreshing the success URL credited again.
 
-#### Fix: CompanyTransaction Model + Idempotency Check
+**Fix:**
+- New `CompanyTransaction` model (`server/app/models/company_transaction.py`): `id`, `company_id`, `stripe_session_id` (unique), `amount_cents`, `type`, `created_at`
+- `/billing/success`: checks for existing transaction BEFORE crediting → "Payment already processed" if duplicate
+- `/billing/topup` (test mode): creates transaction with `test_{uuid}` session ID
+- Both `balance` and `balance_cents` updated together
+- Submit buttons disable on click (double-submit protection)
+- New "Top-Up History" table on billing page
 
-**New model** (`server/app/models/company_transaction.py`):
-- `id`, `company_id`, `stripe_session_id` (unique index), `amount_cents`, `type`, `created_at`
-- Unique constraint on `stripe_session_id` is the idempotency key
+**Test results (Chrome DevTools):** All 6 tests passed — add funds, cumulative balance, idempotency replay blocked, DB fields in sync, button disables, visual check.
 
-**Billing router changes** (`server/app/routers/company/billing.py`):
-- `/billing/success`: checks for existing `CompanyTransaction` with that `session_id` BEFORE crediting. If found → "Payment already processed" redirect, no credit.
-- `/billing/topup` (test mode): creates transaction record with `test_{uuid}` session ID
-- Both paths now update `balance` AND `balance_cents` together
-- Transaction history fetched and passed to template
+**Commit:** `2c5778b`
 
-**Template changes** (`server/app/templates/company/billing.html`):
-- Submit buttons disable on click + text changes to "Processing..."/"Adding..." (prevents rapid double-submit)
-- New "Top-Up History" table showing date, amount, type badge, reference
+### Task #3: CSRF Protection for Server HTML Forms
 
-**Model registration** (`server/app/models/__init__.py`):
-- Added `CompanyTransaction` to imports and `__all__`
+**Added CSRF to all ~40 POST forms across admin and company dashboards.**
 
-#### Also Fixed
-- Discarded accidental uncommitted reversions that removed CSRF/slowapi work from earlier commits (`git checkout -- <7 files>`)
+**Implementation:** Double-submit cookie pattern via pure ASGI middleware (`server/app/core/csrf.py`):
+1. Middleware sets `csrf_token` cookie on GET responses (random hex, JS-readable)
+2. JavaScript in `base.html` + standalone login templates reads cookie and injects hidden input into all POST forms
+3. On POST, middleware validates form field matches cookie
+4. API routes (`/api/*`) exempt — they use JWT Bearer auth
 
-### Test Results (Chrome DevTools MCP)
+**Files changed:**
+- `server/app/core/csrf.py` — new ASGI middleware (no new packages needed)
+- `server/app/main.py` — registered middleware
+- `server/app/templates/base.html` — CSRF auto-injection script (covers all pages extending base)
+- `server/app/templates/admin/login.html` — standalone injection script
+- `server/app/templates/company/login.html` — standalone injection script
 
-| Test | What | Result |
-|------|------|--------|
-| 1 | Add $50 test funds | PASSED — Balance $50, 1 transaction row |
-| 2 | Add $25 more | PASSED — Balance $75, 2 transaction rows |
-| 3 | Replay session ID via `/billing/success` | PASSED — "Payment already processed", balance stays $75 |
-| 4 | DB integrity (`balance` vs `balance_cents`) | PASSED — `balance=75`, `balance_cents=7500`, in sync |
-| 5 | Double-submit button protection | PASSED — Button disables + text changes |
-| 6 | Visual screenshot | PASSED — Top-Up History table renders cleanly |
+**Test results:** Login with CSRF works, POST without CSRF blocked (balance unchanged), API routes exempt (401 not 302).
 
-### Key Decisions
-1. **CompanyTransaction model** — lightweight idempotency table rather than full payment ledger. Sufficient for now, extensible for Task #19 (Stripe live).
-2. **Test mode gets transaction records too** — same audit trail as production.
-3. **Both balance fields updated** — `balance` (float) and `balance_cents` (int) kept in sync. Old companies (pre-fix) may have `balance_cents=0`.
+**Commit:** `aec9b41`
 
-### Commit
-`2c5778b` — `fix: add idempotency to company billing top-up (Task #2)`
+### Task #4: Rate Limiting
+
+Already implemented in commit `b30ce6e`. Slowapi on 9 auth endpoints (5/min). Just marked done.
+
+### Other Actions
+- Discarded accidental uncommitted reversions that removed CSRF/slowapi from earlier commits
 
 ## Session 33 — Task #1: URL Capture Fix (2026-04-06)
 
-### What Was Done
+**Implemented URL capture for all 4 platforms, tested with live posts.**
 
-**Implemented URL capture for all 4 platforms, tested end-to-end with live posts.**
+Key changes: `script_executor.py` 3-tier extraction (CSS → JS → fallback), `url_pattern` field, platform scripts updated. LinkedIn uses activity page JS, Facebook uses activity log, Reddit uses JS-only with timestamp sorting. Legacy functions re-raise exceptions.
 
-#### Key Changes
-- `scripts/engine/script_executor.py`: 3-tier extraction (CSS → JS → page URL fallback), `url_pattern` field
-- `scripts/engine/script_parser.py`: `url_pattern` field added to `ScriptStep`
-- Platform scripts updated: LinkedIn (activity page JS), Facebook (activity log), Reddit (JS-only with timestamp sorting)
-- `scripts/post.py`: Legacy functions re-raise exceptions instead of returning None
-- `scripts/utils/post_scheduler.py`: Fixed `resolved_assignment_id` NameError
-
-#### Verified Results
-| Platform | Captured URL | Verified |
-|----------|-------------|----------|
-| X | `x.com/SamaaraDas/status/...` | ✅ |
-| LinkedIn | `linkedin.com/feed/update/urn:li:share:...` | ✅ |
-| Facebook | `facebook.com/permalink.php?story_fbid=pfbid...` | ✅ |
-| Reddit | `reddit.com/user/SamaaraDas/comments/...` | ✅ |
-
-### Key Decisions
-1. Reddit views ARE scrapeable via Playwright (not PRAW)
-2. Facebook activity log > profile page for chronological URL capture
-3. JS-only for Reddit (CSS selectors match nav tabs, not posts)
-4. Legacy functions must re-raise exceptions (returning None causes false posted_no_url)
+All 4 platforms verified: X `/status/`, LinkedIn `/feed/update/`, Facebook `pfbid`, Reddit `/comments/`.
 
 ## Deployed URLs
 - **Production**: https://server-five-omega-23.vercel.app
