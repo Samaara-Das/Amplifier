@@ -167,34 +167,38 @@ async def _scrape_x(page, post_url: str) -> tuple[dict, str | None]:
             logger.warning("CAPTCHA detected on X while scraping: %s", post_url)
             return metrics, "rate_limited"
 
-        for el in await page.query_selector_all('[role="group"] [aria-label]'):
-            label = await el.get_attribute("aria-label") or ""
-            label_lower = label.lower()
+        # Only use the FIRST role="group" — that's the main post's engagement bar.
+        # Pages with quoted posts/replies have multiple groups; later ones are NOT the target.
+        all_groups = await page.query_selector_all('[role="group"]')
+        if all_groups:
+            first_group = all_groups[0]
+            for el in await first_group.query_selector_all('[aria-label]'):
+                label = await el.get_attribute("aria-label") or ""
+                label_lower = label.lower()
 
-            numbers = re.findall(r'[\d,]+', label)
-            if not numbers:
-                continue
-            count = int(numbers[0].replace(",", ""))
+                numbers = re.findall(r'[\d,]+', label)
+                if not numbers:
+                    continue
+                count = int(numbers[0].replace(",", ""))
 
-            if "view" in label_lower:
-                metrics["impressions"] = count
-            elif "like" in label_lower:
-                metrics["likes"] = count
-            elif "repost" in label_lower or "retweet" in label_lower:
-                metrics["reposts"] = count
-            elif "repl" in label_lower or "comment" in label_lower:
-                metrics["comments"] = count
+                if "view" in label_lower:
+                    metrics["impressions"] = count
+                elif "like" in label_lower:
+                    metrics["likes"] = count
+                elif "repost" in label_lower or "retweet" in label_lower:
+                    metrics["reposts"] = count
+                elif "repl" in label_lower or "comment" in label_lower:
+                    metrics["comments"] = count
 
-        # Views fallback: X sometimes puts view count outside role="group"
-        # in a separate aria-label like "2 replies, 9 likes, 15 bookmarks, 8312 views"
+        # Views fallback: X sometimes puts view count in a separate summary aria-label.
+        # Use the FIRST match only (main post summary).
         if metrics["impressions"] == 0:
             view_els = await page.query_selector_all('[aria-label*="views"]')
-            for el in view_els:
-                label = await el.get_attribute("aria-label") or ""
+            if view_els:
+                label = await view_els[0].get_attribute("aria-label") or ""
                 view_match = re.search(r'([\d,]+)\s*views', label.lower())
                 if view_match:
                     metrics["impressions"] = int(view_match.group(1).replace(",", ""))
-                    break
 
     except Exception as e:
         logger.warning("Failed to scrape X post %s: %s", post_url, e)
