@@ -318,50 +318,79 @@ class ScriptExecutor:
     async def _handle_screenshot(self, step: ScriptStep) -> None:
         await self._take_screenshot(step.id)
 
-    async def _handle_extract_url(self, step: ScriptStep) -> None:
-        """Extract a URL from an element or the page and store it as post_url."""
-        # Check url_variable first (e.g. result of a previous evaluate step)
-        if step.url_variable:
-            var_url = self.variables.get(step.url_variable, "")
-            if var_url and var_url.startswith("http"):
-                self.post_url = var_url
-                self.variables["post_url"] = var_url
-                logger.info("Step %s: URL from variable %s: %s", step.id, step.url_variable, var_url)
-                return
+    def _validate_url(self, url: str, pattern: str | None) -> bool:
+        """Check if a URL matches the required pattern (substring match)."""
+        if not pattern:
+            return True
+        return pattern in url
 
+    def _normalize_href(self, href: str) -> str | None:
+        """Convert an href (absolute, relative, or bare) to a full URL."""
+        if not href:
+            return None
+        if href.startswith("http"):
+            return href
+        if href.startswith("/"):
+            from urllib.parse import urlparse
+            parsed = urlparse(self.page.url)
+            return f"{parsed.scheme}://{parsed.netloc}{href}"
+        return f"https://{href}"
+
+    async def _handle_extract_url(self, step: ScriptStep) -> None:
+        """Extract a URL from CSS selectors, JavaScript, or the page URL.
+
+        Extraction order:
+        1. CSS selectors (step.target) — try each selector in the fallback chain
+        2. JavaScript (step.js_code) — run JS that returns a URL string or null
+        3. Page URL fallback — only if no URL was captured yet by any step
+
+        If step.url_pattern is set, extracted URLs must contain that substring
+        to be accepted (e.g. "/comments/" for Reddit, "/feed/update/" for LinkedIn).
+        """
+        pattern = step.url_pattern
+
+        # 1. Try CSS selectors
         if step.target:
             locator = await selector_chain.find_element_soft(
                 self.page, step.target, timeout_ms=step.timeout_ms or 5000
             )
             if locator:
                 href = await locator.get_attribute("href")
-                if href:
-                    if href.startswith("http"):
-                        url = href
-                    elif href.startswith("/"):
-                        from urllib.parse import urlparse
-                        parsed = urlparse(self.page.url)
-                        url = f"{parsed.scheme}://{parsed.netloc}{href}"
-                    else:
-                        url = f"https://{href}"
+                url = self._normalize_href(href)
+                if url and self._validate_url(url, pattern):
                     self.post_url = url
                     self.variables["post_url"] = url
-                    logger.info("Step %s: extracted URL %s", step.id, url)
+                    logger.info("Step %s: extracted URL via selector: %s", step.id, url)
                     return
+                elif url:
+                    logger.info("Step %s: selector found %s but doesn't match pattern '%s'", step.id, url, pattern)
 
-        # Fallback: use current page URL (with optional pattern check)
-        page_url = self.page.url
-        if step.url_pattern and step.url_pattern not in page_url:
-            logger.info(
-                "Step %s: page URL %s does not match pattern '%s', skipping",
-                step.id, page_url, step.url_pattern,
-            )
-            return
+        # 2. Try JavaScript extraction
+        if step.js_code:
+            try:
+                js = self._resolve(step.js_code)
+                result = await self.page.evaluate(js)
+                if result and isinstance(result, str):
+                    url = self._normalize_href(result)
+                    if url and self._validate_url(url, pattern):
+                        self.post_url = url
+                        self.variables["post_url"] = url
+                        logger.info("Step %s: extracted URL via JS: %s", step.id, url)
+                        return
+                    elif url:
+                        logger.info("Step %s: JS found %s but doesn't match pattern '%s'", step.id, url, pattern)
+            except Exception as e:
+                logger.warning("Step %s: JS extraction failed: %s", step.id, str(e)[:100])
 
+        # 3. Page URL fallback — only if pattern matches and no URL captured yet
         if not self.post_url:
-            self.post_url = page_url
-            self.variables["post_url"] = page_url
-            logger.info("Step %s: using page URL %s", step.id, page_url)
+            page_url = self.page.url
+            if self._validate_url(page_url, pattern):
+                self.post_url = page_url
+                self.variables["post_url"] = page_url
+                logger.info("Step %s: using page URL %s", step.id, page_url)
+            else:
+                logger.info("Step %s: page URL %s doesn't match pattern '%s', skipping", step.id, page_url, pattern)
         else:
             logger.info("Step %s: keeping previously captured URL %s", step.id, self.post_url)
 

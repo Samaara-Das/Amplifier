@@ -87,8 +87,8 @@ All specs at `docs/specs/`:
 
 **Batch 1 — Money Loop** (`batch-1-money-loop.md`):
 - Task #1: URL capture — test first, per-platform fix strategies
-- Task #9: Metric scraping — every 24h for campaign lifetime, per-platform metrics (views X only, likes/comments all, reposts not Reddit), PRAW for Reddit, deleted post detection
-- Task #10: Billing — formula with rate_per_comment added, rate_per_click removed, rate_per_1k_views X-only, 7-day hold, tier promotion, budget management
+- Task #9: Metric scraping — every 24h for campaign lifetime, per-platform metrics (views X + Reddit, likes/comments all, reposts not Reddit), Playwright preferred for Reddit (gets views), PRAW fallback, deleted post detection
+- Task #10: Billing — formula with rate_per_comment added, rate_per_click removed, rate_per_1k_views on X + Reddit, 7-day hold, tier promotion, budget management
 - Task #11: Earnings display — test first, server→local sync, withdrawal flow
 
 **Batch 2 — AI Brain** (`batch-2-ai-brain.md`):
@@ -116,7 +116,7 @@ All specs at `docs/specs/`:
 4. **Task #57 removed** — official APIs not part of implementation
 5. **Image gen on both Free and Pro tiers** — no restriction
 6. **Metric scraping: every 24h** (not tiered T+1h/6h/24h/72h schedule)
-7. **Per-platform metrics**: views X only, likes all 4, comments all 4, reposts not Reddit
+7. **Per-platform metrics**: views X + Reddit, likes all 4, comments all 4, reposts not Reddit
 8. **Profile scraping: text-first** — 3-tier pipeline to minimize tokens (text→elements→vision)
 9. **AI matching: self-selected niches override** profile analysis
 10. **Quality gate: 2-layer** — mechanical rubric + server AI review

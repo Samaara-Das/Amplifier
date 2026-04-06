@@ -138,7 +138,6 @@
     {
       "id": "extract_post_url",
       "type": "extract_url",
-      "optional": true,
       "target": {
         "strategy": "fallback_chain",
         "selectors": [

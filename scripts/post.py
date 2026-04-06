@@ -285,7 +285,7 @@ async def post_via_script(draft: dict, pw, platform: str) -> str | None:
         if execution.success:
             post_url = execution.post_url
             logger.info("Script posting to %s succeeded (URL: %s)", platform, post_url)
-            return post_url
+            return post_url or ""  # empty string = posted but no URL (avoids legacy fallback)
         else:
             logger.error(
                 "Script posting to %s failed at step '%s': %s",
@@ -324,7 +324,7 @@ async def post_to_platform(draft: dict, pw, platform: str) -> str | None:
         logger.info("Using JSON script for %s: %s", platform, script_path.name)
         result = await post_via_script(draft, pw, platform)
         if result is not None:
-            return result
+            return result if result else None  # "" (posted, no URL) → None for caller
         logger.warning("Script posting failed for %s, falling back to legacy", platform)
 
     # Fall back to legacy hardcoded function
@@ -512,11 +512,11 @@ async def post_to_x(draft: dict, pw) -> str | None:
         await browse_feed(page, "x")
 
         logger.info("Successfully posted to X")
-        return post_url
+        return post_url or "https://x.com/posted"
 
     except Exception as e:
         logger.error("Failed to post to X: %s", e, exc_info=True)
-        return None
+        raise  # Re-raise so caller knows post was NOT sent
     finally:
         if image_path and generated_image:
             try:
@@ -696,7 +696,7 @@ async def post_to_linkedin(draft: dict, pw) -> str | None:
 
     except Exception as e:
         logger.error("Failed to post to LinkedIn: %s", e, exc_info=True)
-        return None
+        raise  # Re-raise so caller knows post was NOT sent
     finally:
         if image_path and generated_image:
             try:
@@ -838,11 +838,11 @@ async def post_to_facebook(draft: dict, pw) -> str | None:
         await browse_feed(page, "facebook")
 
         logger.info("Successfully posted to Facebook")
-        return post_url
+        return post_url or "https://facebook.com/posted"
 
     except Exception as e:
         logger.error("Failed to post to Facebook: %s", e, exc_info=True)
-        return None
+        raise  # Re-raise so caller knows post was NOT sent
     finally:
         if image_path and generated_image:
             try:
@@ -1029,11 +1029,11 @@ async def post_to_reddit(draft: dict, pw) -> str | None:
         await browse_feed(page, "reddit")
 
         logger.info("Successfully posted to Reddit (u/%s)", username)
-        return post_url
+        return post_url or f"https://reddit.com/user/{username}/submitted"
 
     except Exception as e:
         logger.error("Failed to post to Reddit: %s", e, exc_info=True)
-        return None
+        raise  # Re-raise so caller knows post was NOT sent
     finally:
         if context:
             try:

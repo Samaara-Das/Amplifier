@@ -53,8 +53,9 @@ class MetricCollector:
         try:
             if platform == "x" and self._x_bearer:
                 return await self._collect_x_api(post_url)
-            elif platform == "reddit" and self._reddit:
-                return self._collect_reddit_api(post_url)
+            elif platform == "reddit":
+                # Prefer Playwright for Reddit — it gets view counts. PRAW doesn't.
+                return await self._collect_playwright(post_url, platform)
             else:
                 # Fallback to Playwright scrapers
                 return await self._collect_playwright(post_url, platform)
@@ -93,10 +94,13 @@ class MetricCollector:
         }
 
     def _collect_reddit_api(self, post_url: str) -> dict:
-        """Use Reddit API (PRAW) to read post metrics."""
+        """Use Reddit API (PRAW) to read post metrics.
+
+        Note: PRAW does not expose view counts. For views, use Playwright scraping.
+        """
         submission = self._reddit.submission(url=post_url)
         return {
-            "impressions": 0,  # Reddit doesn't expose impressions via API
+            "impressions": 0,  # PRAW doesn't expose views — Playwright scraper gets them
             "likes": submission.score,
             "reposts": 0,
             "comments": submission.num_comments,

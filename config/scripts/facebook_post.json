@@ -1,7 +1,7 @@
 {
   "platform": "facebook",
   "action": "post",
-  "version": "2026.04.04",
+  "version": "2026.04.05",
   "home_url": "https://www.facebook.com/",
   "variables_required": ["text"],
   "steps": [
@@ -94,20 +94,42 @@
         ]
       },
       "delay_before_ms": { "min": 800, "max": 2000 },
-      "description": "Dispatch click on Post button (overlay div intercepts normal clicks)"
+      "description": "Dispatch click on Post button"
     },
     {
       "id": "wait_post_process",
       "type": "wait",
-      "timeout_ms": 5000,
-      "description": "Wait for post to process"
+      "timeout_ms": 8000,
+      "description": "Wait for post to process (Facebook can be slow)"
     },
     {
-      "id": "go_to_profile",
+      "id": "go_to_activity_log",
       "type": "goto",
+      "url": "https://www.facebook.com/me/allactivity?activity_history=false&category_key=MANAGEYOURPOSTS",
+      "wait_for": { "selector": "[role='main']", "timeout_ms": 15000 },
+      "description": "Navigate to activity log (posts in strict chronological order, newest first)"
+    },
+    {
+      "id": "wait_activity",
+      "type": "wait",
+      "timeout_ms": 5000,
+      "description": "Wait for activity log to load"
+    },
+    {
+      "id": "extract_url_activity",
+      "type": "extract_url",
+      "optional": true,
+      "js_code": "() => { const links = document.querySelectorAll('a[href]'); for (const a of links) { const h = a.href; if (h.includes('profile.php?') || h.includes('/allactivity') || h.endsWith('/me')) continue; if (h.includes('/posts/') || h.includes('pfbid') || h.includes('story_fbid') || h.includes('/permalink')) { if (!h.includes('comment_id')) return h; const clean = h.split('&comment_id=')[0].split('&__cft__')[0].split('&__tn__')[0]; return clean; } } return null; }",
+      "timeout_ms": 8000,
+      "description": "Extract newest post URL from activity log (first post link = most recent)"
+    },
+    {
+      "id": "go_to_profile_fallback",
+      "type": "goto",
+      "optional": true,
       "url": "https://www.facebook.com/me",
       "wait_for": { "selector": "[role='main']", "timeout_ms": 15000 },
-      "description": "Navigate to profile for URL capture"
+      "description": "Fallback: navigate to profile if activity log didn't yield a URL"
     },
     {
       "id": "wait_profile",
@@ -115,25 +137,12 @@
       "timeout_ms": 3000
     },
     {
-      "id": "extract_url_permalink",
+      "id": "extract_url_profile",
       "type": "extract_url",
       "optional": true,
-      "target": {
-        "strategy": "fallback_chain",
-        "selectors": [
-          { "by": "css", "value": "a[href*='/posts/']:not([href*='comment'])" },
-          { "by": "css", "value": "a[href*='story_fbid=']:not([href*='comment_id'])" },
-          { "by": "css", "value": "a[href*='/permalink/']:not([href*='comment'])" }
-        ]
-      },
+      "js_code": "() => { const html = document.body.innerHTML; const matches = [...html.matchAll(/pfbid[a-zA-Z0-9]{20,}/g)]; if (matches.length === 0) return null; const idMatch = document.URL.match(/id=(\\d+)/); const uid = idMatch ? idMatch[1] : ''; return 'https://www.facebook.com/permalink.php?story_fbid=' + matches[0][0] + (uid ? '&id=' + uid : ''); }",
       "timeout_ms": 5000,
-      "description": "Extract post permalink (exclude comment links)"
-    },
-    {
-      "id": "extract_url_fallback",
-      "type": "extract_url",
-      "optional": true,
-      "description": "Fallback: use profile page URL if permalink extraction failed"
+      "description": "Last resort: extract pfbid from profile page innerHTML"
     },
     {
       "id": "post_browse",

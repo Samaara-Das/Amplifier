@@ -1,7 +1,7 @@
 {
   "platform": "linkedin",
   "action": "post",
-  "version": "2026.04.04",
+  "version": "2026.04.05",
   "home_url": "https://www.linkedin.com/feed/",
   "variables_required": ["text"],
   "steps": [
@@ -25,7 +25,9 @@
         "selectors": [
           { "by": "role", "value": "button:Start a post" },
           { "by": "css", "value": "[role='button']:has-text('Start a post')" },
-          { "by": "css", "value": "button.share-box-feed-entry__trigger" }
+          { "by": "css", "value": "button.share-box-feed-entry__trigger" },
+          { "by": "css", "value": ".share-box-feed-entry__trigger" },
+          { "by": "css", "value": "[data-control-name='identity_welcome_card']" }
         ]
       },
       "delay_before_ms": { "min": 1000, "max": 2000 },
@@ -95,12 +97,13 @@
         ]
       },
       "delay_before_ms": { "min": 800, "max": 2000 },
-      "description": "Dispatch click on Post button (overlay #interop-outlet intercepts normal clicks)"
+      "description": "Dispatch click on Post button"
     },
     {
       "id": "extract_url_dialog",
       "type": "extract_url",
       "optional": true,
+      "url_pattern": "/feed/update/",
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
@@ -137,21 +140,23 @@
     {
       "id": "wait_activity_load",
       "type": "wait",
-      "timeout_ms": 3000
+      "timeout_ms": 5000
     },
     {
       "id": "extract_url_activity",
       "type": "extract_url",
       "optional": true,
+      "url_pattern": "/feed/update/",
       "target": {
         "strategy": "fallback_chain",
         "selectors": [
           { "by": "css", "value": "a[href*='/feed/update/']" },
-          { "by": "css", "value": "a[href*='/activity/']" }
+          { "by": "css", "value": "a[href*='urn:li:activity']" }
         ]
       },
+      "js_code": "() => { const links = document.querySelectorAll('a[href*=\"/feed/update/\"]'); if (links.length > 0) return links[0].href; const all = document.querySelectorAll('a[href]'); for (const a of all) { if (a.href.includes('urn:li:activity') || a.href.includes('urn:li:share')) return a.href; } return null; }",
       "timeout_ms": 5000,
-      "description": "Extract URL of most recent post from activity page"
+      "description": "Extract URL of most recent post from activity page via selectors or JS"
     },
     {
       "id": "post_browse",

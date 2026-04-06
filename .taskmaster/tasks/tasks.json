@@ -24,33 +24,34 @@
         "metadata": {
           "tier": 2
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-05T13:50:53.748Z"
       },
       {
         "id": "3",
         "title": "Verify CSRF tokens in all Flask forms",
         "description": "flask-wtf installed but need to verify every POST form has csrf_token() hidden input and CSRFProtect is initialized.",
-        "status": "done",
+        "status": "pending",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
         "subtasks": [],
-        "updatedAt": "2026-04-05T13:32:30.705Z"
+        "updatedAt": "2026-04-05T13:51:02.269Z"
       },
       {
         "id": "4",
         "title": "Install slowapi + apply rate limiting to auth endpoints",
         "description": "slowapi not installed on server. Add rate limiting to login/register endpoints (5/minute).",
-        "status": "done",
+        "status": "pending",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
         "subtasks": [],
-        "updatedAt": "2026-04-05T13:36:37.821Z"
+        "updatedAt": "2026-04-05T13:51:10.832Z"
       },
       {
         "id": "5",
@@ -105,7 +106,7 @@
       {
         "id": "9",
         "title": "Metric scraping — detailed spec per platform, verify E2E",
-        "description": "Write detailed spec for what each platform scraper extracts. Verify against real posts. Needs deeper spec first.",
+        "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -120,7 +121,7 @@
       {
         "id": "10",
         "title": "Billing — detailed spec for earnings calc, verify E2E",
-        "description": "Spec for billing pipeline: CPM multiplier, budget cap, hold period, platform cut, tier promotion. Verify with real metrics.",
+        "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -485,9 +486,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-05T13:36:37.821Z",
+      "lastModified": "2026-04-05T13:51:10.832Z",
       "taskCount": 37,
-      "completedCount": 3,
+      "completedCount": 1,
       "tags": [
         "master"
       ]

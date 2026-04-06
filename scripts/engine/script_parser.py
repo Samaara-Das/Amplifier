@@ -164,8 +164,7 @@ class ScriptStep:
     click_count: int = 1
 
     # URL extraction
-    url_pattern: str | None = None  # Only capture page URL if it contains this substring
-    url_variable: str | None = None  # Variable name to read URL from (e.g. _result_poll_redirect_url)
+    url_pattern: str | None = None  # regex pattern the extracted URL must match (e.g. "/comments/")
 
     # Misc
     description: str | None = None
@@ -195,7 +194,6 @@ class ScriptStep:
             force=raw.get("force", False),
             click_count=raw.get("click_count", 1),
             url_pattern=raw.get("url_pattern"),
-            url_variable=raw.get("url_variable"),
             description=raw.get("description"),
             optional=raw.get("optional", False),
         )

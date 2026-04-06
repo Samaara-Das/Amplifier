@@ -1,7 +1,7 @@
 {
   "platform": "reddit",
   "action": "post",
-  "version": "2026.04.04",
+  "version": "2026.04.05",
   "home_url": "https://www.reddit.com/",
   "variables_required": ["title"],
   "steps": [
@@ -95,52 +95,44 @@
         ]
       },
       "delay_before_ms": { "min": 1000, "max": 2000 },
-      "description": "Dispatch click on Post button (shadow DOM, Playwright pierces automatically)"
+      "description": "Dispatch click on Post button"
     },
     {
-      "id": "poll_redirect_url",
-      "type": "evaluate",
-      "optional": true,
-      "js_code": "() => { return new Promise((resolve) => { let attempts = 0; const maxAttempts = 15; const check = () => { const url = window.location.href; if (url.includes('/comments/')) { resolve(url); } else if (url.includes('created=')) { const match = url.match(/created=t3_([^&]+)/); if (match) { const parts = url.match(/\\/user\\/([^/]+)/); const user = parts ? parts[1] : ''; resolve('https://www.reddit.com/user/' + user + '/comments/' + match[1] + '/'); } else { resolve(url); } } else if (++attempts >= maxAttempts) { resolve('no_redirect'); } else { setTimeout(check, 1000); } }; check(); }); }",
-      "timeout_ms": 20000,
-      "description": "Poll page URL for up to 15s — detects /comments/ redirect OR ?created=t3_xxx param"
+      "id": "wait_post_submit",
+      "type": "wait",
+      "timeout_ms": 5000,
+      "description": "Wait for Reddit to process the post submission"
     },
     {
-      "id": "extract_url_redirect",
+      "id": "extract_url_from_page",
       "type": "extract_url",
       "optional": true,
-      "url_variable": "_result_poll_redirect_url",
       "url_pattern": "/comments/",
-      "timeout_ms": 2000,
-      "description": "Extract URL from poll result or page redirect — requires /comments/ in URL"
+      "js_code": "() => { const url = window.location.href; if (url.includes('/comments/')) return url; const params = new URLSearchParams(window.location.search); const created = params.get('created'); if (created) { const id = created.replace('t3_', ''); return 'https://www.reddit.com/r/u_{{reddit_username}}/comments/' + id + '/'; } return null; }",
+      "timeout_ms": 3000,
+      "description": "Check if page redirected to post URL or has ?created= param"
     },
     {
       "id": "go_to_submitted",
       "type": "goto",
       "optional": true,
-      "url": "https://www.reddit.com/user/{{reddit_username}}/submitted/",
-      "wait_for": { "selector": "[role='main']", "timeout_ms": 15000 },
+      "url": "https://www.reddit.com/user/{{reddit_username}}/submitted/?sort=new",
+      "timeout_ms": 20000,
       "description": "Fallback: navigate to user's submitted posts page"
     },
     {
       "id": "wait_submitted_load",
       "type": "wait",
-      "timeout_ms": 3000
+      "timeout_ms": 5000
     },
     {
       "id": "extract_url_submitted",
       "type": "extract_url",
       "optional": true,
-      "target": {
-        "strategy": "fallback_chain",
-        "selectors": [
-          { "by": "css", "value": "a[href*='/comments/']" },
-          { "by": "css", "value": "shreddit-post a[slot='full-post-link']" },
-          { "by": "css", "value": "a[data-click-id='body']" }
-        ]
-      },
+      "url_pattern": "/comments/",
+      "js_code": "() => { const posts = document.querySelectorAll('shreddit-post'); if (posts.length > 0) { let newest = null; let newestTime = 0; for (const p of posts) { const pl = p.getAttribute('permalink'); const created = p.getAttribute('created-timestamp') || p.getAttribute('created') || ''; const ts = created ? new Date(created).getTime() : 0; if (pl && ts > newestTime) { newestTime = ts; newest = pl; } } if (!newest) newest = posts[0].getAttribute('permalink'); if (newest) return newest.startsWith('http') ? newest : 'https://www.reddit.com' + newest; } const links = document.querySelectorAll('a[href]'); for (const a of links) { if (a.href.match(/\\/r\\/[^/]+\\/comments\\/[a-z0-9]+/)) return a.href; } return null; }",
       "timeout_ms": 5000,
-      "description": "Extract URL from first post on submitted page (most recent = our post)"
+      "description": "Extract URL from first post on submitted page — requires /r/ to avoid matching nav links"
     },
     {
       "id": "post_browse",

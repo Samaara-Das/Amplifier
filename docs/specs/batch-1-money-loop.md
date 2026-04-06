@@ -81,12 +81,12 @@ Not all metrics are visible on all platforms. Only scrape what is actually shown
 
 | Metric | X | LinkedIn | Facebook | Reddit |
 |--------|---|----------|----------|--------|
-| **Views** | YES | NO | NO | NO |
+| **Views** | YES | NO | NO | YES |
 | **Likes** | YES | YES (reactions count) | YES | YES (upvote score) |
 | **Comments** | YES | YES | YES | YES |
 | **Reposts/Shares** | YES | YES (reposts) | YES (shares) | NO |
 
-**Key implication:** Views are ONLY available on X. LinkedIn, Facebook, and Reddit do not show view counts on post pages. The billing formula accounts for this -- `rate_per_1k_views` only generates earnings on X posts.
+**Key implication:** Views are available on X and Reddit. LinkedIn and Facebook do not show view counts on post pages. The billing formula accounts for this -- `rate_per_1k_views` generates earnings on X and Reddit posts.
 
 ### Per-Platform Scraping Behavior
 
@@ -126,11 +126,13 @@ Navigate to the post URL. Extract likes, comments, and shares counts. Views are 
 
 **Scrapes:** likes (upvote score), comments. NO reposts, NO views.
 
-**Preferred method:** Use Reddit API (PRAW) as the primary scraping method. PRAW is free, reliable, has no risk of browser bans (respects 60 req/min rate limit), and returns structured data directly. Returns upvote score and comment count.
+**Scrapes:** likes (upvote score), comments, views. NO reposts.
 
-**Fallback:** If Reddit API credentials are not configured, fall back to Playwright browser scraping.
+**Preferred method:** Use Playwright browser scraping as the primary method. Reddit post pages show view counts in the UI (e.g., "1,234 views") which PRAW cannot access. Extract views from the post page along with score and comment count.
 
-Reposts and views are not available on Reddit -- store as 0.
+**Alternative:** Use Reddit API (PRAW) for score and comment count if Playwright scraping fails. PRAW is free and reliable (60 req/min rate limit) but does NOT return view counts -- store views as 0 when using PRAW only.
+
+Reposts are not available on Reddit -- store as 0.
 
 **Edge cases:**
 - Post removed or subreddit is private/banned: mark post as `deleted`
@@ -180,7 +182,7 @@ After each scraping run, unreported metrics are batched and sent to the server. 
 
 1. X post scraped after 24+ hours returns non-zero views or likes.
 2. LinkedIn post scraped returns reactions count.
-3. Reddit post scraped via PRAW returns upvote score and comment count.
+3. Reddit post scraped returns view count, upvote score, and comment count.
 4. Facebook post scraped returns likes, comments, or shares.
 5. Running the scraper twice in quick succession does not create duplicate metric rows.
 6. Deleting a post on any platform results in the post being marked `deleted` with no zero-metric row stored.
@@ -202,7 +204,7 @@ Billing runs when metrics are submitted to the server. The server processes each
 ### Earnings Formula
 
 ```
-raw_cents = (views / 1000 * rate_per_1k_views_cents)    -- X only; other platforms have 0 views
+raw_cents = (views / 1000 * rate_per_1k_views_cents)    -- X and Reddit; LinkedIn/Facebook have 0 views
            + (likes * rate_per_like_cents)                -- all platforms
            + (comments * rate_per_comment_cents)          -- all platforms
            + (reposts * rate_per_repost_cents)            -- X, LinkedIn, Facebook only; Reddit has 0
@@ -224,14 +226,14 @@ If budget_cost_cents > campaign remaining budget:
 
 | Rate | What It Pays For | Available On | Example |
 |------|-----------------|--------------|---------|
-| rate_per_1k_views | Views / impressions | X only | $0.50 per 1K views |
+| rate_per_1k_views | Views / impressions | X, Reddit | $0.50 per 1K views |
 | rate_per_like | Likes, reactions, upvotes | All 4 platforms | $0.01 per like |
 | rate_per_comment | Comments, replies | All 4 platforms | $0.02 per comment |
 | rate_per_repost | Reposts, shares | X, LinkedIn, Facebook (not Reddit) | $0.05 per repost |
 
 All rates are stored and calculated in **integer cents** internally. There is no rate for clicks -- clicks are not scrapeable.
 
-**Implication for companies:** Reddit-only campaigns should set higher `rate_per_like` and `rate_per_comment` since views and reposts are not available. The campaign creation wizard should suggest appropriate rates based on the target platforms.
+**Implication for companies:** Reddit-only campaigns should set higher `rate_per_like` and `rate_per_comment` since reposts are not available. Views ARE available on Reddit, so `rate_per_1k_views` applies. The campaign creation wizard should suggest appropriate rates based on the target platforms.
 
 ### Deduplication
 
