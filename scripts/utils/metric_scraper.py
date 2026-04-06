@@ -185,6 +185,17 @@ async def _scrape_x(page, post_url: str) -> tuple[dict, str | None]:
             elif "repl" in label_lower or "comment" in label_lower:
                 metrics["comments"] = count
 
+        # Views fallback: X sometimes puts view count outside role="group"
+        # in a separate aria-label like "2 replies, 9 likes, 15 bookmarks, 8312 views"
+        if metrics["impressions"] == 0:
+            view_els = await page.query_selector_all('[aria-label*="views"]')
+            for el in view_els:
+                label = await el.get_attribute("aria-label") or ""
+                view_match = re.search(r'([\d,]+)\s*views', label.lower())
+                if view_match:
+                    metrics["impressions"] = int(view_match.group(1).replace(",", ""))
+                    break
+
     except Exception as e:
         logger.warning("Failed to scrape X post %s: %s", post_url, e)
 
