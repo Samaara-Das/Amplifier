@@ -10,6 +10,7 @@ from app.models.invitation_log import CampaignInvitationLog
 from app.models.content_screening import ContentScreeningLog
 from app.models.audit_log import AuditLog
 from app.models.campaign_post import CampaignPost
+from app.models.company_transaction import CompanyTransaction
 
 __all__ = [
     "Company",
@@ -24,4 +25,5 @@ __all__ = [
     "ContentScreeningLog",
     "AuditLog",
     "CampaignPost",
+    "CompanyTransaction",
 ]

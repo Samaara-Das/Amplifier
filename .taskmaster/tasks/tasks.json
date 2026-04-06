@@ -18,14 +18,14 @@
         "id": "2",
         "title": "Stripe top-up verification + idempotency fix",
         "description": "Verify test-mode Stripe Checkout credits company balance correctly. Fix double-credit bug on success redirect.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
         "subtasks": [],
-        "updatedAt": "2026-04-05T13:50:53.748Z"
+        "updatedAt": "2026-04-06T14:30:29.631Z"
       },
       {
         "id": "3",
@@ -486,9 +486,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-05T13:51:10.832Z",
+      "lastModified": "2026-04-06T14:30:29.631Z",
       "taskCount": 37,
-      "completedCount": 1,
+      "completedCount": 2,
       "tags": [
         "master"
       ]

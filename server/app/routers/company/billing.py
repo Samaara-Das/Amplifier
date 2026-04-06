@@ -1,6 +1,7 @@
 """Company billing and payment routes."""
 
 import os
+import uuid
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -11,6 +12,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.company import Company
 from app.models.campaign import Campaign
+from app.models.company_transaction import CompanyTransaction
 from app.routers.company import _render, _login_redirect, get_company_from_cookie
 
 router = APIRouter()
@@ -57,6 +59,15 @@ async def billing_page(
 
     stripe_configured = bool(settings.stripe_secret_key or os.getenv("STRIPE_SECRET_KEY"))
 
+    # Fetch transaction history
+    tx_result = await db.execute(
+        select(CompanyTransaction)
+        .where(CompanyTransaction.company_id == company.id)
+        .order_by(CompanyTransaction.created_at.desc())
+        .limit(50)
+    )
+    transactions = tx_result.scalars().all()
+
     flash_success = None
     flash_error = None
     if success:
@@ -72,6 +83,7 @@ async def billing_page(
         allocations=allocations,
         total_allocated=total_allocated,
         total_spent=total_spent,
+        transactions=transactions,
         active_page="billing",
         stripe_configured=stripe_configured,
         flash_success=flash_success,
@@ -98,7 +110,17 @@ async def billing_topup(
     checkout_url = await create_company_checkout(company.id, amount_cents, db)
 
     if not checkout_url:
+        # Test mode: credit balance and record transaction
+        test_session_id = f"test_{uuid.uuid4().hex}"
         company.balance = float(company.balance) + amount
+        company.balance_cents = (company.balance_cents or 0) + amount_cents
+        tx = CompanyTransaction(
+            company_id=company.id,
+            stripe_session_id=test_session_id,
+            amount_cents=amount_cents,
+            type="topup",
+        )
+        db.add(tx)
         await db.flush()
         return RedirectResponse(
             url=f"/company/billing?success=Added+%24{amount:.2f}+to+your+balance+(test+mode)",
@@ -118,6 +140,16 @@ async def billing_success(
     if not company:
         return _login_redirect()
 
+    # Idempotency check: has this session already been processed?
+    existing = await db.execute(
+        select(CompanyTransaction).where(CompanyTransaction.stripe_session_id == session_id)
+    )
+    if existing.scalar_one_or_none():
+        return RedirectResponse(
+            url="/company/billing?success=Payment+already+processed.",
+            status_code=302,
+        )
+
     from app.services.payments import verify_checkout_session
     result = await verify_checkout_session(session_id)
 
@@ -130,8 +162,17 @@ async def billing_success(
     if result["company_id"] != company.id:
         return RedirectResponse(url="/company/billing?error=Session+mismatch.", status_code=302)
 
-    amount = result["amount_cents"] / 100.0
+    amount_cents = result["amount_cents"]
+    amount = amount_cents / 100.0
     company.balance = float(company.balance) + amount
+    company.balance_cents = (company.balance_cents or 0) + amount_cents
+    tx = CompanyTransaction(
+        company_id=company.id,
+        stripe_session_id=session_id,
+        amount_cents=amount_cents,
+        type="topup",
+    )
+    db.add(tx)
     await db.flush()
 
     return RedirectResponse(
