@@ -342,6 +342,25 @@ Returns per-campaign earnings with campaign titles, ordered by most recent updat
 
 ---
 
+## User Joining Fee (Planned)
+
+> **Status**: Under consideration -- not yet implemented. Details to be finalized before user onboarding goes live.
+
+Planning to charge amplifiers (users) a **$200-$250 fee** to join the platform. This may be **annual** rather than one-time.
+
+This is **on top of** the existing revenue streams:
+- 20% platform cut on all earnings
+- Free and paid tiers
+
+### Open Questions
+
+- Exact amount: $200 or $250?
+- Billing cadence: one-time or annual?
+- How does it interact with the existing free/paid tier system? Does paying the fee unlock a tier, or is it a separate access gate?
+- Refund/cancellation policy?
+
+---
+
 ## Server Configuration
 
 Billing-related settings in `server/.env`:
