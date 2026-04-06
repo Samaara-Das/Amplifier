@@ -6,7 +6,7 @@
 
 **Tasks #1–4, #6 complete. Next up: Task #5 (Invitation UX), #7 (Repost UI), #8 (Admin payout actions) to finish Tier 2.**
 
-37 total tasks: 5 done, 23 pending, 9 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
+40 total tasks: 5 done, 23 pending, 12 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
 
 ## Task List (37 total)
 
@@ -58,9 +58,12 @@
 | 27 | Server-side post URL dedup | pending | medium |
 | 28 | ToS/privacy acceptance | pending | medium |
 
-### Deferred (9 tasks — post-launch)
+### Deferred (12 tasks — post-launch)
 29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
 37: Local lightweight LLM for user-side AI
+38: AI-powered browser automation — replace all scraping/posting selectors with AI-driven navigation and extraction
+39: Full profile scraping — scrape ALL info on user's social profiles (every tab, section, expand button), not just partial data
+40: Onboarding questionnaire — ask users questions during onboarding so AI knows them even when profiles are sparse/generic
 
 ## Session 35 — Task #6: Metrics Accuracy (2026-04-06)
 
