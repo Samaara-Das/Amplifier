@@ -1,19 +1,19 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-05 (Session 32)
+**Last Updated**: 2026-04-06 (Session 33)
 
 ## Current State
 
-**Full audit completed. Task list reset. Detailed product specs written. Ready for implementation.**
+**Task #1 (URL Capture) completed and verified on all 4 platforms. Ready for Tier 2.**
 
-The old 80-task list was audited and found to have ~20 tasks marked "done" that were incomplete or not implemented. The task list was reset to 37 tasks (28 active + 9 deferred). Detailed product specs were written for 16 tasks across 4 batches.
+37 total tasks: 1 done, 27 pending, 9 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
 
 ## Task List (37 total)
 
-### Tier 1: Fix Broken Foundation (1 task)
+### Tier 1: Fix Broken Foundation — COMPLETE
 | # | Task | Status | Priority |
 |---|------|--------|----------|
-| 1 | Fix URL capture (LinkedIn, Facebook, Reddit) | pending | high |
+| 1 | Fix URL capture (LinkedIn, Facebook, Reddit) | **done** | high |
 
 ### Tier 2: Incomplete Security & Product Gaps (7 tasks)
 | # | Task | Status | Priority |
@@ -29,7 +29,7 @@ The old 80-task list was audited and found to have ~20 tasks marked "done" that 
 ### Tier 3: Features Needing Deeper Specs (10 tasks)
 | # | Task | Status | Priority | Depends on |
 |---|------|--------|----------|------------|
-| 9 | Metric scraping per platform | pending | high | 1 |
+| 9 | Metric scraping per platform | pending | high | 1 ✓ |
 | 10 | Billing (earnings calc, verify E2E) | pending | high | 9 |
 | 11 | Earnings display (server→local sync, withdrawal) | pending | high | 10 |
 | 12 | AI matching (scoring logic, verify) | pending | high | — |
@@ -62,75 +62,87 @@ The old 80-task list was audited and found to have ~20 tasks marked "done" that 
 29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
 37: Local lightweight LLM for user-side AI
 
-## Session 32 — What Was Done
+## Session 33 — Task #1: URL Capture Fix (2026-04-06)
 
-### Full Audit of All 80 Tasks
-- Ran comprehensive audit of every implemented feature
-- Found ~20 tasks marked "done" that were incomplete or not implemented
-- Key findings:
-  - URL capture broken on 3/4 platforms (only X works)
-  - CSRF tokens not verified in Flask forms
-  - Rate limiting (slowapi) not installed
-  - Invitation UX (countdown, expired badge) not implemented
-  - Multiple Tier 5 items (#77-80) marked done but code doesn't exist
-  - Repost campaign has backend but no company creation UI
-  - Admin payouts are read-only (no void/approve)
-  - Earnings display may not sync from server to local
+### What Was Done
 
-### Task List Reset
-- Removed all 80 old tasks from task-master
-- Created 37 new tasks (28 active + 9 deferred) reflecting actual state
-- Organized into 5 tiers by priority + launch tasks + deferred
+**Implemented URL capture for all 4 platforms, tested end-to-end with live posts.**
 
-### Detailed Product Specs Written (4 batches)
-All specs at `docs/specs/`:
+#### Script Executor Upgrade (`scripts/engine/script_executor.py`)
+- `_handle_extract_url` now supports 3-tier extraction: CSS selectors → JavaScript → page URL fallback
+- Added `url_pattern` field: extracted URLs must contain a substring (e.g., `/comments/` for Reddit, `/feed/update/` for LinkedIn) — prevents capturing wrong URLs
+- Added `_normalize_href()` and `_validate_url()` helpers
+- `url_pattern` field added to `ScriptStep` in `script_parser.py`
 
-**Batch 1 — Money Loop** (`batch-1-money-loop.md`):
-- Task #1: URL capture — test first, per-platform fix strategies
-- Task #9: Metric scraping — every 24h for campaign lifetime, per-platform metrics (views X + Reddit, likes/comments all, reposts not Reddit), Playwright preferred for Reddit (gets views), PRAW fallback, deleted post detection
-- Task #10: Billing — formula with rate_per_comment added, rate_per_click removed, rate_per_1k_views on X + Reddit, 7-day hold, tier promotion, budget management
-- Task #11: Earnings display — test first, server→local sync, withdrawal flow
+#### Platform-Specific Fixes
 
-**Batch 2 — AI Brain** (`batch-2-ai-brain.md`):
-- Task #13: AI profile scraping — 3-tier token-efficient pipeline (text→elements→vision), per-platform extraction from real screenshots (X, LinkedIn, Facebook, Reddit), navigation: scroll AND click "Show all"/"...more"
-- Task #12: AI matching — scoring weights (topic 40%, audience 25%, authenticity 20%, quality 15%), self-selected niches override profile, min score 40
-- Task #14: Content agent — 4 phases (research with niche news, AI-driven strategy, creation, review), timeliness rule, anti-AI language
-- Task #15: Quality gate — 2-layer (mechanical rubric 85/100 + server-side AI review for scams/harmful content)
+**X** — Already working. No changes needed.
+- Selector: `article[data-testid='tweet'] a[href*='/status/']` on profile page
 
-**Batch 3 — Product Features** (`batch-3-product-features.md`):
-- Task #16: Content formats — threads (X), polls (X, LinkedIn), link posts (Reddit). No LinkedIn carousel, no Facebook poll. Content agent decides format per-post.
-- Task #5: Invitation UX — countdown timers with color coding, expired badge + gray-out, decline reason with quick-select
-- Task #7: Repost campaign UI — partial platforms OK, all formats supported, users can't edit (read-only approve/reject)
-- Task #8: Admin payouts — void (returns funds) and force-approve (skips hold) with audit logging
+**LinkedIn** — Fixed via "View post" dialog + activity page JS fallback
+- Primary: CSS selector for "View post" link in success dialog (works for image posts)
+- Fallback: JS extraction on activity page for `urn:li:activity` or `urn:li:share` links
+- `url_pattern: "/feed/update/"` prevents capturing analytics links
+- Had to re-login via `login_setup.py linkedin` (session was expired)
 
-**Batch 4 — Business & Launch** (`batch-4-business-launch.md`):
-- Task #17: Free/Pro tiers ($19.99/mo) — image gen on both tiers, post limit is gate (4 vs 20), 20% matching boost for Pro
-- Task #19: Stripe live — existing father's Stripe account, company Checkout with idempotency, user Connect Express onboarding
-- Task #22: Landing page — dual audience (companies + users), sections, mobile, SEO
-- Task #6: Metrics accuracy — deleted post detection, rate limit handling, dedup
+**Facebook** — Fixed via activity log instead of profile page
+- Navigate to `facebook.com/me/allactivity?category_key=MANAGEYOURPOSTS` (strict chronological order)
+- JS scans links for `/posts/`, `pfbid`, `story_fbid` patterns, strips `comment_id` params
+- Profile page fallback with innerHTML `pfbid` regex search
+- Key insight: Facebook profile page doesn't guarantee chronological order; activity log does
 
-### Key Decisions Made This Session
-1. **rate_per_click removed** — clicks can't be scraped from post pages
-2. **Self-learning (#61) cancelled** — moved to deferred/post-launch
-3. **Political campaigns removed** — out of scope
-4. **Task #57 removed** — official APIs not part of implementation
-5. **Image gen on both Free and Pro tiers** — no restriction
-6. **Metric scraping: every 24h** (not tiered T+1h/6h/24h/72h schedule)
-7. **Per-platform metrics**: views X + Reddit, likes all 4, comments all 4, reposts not Reddit
-8. **Profile scraping: text-first** — 3-tier pipeline to minimize tokens (text→elements→vision)
-9. **AI matching: self-selected niches override** profile analysis
-10. **Quality gate: 2-layer** — mechanical rubric + server AI review
-11. **Content agent: niche news** in research phase for timely content
-12. **Repost campaigns: users can't edit** content (read-only)
-13. **Father's Stripe account** available for Amplifier
-14. **Local LLM** added as deferred task #37
+**Reddit** — Fixed via JS-only extraction with timestamp sorting
+- Removed CSS selectors entirely (they matched nav tab `/user/.../comments/` instead of posts)
+- JS reads `shreddit-post` element `permalink` attributes with `created-timestamp` sorting
+- Navigate to `submitted/?sort=new` to ensure newest post is first
+- `url_pattern: "/comments/"` accepts both `/r/subreddit/comments/...` and `/user/.../comments/...`
+- Key insight: posts to user profile use `/user/` not `/r/` — pattern must accept both
 
-### Session 31 Work (earlier in same day)
-- Implemented #52/#63 (content agent), #61 (self-learning), #65 (preview UI), #51 (AI scraping), #53 (SLC spec)
-- All later found to need deeper specs and re-implementation
-- Removed click-based payouts
-- Fixed Flask reloader tab spam
-- Deployed to Vercel
+#### Bug Fixes
+- **Legacy functions swallowing exceptions** (`post.py`): All 4 legacy platform posting functions caught exceptions and returned `None`, causing false `posted_no_url` status when posting actually failed. Changed to re-raise.
+- **`resolved_assignment_id` NameError** (`post_scheduler.py`): Variable was only defined in the success branch but used in both success and no-url branches. Moved DB lookup before the if/else.
+- **Double-posting on URL capture failure**: `post_via_script` now returns `""` (not `None`) when post succeeds but URL capture fails, preventing legacy fallback from posting again.
+
+#### Spec Updates
+- Reddit views are scrapeable (visible on post pages) — updated batch-1 spec, task-context, tasks 9 and 10
+- `rate_per_1k_views` applies to X AND Reddit (not X-only)
+- Playwright preferred over PRAW for Reddit metric scraping (PRAW can't get views)
+- `metric_collector.py` updated to route Reddit to Playwright
+
+### Verified Test Results (Live Posts)
+
+| Platform | Captured URL | Verified |
+|----------|-------------|----------|
+| X | `x.com/SamaaraDas/status/2041144200289464455` | ✅ |
+| LinkedIn | `linkedin.com/feed/update/urn:li:share:7446910068303953920/` | ✅ |
+| Facebook | `facebook.com/permalink.php?story_fbid=pfbid0TNU9kgoLRJfVbMA2ej8nhjq2jshiKwcx2t2A9Ei8rSpQqeB4cCtorAdZCYnknYK6l&id=100086447984609` | ✅ |
+| Reddit | `reddit.com/user/SamaaraDas/comments/1sdzj1b/url_capture_test_round_6/` | ✅ |
+
+### Testing Iterations (6 rounds)
+1. Round 1: X ✅, LinkedIn ❌ (session expired), Facebook ❌ (profile URL), Reddit ❌ (user page)
+2. Round 2: LinkedIn re-login → ✅, Reddit selector matched wrong link, Facebook CSS+JS found nothing
+3. Round 3: Reddit `url_pattern: "/r/"` rejected user-profile posts, Facebook innerHTML found old pfbid
+4. Round 4: Facebook activity log approach → ✅, Reddit pattern changed to `/comments/` → ✅
+5. Round 5: Reddit JS found correct URL but `url_pattern: "/r/"` rejected `/user/` posts
+6. Round 6: All 4 platforms ✅ — user verified all URLs point to correct posts
+
+### Key Decisions
+1. **Reddit views ARE scrapeable** — visible on post pages, PRAW can't get them but Playwright can
+2. **Activity log for Facebook** — profile page doesn't guarantee chronological order
+3. **JS-only for Reddit** — CSS selectors too unreliable (match nav tabs, not posts)
+4. **Legacy functions must re-raise** — returning None on failure causes false posted_no_url
+
+### Uncommitted Changes (NOT part of Task #1)
+These files have changes that revert CSRF/slowapi work — do NOT commit them as-is:
+- `scripts/templates/user/login.html` — removes CSRF script
+- `scripts/templates/user/onboarding.html` — removes CSRF script
+- `server/app/main.py` — removes slowapi
+- `server/app/routers/auth.py` — removes rate limiting
+- `server/app/routers/admin/login.py` — removes rate limiting
+- `server/app/routers/company/login.py` — removes CSRF
+- `server/requirements.txt` — removes slowapi dep
+
+These need investigation before committing — they may be accidental reversions.
 
 ## Deployed URLs
 - **Production**: https://server-five-omega-23.vercel.app
@@ -154,6 +166,7 @@ All specs at `docs/specs/`:
 ## Test Commands
 ```bash
 python scripts/user_app.py                    # Start user app on localhost:5222
+python scripts/login_setup.py linkedin        # Re-login to LinkedIn (if session expired)
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 cd server && vercel deploy --yes --prod       # Deploy to production
 task-master list                              # See all tasks
