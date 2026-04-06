@@ -25,9 +25,68 @@ from utils.local_db import (
     get_posts_for_scraping, add_metric, get_unreported_metrics, mark_metrics_reported,
     update_post_status,
 )
-from utils.server_client import report_metrics
+from utils.server_client import report_metrics, report_post_deleted
 
 logger = logging.getLogger(__name__)
+
+# ── Persistent rate-limit back-off state ──────���─────────────────────────
+# Survives across run_metric_scraping() calls (module-level, reset on process restart).
+# {platform: datetime} — if now < backoff_until, skip that platform entirely.
+_platform_backoff_until: dict[str, datetime] = {}
+
+
+def _is_platform_backed_off(platform: str) -> bool:
+    """Check if a platform is in rate-limit back-off cooldown."""
+    until = _platform_backoff_until.get(platform)
+    if until and datetime.now(timezone.utc) < until:
+        return True
+    # Expired — clean up
+    _platform_backoff_until.pop(platform, None)
+    return False
+
+
+def _set_platform_backoff(platform: str, hours: int = 1) -> None:
+    """Set a platform into back-off cooldown for `hours` hours."""
+    _platform_backoff_until[platform] = datetime.now(timezone.utc) + timedelta(hours=hours)
+    logger.warning("Platform %s backed off until %s (1 hour)", platform,
+                    _platform_backoff_until[platform].isoformat())
+
+
+def _warn_if_all_zero(post: dict, metrics: dict, scrape_count: int) -> None:
+    """Log a warning if scraper returns all zeros on a post that previously had engagement.
+
+    All-zero on a first scrape is normal (post is new). All-zero on a later scrape
+    when previous scrapes had engagement could indicate a platform UI change breaking
+    the scraper — not a real drop to zero.
+    """
+    values = [metrics.get("impressions", 0), metrics.get("likes", 0),
+              metrics.get("reposts", 0), metrics.get("comments", 0)]
+    if any(v != 0 for v in values):
+        return  # Not all-zero, nothing to warn about
+
+    if scrape_count == 0:
+        return  # First scrape, zeros are normal for new posts
+
+    logger.warning(
+        "ALL-ZERO metrics for post %d (%s) on scrape #%d — possible scraper breakage. "
+        "URL: %s. Storing zeros but flagging for investigation.",
+        post["id"], post.get("platform", "?"), scrape_count + 1, post.get("post_url", "?"),
+    )
+
+
+def _mark_post_deleted(post: dict) -> None:
+    """Mark a post as deleted locally and notify the server to void earnings."""
+    update_post_status(post["id"], "deleted")
+    logger.info("Marked post %d as deleted locally", post["id"])
+
+    server_post_id = post.get("server_post_id")
+    if server_post_id:
+        try:
+            report_post_deleted(server_post_id)
+        except Exception as e:
+            logger.warning("Failed to notify server about deleted post %d: %s",
+                           server_post_id, e)
+
 
 # Load platform config
 with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
@@ -602,10 +661,17 @@ async def scrape_all_posts():
         if not post["post_url"]:
             continue
 
+        # Skip platforms in rate-limit back-off cooldown
+        if _is_platform_backed_off(platform):
+            logger.info("Skipping %s (rate-limit back-off active)", platform)
+            continue
+
         if platform in api_platforms and collector:
             logger.info("Collecting %s via API: %s", platform, post["post_url"])
             try:
                 metrics = await collector.collect(post["post_url"], platform)
+                scrape_count = metric_counts.get(post["id"], 0)
+                _warn_if_all_zero(post, metrics, scrape_count)
                 add_metric(
                     post_id=post["id"],
                     impressions=metrics.get("impressions", 0),
@@ -624,7 +690,7 @@ async def scrape_all_posts():
                 err_msg = str(e).lower()
                 # Check if the failure was due to a deleted post
                 if "deleted" in err_msg or "unavailable" in err_msg:
-                    update_post_status(post["id"], "deleted")
+                    _mark_post_deleted(post)
                     logger.info("  Marked post %d as deleted via API detection", post["id"])
                     continue
                 logger.warning("API collection failed for %s, falling back to Playwright: %s",
@@ -648,6 +714,11 @@ async def scrape_all_posts():
 
     async with async_playwright() as pw:
         for platform, post_list in by_platform.items():
+            # Skip platforms in rate-limit back-off cooldown
+            if _is_platform_backed_off(platform):
+                logger.info("Skipping %s Playwright scraping (rate-limit back-off active)", platform)
+                continue
+
             scraper = SCRAPER_MAP.get(platform)
             if not scraper:
                 logger.warning("No scraper for platform: %s", platform)
@@ -662,12 +733,9 @@ async def scrape_all_posts():
                     if not post["post_url"]:
                         continue
 
-                    # If we hit 3+ consecutive rate limits on this platform, stop scraping it
+                    # If we hit 3+ consecutive rate limits, set persistent 1-hour back-off
                     if consecutive_rate_limits >= 3:
-                        logger.warning(
-                            "Stopping %s scraping: %d consecutive rate limits",
-                            platform, consecutive_rate_limits,
-                        )
+                        _set_platform_backoff(platform, hours=1)
                         break
 
                     logger.info("Scraping %s: %s", platform, post["post_url"])
@@ -675,7 +743,7 @@ async def scrape_all_posts():
 
                     # Handle deleted posts — mark as deleted, skip metric insert
                     if scrape_status == "deleted":
-                        update_post_status(post["id"], "deleted")
+                        _mark_post_deleted(post)
                         logger.info("  Marked post %d as deleted, skipping metric insert", post["id"])
                         consecutive_rate_limits = 0
                         await page.wait_for_timeout(2000)
@@ -691,6 +759,8 @@ async def scrape_all_posts():
 
                     consecutive_rate_limits = 0
 
+                    scrape_count = metric_counts.get(post["id"], 0)
+                    _warn_if_all_zero(post, metrics, scrape_count)
                     add_metric(
                         post_id=post["id"],
                         impressions=metrics.get("impressions", 0),

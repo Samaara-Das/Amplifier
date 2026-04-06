@@ -1,4 +1,7 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +12,8 @@ from app.models.post import Post
 from app.models.metric import Metric
 from app.models.assignment import CampaignAssignment
 from app.schemas.metrics import PostCreate, PostBatchCreate, MetricBatchSubmit
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -55,8 +60,11 @@ async def submit_metrics(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Batch submit scraped metrics for posts."""
+    """Batch submit scraped metrics for posts. Deduplicates and rejects deleted posts."""
     accepted = 0
+    skipped_deleted = 0
+    skipped_duplicate = 0
+
     for m in data.metrics:
         # Verify post belongs to this user (via assignment)
         result = await db.execute(
@@ -71,6 +79,24 @@ async def submit_metrics(
         )
         post = result.scalar_one_or_none()
         if not post:
+            continue
+
+        # Reject metrics for deleted posts — no billing should occur
+        if post.status == "deleted":
+            skipped_deleted += 1
+            continue
+
+        # Duplicate prevention: check if metric with same (post_id, scraped_at) exists
+        existing = await db.execute(
+            select(Metric.id).where(
+                and_(
+                    Metric.post_id == m.post_id,
+                    Metric.scraped_at == m.scraped_at,
+                )
+            )
+        )
+        if existing.scalar_one_or_none() is not None:
+            skipped_duplicate += 1
             continue
 
         metric = Metric(
@@ -98,7 +124,61 @@ async def submit_metrics(
             import logging
             logging.getLogger(__name__).warning("Billing trigger failed: %s", e)
 
-    result = {"accepted": accepted, "total_submitted": len(data.metrics)}
+    result = {
+        "accepted": accepted,
+        "total_submitted": len(data.metrics),
+        "skipped_deleted": skipped_deleted,
+        "skipped_duplicate": skipped_duplicate,
+    }
     if billing_result:
         result["billing"] = billing_result
     return result
+
+
+class PostStatusUpdate(BaseModel):
+    status: str  # "deleted" | "flagged"
+
+
+@router.patch("/posts/{post_id}/status")
+async def update_post_status(
+    post_id: int,
+    data: PostStatusUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a post's status (e.g. mark as deleted). Voids pending earnings if deleted."""
+    if data.status not in ("deleted", "flagged"):
+        raise HTTPException(status_code=422, detail="Status must be 'deleted' or 'flagged'")
+
+    # Verify post belongs to this user
+    result = await db.execute(
+        select(Post)
+        .join(CampaignAssignment)
+        .where(
+            and_(
+                Post.id == post_id,
+                CampaignAssignment.user_id == user.id,
+            )
+        )
+    )
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    old_status = post.status
+    post.status = data.status
+
+    voided_count = 0
+    if data.status == "deleted":
+        try:
+            from app.services.billing import void_earnings_for_post
+            voided_count = await void_earnings_for_post(db, post_id)
+        except Exception as e:
+            logger.warning("Earning voiding failed for post %d: %s", post_id, e)
+
+    return {
+        "post_id": post_id,
+        "old_status": old_status,
+        "new_status": data.status,
+        "earnings_voided": voided_count,
+    }

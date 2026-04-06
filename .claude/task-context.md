@@ -1,12 +1,12 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-06 (Session 34)
+**Last Updated**: 2026-04-06 (Session 35)
 
 ## Current State
 
-**Tasks #1–4 complete. Next up: Task #5 (Invitation UX) or #6 (Metrics accuracy).**
+**Tasks #1–4, #6 complete. Next up: Task #5 (Invitation UX), #7 (Repost UI), #8 (Admin payout actions) to finish Tier 2.**
 
-37 total tasks: 4 done, 24 pending, 9 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
+37 total tasks: 5 done, 23 pending, 9 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
 
 ## Task List (37 total)
 
@@ -22,7 +22,7 @@
 | 3 | CSRF tokens in all server HTML forms | **done** | high |
 | 4 | Slowapi rate limiting on auth endpoints | **done** | high |
 | 5 | Invitation UX (countdown, expired badge, decline reason) | pending | medium |
-| 6 | Metrics accuracy (deleted post detection, rate limits) | pending | high |
+| 6 | Metrics accuracy (deleted post detection, rate limits) | **done** | high |
 | 7 | Repost campaign company creation UI | pending | medium |
 | 8 | Admin payout void/approve actions | pending | medium |
 
@@ -61,6 +61,57 @@
 ### Deferred (9 tasks — post-launch)
 29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
 37: Local lightweight LLM for user-side AI
+
+## Session 35 — Task #6: Metrics Accuracy (2026-04-06)
+
+### What was done
+
+5 gaps fixed in the metric scraping pipeline:
+
+**1. Persistent rate limit back-off** (`metric_scraper.py`)
+- Module-level `_platform_backoff_until` dict persists across `run_metric_scraping()` calls
+- After 3 consecutive rate limits on a platform, sets 1-hour cooldown via `_set_platform_backoff()`
+- Both API and Playwright paths check `_is_platform_backed_off()` before scraping
+- Expired cooldowns auto-clear on next check
+
+**2. Server deleted post propagation** (`metrics.py`, `server_client.py`, `metric_scraper.py`)
+- New `PATCH /api/posts/{post_id}/status` server endpoint
+- Accepts `{"status": "deleted"}`, verifies post ownership, calls `void_earnings_for_post()`
+- New `report_post_deleted()` in `server_client.py`
+- `_mark_post_deleted()` helper marks locally AND notifies server in one call
+- Both API and Playwright detection paths use `_mark_post_deleted()`
+
+**3. Server-side duplicate metric prevention** (`metrics.py`)
+- `submit_metrics()` checks for existing `(post_id, scraped_at)` before inserting
+- Duplicate submissions return `skipped_duplicate` count
+- Metrics for deleted posts rejected with `skipped_deleted` count
+- Response now includes: `{accepted, total_submitted, skipped_deleted, skipped_duplicate}`
+
+**4. X API deleted tweet detection** (`metric_collector.py`)
+- `_collect_x_api()` now catches HTTP 404 → raises `ValueError("Post deleted/unavailable")`
+- Also catches HTTP 429 → raises rate limit error
+- Handles empty `data` field (200 response but no tweet data) → checks for `errors` array
+
+**5. All-zero metric warning** (`metric_scraper.py`)
+- `_warn_if_all_zero()` logs WARNING when non-first scrape returns all zeros
+- First scrape zeros are expected (new post) — no warning
+- Warning stored in logs for investigation, zeros still saved (valid data)
+
+### Files changed
+- `scripts/utils/metric_scraper.py` — 4 new functions, backoff integration, server notification
+- `scripts/utils/metric_collector.py` — X API error handling
+- `scripts/utils/server_client.py` — `report_post_deleted()`
+- `server/app/routers/metrics.py` — PATCH endpoint, dedup logic, deleted post rejection
+
+### Test results (all pass)
+- Rate limit back-off: 4 unit tests (initial clear, set, isolation, expiry)
+- All-zero warning: 3 cases (first scrape, non-first zeros, non-zero)
+- Server PATCH 404: non-existent post returns "Post not found"
+- Server PATCH 422: invalid status returns validation error
+- Metric submission: accepted=1, billing triggered correctly
+- Duplicate metric: accepted=0, skipped_duplicate=1
+- Mark deleted: earnings_voided=1, status changed
+- Metrics for deleted post: accepted=0, skipped_deleted=1
 
 ## Session 34 — Tasks #2, #3, #4 (2026-04-06)
 

@@ -80,9 +80,21 @@ class MetricCollector:
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(url, params=params, headers=headers)
+            # Detect deleted tweets: X API returns 404 for deleted/suspended tweets
+            if resp.status_code == 404:
+                raise ValueError(f"Post deleted/unavailable: {post_url}")
+            # Detect rate limiting: X API returns 429
+            if resp.status_code == 429:
+                raise ValueError(f"Rate limited while scraping: {post_url}")
             resp.raise_for_status()
 
         data = resp.json().get("data", {})
+        if not data:
+            # API returned 200 but no data — tweet may have been deleted or is not accessible
+            errors = resp.json().get("errors", [])
+            if errors:
+                raise ValueError(f"Post deleted/unavailable: {post_url}")
+
         pm = data.get("public_metrics", {})
 
         return {

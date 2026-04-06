@@ -254,6 +254,19 @@ def report_metrics(metrics: list[dict]) -> dict:
     return result
 
 
+def report_post_deleted(server_post_id: int) -> dict:
+    """Notify the server that a post has been deleted. Triggers earning voiding."""
+    resp = _request_with_retry(
+        "PATCH", f"/api/posts/{server_post_id}/status",
+        json={"status": "deleted"},
+    )
+    resp.raise_for_status()
+    result = resp.json()
+    logger.info("Reported post %d as deleted to server (voided: %s)",
+                server_post_id, result.get("earnings_voided", 0))
+    return result
+
+
 # ── Earnings ───────────────────────────────────────────────────────
 
 
