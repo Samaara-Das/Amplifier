@@ -594,6 +594,10 @@ Before storing a draft, verify:
 
 If any phase fails, fall back to the existing single-prompt `ContentGenerator.generate()`. This ensures content is always produced, even if the AI pipeline has issues.
 
+### Repost Campaign Handling
+
+The 4-phase content agent is **skipped entirely** for repost campaigns (`campaign_type == "repost"`). The background agent detects the campaign type and uses the company's pre-written `CampaignPost` records directly as drafts — no research, no strategy, no AI generation, no review phase. The posting frequency (once/daily/weekly) controls when new drafts are created from the stored content.
+
 ### Acceptance Criteria
 
 1. A virality campaign with edgy tone produces X content using contrarian or surprising hooks — not gentle storytelling.
@@ -676,7 +680,7 @@ When a campaign fails, the system returns:
 
 ### Special Cases
 
-- **Repost campaigns** (`campaign_type = "repost"`): Don't require content_guidance (company provides the exact content). Do require the repost content to be filled in.
+- **Repost campaigns** (`campaign_type = "repost"`): Don't require content_guidance (company provides the exact content). Do require at least one platform to have text or image content filled in. Image-only posts (no text) are valid for repost campaigns.
 - **Wizard-generated campaigns**: Usually score high (85+) because the wizard produces comprehensive briefs. The gate mainly catches manually-created campaigns with minimal info.
 
 ### Acceptance Criteria

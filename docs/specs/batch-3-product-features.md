@@ -157,10 +157,10 @@ The company dashboard needs a complete UI for creating repost campaigns, where t
 
    | Platform | Supported Repost Formats |
    |----------|--------------------------|
-   | X | Text, Text + image |
-   | LinkedIn | Text, Text + image |
-   | Facebook | Text, Text + image |
-   | Reddit | Text (title + body) |
+   | X | Text only, Image only, Text + image |
+   | LinkedIn | Text only, Image only, Text + image |
+   | Facebook | Text only, Image only, Text + image |
+   | Reddit | Text (title + body) — no image support (Reddit image posts require file upload, not URL) |
 
 3. **Users cannot edit repost content.** In semi-auto mode, users see the repost content for review but all text fields are read-only. They can only approve or reject, not modify the content. In full-auto mode, reposts are scheduled directly without any review step.
 
@@ -191,21 +191,22 @@ Companies must choose how often their repost content is posted on each user's pr
 
 1. **Campaign creation:** When a company selects "Repost" type and fills in per-platform content:
    - The campaign record must be stored as type "repost"
-   - Each platform's content must be saved as a separate record linked to the campaign, including which format was selected
+   - Each platform's content must be saved as a separate `CampaignPost` record linked to the campaign (text in `content`, image in `image_url`)
    - Platforms left blank are not saved (no empty records)
    - A brief is auto-generated from the repost content
+   - For image-only posts: `content` can be empty, `image_url` is required
 
-2. **Format selection per platform:** Each platform's editor must have a format selector (text, thread, poll, link) that dynamically changes the input fields to match the selected format.
+2. **Content types per platform:** Each platform's editor has a text field and an optional image URL field. Companies can fill in text only, image URL only, or both — giving them text, image, or text+image posts.
 
 3. **Editing after creation:** On the campaign detail/edit page, if the campaign is a repost campaign, the per-platform editors appear pre-filled with existing content. The company can edit their content at any time.
 
 4. **Character counts:** Each platform editor shows remaining characters against the platform's limit.
 
-5. **Preview:** The repost content is shown in a platform-specific preview style so the company can see how it will appear.
+5. **Validation:** A repost campaign cannot be activated with zero platform content. At least one platform must have text or image content filled in.
 
-6. **Validation:** A repost campaign cannot be activated with zero platform content. At least one platform must have content filled in.
+6. **Company-side visibility:** The company campaign detail page shows a "Repost Content" card displaying the pre-written content for each platform (text + image preview). This lets the company review exactly what will be posted.
 
-7. **User-side display:** When a user views a repost campaign's drafts, the content is displayed as read-only. Only approve/reject actions are available.
+7. **User-side visibility:** When a user views a repost campaign's details, they see the repost content per platform as read-only drafts. A banner indicates "This is a repost campaign — content was provided by the company." Only approve/reject actions are available — no editing, no regeneration.
 
 ### Acceptance Criteria
 
