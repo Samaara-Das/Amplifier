@@ -260,21 +260,23 @@ async def _scrape_linkedin(page, post_url: str) -> tuple[dict, str | None]:
             others_match = re.search(r'and\s+([\d,]+)\s+other', label)
             if others_match:
                 metrics["likes"] = _parse_number(others_match.group(1)) + 1
-        # Strategy 2: "N Reactions" text in body (handles single digit counts too)
+        # Strategy 2: standalone number on line before "N comments" in body text
+        # Pattern: "5,832\n206 comments\n300 reposts" — the first number is reactions
         if metrics["likes"] == 0:
-            # Match standalone number right before "Reactions" line in body text
-            reaction_match = re.search(r'(\d[\d,]*)\n\s*(?:\S+ and \d|\S+)\n|(\d[\d,]*)\s*reactions?', body_text, re.IGNORECASE)
-            if reaction_match:
-                val = reaction_match.group(1) or reaction_match.group(2)
-                if val:
-                    metrics["likes"] = _parse_number(val)
+            lines = [l.strip() for l in body_text.split("\n") if l.strip()]
+            for i, line in enumerate(lines):
+                if re.match(r'^[\d,]+[KkMm]?$', line) and i + 1 < len(lines):
+                    next_line = lines[i + 1].lower()
+                    if "comment" in next_line or "repost" in next_line:
+                        metrics["likes"] = _parse_number(line)
+                        break
         # Strategy 3: old CSS class
         if metrics["likes"] == 0:
             reactions_el = page.locator(".social-details-social-counts__reactions-count")
             if await reactions_el.count() > 0:
                 text = await reactions_el.first.inner_text()
                 metrics["likes"] = _parse_number(text)
-        # Strategy 4: aria-label "See N more reactions" — sometimes visible on posts
+        # Strategy 4: aria-label "See N more reactions"
         if metrics["likes"] == 0:
             see_more = page.locator('[aria-label*="more reaction"]')
             if await see_more.count() > 0:
@@ -435,8 +437,9 @@ async def _scrape_reddit(page, post_url: str) -> tuple[dict, str | None]:
             "this post is no longer available",
             "page not found",
             "sorry, this page isn't available",
-            "[deleted]",
-            "[removed]",
+            # NOTE: [deleted] and [removed] NOT checked here — they appear in deleted
+            # COMMENTS too, causing false positives. Post deletion is caught by the
+            # shreddit-post[removed="true"] attribute check below.
         ]
         if any(phrase in body_lower for phrase in unavailable_phrases):
             logger.warning("Post deleted/removed on Reddit: %s", post_url)
