@@ -46,8 +46,8 @@
         <div class="invitation-card" data-expires-at="{{ inv.get('expires_at', '') }}" style="border:1px solid #334155; border-radius:12px; padding:0; overflow:hidden; margin-bottom:16px; {{ 'opacity:0.5; pointer-events:none;' if is_expired else '' }}">
           <!-- Header -->
           <div style="padding:16px 20px; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <a href="{{ url_for('campaign_detail', campaign_id=inv.get('campaign_id', inv.get('server_id', 0))) }}" style="margin:0; font-size:18px; font-weight:700; color:#f8fafc; text-decoration:none;">{{ inv.get('campaign_title', inv.get('title', 'Campaign')) }} <span style="font-size:12px; color:#3b82f6;">View details &rarr;</span></a>
+            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+              <div style="font-size:18px; font-weight:700; color:#f8fafc; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ inv.get('campaign_title', inv.get('title', 'Campaign')) }}</div>
               {% if is_expired %}
                 <span style="background:#ef4444; color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px; letter-spacing:0.5px;">EXPIRED</span>
               {% endif %}
@@ -55,12 +55,15 @@
                 <div style="font-size:13px; color:#94a3b8; margin-top:2px; width:100%;">by {{ inv.get('company_name') }}</div>
               {% endif %}
             </div>
-            {% if inv.get('expires_at') %}
+            <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+              {% if inv.get('expires_at') %}
               <span class="inv-countdown" data-expires="{{ inv.get('expires_at', '') }}" style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:4px; white-space:nowrap;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 <span class="countdown-text">{{ 'EXPIRED' if is_expired else 'Expires ' + inv.get('expires_at', '')[:10] }}</span>
               </span>
-            {% endif %}
+              {% endif %}
+              <a href="{{ url_for('campaign_detail', campaign_id=inv.get('campaign_id', inv.get('server_id', 0))) }}" style="font-size:12px; color:#3b82f6; text-decoration:none; white-space:nowrap;">View details &rarr;</a>
+            </div>
           </div>
 
           <div style="padding:16px 20px;">
