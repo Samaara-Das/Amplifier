@@ -351,35 +351,49 @@ async def _scrape_facebook(page, post_url: str) -> tuple[dict, str | None]:
             logger.warning("Facebook auth wall detected while scraping: %s", post_url)
             return metrics, "rate_limited"
 
-        # Reactions via aria-label (multiple patterns — Facebook changes these)
-        reactions = page.locator('[aria-label*="reaction"]')
-        if await reactions.count() > 0:
-            text = await reactions.first.get_attribute("aria-label") or ""
-            metrics["likes"] = _parse_number(text)
-        else:
-            # Pattern: aria-label="Like: 21 people" on Like buttons
-            like_count_els = page.locator('[aria-label^="Like:"]')
-            if await like_count_els.count() > 0:
-                for i in range(await like_count_els.count()):
-                    label = await like_count_els.nth(i).get_attribute("aria-label") or ""
-                    num = _parse_number(label)
-                    if num > metrics["likes"]:
-                        metrics["likes"] = num
+        # ── Extract metrics from engagement bar ──
+        # Facebook's engagement bar shows likes/comments/shares as consecutive
+        # short numeric lines in body text (e.g. "8.5K\n470\n131").
+        # Find the LAST group of 2-3 consecutive numeric-only lines — that's the bar.
+        lines = [l.strip() for l in body_text.split("\n") if l.strip()]
+        num_pattern = re.compile(r'^[\d,.]+[KkMm]?$')
+        bar_groups = []  # list of [(index, value), ...]
+        current_group = []
+        for i, line in enumerate(lines):
+            if num_pattern.match(line) and len(line) < 10:
+                current_group.append((i, _parse_number(line)))
             else:
-                # Fallback: "X people reacted" or just a number near like button
-                reaction_match = re.search(r'([\d,]+)\s*(?:people reacted|reactions?)', body_text, re.IGNORECASE)
-                if reaction_match:
-                    metrics["likes"] = _parse_number(reaction_match.group(1))
+                if len(current_group) >= 2:
+                    bar_groups.append(current_group)
+                current_group = []
+        if len(current_group) >= 2:
+            bar_groups.append(current_group)
 
-        # Comments
-        comment_match = re.search(r'(\d+)\s*comments?', body_text, re.IGNORECASE)
-        if comment_match:
-            metrics["comments"] = int(comment_match.group(1))
+        # Use the LAST group — it's closest to the comment section (the target post's bar).
+        # Earlier groups may be from related posts in the sidebar/feed.
+        if bar_groups:
+            best = bar_groups[-1]
+            if len(best) >= 1:
+                metrics["likes"] = best[0][1]
+            if len(best) >= 2:
+                metrics["comments"] = best[1][1]
+            if len(best) >= 3:
+                metrics["reposts"] = best[2][1]
 
-        # Shares
-        share_match = re.search(r'(\d+)\s*shares?', body_text, re.IGNORECASE)
-        if share_match:
-            metrics["reposts"] = int(share_match.group(1))
+        # Fallback: aria-label "Like: N people" if engagement bar not found
+        if metrics["likes"] == 0:
+            reactions = page.locator('[aria-label*="reaction"]')
+            if await reactions.count() > 0:
+                text = await reactions.first.get_attribute("aria-label") or ""
+                metrics["likes"] = _parse_number(text)
+            else:
+                like_count_els = page.locator('[aria-label^="Like:"]')
+                if await like_count_els.count() > 0:
+                    for i in range(await like_count_els.count()):
+                        label = await like_count_els.nth(i).get_attribute("aria-label") or ""
+                        num = _parse_number(label)
+                        if num > metrics["likes"]:
+                            metrics["likes"] = num
 
         # Views (video posts only)
         view_match = re.search(r'([\d,.]+[KkMm]?)\s*views?', body_text, re.IGNORECASE)
@@ -581,7 +595,18 @@ async def _scrape_instagram(page, post_url: str) -> tuple[dict, str | None]:
 
 
 def _parse_number(text: str) -> int:
-    """Extract first number from text like '1,234 likes'."""
+    """Extract first number from text like '1,234 likes' or '8K people' or '3.4M views'."""
+    # Try abbreviated format first (8K, 3.4M, 1.2K)
+    abbrev_match = re.search(r'([\d,.]+)\s*([KkMm])', text)
+    if abbrev_match:
+        num_str = abbrev_match.group(1).replace(",", "")
+        suffix = abbrev_match.group(2).upper()
+        multiplier = 1000 if suffix == "K" else 1000000
+        try:
+            return int(float(num_str) * multiplier)
+        except ValueError:
+            pass
+    # Plain number (1,234 or 1234)
     numbers = re.findall(r'[\d,]+', text)
     if numbers:
         return int(numbers[0].replace(",", ""))
