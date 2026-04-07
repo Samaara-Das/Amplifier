@@ -283,8 +283,11 @@ async def campaign_create_submit(
     scraped_knowledge_json: str = Form(""),
     campaign_type: str = Form("ai_generated"),
     repost_x: str = Form(""),
+    repost_x_image: str = Form(""),
     repost_linkedin: str = Form(""),
+    repost_linkedin_image: str = Form(""),
     repost_facebook: str = Form(""),
+    repost_facebook_image: str = Form(""),
     repost_reddit_title: str = Form(""),
     repost_reddit_body: str = Form(""),
     company: Company | None = Depends(get_company_from_cookie),
@@ -392,16 +395,17 @@ async def campaign_create_submit(
     if campaign_type == "repost":
         post_order = 1
         repost_entries = [
-            ("x", repost_x.strip()),
-            ("linkedin", repost_linkedin.strip()),
-            ("facebook", repost_facebook.strip()),
+            ("x", repost_x.strip(), repost_x_image.strip()),
+            ("linkedin", repost_linkedin.strip(), repost_linkedin_image.strip()),
+            ("facebook", repost_facebook.strip(), repost_facebook_image.strip()),
         ]
-        for platform, content in repost_entries:
+        for platform, content, image_url in repost_entries:
             if content:
                 db.add(CampaignPost(
                     campaign_id=campaign.id,
                     platform=platform,
                     content=content,
+                    image_url=image_url or None,
                     post_order=post_order,
                 ))
                 post_order += 1
@@ -643,12 +647,56 @@ async def campaign_detail_page(
         influencers=influencers,
         invitation_stats=invitation_stats,
         decline_reasons=decline_reasons,
+        repost_content=[{"id": cp.id, "platform": cp.platform, "content": cp.content, "image_url": cp.image_url}
+                        for cp in (campaign.campaign_posts or [])] if campaign.campaign_type == "repost" else [],
         budget_alert_sent=campaign.budget_alert_sent,
         budget_exhaustion_action=campaign.budget_exhaustion_action or "auto_pause",
         campaign_version=campaign.campaign_version or 1,
         active_page="campaigns",
         success=success,
         error=error,
+    )
+
+
+@router.post("/campaigns/{campaign_id}/repost-content")
+async def update_repost_content(
+    request: Request,
+    campaign_id: int,
+    company: Company | None = Depends(get_company_from_cookie),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update per-platform repost content for a repost campaign."""
+    if not company:
+        return _login_redirect()
+
+    result = await db.execute(
+        select(Campaign).where(and_(Campaign.id == campaign_id, Campaign.company_id == company.id))
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign or campaign.campaign_type != "repost":
+        return RedirectResponse(url=f"/company/campaigns/{campaign_id}", status_code=302)
+
+    form = await request.form()
+
+    # Update each existing CampaignPost from form data
+    posts_result = await db.execute(
+        select(CampaignPost).where(CampaignPost.campaign_id == campaign_id)
+    )
+    for cp in posts_result.scalars().all():
+        if cp.platform == "reddit":
+            title = form.get(f"repost_{cp.platform}_title", "").strip()
+            body = form.get(f"repost_{cp.platform}_body", "").strip()
+            if title or body:
+                cp.content = f"{title}\n---\n{body}"
+        else:
+            new_content = form.get(f"repost_{cp.platform}", "").strip()
+            if new_content:
+                cp.content = new_content
+
+    await db.flush()
+    return RedirectResponse(
+        url=f"/company/campaigns/{campaign_id}?success=Repost+content+updated",
+        status_code=303,
     )
 
 

@@ -203,7 +203,7 @@ async def generate_daily_content() -> dict:
 
             # ── Repost campaigns: skip AI gen, use pre-written content ──
             if campaign.get("campaign_type") == "repost":
-                repost_content = campaign.get("repost_content") or []
+                repost_content = campaign.get("campaign_posts") or campaign.get("repost_content") or []
                 if not repost_content:
                     # Try loading from local campaign_posts table
                     from utils.local_db import _get_db as _get_repost_db
@@ -220,8 +220,13 @@ async def generate_daily_content() -> dict:
                     for post_data in repost_content:
                         plat = post_data.get("platform", "")
                         text = post_data.get("content", "")
+                        img = post_data.get("image_url") or None
                         if plat and text and get_todays_draft_count(campaign_id, plat) == 0:
-                            did = add_draft(campaign_id, plat, text, iteration=1)
+                            # Reddit: convert "Title\n---\nBody" to JSON format for draft template
+                            if plat == "reddit" and "\n---\n" in text:
+                                parts = text.split("\n---\n", 1)
+                                text = json.dumps({"title": parts[0], "body": parts[1]})
+                            did = add_draft(campaign_id, plat, text, iteration=1, image_path=img)
                             draft_ids.append(did)
 
                     if draft_ids:

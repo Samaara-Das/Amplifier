@@ -230,6 +230,58 @@
     {% endif %}
 </div>
 
+<!-- Repost Content (only for repost campaigns) -->
+{% if repost_content %}
+<div class="card">
+    <div class="card-title">Repost Content</div>
+    <form method="POST" action="/company/campaigns/{{ campaign.id }}/repost-content" id="repostEditForm">
+        {% for post in repost_content %}
+        <div style="margin-bottom: 16px; padding: 12px; background: #0f172a; border-radius: 8px; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 13px; font-weight: 600; color: #e2e8f0; text-transform: capitalize;">{{ post.platform }}</span>
+                <span style="font-size: 11px; color: #64748b;">
+                    {% if post.image_url %}Text + Image{% else %}Text{% endif %}
+                </span>
+            </div>
+            {% if post.platform == 'reddit' and '\n---\n' in post.content %}
+                {% set parts = post.content.split('\n---\n', 1) %}
+                <div style="margin-bottom: 6px;">
+                    <label style="font-size: 11px; color: #64748b;">Title</label>
+                    <textarea name="repost_{{ post.platform }}_title" rows="1" style="width:100%; padding:6px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#e2e8f0; font-size:13px; font-family:inherit; resize:vertical;" class="repost-edit-field" disabled>{{ parts[0] }}</textarea>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #64748b;">Body</label>
+                    <textarea name="repost_{{ post.platform }}_body" rows="3" style="width:100%; padding:6px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#e2e8f0; font-size:13px; font-family:inherit; resize:vertical;" class="repost-edit-field" disabled>{{ parts[1] }}</textarea>
+                </div>
+            {% else %}
+                <textarea name="repost_{{ post.platform }}" rows="3" style="width:100%; padding:6px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#e2e8f0; font-size:13px; font-family:inherit; resize:vertical;" class="repost-edit-field" disabled>{{ post.content }}</textarea>
+            {% endif %}
+            {% if post.image_url %}
+                <div style="margin-top: 8px;">
+                    <img src="{{ post.image_url }}" alt="Repost image" style="max-width: 120px; max-height: 80px; border-radius: 6px; border: 1px solid #334155;">
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleRepostEdit()" id="repostEditBtn">Edit Content</button>
+            <button type="submit" class="btn btn-primary btn-sm" id="repostSaveBtn" style="display:none;">Save Changes</button>
+        </div>
+    </form>
+</div>
+<script>
+function toggleRepostEdit() {
+    var fields = document.querySelectorAll('.repost-edit-field');
+    var editBtn = document.getElementById('repostEditBtn');
+    var saveBtn = document.getElementById('repostSaveBtn');
+    var editing = fields[0] && !fields[0].disabled;
+    fields.forEach(function(f) { f.disabled = editing; f.style.borderColor = editing ? '#334155' : '#2563eb'; });
+    editBtn.textContent = editing ? 'Edit Content' : 'Cancel';
+    saveBtn.style.display = editing ? 'none' : 'inline-flex';
+}
+</script>
+{% endif %}
+
 <!-- Per-Platform ROI Breakdown -->
 <div class="card">
     <div class="card-title">Platform ROI Breakdown</div>

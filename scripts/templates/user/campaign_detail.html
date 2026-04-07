@@ -141,6 +141,13 @@
 
   {% if use_drafts %}
     {# ═══ NEW DRAFT-BASED UI ═══ #}
+    {% set is_repost = campaign.get('campaign_type') == 'repost' %}
+
+    {% if is_repost %}
+    <div style="padding: 10px 14px; background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.2); border-radius: 8px; margin-bottom: 12px; font-size: 13px; color: #93c5fd;">
+      This is a repost campaign — content was provided by the company. You can approve or reject but not edit.
+    </div>
+    {% endif %}
 
     <!-- Today's Drafts -->
     <div class="card" style="margin-bottom: 16px;">
@@ -157,12 +164,14 @@
                 </button>
               </form>
             {% endif %}
+            {% if not is_repost %}
             <form method="post" action="{{ url_for('regenerate_drafts', campaign_id=campaign.get('server_id', 0)) }}" style="margin:0;" onsubmit="return confirm('Regenerate all unapproved drafts? This will replace them with fresh AI-generated content.')">
               <button type="submit" class="btn btn-secondary btn-sm">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
                 Regenerate
               </button>
             </form>
+            {% endif %}
           </div>
         {% endif %}
       </div>
@@ -190,17 +199,17 @@
                 {% set raw_text = draft.get('draft_text', '') %}
                 {% set is_reddit_json = platform == 'reddit' and raw_text.startswith('{') %}
                 {% if draft.get('approved') == 0 %}
-                  {# Editable draft #}
+                  {# Editable draft (read-only for repost campaigns) #}
                   {% if is_reddit_json %}
                     {# Reddit: show title + body separately #}
                     <form method="post" action="{{ url_for('edit_single_draft', draft_id=draft['id']) }}" class="draft-edit-form" id="draft-form-{{ draft['id'] }}">
                       <div style="margin-bottom:8px;">
                         <label style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">Post Title</label>
-                        <input type="text" id="reddit-title-{{ draft['id'] }}" class="ob-select" style="width:100%; padding:8px 12px; font-size:13px;" />
+                        <input type="text" id="reddit-title-{{ draft['id'] }}" class="ob-select" style="width:100%; padding:8px 12px; font-size:13px;" {{ 'readonly' if is_repost }} />
                       </div>
                       <label style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">Post Body</label>
                       <textarea id="reddit-body-{{ draft['id'] }}" class="content-edit-area visible" style="display:block; min-height:100px;"
-                                oninput="updateDraftCharCount(this, '{{ platform }}')"></textarea>
+                                {{ 'readonly' if is_repost }} oninput="updateDraftCharCount(this, '{{ platform }}')"></textarea>
                       <input type="hidden" name="draft_text" id="reddit-combined-{{ draft['id'] }}" />
                       <div class="char-count" id="char-count-{{ platform }}">0 chars</div>
                     </form>
@@ -225,7 +234,7 @@
                   {% else %}
                     <form method="post" action="{{ url_for('edit_single_draft', draft_id=draft['id']) }}" class="draft-edit-form" id="draft-form-{{ draft['id'] }}">
                       <textarea name="draft_text" class="content-edit-area visible" style="display:block; min-height: 100px;"
-                                oninput="updateDraftCharCount(this, '{{ platform }}')">{{ raw_text }}</textarea>
+                                {{ 'readonly' if is_repost }} oninput="updateDraftCharCount(this, '{{ platform }}')">{{ raw_text }}</textarea>
                       <div class="char-count" id="char-count-{{ platform }}">{{ raw_text|length }} chars</div>
                     </form>
                   {% endif %}

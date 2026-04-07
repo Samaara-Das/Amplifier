@@ -366,8 +366,8 @@ def upsert_campaign(campaign: dict) -> None:
             campaign_id,
         ))
 
-    # Store repost content if present
-    repost_content = campaign.get("repost_content")
+    # Store repost content if present (server sends "campaign_posts" in the API response)
+    repost_content = campaign.get("campaign_posts") or campaign.get("repost_content")
     if repost_content:
         # Clear old repost content for this campaign
         conn.execute("DELETE FROM campaign_posts WHERE campaign_server_id = ?", (campaign_id,))
