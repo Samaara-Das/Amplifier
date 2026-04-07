@@ -66,7 +66,10 @@
     <select name="status" onchange="this.form.submit()">
         <option value="">All Statuses</option>
         <option value="pending" {{ 'selected' if current_status == 'pending' }}>Pending</option>
+        <option value="available" {{ 'selected' if current_status == 'available' }}>Available</option>
+        <option value="processing" {{ 'selected' if current_status == 'processing' }}>Processing</option>
         <option value="paid" {{ 'selected' if current_status == 'paid' }}>Paid</option>
+        <option value="voided" {{ 'selected' if current_status == 'voided' }}>Voided</option>
         <option value="failed" {{ 'selected' if current_status == 'failed' }}>Failed</option>
     </select>
     <button type="submit" class="btn btn-primary btn-sm">Filter</button>
@@ -85,6 +88,7 @@
                 <th>Status</th>
                 <th>Details</th>
                 <th>Date</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -97,7 +101,9 @@
                 <td>
                     {% if p.status == 'paid' %}<span class="badge badge-green">paid</span>
                     {% elif p.status == 'pending' %}<span class="badge badge-yellow">pending</span>
+                    {% elif p.status == 'available' %}<span class="badge badge-green">available</span>
                     {% elif p.status == 'processing' %}<span class="badge badge-blue">processing</span>
+                    {% elif p.status == 'voided' %}<span class="badge badge-red">voided</span>
                     {% else %}<span class="badge badge-red">failed</span>{% endif %}
                 </td>
                 <td>
@@ -111,6 +117,23 @@
                     {% else %}—{% endif %}
                 </td>
                 <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '—' }}</td>
+                <td>
+                    {% if p.status in ('pending', 'available') %}
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        {% if p.status == 'pending' %}
+                        <form method="POST" action="/admin/financial/payouts/{{ p.id }}/approve" style="margin:0;" onsubmit="return confirm('Force-approve this payout? The 7-day hold will be skipped.')">
+                            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="/admin/financial/payouts/{{ p.id }}/void" style="margin:0;" onsubmit="var r=prompt('Reason for voiding this payout:'); if(r===null) return false; this.querySelector('[name=reason]').value=r; return true;">
+                            <input type="hidden" name="reason" value="">
+                            <button type="submit" class="btn btn-danger btn-sm">Void</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <span style="color: #64748b; font-size: 12px;">—</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

@@ -1,6 +1,8 @@
 """Admin financial dashboard routes."""
 
-from fastapi import APIRouter, Cookie, Depends, Request
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -224,3 +226,79 @@ async def run_payout_processing(request: Request, admin_token: str = Cookie(None
         qs="",
         result_msg=msg,
     )
+
+
+@router.post("/financial/payouts/{payout_id}/void")
+async def void_payout(
+    payout_id: int,
+    request: Request,
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+    reason: str = Form(""),
+):
+    """Void a payout — return funds to campaign, deduct from user balance."""
+    if not _check_admin(admin_token):
+        return _login_redirect()
+
+    payout = await db.get(Payout, payout_id)
+    if not payout or payout.status not in ("pending", "available"):
+        return RedirectResponse(url="/admin/financial", status_code=303)
+
+    old_status = payout.status
+    payout.status = "voided"
+
+    # Return funds to campaign budget
+    if payout.campaign_id:
+        campaign = await db.get(Campaign, payout.campaign_id)
+        if campaign:
+            budget_cost_cents = (payout.breakdown or {}).get("budget_cost_cents", 0)
+            campaign.budget_remaining = float(campaign.budget_remaining) + (budget_cost_cents / 100.0)
+
+    # Deduct from user balance (billing adds to balance at payout creation, regardless of status)
+    user = await db.get(User, payout.user_id)
+    if user:
+        user.earnings_balance = max(0, float(user.earnings_balance or 0) - float(payout.amount))
+        if hasattr(user, "earnings_balance_cents"):
+            user.earnings_balance_cents = max(0, (user.earnings_balance_cents or 0) - (payout.amount_cents or 0))
+        user.total_earned = max(0, float(user.total_earned or 0) - float(payout.amount))
+        if hasattr(user, "total_earned_cents"):
+            user.total_earned_cents = max(0, (user.total_earned_cents or 0) - (payout.amount_cents or 0))
+
+    await db.flush()
+    await log_admin_action(db, request, "payout_voided", "payout", payout_id, {
+        "reason": reason,
+        "old_status": old_status,
+        "amount": float(payout.amount),
+        "user_id": payout.user_id,
+        "campaign_id": payout.campaign_id,
+    })
+
+    return RedirectResponse(url="/admin/financial", status_code=303)
+
+
+@router.post("/financial/payouts/{payout_id}/approve")
+async def approve_payout(
+    payout_id: int,
+    request: Request,
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Force-approve a pending payout — skip 7-day hold, make available immediately."""
+    if not _check_admin(admin_token):
+        return _login_redirect()
+
+    payout = await db.get(Payout, payout_id)
+    if not payout or payout.status != "pending":
+        return RedirectResponse(url="/admin/financial", status_code=303)
+
+    payout.status = "available"
+    payout.available_at = datetime.now(timezone.utc)
+
+    await db.flush()
+    await log_admin_action(db, request, "payout_approved", "payout", payout_id, {
+        "amount": float(payout.amount),
+        "user_id": payout.user_id,
+        "campaign_id": payout.campaign_id,
+    })
+
+    return RedirectResponse(url="/admin/financial", status_code=303)
