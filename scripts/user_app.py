@@ -755,7 +755,8 @@ def reject_invitation(assignment_id):
         from utils.server_client import reject_invitation as server_reject
         from utils.local_db import _get_db as get_db_connection
 
-        server_reject(assignment_id)
+        reason = request.form.get("decline_reason", "").strip() or None
+        server_reject(assignment_id, reason=reason)
         # Remove from local DB
         conn = get_db_connection()
         conn.execute("DELETE FROM local_campaign WHERE assignment_id = ?", (assignment_id,))

@@ -186,9 +186,10 @@ def accept_invitation(assignment_id: int) -> dict:
     return resp.json()
 
 
-def reject_invitation(assignment_id: int) -> dict:
-    """Reject a campaign invitation."""
-    resp = _request_with_retry("POST", f"/api/campaigns/invitations/{assignment_id}/reject")
+def reject_invitation(assignment_id: int, reason: str = None) -> dict:
+    """Reject a campaign invitation with optional decline reason."""
+    body = {"reason": reason} if reason else None
+    resp = _request_with_retry("POST", f"/api/campaigns/invitations/{assignment_id}/reject", json=body)
     resp.raise_for_status()
     return resp.json()
 

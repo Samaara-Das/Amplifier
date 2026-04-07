@@ -42,19 +42,23 @@
         {% set brief_text = inv.get('campaign_brief', inv.get('brief', '')) %}
         {% set assets = inv.get('assets', {}) %}
         {% set rules = inv.get('payout_rules', {}) %}
-        <div class="invitation-card" style="border:1px solid #334155; border-radius:12px; padding:0; overflow:hidden; margin-bottom:16px;">
+        {% set is_expired = inv.get('status') == 'expired' %}
+        <div class="invitation-card" data-expires-at="{{ inv.get('expires_at', '') }}" style="border:1px solid #334155; border-radius:12px; padding:0; overflow:hidden; margin-bottom:16px; {{ 'opacity:0.5; pointer-events:none;' if is_expired else '' }}">
           <!-- Header -->
           <div style="padding:16px 20px; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;">
-            <div>
+            <div style="display:flex; align-items:center; gap:8px;">
               <a href="{{ url_for('campaign_detail', campaign_id=inv.get('campaign_id', inv.get('server_id', 0))) }}" style="margin:0; font-size:18px; font-weight:700; color:#f8fafc; text-decoration:none;">{{ inv.get('campaign_title', inv.get('title', 'Campaign')) }} <span style="font-size:12px; color:#3b82f6;">View details &rarr;</span></a>
+              {% if is_expired %}
+                <span style="background:#ef4444; color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px; letter-spacing:0.5px;">EXPIRED</span>
+              {% endif %}
               {% if inv.get('company_name') %}
-                <div style="font-size:13px; color:#94a3b8; margin-top:2px;">by {{ inv.get('company_name') }}</div>
+                <div style="font-size:13px; color:#94a3b8; margin-top:2px; width:100%;">by {{ inv.get('company_name') }}</div>
               {% endif %}
             </div>
             {% if inv.get('expires_at') %}
-              <span style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:4px;">
+              <span class="inv-countdown" data-expires="{{ inv.get('expires_at', '') }}" style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:4px; white-space:nowrap;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Expires {{ inv.get('expires_at', '')[:10] }}
+                <span class="countdown-text">{{ 'EXPIRED' if is_expired else 'Expires ' + inv.get('expires_at', '')[:10] }}</span>
               </span>
             {% endif %}
           </div>
@@ -133,14 +137,35 @@
             {% endif %}
 
             <!-- Actions -->
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; padding-top:12px; border-top:1px solid #1e293b;">
-              <form method="post" action="{{ url_for('reject_invitation', assignment_id=inv.get('assignment_id', inv.get('id', 0))) }}" style="margin:0;">
-                <button type="submit" class="btn btn-secondary btn-sm" style="color:#f87171;">Reject</button>
-              </form>
-              <form method="post" action="{{ url_for('accept_invitation', assignment_id=inv.get('assignment_id', inv.get('id', 0))) }}" style="margin:0;">
-                <button type="submit" class="btn btn-primary btn-sm">Accept Campaign</button>
-              </form>
+            {% if is_expired %}
+            <div style="margin-top:16px; padding-top:12px; border-top:1px solid #1e293b; text-align:center;">
+              <span style="color:#64748b; font-size:13px;">This invitation has expired</span>
             </div>
+            {% else %}
+            <div class="inv-actions" style="margin-top:16px; padding-top:12px; border-top:1px solid #1e293b;">
+              <!-- Decline reason (hidden by default, shown when Reject clicked) -->
+              <div class="inv-decline-panel" style="display:none; margin-bottom:12px;">
+                <div style="font-size:13px; color:#94a3b8; margin-bottom:8px;">Why are you declining? (optional)</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                  <button type="button" class="decline-reason-btn" onclick="selectDeclineReason(this, 'Not relevant to my audience')" style="padding:4px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#94a3b8; font-size:12px; cursor:pointer;">Not relevant to my audience</button>
+                  <button type="button" class="decline-reason-btn" onclick="selectDeclineReason(this, 'Payout too low')" style="padding:4px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#94a3b8; font-size:12px; cursor:pointer;">Payout too low</button>
+                  <button type="button" class="decline-reason-btn" onclick="selectDeclineReason(this, 'Don&#39;t have time')" style="padding:4px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#94a3b8; font-size:12px; cursor:pointer;">Don't have time</button>
+                  <button type="button" class="decline-reason-btn" onclick="selectDeclineReason(this, 'Other')" style="padding:4px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#94a3b8; font-size:12px; cursor:pointer;">Other</button>
+                </div>
+                <input type="text" class="decline-reason-input" placeholder="Or type a reason..." style="width:100%; padding:6px 10px; background:#0f172a; border:1px solid #334155; border-radius:6px; color:#e2e8f0; font-size:13px; font-family:inherit;">
+              </div>
+              <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <form method="post" action="{{ url_for('reject_invitation', assignment_id=inv.get('assignment_id', inv.get('id', 0))) }}" style="margin:0;" class="inv-reject-form">
+                  <input type="hidden" name="decline_reason" value="">
+                  <button type="button" class="btn btn-secondary btn-sm inv-reject-btn" style="color:#f87171;" onclick="showDeclinePanel(this)">Reject</button>
+                  <button type="submit" class="btn btn-secondary btn-sm inv-reject-confirm" style="color:#f87171; display:none;">Confirm Reject</button>
+                </form>
+                <form method="post" action="{{ url_for('accept_invitation', assignment_id=inv.get('assignment_id', inv.get('id', 0))) }}" style="margin:0;">
+                  <button type="submit" class="btn btn-primary btn-sm">Accept Campaign</button>
+                </form>
+              </div>
+            </div>
+            {% endif %}
           </div>
         </div>
       {% endfor %}
@@ -264,5 +289,102 @@
       });
   }
   setTimeout(checkForUpdates, 10000);
+
+  // ── Invitation countdown timers ──
+  function updateCountdowns() {
+    var els = document.querySelectorAll('.inv-countdown');
+    var now = new Date();
+    els.forEach(function(el) {
+      var expiresStr = el.getAttribute('data-expires');
+      if (!expiresStr) return;
+      // Parse ISO datetime (append Z if no timezone to treat as UTC)
+      if (expiresStr.indexOf('Z') === -1 && expiresStr.indexOf('+') === -1) expiresStr += 'Z';
+      var expires = new Date(expiresStr);
+      var diff = expires - now;
+      var textEl = el.querySelector('.countdown-text');
+      var card = el.closest('.invitation-card');
+      if (!textEl) return;
+
+      if (diff <= 0) {
+        // Expired
+        textEl.textContent = 'EXPIRED';
+        textEl.style.color = '#ef4444';
+        textEl.style.fontWeight = '700';
+        if (card && card.style.opacity !== '0.5') {
+          card.style.opacity = '0.5';
+          card.style.pointerEvents = 'none';
+          // Move to bottom
+          card.parentElement.appendChild(card);
+        }
+        return;
+      }
+
+      var days = Math.floor(diff / 86400000);
+      var hours = Math.floor((diff % 86400000) / 3600000);
+      var mins = Math.floor((diff % 3600000) / 60000);
+
+      var text, color;
+      if (days > 0) {
+        text = days + 'd ' + hours + 'h remaining';
+        color = '#94a3b8';
+      } else if (hours >= 6) {
+        text = hours + 'h ' + mins + 'm remaining';
+        color = '#94a3b8';
+      } else if (hours >= 1) {
+        text = hours + 'h ' + mins + 'm remaining';
+        color = '#f59e0b'; // warning yellow
+      } else {
+        text = '0h ' + mins + 'm remaining';
+        color = '#ef4444'; // urgent red
+      }
+      textEl.textContent = text;
+      textEl.style.color = color;
+    });
+  }
+  updateCountdowns();
+  setInterval(updateCountdowns, 60000); // Update every minute
+
+  // ── Decline reason UI ──
+  function showDeclinePanel(btn) {
+    var actions = btn.closest('.inv-actions');
+    var panel = actions.querySelector('.inv-decline-panel');
+    var rejectBtn = actions.querySelector('.inv-reject-btn');
+    var confirmBtn = actions.querySelector('.inv-reject-confirm');
+    panel.style.display = 'block';
+    rejectBtn.style.display = 'none';
+    confirmBtn.style.display = 'inline-flex';
+  }
+
+  function selectDeclineReason(btn, reason) {
+    var panel = btn.closest('.inv-decline-panel');
+    // Deselect all
+    panel.querySelectorAll('.decline-reason-btn').forEach(function(b) {
+      b.style.background = '#1e293b';
+      b.style.borderColor = '#334155';
+      b.style.color = '#94a3b8';
+    });
+    // Select this one
+    btn.style.background = '#2563eb';
+    btn.style.borderColor = '#2563eb';
+    btn.style.color = '#fff';
+    // Set input value
+    var input = panel.querySelector('.decline-reason-input');
+    input.value = reason;
+    // Also set the hidden form field
+    var form = panel.closest('.inv-actions').querySelector('.inv-reject-form');
+    form.querySelector('[name="decline_reason"]').value = reason;
+  }
+
+  // Sync typed reason to hidden field on form submit
+  document.querySelectorAll('.inv-reject-form').forEach(function(form) {
+    form.addEventListener('submit', function() {
+      var actions = form.closest('.inv-actions');
+      if (!actions) return;
+      var input = actions.querySelector('.decline-reason-input');
+      if (input && input.value) {
+        form.querySelector('[name="decline_reason"]').value = input.value;
+      }
+    });
+  });
 </script>
 {% endblock %}

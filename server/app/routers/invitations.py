@@ -9,8 +9,9 @@ Replaces the old auto-assign model with an explicit invitation flow:
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, and_
+from fastapi import APIRouter, Body, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select, and_, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -133,6 +134,7 @@ async def get_invitations(
     await _expire_stale_invitations(user.id, db)
 
     now = _utcnow()
+    # Return both pending AND recently expired invitations (expired shown dimmed at bottom)
     result = await db.execute(
         select(CampaignAssignment)
         .join(Campaign)
@@ -140,8 +142,10 @@ async def get_invitations(
         .where(
             and_(
                 CampaignAssignment.user_id == user.id,
-                CampaignAssignment.status == "pending_invitation",
-                CampaignAssignment.expires_at > now,
+                or_(
+                    and_(CampaignAssignment.status == "pending_invitation", CampaignAssignment.expires_at > now),
+                    CampaignAssignment.status == "expired",
+                ),
             )
         )
     )
@@ -154,6 +158,7 @@ async def get_invitations(
         invitations.append({
             "assignment_id": a.id,
             "campaign_id": campaign.id,
+            "status": a.status,
             "title": campaign.title,
             "brief": campaign.brief,
             "content_guidance": campaign.content_guidance,
@@ -244,9 +249,14 @@ async def accept_invitation(
 # ── POST /invitations/{assignment_id}/reject ──────────────────────
 
 
+class RejectBody(BaseModel):
+    reason: str | None = None
+
+
 @router.post("/invitations/{assignment_id}/reject")
 async def reject_invitation(
     assignment_id: int,
+    body: RejectBody | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -280,6 +290,8 @@ async def reject_invitation(
     now = _utcnow()
     assignment.status = "rejected"
     assignment.responded_at = now
+    if body and body.reason:
+        assignment.decline_reason = body.reason
 
     # Increment campaign counter
     camp_result = await db.execute(
@@ -290,10 +302,12 @@ async def reject_invitation(
         campaign.rejected_count = (campaign.rejected_count or 0) + 1
 
     # Log
+    decline_reason = (body.reason if body and body.reason else None)
     db.add(CampaignInvitationLog(
         campaign_id=assignment.campaign_id,
         user_id=user.id,
         event="rejected",
+        event_metadata={"decline_reason": decline_reason} if decline_reason else None,
     ))
     await db.flush()
 
