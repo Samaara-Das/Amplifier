@@ -1,199 +1,133 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-06 (Session 35)
+**Last Updated**: 2026-04-07 (Session 36)
 
 ## Current State
 
-**Tasks #1–6, #8 complete. Task #7 (Repost) deferred. Tier 2 complete (6/6 active tasks done). Next: Tier 3.**
+**Tier 2 complete (6/6 active tasks done). Task #7 (Repost) deferred. Next: Task #38 (E2E deleted post detection) then Tier 3.**
 
-38 total tasks: 7 done, 18 pending, 13 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
+38 total tasks: 7 done, 21 pending, 10 deferred. Task #38 (E2E deleted post detection on all 4 platforms) is the immediate next item.
 
-## Task List (37 total)
+## Task List
 
 ### Tier 1: Fix Broken Foundation — COMPLETE
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix URL capture (LinkedIn, Facebook, Reddit) | **done** |
+
+### Tier 2: Security & Product Gaps — COMPLETE
+| # | Task | Status |
+|---|------|--------|
+| 2 | Stripe top-up idempotency | **done** |
+| 3 | CSRF tokens | **done** |
+| 4 | Rate limiting | **done** |
+| 5 | Invitation UX (countdown, expired, decline) | **done** |
+| 6 | Metrics accuracy (deletion, rate limits, dedup) | **done** |
+| 7 | Repost campaign UI | **deferred** |
+| 8 | Admin payout void/approve | **done** |
+
+### Pending: Task #38
 | # | Task | Status | Priority |
 |---|------|--------|----------|
-| 1 | Fix URL capture (LinkedIn, Facebook, Reddit) | **done** | high |
+| 38 | E2E deleted post detection (all 4 platforms) | pending | high |
 
-### Tier 2: Incomplete Security & Product Gaps (7 tasks)
-| # | Task | Status | Priority |
-|---|------|--------|----------|
-| 2 | Stripe top-up verification + idempotency fix | **done** | high |
-| 3 | CSRF tokens in all server HTML forms | **done** | high |
-| 4 | Slowapi rate limiting on auth endpoints | **done** | high |
-| 5 | Invitation UX (countdown, expired badge, decline reason) | **done** | medium |
-| 6 | Metrics accuracy (deleted post detection, rate limits) | **done** | high |
-| 7 | ~~Repost campaign company creation UI~~ | **deferred** | medium |
-| 8 | Admin payout void/approve actions | **done** | medium |
-
-### Tier 3: Features Needing Deeper Specs (10 tasks)
+### Tier 3: Features Needing Deeper Specs
 | # | Task | Status | Priority | Depends on |
 |---|------|--------|----------|------------|
 | 9 | Metric scraping per platform | pending | high | 1 ✓ |
 | 10 | Billing (earnings calc, verify E2E) | pending | high | 9 |
-| 11 | Earnings display (server→local sync, withdrawal) | pending | high | 10 |
-| 12 | AI matching (scoring logic, verify) | pending | high | — |
-| 13 | AI profile scraping (Gemini Vision, per-platform) | pending | high | — |
+| 11 | Earnings display (sync, withdrawal) | pending | high | 10 |
+| 12 | AI matching (scoring logic) | pending | high | — |
+| 13 | AI profile scraping | pending | high | — |
 | 14 | 4-phase content agent | pending | high | 13 |
 | 15 | AI campaign quality gate | pending | medium | — |
 | 16 | Content formats (threads, polls) | pending | high | 14 |
-| 17 | Free/Pro tiers (Stripe subscription) | pending | medium | — |
-| 18 | Write automated test suite | pending | high | 10, 11 |
+| 17 | Free/Pro tiers | pending | medium | — |
+| 18 | Write test suite | pending | high | 10, 11 |
 
-### Tier 4: Launch Tasks (4 tasks)
-| # | Task | Status | Priority | Depends on |
-|---|------|--------|----------|------------|
-| 19 | Stripe live integration (Checkout + Connect) | pending | high | 2 ✓, 10 |
-| 20 | PyInstaller packaging (Windows) | pending | high | — |
-| 21 | Mac support | pending | medium | 20 |
-| 22 | Landing page | pending | medium | 20 |
+### Tier 4–5 and Deferred
+- Tier 4: #19 (Stripe live), #20 (PyInstaller), #21 (Mac), #22 (Landing page)
+- Tier 5: #23-28 (polish tasks)
+- Deferred: #7, #29-40 (repost, political, video gen, GDPR, etc.)
 
-### Tier 5: Quick Polish (6 tasks)
-| # | Task | Status | Priority |
-|---|------|--------|----------|
-| 23 | Periodic DB backup | pending | low |
-| 24 | Status label renaming | pending | low |
-| 25 | Clipboard copy for post URLs | pending | low |
-| 26 | Client-side form validation | pending | low |
-| 27 | Server-side post URL dedup | pending | medium |
-| 28 | ToS/privacy acceptance | pending | medium |
+## Session 36 — Tasks #8, #5, #7 deferred, scraper fixes (2026-04-07)
 
-### Deferred (13 tasks — post-launch)
-7: Repost campaign — company creation, frequency, user display (full spec in task-master)
-29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
-37: Local lightweight LLM for user-side AI
-38: AI-powered browser automation — replace all scraping/posting selectors with AI-driven navigation and extraction
-39: Full profile scraping — scrape ALL info on user's social profiles (every tab, section, expand button), not just partial data
-40: Onboarding questionnaire — ask users questions during onboarding so AI knows them even when profiles are sparse/generic
+### Task #8: Admin Payout Void/Approve
 
-## Session 35 — Task #6: Metrics Accuracy (2026-04-06)
+Two new per-payout actions on admin financial dashboard:
+- **Void**: sets status="voided", returns budget to campaign, deducts from user balance, requires reason, audit log
+- **Force-approve**: sets status="available" immediately (skips 7-day hold), audit log
+- Button visibility: Void for pending+available, Approve for pending only, none for paid/voided/failed
+- Added `available` and `voided` badge cases + filter dropdown options
 
-### What was done
+**Verified via Chrome DevTools**: button visibility correct for all 6 statuses, approve changes pending→available, void changes pending→voided with reason in audit log.
 
-5 gaps fixed in the metric scraping pipeline:
+**Commits**: `7bc663d`
 
-**1. Persistent rate limit back-off** (`metric_scraper.py`)
-- Module-level `_platform_backoff_until` dict persists across `run_metric_scraping()` calls
-- After 3 consecutive rate limits on a platform, sets 1-hour cooldown via `_set_platform_backoff()`
-- Both API and Playwright paths check `_is_platform_backed_off()` before scraping
-- Expired cooldowns auto-clear on next check
+### Task #5: Invitation UX
 
-**2. Server deleted post propagation** (`metrics.py`, `server_client.py`, `metric_scraper.py`)
-- New `PATCH /api/posts/{post_id}/status` server endpoint
-- Accepts `{"status": "deleted"}`, verifies post ownership, calls `void_earnings_for_post()`
-- New `report_post_deleted()` in `server_client.py`
-- `_mark_post_deleted()` helper marks locally AND notifies server in one call
-- Both API and Playwright detection paths use `_mark_post_deleted()`
+**Countdown timer**: JS reads `expires_at`, formats as "Xd Yh" / "Xh Ym" / "EXPIRED" with color coding (default→yellow→red). Updates every 60s.
 
-**3. Server-side duplicate metric prevention** (`metrics.py`)
-- `submit_metrics()` checks for existing `(post_id, scraped_at)` before inserting
-- Duplicate submissions return `skipped_duplicate` count
-- Metrics for deleted posts rejected with `skipped_deleted` count
-- Response now includes: `{accepted, total_submitted, skipped_deleted, skipped_duplicate}`
+**Expired state**: Red "EXPIRED" badge, card dimmed (opacity 0.5), buttons replaced with "This invitation has expired". Server now returns expired invitations in GET /invitations (sorted to bottom).
 
-**4. X API deleted tweet detection** (`metric_collector.py`)
-- `_collect_x_api()` now catches HTTP 404 → raises `ValueError("Post deleted/unavailable")`
-- Also catches HTTP 429 → raises rate limit error
-- Handles empty `data` field (200 response but no tweet data) → checks for `errors` array
+**Decline reason**: Click Reject → panel expands with 4 quick-select buttons + text input. Reason stored on `CampaignAssignment.decline_reason` (new column) + invitation log. Company campaign detail shows aggregated decline reasons with counts.
 
-**5. All-zero metric warning** (`metric_scraper.py`)
-- `_warn_if_all_zero()` logs WARNING when non-first scrape returns all zeros
-- First scrape zeros are expected (new post) — no warning
-- Warning stored in logs for investigation, zeros still saved (valid data)
+**Bug fix**: Campaigns page auto-refreshed every 10s due to hash mismatch (page hash included invitations but endpoint didn't). Fixed hash formula + increased interval to 30s.
 
-### Files changed
-- `scripts/utils/metric_scraper.py` — 4 new functions, backoff integration, server notification
-- `scripts/utils/metric_collector.py` — X API error handling
-- `scripts/utils/server_client.py` — `report_post_deleted()`
-- `server/app/routers/metrics.py` — PATCH endpoint, dedup logic, deleted post rejection
+**Verified via Chrome DevTools**: countdown colors correct (yellow for 1-6h, red for <1h), expired card dimmed with badge, decline reason "Payout too low" stored in DB, all 6 acceptance criteria passed.
 
-### Test results (all pass)
-- Rate limit back-off: 4 unit tests (initial clear, set, isolation, expiry)
-- All-zero warning: 3 cases (first scrape, non-first zeros, non-zero)
-- Server PATCH 404: non-existent post returns "Post not found"
-- Server PATCH 422: invalid status returns validation error
-- Metric submission: accepted=1, billing triggered correctly
-- Duplicate metric: accepted=0, skipped_duplicate=1
-- Mark deleted: earnings_voided=1, status changed
-- Metrics for deleted post: accepted=0, skipped_deleted=1
+**Commits**: `e45633d`, `981c0bd`, `27082b0`
 
-## Session 34 — Tasks #2, #3, #4 (2026-04-06)
+### Metric Scraper Accuracy Fixes (continuing from Session 35)
 
-### Task #2: Stripe Top-Up Idempotency Fix
+Real-world testing against 14+ external posts found 8 bugs total:
 
-**Fixed the double-credit bug in company billing top-up flow.**
+| Bug | Platform | Fix |
+|-----|----------|-----|
+| LinkedIn "This post cannot be displayed" | LinkedIn | Added to deletion phrases |
+| Unicode ellipsis/curly quote mismatch | X | Normalize unicode before matching |
+| "this post was deleted" variant missing | Reddit | Added deleted + [removed] variants |
+| `[deleted]` in comments = false positive | Reddit | Removed from body text search |
+| Viral posts don't load in 3s | X | Wait for `[role="group"]` element |
+| `aria-label="Like: 8K people"` not matched | Facebook | Added `Like:` pattern |
+| LinkedIn CSS class gone | LinkedIn | 4-strategy fallback for reactions |
+| Wrong post metrics on quoted posts | X | Use FIRST `[role="group"]` only |
+| Views outside role=group | X | Fallback `aria-label*="views"` search |
+| Engagement bar not parsed | Facebook | Consecutive numeric lines extraction |
 
-**The bug:** `/billing/success` handler credited `company.balance` on every visit with no idempotency check. Refreshing the success URL credited again.
+**Commits**: `ec9d348`, `6f84ff5`, `3006fc1`, `fda3184`, `54484bd`, `9440c60`
 
-**Fix:**
-- New `CompanyTransaction` model (`server/app/models/company_transaction.py`): `id`, `company_id`, `stripe_session_id` (unique), `amount_cents`, `type`, `created_at`
-- `/billing/success`: checks for existing transaction BEFORE crediting → "Payment already processed" if duplicate
-- `/billing/topup` (test mode): creates transaction with `test_{uuid}` session ID
-- Both `balance` and `balance_cents` updated together
-- Submit buttons disable on click (double-submit protection)
-- New "Top-Up History" table on billing page
+### Task #7: Repost Campaign — DEFERRED
 
-**Test results (Chrome DevTools):** All 6 tests passed — add funds, cumulative balance, idempotency replay blocked, DB fields in sync, button disables, visual check.
+Decided to defer repost campaigns to post-launch. Full spec preserved in task-master task #7 description including: formats (text/image/text+image), posting frequency (once/daily/weekly), company edit UI, user read-only display, background agent pipeline skip. Some foundational code exists but feature is out of scope for launch.
 
-**Commit:** `2c5778b`
+**Commits**: `bd39c87` (implementation), `ea4c3c7` (deferral)
 
-### Task #3: CSRF Protection for Server HTML Forms
+## Key Decisions (Session 36)
 
-**Added CSRF to all ~40 POST forms across admin and company dashboards.**
-
-**Implementation:** Double-submit cookie pattern via pure ASGI middleware (`server/app/core/csrf.py`):
-1. Middleware sets `csrf_token` cookie on GET responses (random hex, JS-readable)
-2. JavaScript in `base.html` + standalone login templates reads cookie and injects hidden input into all POST forms
-3. On POST, middleware validates form field matches cookie
-4. API routes (`/api/*`) exempt — they use JWT Bearer auth
-
-**Files changed:**
-- `server/app/core/csrf.py` — new ASGI middleware (no new packages needed)
-- `server/app/main.py` — registered middleware
-- `server/app/templates/base.html` — CSRF auto-injection script (covers all pages extending base)
-- `server/app/templates/admin/login.html` — standalone injection script
-- `server/app/templates/company/login.html` — standalone injection script
-
-**Test results:** Login with CSRF works, POST without CSRF blocked (balance unchanged), API routes exempt (401 not 302).
-
-**Commit:** `aec9b41`
-
-### Task #4: Rate Limiting
-
-Already implemented in commit `b30ce6e`. Slowapi on 9 auth endpoints (5/min). Just marked done.
-
-### Other Actions
-- Discarded accidental uncommitted reversions that removed CSRF/slowapi from earlier commits
-
-## Session 33 — Task #1: URL Capture Fix (2026-04-06)
-
-**Implemented URL capture for all 4 platforms, tested with live posts.**
-
-Key changes: `script_executor.py` 3-tier extraction (CSS → JS → fallback), `url_pattern` field, platform scripts updated. LinkedIn uses activity page JS, Facebook uses activity log, Reddit uses JS-only with timestamp sorting. Legacy functions re-raise exceptions.
-
-All 4 platforms verified: X `/status/`, LinkedIn `/feed/update/`, Facebook `pfbid`, Reddit `/comments/`.
+- **Proper verification**: Always test by running real app flows (browser automation, user walkthroughs), not just API calls or unit tests. Saved to memory as feedback.
+- **Repost deferred**: Too much complexity for medium-priority feature. Core value is AI-generated campaigns.
+- **Task #38 added**: E2E deleted post detection pipeline verification on all 4 platforms.
 
 ## Deployed URLs
 - **Production**: https://server-five-omega-23.vercel.app
 - **Company dashboard**: /company/login
-- **Admin dashboard**: /admin/login
+- **Admin dashboard**: /admin/login (password: "admin")
 - **User App**: localhost:5222
 
 ## Server Auth
-- Local test company: `test@testco.com` / `TestCo2026!` (registered in session 34)
-- Auth file: `config/server_auth.json` (encrypted)
-
-## Key Constraints
-- All AI must be free or very cheap (Gemini, Mistral, Groq free tiers)
-- Father's Stripe account for payments
-- US-only audience targeting
-- Windows-primary, Mac support planned
+- Local test company: `testco_metric@test.com` / `Test1234!`
+- Local test user: `test_metric@test.com` / `Test1234!` (user_id=1)
+- Local test user: `dassamaara@gmail.com` / `Test1234!` (user_id=2)
+- Admin token cookie value: `valid`
 
 ## Test Commands
 ```bash
 python scripts/user_app.py                    # Start user app on localhost:5222
-python scripts/login_setup.py linkedin        # Re-login to LinkedIn (if session expired)
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 cd server && vercel deploy --yes --prod       # Deploy to production
 task-master list                              # See all tasks
+python scripts/test_metric_accuracy.py phase1  # Test live scraping
+python scripts/test_metric_accuracy.py phase2  # Test deletion detection
+python scripts/test_metric_accuracy_external.py # Test against external posts
 ```
