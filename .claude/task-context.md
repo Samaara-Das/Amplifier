@@ -1,12 +1,12 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-07 (Session 36, updated end-of-session)
+**Last Updated**: 2026-04-07 (Session 37)
 
 ## Current State
 
-**Tier 2 complete (6/6 active tasks done). Task #7 (Repost) deferred. Next: Task #38 (E2E deleted post detection) then Tier 3.**
+**Tier 2 complete + Task #38 done. Next: Task #9 (Metric Scraping) — first domino in the money loop.**
 
-38 total tasks: 7 done, 21 pending, 10 deferred. Task #38 (E2E deleted post detection on all 4 platforms) is the immediate next item.
+38 total tasks: 8 done, 20 pending, 10 deferred. Critical path: #9 → #10 → #11 → #18/#19.
 
 ## Task List
 
@@ -26,10 +26,10 @@
 | 7 | Repost campaign UI | **deferred** |
 | 8 | Admin payout void/approve | **done** |
 
-### Pending: Task #38
-| # | Task | Status | Priority |
-|---|------|--------|----------|
-| 38 | E2E deleted post detection (all 4 platforms) | pending | high |
+### Task #38 — COMPLETE
+| # | Task | Status |
+|---|------|--------|
+| 38 | E2E deleted post detection (all 4 platforms) | **done** |
 
 ### Tier 3: Features Needing Deeper Specs
 | # | Task | Status | Priority | Depends on |
@@ -48,7 +48,58 @@
 ### Tier 4–5 and Deferred
 - Tier 4: #19 (Stripe live), #20 (PyInstaller), #21 (Mac), #22 (Landing page)
 - Tier 5: #23-28 (polish tasks)
-- Deferred: #7, #29-40 (repost, political, video gen, GDPR, etc.)
+- Deferred: #7, #29-37 (repost, political, video gen, GDPR, etc.)
+
+## Session 37 — Task #38: E2E Deleted Post Detection (2026-04-07)
+
+### What Was Done
+
+Tested deleted post detection against real deleted posts on all 4 platforms. Found 2 bugs, fixed both, verified fixes.
+
+### Test Methodology
+
+1. Used existing live posts on all 4 platforms (user provided Facebook, Reddit, X URLs)
+2. Created a test LinkedIn post via Playwright automation script
+3. User deleted all 4 posts
+4. Ran deletion detection test script against deleted URLs
+5. Also ran against 5 live posts to verify no false positives
+
+### Bugs Found and Fixed
+
+| Platform | Bug | Root Cause | Fix |
+|----------|-----|------------|-----|
+| **Reddit** | User-deleted posts not detected | Reddit shows `u/[deleted]` + `author="[deleted]"` on `shreddit-post` element, but scraper only checked `removed="true"` (mod removals) and text phrases | Added `shreddit-post[author="[deleted]"]` and `is-author-deleted` attribute checks |
+| **Facebook** | Author sees cached post content on deleted posts | Facebook serves stale content to the post author via share URLs. Permalink URLs show empty feed with "No more posts" but no explicit deletion message | Added "no more posts" detection for permalink URLs + "content isn't available right now" phrase |
+
+### Key Finding: Facebook Caching Behavior
+
+- **Share URLs** (`/share/p/...`): Facebook caches full post content for the author even after deletion — scraper can't detect deletion via share URLs
+- **Permalink URLs** (`/permalink.php?story_fbid=...`): Shows empty feed with "No more posts" — detectable
+- **Non-author visitors**: See standard "This content isn't available" message — already detected
+- **Production impact**: Amplifier captures permalink URLs during posting, so the fix covers the real use case
+
+### Test Results
+
+**Deleted posts (true positives):** 4/4 detected
+- X: Detected via "this page doesn't exist" phrase ✓
+- LinkedIn: Detected via "this page doesn't exist" phrase ✓
+- Facebook: Detected via "no more posts" on permalink ✓
+- Reddit: Detected via `shreddit-post[author="[deleted]"]` ✓
+
+**Live posts (true negatives):** 5/5 correctly left alone
+- 2 Facebook posts: returned real metrics ✓
+- 1 LinkedIn post: returned 2,026 impressions, 12 likes ✓
+- 1 X post: returned 10 views ✓
+- 1 Reddit post: returned 15 views, 1 upvote ✓
+
+### Files Changed
+
+- `scripts/utils/metric_scraper.py` — Added Reddit author deletion check + Facebook permalink detection
+- `docs/specs/batch-1-money-loop.md` — Updated deletion detection signals table
+- `docs/specs/batch-4-business-launch.md` — Updated deletion detection signals table
+- `scripts/test_deletion_detection.py` — New test script (kept for regression testing)
+
+**Commit**: `721c654`
 
 ## Session 36 — Tasks #8, #5, #7 deferred, scraper fixes (2026-04-07)
 
@@ -58,71 +109,27 @@ Two new per-payout actions on admin financial dashboard:
 - **Void**: sets status="voided", returns budget to campaign, deducts from user balance, requires reason, audit log
 - **Force-approve**: sets status="available" immediately (skips 7-day hold), audit log
 - Button visibility: Void for pending+available, Approve for pending only, none for paid/voided/failed
-- Added `available` and `voided` badge cases + filter dropdown options
-
-**Verified via Chrome DevTools**: button visibility correct for all 6 statuses, approve changes pending→available, void changes pending→voided with reason in audit log.
-
-**Commits**: `7bc663d`
 
 ### Task #5: Invitation UX
 
-**Countdown timer**: JS reads `expires_at`, formats as "Xd Yh" / "Xh Ym" / "EXPIRED" with color coding (default→yellow→red). Updates every 60s.
-
-**Expired state**: Red "EXPIRED" badge, card dimmed (opacity 0.5), buttons replaced with "This invitation has expired". Server now returns expired invitations in GET /invitations (sorted to bottom).
-
-**Decline reason**: Click Reject → panel expands with 4 quick-select buttons + text input. Reason stored on `CampaignAssignment.decline_reason` (new column) + invitation log. Company campaign detail shows aggregated decline reasons with counts.
-
-**Bug fix**: Campaigns page auto-refreshed every 10s due to hash mismatch (page hash included invitations but endpoint didn't). Fixed hash formula + increased interval to 30s.
-
-**Verified via Chrome DevTools**: countdown colors correct (yellow for 1-6h, red for <1h), expired card dimmed with badge, decline reason "Payout too low" stored in DB, all 6 acceptance criteria passed.
-
-**Commits**: `e45633d`, `981c0bd`, `27082b0`
-
-### Metric Scraper Accuracy Fixes (continuing from Session 35)
-
-Real-world testing against 14+ external posts found 8 bugs total:
-
-| Bug | Platform | Fix |
-|-----|----------|-----|
-| LinkedIn "This post cannot be displayed" | LinkedIn | Added to deletion phrases |
-| Unicode ellipsis/curly quote mismatch | X | Normalize unicode before matching |
-| "this post was deleted" variant missing | Reddit | Added deleted + [removed] variants |
-| `[deleted]` in comments = false positive | Reddit | Removed from body text search |
-| Viral posts don't load in 3s | X | Wait for `[role="group"]` element |
-| `aria-label="Like: 8K people"` not matched | Facebook | Added `Like:` pattern |
-| LinkedIn CSS class gone | LinkedIn | 4-strategy fallback for reactions |
-| Wrong post metrics on quoted posts | X | Use FIRST `[role="group"]` only |
-| Views outside role=group | X | Fallback `aria-label*="views"` search |
-| Engagement bar not parsed | Facebook | Consecutive numeric lines extraction |
-
-**Commits**: `ec9d348`, `6f84ff5`, `3006fc1`, `fda3184`, `54484bd`, `9440c60`
+**Countdown timer**: JS reads `expires_at`, formats as "Xd Yh" / "Xh Ym" / "EXPIRED" with color coding.
+**Expired state**: Red badge, card dimmed, buttons replaced with "This invitation has expired".
+**Decline reason**: Click Reject → panel expands with 4 quick-select buttons + text input. Stored on `CampaignAssignment.decline_reason`.
 
 ### Task #7: Repost Campaign — DEFERRED & HIDDEN
 
-Decided to defer repost campaigns to post-launch. Full spec preserved in task-master task #7 description including: formats (text/image/text+image), posting frequency (once/daily/weekly), company edit UI, user read-only display, background agent pipeline skip.
+Deferred to post-launch. Toggle commented out in `campaign_create.html`. All backend code preserved.
 
-**Code status**: All repost code remains intact but the entry point is hidden. The "Repost" toggle button on the company campaign creation form (`server/app/templates/company/campaign_create.html`) is commented out. Hidden input forces `campaign_type=ai_generated`. Backend code, background agent repost branch, user app read-only mode — all still in codebase, just unreachable. Zero repost campaigns exist in local or production DB.
+### Metric Scraper Fixes (Session 35-36)
 
-**To re-enable**: Uncomment the Campaign Type Toggle in `campaign_create.html`.
+8 bugs fixed across all 4 platforms from real-world testing against 14+ external posts (metric extraction accuracy, not deletion detection).
 
-**Commits**: `bd39c87` (implementation), `ea4c3c7` (deferral), `493af34` (hide toggle)
+## Key Decisions
 
-### Spec Docs Updated
-
-Updated all 4 spec files in `docs/specs/` during this session:
-- `batch-1-money-loop.md` — Updated deleted post detection signals table with verified phrases for all 4 platforms
-- `batch-2-ai-brain.md` — Removed repost content agent section, reverted quality gate
-- `batch-3-product-features.md` — Replaced Task #7 section with deferred note (full spec in task-master)
-- `batch-4-business-launch.md` — Updated deleted post detection signals + PATCH endpoint reference
-- `database-models.md` — Added CampaignPost (marked deferred), decline_reason, campaign fields
-- `CLAUDE.md` — Updated model count to 12, added CampaignPost (deferred)
-
-## Key Decisions (Session 36)
-
-- **Proper verification**: Always test by running real app flows (browser automation, user walkthroughs), not just API calls or unit tests. Saved to memory as feedback.
-- **Repost deferred**: Too much complexity for medium-priority feature. Core value is AI-generated campaigns. Hidden via 1-line change, not removed — keeps code intact for post-launch re-enable.
-- **Hide > Remove**: Chose to hide repost toggle (1 line, zero regression risk) over full removal (200 lines across 12 files, high regression risk). Can always remove later if needed.
-- **Task #38 added**: E2E deleted post detection pipeline verification on all 4 platforms.
+- **Task #38 before #9**: User chose to verify deletion detection E2E before moving to metric scraping spec, completing the detection story fully.
+- **Permalink URLs for Facebook**: Detection relies on permalink format (what Amplifier captures), not share URLs (which cache content).
+- **Proper verification**: Always test by running real app flows, not just API calls or unit tests.
+- **Repost deferred**: Hidden via 1-line change, not removed.
 
 ## Deployed URLs
 - **Production**: https://server-five-omega-23.vercel.app
@@ -142,6 +149,7 @@ python scripts/user_app.py                    # Start user app on localhost:5222
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 cd server && vercel deploy --yes --prod       # Deploy to production
 task-master list                              # See all tasks
+python scripts/test_deletion_detection.py     # Test deleted post detection (update URLs first)
 python scripts/test_metric_accuracy.py phase1  # Test live scraping
 python scripts/test_metric_accuracy.py phase2  # Test deletion detection
 python scripts/test_metric_accuracy_external.py # Test against external posts

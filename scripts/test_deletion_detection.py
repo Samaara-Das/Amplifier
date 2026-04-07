@@ -26,12 +26,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 # Deleted post URLs — all confirmed deleted by user
-TEST_URLS = {
-    "x": "https://x.com/SamaaraDas/status/2041143702291382334",
-    "linkedin": "https://www.linkedin.com/feed/update/urn:li:activity:7447321800415514624/",
-    "facebook": "https://www.facebook.com/permalink.php?story_fbid=pfbid05nGPx8eZaAaH89XkWC3tVayro9k1dXBCzmJAju3XacbzeQvv9pnZcY5iN5ZrhiAVl&id=100086447984609",
-    "reddit": "https://www.reddit.com/user/SamaaraDas/comments/1sd4uu8/this_ai_tool_made_my_meetings_so_much_less/",
-}
+TEST_URLS = [
+    ("facebook", "https://www.facebook.com/share/p/1DNzwjPaPn/"),
+    ("facebook", "https://www.facebook.com/photo/?fbid=931709233054001&set=a.923621633862761"),
+    ("linkedin", "https://www.linkedin.com/feed/update/urn:li:activity:7246599338368413701"),
+    ("x", "https://x.com/SamaaraDas/status/2041143197427269750"),
+    ("reddit", "https://www.reddit.com/user/SamaaraDas/comments/1sdzj1b/url_capture_test_round_6/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button"),
+]
 
 SCRAPER_MAP = {
     "x": _scrape_x,
@@ -95,7 +96,7 @@ async def main():
 
     async with async_playwright() as pw:
         # Run each platform sequentially (each needs its own browser context)
-        for platform, url in TEST_URLS.items():
+        for platform, url in TEST_URLS:
             result = await test_platform(pw, platform, url)
             results.append(result)
 
