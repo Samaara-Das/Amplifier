@@ -57,13 +57,14 @@
         "id": "5",
         "title": "Invitation UX — countdown timers, expired badge, decline reason",
         "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-07T13:39:58.023Z"
       },
       {
         "id": "6",
@@ -96,13 +97,14 @@
         "id": "8",
         "title": "Admin payout void/approve actions",
         "description": "Admin payout page is read-only. Need void and approve buttons for fraud management.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [],
         "metadata": {
           "tier": 2
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-07T13:24:51.009Z"
       },
       {
         "id": "9",
@@ -487,9 +489,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-06T15:52:48.043Z",
+      "lastModified": "2026-04-07T13:39:58.024Z",
       "taskCount": 37,
-      "completedCount": 5,
+      "completedCount": 7,
       "tags": [
         "master"
       ]
