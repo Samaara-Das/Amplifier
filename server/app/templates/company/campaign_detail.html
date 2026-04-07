@@ -212,6 +212,16 @@
         <div class="inv-legend-item"><div class="inv-legend-dot" style="background: #ef4444;"></div> Rejected ({{ inv.rejected }})</div>
         <div class="inv-legend-item"><div class="inv-legend-dot" style="background: #64748b;"></div> Expired ({{ inv.expired }})</div>
     </div>
+    {% if decline_reasons %}
+    <div style="margin-top: 12px;">
+        <div style="font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Decline Reasons</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% for reason, count in decline_reasons %}
+            <span style="padding: 4px 10px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; font-size: 12px; color: #f87171;">{{ reason }} <span style="color: #64748b;">({{ count }})</span></span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     {% else %}
     <div class="empty" style="padding: 24px;">
         <h3>No invitations sent yet</h3>

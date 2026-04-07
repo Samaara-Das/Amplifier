@@ -526,6 +526,26 @@ async def campaign_detail_page(
         "pending": inv_pending,
     }
 
+    # Decline reasons from rejected invitations
+    decline_q = await db.execute(
+        select(CampaignAssignment.decline_reason)
+        .where(
+            and_(
+                CampaignAssignment.campaign_id == campaign_id,
+                CampaignAssignment.status == "rejected",
+                CampaignAssignment.decline_reason.isnot(None),
+                CampaignAssignment.decline_reason != "",
+            )
+        )
+    )
+    decline_reasons_raw = [r[0] for r in decline_q]
+    # Aggregate: count occurrences of each reason
+    decline_counts = {}
+    for reason in decline_reasons_raw:
+        decline_counts[reason] = decline_counts.get(reason, 0) + 1
+    # Sort by count descending
+    decline_reasons = sorted(decline_counts.items(), key=lambda x: -x[1])
+
     # User payouts
     payouts_q = await db.execute(
         select(Payout.user_id, func.coalesce(func.sum(Payout.amount), 0).label("total_paid"))
@@ -622,6 +642,7 @@ async def campaign_detail_page(
         platforms=platforms,
         influencers=influencers,
         invitation_stats=invitation_stats,
+        decline_reasons=decline_reasons,
         budget_alert_sent=campaign.budget_alert_sent,
         budget_exhaustion_action=campaign.budget_exhaustion_action or "auto_pause",
         campaign_version=campaign.campaign_version or 1,

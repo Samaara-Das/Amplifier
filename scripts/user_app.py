@@ -699,12 +699,27 @@ def _campaigns_impl():
 
 @app.route("/api/campaigns-hash")
 def campaigns_hash():
-    """Return a hash of current campaign state for auto-reload detection."""
+    """Return a hash of current campaign state for auto-reload detection.
+
+    Must use the same formula as _campaigns_impl() or the hash will always
+    differ, causing constant page reloads.
+    """
     from utils.local_db import get_campaigns, get_todays_drafts
     import hashlib
+
     all_campaigns = get_campaigns()
     active = [c for c in all_campaigns if c.get("status") in ("assigned", "content_generated", "approved", "active")]
-    hash_input = f"{len(all_campaigns)}:{len(active)}"
+    completed = [c for c in all_campaigns if c.get("status") in ("completed", "cancelled")]
+
+    # Fetch invitation count from server (cached briefly to avoid hammering)
+    inv_count = 0
+    try:
+        from utils.server_client import get_invitations
+        inv_count = len(get_invitations())
+    except Exception:
+        pass
+
+    hash_input = f"{inv_count}:{len(active)}:{len(completed)}"
     for c in active:
         hash_input += f":{c.get('server_id')}:{c.get('status')}"
         today_drafts = get_todays_drafts(c.get("server_id"))
