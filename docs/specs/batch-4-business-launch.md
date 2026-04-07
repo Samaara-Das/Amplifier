@@ -212,18 +212,18 @@ When the scraper visits a post URL and the post has been deleted, it must detect
 
 **Per-platform deletion signals:**
 
-| Platform | Signs the post was deleted |
+| Platform | Signs the post was deleted (verified against real deleted posts) |
 |----------|--------------------------|
-| X | Page shows "This post is unavailable", "Account suspended", "This post was deleted", or returns 404 |
-| LinkedIn | "This content isn't available", "This page doesn't exist" |
-| Facebook | "This content isn't available", "Sorry, this content isn't available" |
-| Reddit | "[removed]", "[deleted]", "This post was removed", 404, or PRAW returns Forbidden error |
+| X | "This post is unavailable", "This account doesn't exist", "This post was deleted", "Hmm...this page doesn't exist" (unicode-normalized), "Account suspended", "Page not found", HTTP 404 via API |
+| LinkedIn | "This content isn't available", "This page doesn't exist", "This post has been removed", "This post cannot be displayed", "Content unavailable" |
+| Facebook | "This content isn't available", "This page isn't available", "The link you followed may be broken", "Content not found", "This post is no longer available" |
+| Reddit | "Sorry, this post was removed", "Sorry, this post was deleted", "This post was removed by", "This post was deleted by", "This post has been removed", "This post is no longer available", "Page not found". Also checks `shreddit-post[removed="true"]` attribute. Note: `[deleted]`/`[removed]` in body text NOT used (causes false positives from deleted comments). |
 
 **When a deleted post is detected:**
 1. Mark the post as "deleted" in the local database
 2. Do NOT record a zero-metric row (zeros would look like real engagement data)
 3. Stop all future scraping for this post
-4. Notify the server — the server voids any pending earnings for this post (within the 7-day hold period)
+4. Notify the server via `PATCH /api/posts/{id}/status` with `{"status": "deleted"}` — the server calls `void_earnings_for_post()` which voids pending payouts and returns funds to the campaign budget
 
 ### Rate Limit Handling
 

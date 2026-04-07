@@ -154,18 +154,18 @@ All scrapers must handle abbreviated numbers:
 
 Each platform has specific deletion indicators that must be checked BEFORE attempting metric extraction:
 
-| Platform | Deletion Indicators |
+| Platform | Deletion Indicators (verified against real deleted posts) |
 |----------|-------------------|
-| X | "This post is unavailable", "Account suspended", "This post was deleted", HTTP 404 |
-| LinkedIn | "This content isn't available", "This page doesn't exist" |
-| Facebook | "This content isn't available", "Sorry, this content isn't available" |
-| Reddit | "[removed]", "[deleted]", "This post was removed", HTTP 404 |
+| X | "This post is unavailable", "This account doesn't exist", "This post was deleted", "Hmm...this page doesn't exist" (unicode-normalized), "Account suspended", "Page not found", HTTP 404 via API |
+| LinkedIn | "This content isn't available", "This page doesn't exist", "This post has been removed", "This post cannot be displayed", "Content unavailable" |
+| Facebook | "This content isn't available", "This page isn't available", "The link you followed may be broken", "Content not found", "This post is no longer available" |
+| Reddit | "Sorry, this post was removed/deleted", "This post was removed/deleted by", "This post has been removed", "This post is no longer available", "Page not found". Also checks `shreddit-post[removed="true"]` attribute. Note: `[deleted]`/`[removed]` NOT used in body text search (causes false positives from deleted comments). |
 
 **When a deleted post is detected:**
 1. Mark the post status as `deleted`
 2. Do NOT store a zero-metric row (it would look like engagement dropped to zero and would distort billing)
 3. Stop all future scraping for this post
-4. Notify the server, which triggers earning voiding if the post is within the 7-day hold period
+4. Notify the server via `PATCH /api/posts/{id}/status` → `void_earnings_for_post()` voids pending payouts, returns funds to campaign budget
 
 ### Rate Limit Handling
 
