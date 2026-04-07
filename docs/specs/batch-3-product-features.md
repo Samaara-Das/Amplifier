@@ -153,16 +153,39 @@ The company dashboard needs a complete UI for creating repost campaigns, where t
 
 1. **Companies do not have to provide content for every platform.** If they only write X and LinkedIn content, only those platforms get posted. Other platforms are simply skipped for that campaign.
 
-2. **All content formats are supported for reposts.** A company can provide a thread, a poll, or plain text. The repost creation UI must support format selection per platform:
+2. **Supported content formats for reposts:** Text only, Image only, or Text + Image per platform. Each platform editor has an optional image URL field. Thread/poll/link post formats are deferred to Task #16 (Content Formats).
 
    | Platform | Supported Repost Formats |
    |----------|--------------------------|
-   | X | Text, Text + image, Thread (multiple text fields) |
-   | LinkedIn | Text, Text + image, Poll (question + options) |
+   | X | Text, Text + image |
+   | LinkedIn | Text, Text + image |
    | Facebook | Text, Text + image |
-   | Reddit | Text (title + body), Image (title + image), Link post (title + URL) |
+   | Reddit | Text (title + body) |
 
 3. **Users cannot edit repost content.** In semi-auto mode, users see the repost content for review but all text fields are read-only. They can only approve or reject, not modify the content. In full-auto mode, reposts are scheduled directly without any review step.
+
+### Posting Frequency
+
+Companies must choose how often their repost content is posted on each user's profiles:
+
+| Frequency | Behavior |
+|-----------|----------|
+| **Once** | Post once on each platform, then the campaign auto-completes for that user. |
+| **Daily** | Post once per day per platform, every day within the campaign start/end dates. |
+| **Every X days** | Post once per platform every X days (e.g., every 3 days). |
+| **Weekly** | Post once per platform per week. |
+
+**Frequency rules:**
+- The frequency is set per campaign (not per platform or per user).
+- The campaign's `start_date` and `end_date` control the overall duration — posting stops when `end_date` is reached or the budget is exhausted.
+- **Time of day:** The system uses smart scheduling (region-aware peak windows from `post_scheduler.py`). Companies do not pick a specific time — the system optimizes for engagement.
+- **Multi-platform stagger:** When posting to multiple platforms on the same day, the system automatically spaces them (e.g., X at 10 AM, LinkedIn at 2 PM). No manual configuration needed.
+- **"Once" mode:** After posting once per platform, the user's assignment status changes to `completed`. No further drafts are generated.
+- **Same content repeated:** For daily/weekly frequency, the same content is reposted each time. Content rotation (multiple pieces of content per platform) is a future feature.
+
+**Storage:** The frequency is stored on the `Campaign` record as `repost_frequency` (enum: `once`, `daily`, `every_x_days`, `weekly`) and `repost_frequency_days` (integer, only used for `every_x_days`).
+
+**Background agent behavior:** On each content generation cycle, the agent checks the frequency setting and the last post date for that campaign+platform. If the interval has elapsed, it creates a new draft from the stored repost content. If "once" and already posted, it skips.
 
 ### End-to-End Flow Requirements
 
@@ -192,7 +215,9 @@ The company dashboard needs a complete UI for creating repost campaigns, where t
 4. A company edits repost text after campaign creation. The changes are saved and reflected when users next poll.
 5. A company tries to activate a repost campaign with no platform content filled in. The system shows a validation error and prevents activation.
 6. A user in semi-auto mode views a repost draft. The content is visible but all text fields are read-only. Only approve and reject buttons are available.
-7. A company selects "Thread" format for X and provides 3 separate post texts. All 3 are saved and delivered to users as a thread.
+7. A company creates a repost campaign with frequency "daily". The background agent creates a new draft each day from the same content. After the campaign end date, no more drafts are generated.
+8. A company creates a repost campaign with frequency "once". After the content is posted once per platform, no further drafts are generated for that user.
+9. A company creates a repost campaign with an image URL for X. The draft includes the image and the posted content shows the image.
 
 ---
 
