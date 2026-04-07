@@ -76,7 +76,7 @@ FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~90 routes total 
 **Server utilities:**
 - `server/app/utils/crypto.py` — AES-256-GCM server-side encryption
 
-**Models** (11 tables): Company (`balance_cents` added), Campaign, User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count` added), CampaignAssignment, Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog
+**Models** (12 tables): Company (`balance_cents` added), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count` added), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog
 
 ### Amplifier User App
 Local Flask dashboard + campaign runner that connects to the server.

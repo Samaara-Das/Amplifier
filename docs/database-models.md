@@ -43,8 +43,25 @@
 | rejected_count | int | Total rejected |
 | expired_count | int | Total expired |
 | max_users | int (nullable) | Cap on acceptances |
+| campaign_type | varchar(20) | `ai_generated` (default) or `repost` (deferred feature) |
+| campaign_goal | varchar(30) | brand_awareness, leads, virality, engagement |
+| tone | varchar(30) | Campaign tone (nullable) |
+| preferred_formats | jsonb | Per-platform format preferences |
+| disclaimer_text | text | FTC/legal disclaimer (nullable) |
 | created_at | datetime | Auto-set |
 | updated_at | datetime | Auto-update |
+
+### CampaignPost (repost content per platform — deferred feature)
+| Field | Type | Notes |
+|-------|------|-------|
+| id | int (PK) | Auto-increment |
+| campaign_id | int (FK) | References Campaign |
+| platform | varchar(20) | x, linkedin, facebook, reddit |
+| content | text | Post text |
+| image_url | text (nullable) | Image URL |
+| post_order | int | Ordering within platform (default 1) |
+| scheduled_offset_hours | int | Offset from campaign start (default 0) |
+| created_at | datetime | Auto-set |
 
 ### User
 | Field | Type | Notes |
@@ -79,11 +96,12 @@
 | campaign_id | int (FK) | References Campaign, indexed |
 | user_id | int (FK) | References User, indexed |
 | status | varchar(30) | pending_invitation, accepted, content_generated, posted, paid, rejected, expired |
-| content_mode | varchar(20) | ai_generated, user_customized |
+| content_mode | varchar(20) | ai_generated, user_customized, repost |
 | payout_multiplier | numeric(3,2) | Always 1.0 in v2 |
 | invited_at | datetime | When invitation sent |
 | responded_at | datetime | When user accepted/rejected (nullable) |
 | expires_at | datetime | 3 days after invitation (indexed) |
+| decline_reason | text (nullable) | Reason for rejection (quick-select or custom text) |
 | assigned_at | datetime | Auto-set |
 | updated_at | datetime | Auto-update |
 
@@ -167,10 +185,10 @@
 
 ```
 Company 1--* Campaign 1--* CampaignAssignment *--1 User
-                                    |
-                                    1
-                                    |
-                                    * Post 1--* Metric
+                  |                     |
+                  1                     1
+                  |                     |
+                  * CampaignPost        * Post 1--* Metric
 
 User 1--* Payout
 User 1--* Penalty

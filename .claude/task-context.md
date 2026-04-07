@@ -4,9 +4,9 @@
 
 ## Current State
 
-**Tasks #1–4, #6 complete. Next up: Task #5 (Invitation UX), #7 (Repost UI), #8 (Admin payout actions) to finish Tier 2.**
+**Tasks #1–6, #8 complete. Task #7 (Repost) deferred. Tier 2 complete (6/6 active tasks done). Next: Tier 3.**
 
-40 total tasks: 5 done, 23 pending, 12 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
+38 total tasks: 7 done, 18 pending, 13 deferred. Detailed product specs exist for 16 tasks across 4 batches in `docs/specs/`.
 
 ## Task List (37 total)
 
@@ -21,10 +21,10 @@
 | 2 | Stripe top-up verification + idempotency fix | **done** | high |
 | 3 | CSRF tokens in all server HTML forms | **done** | high |
 | 4 | Slowapi rate limiting on auth endpoints | **done** | high |
-| 5 | Invitation UX (countdown, expired badge, decline reason) | pending | medium |
+| 5 | Invitation UX (countdown, expired badge, decline reason) | **done** | medium |
 | 6 | Metrics accuracy (deleted post detection, rate limits) | **done** | high |
-| 7 | Repost campaign company creation UI | pending | medium |
-| 8 | Admin payout void/approve actions | pending | medium |
+| 7 | ~~Repost campaign company creation UI~~ | **deferred** | medium |
+| 8 | Admin payout void/approve actions | **done** | medium |
 
 ### Tier 3: Features Needing Deeper Specs (10 tasks)
 | # | Task | Status | Priority | Depends on |
@@ -58,7 +58,8 @@
 | 27 | Server-side post URL dedup | pending | medium |
 | 28 | ToS/privacy acceptance | pending | medium |
 
-### Deferred (12 tasks — post-launch)
+### Deferred (13 tasks — post-launch)
+7: Repost campaign — company creation, frequency, user display (full spec in task-master)
 29-36: Political campaigns, self-learning, video gen, Flux.1, GDPR, ARIA, CSV export, mobile responsive
 37: Local lightweight LLM for user-side AI
 38: AI-powered browser automation — replace all scraping/posting selectors with AI-driven navigation and extraction

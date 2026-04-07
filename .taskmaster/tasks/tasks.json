@@ -83,16 +83,16 @@
       },
       {
         "id": "7",
-        "title": "Repost campaign company creation UI",
-        "description": "Backend model exists for repost campaigns but no company dashboard UI to input per-platform post text.",
-        "status": "done",
+        "title": "[DEFERRED] Repost campaign — company creation, frequency, user display",
+        "description": "Full repost campaign feature: companies provide exact pre-written post content per platform instead of AI generation. Formats: text only, image only, text+image. Posting frequency: once, daily, every X days, weekly (stored as repost_frequency on Campaign model). Company dashboard: create form with per-platform text + image URL fields, campaign detail shows repost content card with edit support (POST /campaigns/{id}/repost-content), frequency selector. User dashboard: repost drafts shown as read-only with banner, no edit/regenerate, approve/reject only. Background agent: skips 4-phase AI pipeline for reposts, uses CampaignPost records directly, respects frequency setting, converts Reddit title+body format. Bugs already fixed: field name mismatch (campaign_posts vs repost_content) in local_db.py and background_agent.py, Reddit format conversion. Quality gate: image-only posts valid, content_guidance not required. Content rotation (multiple posts per platform) is a future sub-feature.",
+        "status": "deferred",
         "priority": "medium",
         "dependencies": [],
         "metadata": {
-          "tier": 2
+          "tier": "post-launch"
         },
         "subtasks": [],
-        "updatedAt": "2026-04-07T15:20:01.200Z"
+        "updatedAt": "2026-04-07T16:00:00.000Z"
       },
       {
         "id": "8",
@@ -504,7 +504,7 @@
       "version": "1.0.0",
       "lastModified": "2026-04-07T15:30:00.000Z",
       "taskCount": 38,
-      "completedCount": 8,
+      "completedCount": 7,
       "tags": [
         "master"
       ]
