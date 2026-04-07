@@ -158,8 +158,8 @@ Each platform has specific deletion indicators that must be checked BEFORE attem
 |----------|-------------------|
 | X | "This post is unavailable", "This account doesn't exist", "This post was deleted", "Hmm...this page doesn't exist" (unicode-normalized), "Account suspended", "Page not found", HTTP 404 via API |
 | LinkedIn | "This content isn't available", "This page doesn't exist", "This post has been removed", "This post cannot be displayed", "Content unavailable" |
-| Facebook | "This content isn't available", "This page isn't available", "The link you followed may be broken", "Content not found", "This post is no longer available" |
-| Reddit | "Sorry, this post was removed/deleted", "This post was removed/deleted by", "This post has been removed", "This post is no longer available", "Page not found". Also checks `shreddit-post[removed="true"]` attribute. Note: `[deleted]`/`[removed]` NOT used in body text search (causes false positives from deleted comments). |
+| Facebook | "This content isn't available", "This page isn't available", "The link you followed may be broken", "Content not found", "This post is no longer available", "Content isn't available right now". Also detects author-deleted posts via permalink: if permalink URL loads but shows "No more posts" (empty feed), the post is gone. |
+| Reddit | "Sorry, this post was removed/deleted", "This post was removed/deleted by", "This post has been removed", "This post is no longer available", "Page not found". Also checks `shreddit-post[removed="true"]` attribute for mod removals AND `shreddit-post[author="[deleted]"]` / `is-author-deleted` attribute for user-deleted posts. Note: `[deleted]`/`[removed]` NOT used in body text search (causes false positives from deleted comments). |
 
 **When a deleted post is detected:**
 1. Mark the post status as `deleted`

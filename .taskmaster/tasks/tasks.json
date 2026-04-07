@@ -491,20 +491,23 @@
         "id": "38",
         "title": "E2E deleted post detection — full pipeline verification",
         "description": "Verify the full deleted post pipeline on ALL 4 platforms (X, LinkedIn, Facebook, Reddit): scraper visits deleted URL, detects deletion, marks post deleted locally, notifies server via PATCH /api/posts/{id}/status, server voids pending earnings, funds return to campaign budget. Must test each platform individually. Scraper detection was tested in Task #6 but the full server notification + earning voiding E2E flow was not.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
-        "dependencies": ["6"],
+        "dependencies": [
+          "6"
+        ],
         "metadata": {
           "tier": 2
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-07T16:52:57.959Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-07T15:30:00.000Z",
+      "lastModified": "2026-04-07T16:52:57.961Z",
       "taskCount": 38,
-      "completedCount": 7,
+      "completedCount": 8,
       "tags": [
         "master"
       ]

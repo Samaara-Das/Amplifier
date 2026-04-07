@@ -340,9 +340,18 @@ async def _scrape_facebook(page, post_url: str) -> tuple[dict, str | None]:
             "the link you followed may be broken",
             "content not found",
             "this post is no longer available",
+            "content isn't available right now",
         ]
         if any(phrase in body_lower for phrase in unavailable_phrases):
             logger.warning("Post deleted/unavailable on Facebook: %s", post_url)
+            return metrics, "deleted"
+
+        # Facebook serves empty feed when author visits their own deleted post via permalink.
+        # The post content is gone but no explicit deletion message appears.
+        # Detect: permalink/posts URL + "no more posts" + no post engagement indicators.
+        is_permalink = any(x in post_url for x in ["/permalink", "/posts/", "story_fbid", "pfbid"])
+        if is_permalink and "no more posts" in body_lower:
+            logger.warning("Post appears deleted on Facebook (empty feed on permalink): %s", post_url)
             return metrics, "deleted"
 
         # Detect rate limiting / auth walls
@@ -445,12 +454,21 @@ async def _scrape_reddit(page, post_url: str) -> tuple[dict, str | None]:
             logger.warning("Post deleted/removed on Reddit: %s", post_url)
             return metrics, "deleted"
 
-        # Check for empty shreddit-post (another sign of removal)
+        # Check shreddit-post attributes for removal/deletion
         sp = page.locator("shreddit-post")
         if await sp.count() > 0:
             removed_attr = await sp.first.get_attribute("removed")
             if removed_attr and removed_attr.lower() == "true":
                 logger.warning("Post marked as removed on Reddit: %s", post_url)
+                return metrics, "deleted"
+            # User-deleted posts: author="[deleted]" or is-author-deleted attribute present
+            author_attr = await sp.first.get_attribute("author")
+            if author_attr and author_attr == "[deleted]":
+                logger.warning("Post deleted by author on Reddit: %s", post_url)
+                return metrics, "deleted"
+            is_author_deleted = await sp.first.get_attribute("is-author-deleted")
+            if is_author_deleted is not None:  # boolean attribute — presence means true
+                logger.warning("Post author deleted on Reddit: %s", post_url)
                 return metrics, "deleted"
         elif "reddit" in title_lower and len(body_text.strip()) < 100:
             # Page loaded but no post content — likely removed
