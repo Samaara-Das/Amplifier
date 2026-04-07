@@ -16,7 +16,8 @@
 {% endif %}
 
 <form method="post" action="/company/campaigns/new">
-    <!-- Campaign Type Toggle -->
+    <!-- Campaign Type (repost feature hidden — deferred to post-launch, re-enable by uncommenting) -->
+    <!--
     <div class="card">
         <div class="card-title">Campaign Type</div>
         <div class="form-help" style="margin-bottom: 16px;">Choose how creators will produce content for this campaign.</div>
@@ -32,8 +33,9 @@
                 <small>Provide exact posts for creators to copy and publish</small>
             </button>
         </div>
-        <input type="hidden" name="campaign_type" id="campaignTypeInput" value="ai_generated">
     </div>
+    -->
+    <input type="hidden" name="campaign_type" value="ai_generated">
 
     <div class="card">
         <div class="card-title">Campaign Details</div>
