@@ -1,6 +1,6 @@
 # Amplifier — Task Context
 
-**Last Updated**: 2026-04-07 (Session 36)
+**Last Updated**: 2026-04-07 (Session 36, updated end-of-session)
 
 ## Current State
 
@@ -97,16 +97,31 @@ Real-world testing against 14+ external posts found 8 bugs total:
 
 **Commits**: `ec9d348`, `6f84ff5`, `3006fc1`, `fda3184`, `54484bd`, `9440c60`
 
-### Task #7: Repost Campaign — DEFERRED
+### Task #7: Repost Campaign — DEFERRED & HIDDEN
 
-Decided to defer repost campaigns to post-launch. Full spec preserved in task-master task #7 description including: formats (text/image/text+image), posting frequency (once/daily/weekly), company edit UI, user read-only display, background agent pipeline skip. Some foundational code exists but feature is out of scope for launch.
+Decided to defer repost campaigns to post-launch. Full spec preserved in task-master task #7 description including: formats (text/image/text+image), posting frequency (once/daily/weekly), company edit UI, user read-only display, background agent pipeline skip.
 
-**Commits**: `bd39c87` (implementation), `ea4c3c7` (deferral)
+**Code status**: All repost code remains intact but the entry point is hidden. The "Repost" toggle button on the company campaign creation form (`server/app/templates/company/campaign_create.html`) is commented out. Hidden input forces `campaign_type=ai_generated`. Backend code, background agent repost branch, user app read-only mode — all still in codebase, just unreachable. Zero repost campaigns exist in local or production DB.
+
+**To re-enable**: Uncomment the Campaign Type Toggle in `campaign_create.html`.
+
+**Commits**: `bd39c87` (implementation), `ea4c3c7` (deferral), `493af34` (hide toggle)
+
+### Spec Docs Updated
+
+Updated all 4 spec files in `docs/specs/` during this session:
+- `batch-1-money-loop.md` — Updated deleted post detection signals table with verified phrases for all 4 platforms
+- `batch-2-ai-brain.md` — Removed repost content agent section, reverted quality gate
+- `batch-3-product-features.md` — Replaced Task #7 section with deferred note (full spec in task-master)
+- `batch-4-business-launch.md` — Updated deleted post detection signals + PATCH endpoint reference
+- `database-models.md` — Added CampaignPost (marked deferred), decline_reason, campaign fields
+- `CLAUDE.md` — Updated model count to 12, added CampaignPost (deferred)
 
 ## Key Decisions (Session 36)
 
 - **Proper verification**: Always test by running real app flows (browser automation, user walkthroughs), not just API calls or unit tests. Saved to memory as feedback.
-- **Repost deferred**: Too much complexity for medium-priority feature. Core value is AI-generated campaigns.
+- **Repost deferred**: Too much complexity for medium-priority feature. Core value is AI-generated campaigns. Hidden via 1-line change, not removed — keeps code intact for post-launch re-enable.
+- **Hide > Remove**: Chose to hide repost toggle (1 line, zero regression risk) over full removal (200 lines across 12 files, high regression risk). Can always remove later if needed.
 - **Task #38 added**: E2E deleted post detection pipeline verification on all 4 platforms.
 
 ## Deployed URLs
