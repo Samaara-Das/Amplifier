@@ -159,14 +159,15 @@
         "id": "12",
         "title": "AI matching — detailed spec for scoring logic, verify accuracy",
         "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 3,
           "needs_spec": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-08T15:57:06.798Z"
       },
       {
         "id": "13",
@@ -521,9 +522,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-08T14:43:58.686Z",
+      "lastModified": "2026-04-08T15:57:06.799Z",
       "taskCount": 39,
-      "completedCount": 11,
+      "completedCount": 12,
       "tags": [
         "master"
       ]

@@ -229,6 +229,9 @@ def _build_scoring_prompt(campaign: Campaign, user: User) -> str:
         if v is True or (isinstance(v, dict) and v.get("connected"))
     ]
 
+    self_selected = user.niche_tags or []
+    required_platforms = targeting.get("required_platforms", [])
+
     return f"""You are matching creators to brand campaigns on Amplifier, a platform where everyday social media users earn money by posting about products.
 
 == CAMPAIGN ==
@@ -237,10 +240,10 @@ Brief: {campaign.brief[:1500]}
 Content guidance: {campaign.content_guidance or 'None'}
 Target niches: {targeting.get('niche_tags', [])}
 Target regions: {targeting.get('target_regions', [])}
-Required platforms: {targeting.get('required_platforms', [])}
+Required platforms: {required_platforms}
 
 == CREATOR ==
-Self-selected niches: {user.niche_tags or []}
+Self-selected niches: {self_selected}
 Connected platforms: {connected_platforms}
 Region: {user.audience_region or 'global'}
 
@@ -258,20 +261,44 @@ This is by design — Amplifier helps normal people earn from campaigns, not jus
 == YOUR TASK ==
 Read this creator's ACTUAL profile data above — their real posts, bios, and activity across platforms. Decide if they're a good fit for this campaign.
 
-Judge ONLY on:
-1. TOPIC RELEVANCE: Do their posts, bio, or interests relate to what this campaign is about? A user with 50 followers who posts about tech is better for a tech campaign than someone with 10K followers who posts about cooking.
-2. AUDIENCE FIT: Based on their content and platforms, would their connections/followers be interested in this product?
-3. AUTHENTICITY: Would this person promoting this product feel natural, or forced?
+Score the fit using these WEIGHTED CRITERIA:
 
-DO NOT judge on:
+1. TOPIC RELEVANCE (40% of score):
+   Do their posts, bio, or interests relate to what this campaign is about?
+   A user with 50 followers who posts about tech is better for a tech campaign than someone with 10K followers who posts about cooking.
+   NICHE DEPTH matters: a creator who posts exclusively about "day trading" is a BETTER match for a trading indicator campaign than one who posts broadly about "finance." Reward specificity.
+
+2. AUDIENCE FIT (25% of score):
+   Based on their content and platforms, would their connections/followers be interested in this product?
+   If the campaign targets specific platforms ({required_platforms}), judge the creator's content on THOSE platforms specifically — do NOT average across all platforms. A creator who posts about finance on X but food on Facebook should score high for a finance campaign targeting X.
+
+3. AUTHENTICITY FIT (20% of score):
+   Would this person promoting this product feel natural, or forced?
+   A cooking creator recommending a kitchen gadget feels natural. The same creator recommending enterprise software feels forced.
+
+4. CONTENT QUALITY (15% of score):
+   Does the creator produce content that would represent the brand well?
+   Look at writing quality, engagement rates relative to their follower count, and consistency.
+   Low-effort reposts vs original thoughtful content.
+
+== SELF-SELECTED NICHES (IMPORTANT) ==
+The creator has chosen to post about these niches: {self_selected}
+Respect this — they may want to expand into new topics. Self-selected niches should be weighted EQUALLY to profile-detected niches when judging topic relevance.
+
+== BRAND SAFETY ==
+If the creator's recent posts contain controversial, offensive, or politically divisive content, score lower (20-40 range) even if the topic is relevant. Companies don't want their brand associated with controversy.
+
+== DO NOT JUDGE ON ==
 - Raw follower/engagement numbers (most users are normal people)
 - Posting frequency (many users post infrequently)
 - Profile completeness
 
-Score 70-100: Good fit — their interests/content align with the campaign
-Score 40-69: Possible fit — some overlap, worth inviting
-Score 10-39: Weak fit — little connection to the campaign topic
-Score 0-9: No fit — completely irrelevant
+== SCORING SCALE ==
+Score 80-100: Strong fit — creator's content aligns closely with the campaign
+Score 60-79: Good fit — reasonable overlap, promotion would feel natural
+Score 40-59: Possible fit — some relevance but not obvious
+Score 20-39: Weak fit — minimal overlap
+Score 0-19: No fit — completely unrelated
 
 Return ONLY a number between 0 and 100."""
 
@@ -320,21 +347,25 @@ async def ai_score_relevance(campaign: Campaign, user: User) -> float:
 
 
 def _fallback_niche_score(campaign: Campaign, user: User) -> float:
-    """Original v1 niche-overlap scoring. Used when AI fails."""
+    """Niche-overlap fallback scoring. Used when AI fails.
+
+    Each overlapping niche = +25 points.
+    No niche targeting on campaign = base score of 50.
+    Minimum score: 10.
+    """
     targeting = campaign.targeting or {}
-    score = 0.0
 
     target_niches = set(targeting.get("niche_tags", []))
-    # Use AI-detected niches if available, fall back to self-reported
-    user_niches = set(user.ai_detected_niches or user.niche_tags or [])
+    # Combine self-selected AND AI-detected niches (spec: both weighted equally)
+    user_niches = set(user.niche_tags or []) | set(user.ai_detected_niches or [])
     niche_overlap = len(target_niches & user_niches)
-    score += niche_overlap * 30
+    score = niche_overlap * 25
 
     # If no niche targeting, give a base score so everyone can participate
     if not target_niches:
-        score += 10
+        score = 50
 
-    return max(score, 1.0)
+    return max(score, 10.0)
 
 
 # ── Hard Filters ──────────────────────────────────────────────────
@@ -524,10 +555,14 @@ async def get_matched_campaigns(
         if ai_score < 0:
             # AI failed — use fallback niche-overlap scoring
             final_score = _fallback_niche_score(campaign, user)
+            logger.info("Matching campaign=%d user=%d: AI failed, fallback=%.1f",
+                        campaign.id, user.id, final_score)
         else:
             final_score = ai_score
+            logger.info("Matching campaign=%d user=%d: AI score=%.1f",
+                        campaign.id, user.id, final_score)
 
-        if final_score > 0:
+        if final_score >= 40:
             scored.append((campaign, final_score))
 
     # Sort by score descending
