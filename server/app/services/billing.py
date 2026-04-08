@@ -135,7 +135,11 @@ async def calculate_post_earnings(post: Post, metric: Metric, assignment: Campai
 
 
 async def run_billing_cycle(db: AsyncSession) -> dict:
-    """Process all posts with final metrics that haven't been billed yet.
+    """Process all metrics that haven't been billed yet.
+
+    Billing is incremental: each metric gets billed once. Dedup via metric_id in
+    Payout.breakdown. The is_final flag was removed in Task #9 — the latest scrape
+    (most recent metric per post) is the billing source of truth.
 
     Returns summary: {posts_processed, total_earned, total_deducted_from_budgets}
     """

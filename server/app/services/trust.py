@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.post import Post
 from app.models.metric import Metric
+from app.services.metric_helpers import latest_metric_filter
 from app.models.assignment import CampaignAssignment
 from app.models.penalty import Penalty
 
@@ -110,7 +111,7 @@ async def detect_metrics_anomalies(db: AsyncSession) -> list[dict]:
         )
         .join(Post, Metric.post_id == Post.id)
         .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
-        .where(Metric.is_final == True)
+        .where(latest_metric_filter())
         .group_by(CampaignAssignment.user_id)
     )
     user_stats = result.all()

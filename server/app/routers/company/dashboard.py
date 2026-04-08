@@ -13,6 +13,7 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.post import Post
 from app.models.metric import Metric
+from app.services.metric_helpers import latest_metric_filter
 from app.models.payout import Payout
 from app.routers.company import _render, _login_redirect, get_company_from_cookie
 
@@ -71,7 +72,7 @@ async def dashboard_page(
         .join(Post, Metric.post_id == Post.id)
         .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
         .join(Campaign, CampaignAssignment.campaign_id == Campaign.id)
-        .where(Campaign.company_id == company.id, Metric.is_final == True)
+        .where(Campaign.company_id == company.id, latest_metric_filter())
     )
     m = metrics_result.one()
     total_impressions = int(m.impressions)
@@ -112,7 +113,7 @@ async def dashboard_page(
             .select_from(Metric)
             .join(Post, Metric.post_id == Post.id)
             .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
-            .where(CampaignAssignment.campaign_id == c.id, Metric.is_final == True)
+            .where(CampaignAssignment.campaign_id == c.id, latest_metric_filter())
         )
         cm = camp_metrics.one()
         spent = float(c.budget_total) - float(c.budget_remaining)

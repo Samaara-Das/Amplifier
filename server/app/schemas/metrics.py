@@ -18,7 +18,7 @@ class MetricSubmission(BaseModel):
     comments: int = 0
     clicks: int = 0
     scraped_at: datetime
-    is_final: bool = False
+    is_final: bool = False  # Deprecated: no longer used. Kept for backward compat.
 
 
 class MetricBatchSubmit(BaseModel):

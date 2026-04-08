@@ -11,6 +11,7 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.post import Post
 from app.models.metric import Metric
+from app.services.metric_helpers import latest_metric_filter
 from app.models.payout import Payout
 from app.models.user import User
 from app.routers.company import _render, _login_redirect, get_company_from_cookie
@@ -69,7 +70,7 @@ async def influencers_page(
             .join(Post, Metric.post_id == Post.id)
             .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
             .join(Campaign, CampaignAssignment.campaign_id == Campaign.id)
-            .where(Campaign.company_id == company.id, CampaignAssignment.user_id == user_id, Metric.is_final == True)
+            .where(Campaign.company_id == company.id, CampaignAssignment.user_id == user_id, latest_metric_filter())
         )
         m = metrics_q.one()
 

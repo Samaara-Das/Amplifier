@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.post import Post
 from app.models.metric import Metric
+from app.services.metric_helpers import latest_metric_filter
 from app.models.assignment import CampaignAssignment
 from app.models.user import User
 from app.routers.admin import _render, _check_admin, _login_redirect
@@ -66,7 +67,7 @@ async def analytics_page(
         )
         .select_from(Metric)
         .join(Post, Metric.post_id == Post.id)
-        .where(Metric.is_final == True)
+        .where(latest_metric_filter())
         .group_by(Post.platform)
     )
 
@@ -105,7 +106,7 @@ async def analytics_page(
         .join(Metric, Metric.post_id == Post.id)
         .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
         .join(User, CampaignAssignment.user_id == User.id)
-        .where(Metric.is_final == True)
+        .where(latest_metric_filter())
         .order_by((Metric.likes + Metric.reposts + Metric.comments).desc())
         .limit(10)
     )

@@ -111,7 +111,7 @@
         "id": "9",
         "title": "Metric scraping — detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "1"
@@ -121,13 +121,13 @@
           "needs_spec": true
         },
         "subtasks": [],
-        "updatedAt": "2026-04-08T12:48:14.551Z"
+        "updatedAt": "2026-04-08T12:54:34.955Z"
       },
       {
         "id": "10",
         "title": "Billing — detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "9"
@@ -136,7 +136,8 @@
           "tier": 3,
           "needs_spec": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-08T12:54:57.760Z"
       },
       {
         "id": "11",
@@ -506,9 +507,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-08T12:48:14.551Z",
+      "lastModified": "2026-04-08T12:54:57.761Z",
       "taskCount": 38,
-      "completedCount": 8,
+      "completedCount": 9,
       "tags": [
         "master"
       ]

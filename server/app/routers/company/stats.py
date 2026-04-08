@@ -13,6 +13,7 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.post import Post
 from app.models.metric import Metric
+from app.services.metric_helpers import latest_metric_filter, latest_metric_join_condition
 from app.routers.company import _render, _login_redirect, get_company_from_cookie
 
 router = APIRouter()
@@ -63,7 +64,7 @@ async def stats_page(
             .select_from(Metric)
             .join(Post, Metric.post_id == Post.id)
             .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
-            .where(and_(CampaignAssignment.campaign_id == c.id, Metric.is_final == True))
+            .where(and_(CampaignAssignment.campaign_id == c.id, latest_metric_filter()))
         )
         m = metrics_q.one()
         camp_impressions = int(m.impressions)
@@ -91,7 +92,7 @@ async def stats_page(
                 func.coalesce(func.sum(Metric.likes + Metric.reposts + Metric.comments), 0).label("engagement"),
             )
             .select_from(Post)
-            .outerjoin(Metric, and_(Metric.post_id == Post.id, Metric.is_final == True))
+            .outerjoin(Metric, latest_metric_join_condition())
             .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
             .where(CampaignAssignment.campaign_id == c.id)
             .group_by(Post.platform)

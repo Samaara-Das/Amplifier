@@ -691,14 +691,8 @@ async def export_campaign_csv(
         user = user_map.get(assignment.user_id)
         user_display = user.email if user else f"user_{assignment.user_id}"
 
-        # Get the latest metric for this post (prefer is_final, otherwise most recent)
-        latest_metric = None
-        if post.metrics:
-            final_metrics = [m for m in post.metrics if m.is_final]
-            if final_metrics:
-                latest_metric = max(final_metrics, key=lambda m: m.scraped_at)
-            elif post.metrics:
-                latest_metric = max(post.metrics, key=lambda m: m.scraped_at)
+        # Get the latest metric for this post (highest ID = most recent scrape)
+        latest_metric = max(post.metrics, key=lambda m: m.id) if post.metrics else None
 
         impressions = latest_metric.impressions if latest_metric else 0
         likes = latest_metric.likes if latest_metric else 0

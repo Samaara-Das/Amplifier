@@ -17,6 +17,7 @@ from app.models.campaign_post import CampaignPost
 from app.models.assignment import CampaignAssignment
 from app.models.post import Post
 from app.models.metric import Metric
+from app.services.metric_helpers import latest_metric_filter, latest_metric_join_condition
 from app.models.payout import Payout
 from app.models.user import User
 from app.routers.company import (
@@ -98,7 +99,7 @@ async def campaigns_page(
             .select_from(Metric)
             .join(Post, Metric.post_id == Post.id)
             .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
-            .where(and_(CampaignAssignment.campaign_id == c.id, Metric.is_final == True))
+            .where(and_(CampaignAssignment.campaign_id == c.id, latest_metric_filter()))
         )
         m = metrics.one()
 
@@ -461,7 +462,7 @@ async def campaign_detail_page(
         )
         .select_from(Post)
         .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
-        .outerjoin(Metric, and_(Metric.post_id == Post.id, Metric.is_final == True))
+        .outerjoin(Metric, latest_metric_join_condition())
         .where(CampaignAssignment.campaign_id == campaign_id)
     )
     t = totals.one()
@@ -478,7 +479,7 @@ async def campaign_detail_page(
             func.coalesce(func.sum(Metric.clicks), 0).label("clicks"),
         )
         .select_from(Post)
-        .outerjoin(Metric, and_(Metric.post_id == Post.id, Metric.is_final == True))
+        .outerjoin(Metric, latest_metric_join_condition())
         .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
         .where(CampaignAssignment.campaign_id == campaign_id)
         .group_by(Post.platform)
@@ -589,7 +590,7 @@ async def campaign_detail_page(
             )
             .select_from(Metric)
             .join(Post, Metric.post_id == Post.id)
-            .where(and_(Post.assignment_id == row.assignment_id, Metric.is_final == True))
+            .where(and_(Post.assignment_id == row.assignment_id, latest_metric_filter()))
         )
         um = user_metrics_q.one()
 

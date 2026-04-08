@@ -155,46 +155,22 @@ async def request_payout(
 
 
 async def _calculate_pending(db: AsyncSession, user_id: int) -> float:
-    """Estimate earnings from non-final metrics using the same billing formula.
+    """Sum of pending payouts (within 7-day hold period, not yet available).
 
-    Finds all non-final metrics for posts belonging to this user's assignments,
-    and calculates what they would earn using the campaign's payout rules.
+    Uses actual payout records rather than re-estimating from metrics.
+    Billing runs on every metric submission, so payouts are always up-to-date.
     """
-    result = await db.execute(
-        select(Metric, Post, CampaignAssignment, Campaign)
-        .join(Post, Metric.post_id == Post.id)
-        .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
-        .join(Campaign, CampaignAssignment.campaign_id == Campaign.id)
+    total = await db.scalar(
+        select(func.coalesce(func.sum(Payout.amount), 0))
         .where(
             and_(
-                CampaignAssignment.user_id == user_id,
-                Metric.is_final == False,
-                Post.status == "live",
+                Payout.user_id == user_id,
+                Payout.status == "pending",
+                Payout.campaign_id.isnot(None),
             )
         )
     )
-    rows = result.all()
-
-    platform_cut = settings.platform_cut_percent / 100.0
-    total_pending = 0.0
-
-    for metric, post, assignment, campaign in rows:
-        rules = campaign.payout_rules or {}
-        rate_per_1k_imp = rules.get("rate_per_1k_impressions", 0)
-        rate_per_like = rules.get("rate_per_like", 0)
-        rate_per_repost = rules.get("rate_per_repost", 0)
-        rate_per_click = rules.get("rate_per_click", 0)
-
-        raw_earning = (
-            (metric.impressions / 1000.0 * rate_per_1k_imp) +
-            (metric.likes * rate_per_like) +
-            (metric.reposts * rate_per_repost) +
-            (metric.clicks * rate_per_click)
-        )
-        user_earning = raw_earning * (1 - platform_cut)
-        total_pending += user_earning
-
-    return round(total_pending, 2)
+    return round(float(total), 2)
 
 
 async def _build_per_campaign(db: AsyncSession, user_id: int) -> list[dict]:
