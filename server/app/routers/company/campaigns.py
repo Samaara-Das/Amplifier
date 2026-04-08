@@ -623,7 +623,9 @@ async def campaign_detail_page(
             "posts": user_posts,
             "impressions": imp,
             "likes": lk,
-            "engagement": lk + int(um.reposts) + int(um.comments),
+            "reposts": rp,
+            "comments": int(um.comments),
+            "engagement": lk + rp + int(um.comments),
             "estimated_earned": round(estimated_earned, 2),
             "actual_paid": round(user_payout_map.get(row.user_id, 0.0), 2),
         })
