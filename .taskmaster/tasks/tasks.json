@@ -127,7 +127,7 @@
         "id": "10",
         "title": "Billing — detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
-        "status": "in-progress",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "9"
@@ -137,7 +137,7 @@
           "needs_spec": true
         },
         "subtasks": [],
-        "updatedAt": "2026-04-08T12:54:57.760Z"
+        "updatedAt": "2026-04-08T13:19:19.394Z"
       },
       {
         "id": "11",
@@ -507,9 +507,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-08T12:54:57.761Z",
+      "lastModified": "2026-04-08T13:19:19.395Z",
       "taskCount": 38,
-      "completedCount": 9,
+      "completedCount": 10,
       "tags": [
         "master"
       ]
