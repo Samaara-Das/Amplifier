@@ -150,13 +150,9 @@
                 <input type="number" id="rate_per_like" name="rate_per_like" class="form-control" min="0" step="0.01" value="{{ form.rate_per_like if form else '0.01' }}">
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="rate_per_repost">Per Repost ($)</label>
-                <input type="number" id="rate_per_repost" name="rate_per_repost" class="form-control" min="0" step="0.01" value="{{ form.rate_per_repost if form else '0.05' }}">
-            </div>
-            <!-- rate_per_click removed: clicks can't be scraped from post pages -->
-        </div>
+        <!-- Per Repost rate hidden — repost campaigns deferred to post-launch (Task #7) -->
+        <input type="hidden" name="rate_per_repost" value="0">
+        <!-- rate_per_click removed: clicks can't be scraped from post pages -->
     </div>
 
     <div class="card">

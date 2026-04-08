@@ -35,60 +35,8 @@
 </div>
 
 <!-- Campaign Type Selection -->
-<div class="card" style="margin-bottom: 24px;">
-    <div class="card-title">Campaign Type</div>
-    <div style="display: flex; gap: 12px;">
-        <button type="button" id="typeAI" onclick="setCampaignType('ai_generated')"
-            style="flex:1; padding: 16px; border: 2px solid #2563eb; border-radius: 12px; background: rgba(37,99,235,0.1); color: #f8fafc; cursor: pointer; text-align: left;">
-            <strong>AI Generated</strong><br>
-            <span style="font-size: 13px; color: #94a3b8;">AI creates unique content for each creator</span>
-        </button>
-        <button type="button" id="typeRepost" onclick="setCampaignType('repost')"
-            style="flex:1; padding: 16px; border: 2px solid #374151; border-radius: 12px; background: transparent; color: #f8fafc; cursor: pointer; text-align: left;">
-            <strong>Repost</strong><br>
-            <span style="font-size: 13px; color: #94a3b8;">You provide exact posts — creators repost them</span>
-        </button>
-    </div>
-    <input type="hidden" id="campaignTypeField" value="ai_generated">
-</div>
-
-<!-- Repost Content Panel (hidden by default) -->
-<div class="card" id="repostPanel" style="display: none; margin-bottom: 24px;">
-    <div class="card-title">Pre-written Posts</div>
-    <div class="form-help" style="margin-bottom: 16px;">Enter the exact content creators will post on each platform.</div>
-    <div class="form-group">
-        <label>X (Twitter) — 280 chars max</label>
-        <textarea id="repostX" class="form-control" rows="3" maxlength="280" placeholder="Write the tweet..." oninput="this.nextElementSibling.textContent = this.value.length + '/280'"></textarea>
-        <div class="form-help">0/280</div>
-    </div>
-    <div class="form-group">
-        <label>LinkedIn</label>
-        <textarea id="repostLinkedin" class="form-control" rows="4" placeholder="Write the LinkedIn post..."></textarea>
-    </div>
-    <div class="form-group">
-        <label>Facebook</label>
-        <textarea id="repostFacebook" class="form-control" rows="4" placeholder="Write the Facebook post..."></textarea>
-    </div>
-    <div class="form-group">
-        <label>Reddit — Title</label>
-        <input type="text" id="repostRedditTitle" class="form-control" placeholder="Post title" maxlength="300">
-    </div>
-    <div class="form-group">
-        <label>Reddit — Body</label>
-        <textarea id="repostRedditBody" class="form-control" rows="4" placeholder="Post body..."></textarea>
-    </div>
-    <div class="form-group">
-        <label>Campaign Title</label>
-        <input type="text" id="repostTitle" class="form-control" placeholder="Name for this campaign" required>
-    </div>
-    <div class="form-group">
-        <label>Budget ($)</label>
-        <input type="number" id="repostBudget" class="form-control" placeholder="50" min="10" value="50">
-    </div>
-    <div style="display: flex; gap: 12px; margin-top: 16px;">
-        <button type="button" class="btn btn-primary" onclick="submitRepostCampaign()" style="flex:1;">Create Repost Campaign</button>
-    </div>
-</div>
+<!-- Campaign type is always AI Generated (repost deferred to post-launch — Task #7) -->
+<input type="hidden" id="campaignTypeField" value="ai_generated">
 
 <!-- Error alert (shared) -->
 <div class="alert alert-error" id="wizardError" style="display:none;"></div>
@@ -232,9 +180,9 @@
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="minEngagement">Minimum engagement rate (%)</label>
+                <label for="minEngagement">Min. creator engagement rate (%)</label>
                 <input type="number" id="minEngagement" class="form-control" min="0" max="100" step="0.01" value="0" placeholder="0">
-                <div class="form-help">Only match creators with at least this engagement rate. 0 = no filter.</div>
+                <div class="form-help">Only match creators whose avg engagement rate (likes + comments / followers) meets this threshold. 0 = no filter.</div>
             </div>
             <div class="form-group">
                 <label for="maxUsers">Maximum creators</label>
@@ -332,12 +280,8 @@
                         <input type="number" id="genRateLike" name="rate_per_like" class="form-control" min="0" step="0.01">
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="genRateRepost">Per Repost ($)</label>
-                        <input type="number" id="genRateRepost" name="rate_per_repost" class="form-control" min="0" step="0.01">
-                    </div>
-                </div>
+                <!-- Per Repost rate hidden — repost campaigns deferred to post-launch (Task #7) -->
+                <input type="hidden" id="genRateRepost" name="rate_per_repost" value="0">
             </div>
 
             <div class="card">
@@ -1441,8 +1385,12 @@
     }
 })();
 
-// Campaign type toggle (outside IIFE — needs global access from onclick)
-async function submitRepostCampaign() {
+// Repost campaign functions — deferred to post-launch (Task #7)
+// submitRepostCampaign() and setCampaignType() preserved but unreachable
+// since the Repost button was removed from the UI.
+async function submitRepostCampaign() { /* deferred */; return; }
+/*  ORIGINAL submitRepostCampaign — preserved for post-launch:
+async function _submitRepostCampaign_deferred() {
     var title = document.getElementById('repostTitle').value.trim();
     if (!title) { alert('Enter a campaign title'); return; }
     var budget = parseFloat(document.getElementById('repostBudget').value) || 50;
@@ -1500,6 +1448,7 @@ async function submitRepostCampaign() {
         alert('Error: ' + e.message);
     }
 }
+END OF DEFERRED submitRepostCampaign */
 
 function setCampaignType(type) {
     document.getElementById('campaignTypeField').value = type;
