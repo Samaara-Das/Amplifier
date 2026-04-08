@@ -146,6 +146,201 @@ async def _safe_attr(locator, attr: str, timeout: int = 5000) -> str | None:
     return None
 
 
+# ── Tab Navigation & Expand Buttons (Spec: 3-tier pipeline prep) ─
+
+
+async def _click_expand_buttons(page: Page, platform: str):
+    """Click all expand/show-more buttons to reveal hidden content.
+
+    Each platform hides content behind different expand triggers.
+    Must be called BEFORE text extraction to capture full profile data.
+    """
+    expand_selectors = {
+        "x": [],  # X uses infinite scroll, no expand buttons
+        "linkedin": [
+            'button:has-text("…more")',
+            'button:has-text("...more")',
+            'button:has-text("see more")',
+            'a:has-text("Show all")',
+            'button:has-text("Show all")',
+        ],
+        "facebook": [
+            'div[role="button"]:has-text("See more")',
+            'span:has-text("See more")',
+            'div[role="button"]:has-text("See More")',
+        ],
+        "reddit": [],  # Reddit loads content on tab click
+    }
+
+    selectors = expand_selectors.get(platform, [])
+    clicked = 0
+    for sel in selectors:
+        try:
+            buttons = page.locator(sel)
+            count = await buttons.count()
+            for i in range(min(count, 5)):  # Cap at 5 clicks per selector
+                try:
+                    await buttons.nth(i).click(timeout=3000)
+                    await page.wait_for_timeout(800)
+                    clicked += 1
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    if clicked:
+        logger.info("%s: clicked %d expand buttons", platform, clicked)
+
+
+async def _navigate_tabs_and_collect_text(page: Page, platform: str) -> str:
+    """Navigate platform tabs, click expand buttons, collect all text.
+
+    Returns concatenated text from all visited tabs/sections.
+    This is the core of Tier 1 — gathering as much text as possible
+    before sending to the AI for structured extraction.
+    """
+    all_text_parts = []
+
+    # Step 1: Click expand buttons on the initial page
+    await _click_expand_buttons(page, platform)
+
+    # Step 2: Extract text from current page
+    try:
+        initial_text = await page.inner_text("body", timeout=10000)
+        all_text_parts.append(f"=== {platform.upper()} PROFILE (main page) ===\n{initial_text}")
+    except Exception as e:
+        logger.warning("%s: failed to extract initial page text: %s", platform, e)
+
+    # Step 3: Scroll down to load below-fold content
+    for _ in range(3):
+        await page.evaluate("window.scrollBy(0, window.innerHeight)")
+        await page.wait_for_timeout(1500)
+
+    # Click any newly-visible expand buttons
+    await _click_expand_buttons(page, platform)
+
+    # Re-extract text after scrolling (captures loaded content)
+    try:
+        scrolled_text = await page.inner_text("body", timeout=10000)
+        if scrolled_text and len(scrolled_text) > len(all_text_parts[0]) + 200:
+            all_text_parts[0] = f"=== {platform.upper()} PROFILE (after scroll) ===\n{scrolled_text}"
+    except Exception:
+        pass
+
+    # Step 4: Platform-specific tab navigation
+    if platform == "x":
+        await _navigate_x_tabs(page, all_text_parts)
+    elif platform == "linkedin":
+        await _navigate_linkedin_tabs(page, all_text_parts)
+    elif platform == "facebook":
+        await _navigate_facebook_tabs(page, all_text_parts)
+    elif platform == "reddit":
+        await _navigate_reddit_tabs(page, all_text_parts)
+
+    combined = "\n\n".join(all_text_parts)
+    logger.info("%s: collected %d chars of text from %d section(s)",
+                platform, len(combined), len(all_text_parts))
+    return combined
+
+
+async def _navigate_x_tabs(page: Page, text_parts: list):
+    """Navigate X profile tabs: Media (for count), Highlights."""
+    profile_url = page.url
+
+    # Media tab — get media count
+    try:
+        media_tab = page.locator('a[role="tab"]:has-text("Media")')
+        if await media_tab.count() > 0:
+            await media_tab.first.click(timeout=5000)
+            await page.wait_for_timeout(2000)
+            media_text = await page.inner_text("body", timeout=5000)
+            text_parts.append(f"=== X MEDIA TAB ===\n{media_text[:2000]}")
+    except Exception as e:
+        logger.debug("X: media tab navigation failed: %s", e)
+
+    # Back to profile
+    try:
+        await page.goto(profile_url, wait_until="domcontentloaded", timeout=15000)
+        await page.wait_for_timeout(2000)
+    except Exception:
+        pass
+
+
+async def _navigate_linkedin_tabs(page: Page, text_parts: list):
+    """Navigate LinkedIn sections: Activity/Posts tab for recent posts."""
+    # Click "Posts" tab in Activity section if visible
+    try:
+        posts_tab = page.locator('button:has-text("Posts")')
+        if await posts_tab.count() > 0:
+            await posts_tab.first.click(timeout=5000)
+            await page.wait_for_timeout(2000)
+            # Scroll the activity section
+            await page.evaluate("window.scrollBy(0, 600)")
+            await page.wait_for_timeout(1000)
+    except Exception as e:
+        logger.debug("LinkedIn: posts tab click failed: %s", e)
+
+
+async def _navigate_facebook_tabs(page: Page, text_parts: list):
+    """Navigate Facebook tabs: About (for detailed info)."""
+    profile_url = page.url
+
+    # Click About tab
+    try:
+        about_tab = page.locator('a:has-text("About")')
+        if await about_tab.count() > 0:
+            await about_tab.first.click(timeout=5000)
+            await page.wait_for_timeout(2000)
+            about_text = await page.inner_text("body", timeout=10000)
+            text_parts.append(f"=== FACEBOOK ABOUT TAB ===\n{about_text[:3000]}")
+    except Exception as e:
+        logger.debug("Facebook: about tab navigation failed: %s", e)
+
+    # Go back to main profile
+    try:
+        await page.goto(profile_url, wait_until="domcontentloaded", timeout=15000)
+        await page.wait_for_timeout(2000)
+    except Exception:
+        pass
+
+
+async def _navigate_reddit_tabs(page: Page, text_parts: list):
+    """Navigate Reddit tabs: Posts, Comments."""
+    profile_url = page.url
+
+    # Click Posts tab
+    try:
+        posts_tab = page.locator('a:has-text("Posts"), button:has-text("Posts")')
+        if await posts_tab.count() > 0:
+            await posts_tab.first.click(timeout=5000)
+            await page.wait_for_timeout(2000)
+            # Scroll to load posts
+            await page.evaluate("window.scrollBy(0, window.innerHeight)")
+            await page.wait_for_timeout(1500)
+            posts_text = await page.inner_text("body", timeout=10000)
+            text_parts.append(f"=== REDDIT POSTS TAB ===\n{posts_text[:3000]}")
+    except Exception as e:
+        logger.debug("Reddit: posts tab navigation failed: %s", e)
+
+    # Click Comments tab
+    try:
+        comments_tab = page.locator('a:has-text("Comments"), button:has-text("Comments")')
+        if await comments_tab.count() > 0:
+            await comments_tab.first.click(timeout=5000)
+            await page.wait_for_timeout(2000)
+            comments_text = await page.inner_text("body", timeout=10000)
+            text_parts.append(f"=== REDDIT COMMENTS TAB ===\n{comments_text[:3000]}")
+    except Exception as e:
+        logger.debug("Reddit: comments tab navigation failed: %s", e)
+
+    # Back to overview
+    try:
+        await page.goto(profile_url, wait_until="domcontentloaded", timeout=15000)
+        await page.wait_for_timeout(2000)
+    except Exception:
+        pass
+
+
 # ── X (Twitter) Scraper ──────────────────────────────────────────
 
 
@@ -210,16 +405,35 @@ async def scrape_x_profile(playwright) -> dict:
 
         await page.wait_for_timeout(3000)
 
-        # ── Try AI Vision extraction first ──
+        # ── 3-Tier Pipeline ──
+        # Tier 1: Navigate tabs, extract text, send to AI (cheapest)
         try:
-            from utils.ai_profile_scraper import ai_scrape_profile
-            ai_result = await ai_scrape_profile("x", page)
-            if ai_result and ai_result.get("follower_count", 0) > 0:
-                logger.info("X: AI extraction succeeded, skipping CSS selectors")
+            from utils.ai_profile_scraper import (
+                ai_scrape_profile_from_text, ai_scrape_profile, is_missing_key_fields,
+            )
+            collected_text = await _navigate_tabs_and_collect_text(page, "x")
+            # Navigate back to profile for CSS fallback
+            await page.goto(profile_url, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(2000)
+
+            ai_result = await ai_scrape_profile_from_text("x", page, collected_text)
+            if ai_result and not is_missing_key_fields(ai_result):
+                logger.info("X: Tier 1 (text) extraction succeeded")
                 await context.close()
                 return ai_result
+
+            # Tier 3: Screenshot + Vision (last resort)
+            if is_missing_key_fields(ai_result):
+                logger.info("X: Tier 1 missing key fields, escalating to Tier 3 (screenshot)")
+                vision_result = await ai_scrape_profile("x", page)
+                if vision_result and not is_missing_key_fields(vision_result):
+                    logger.info("X: Tier 3 (screenshot) extraction succeeded")
+                    await context.close()
+                    return vision_result
         except Exception as e:
-            logger.warning("X: AI scraping failed, falling back to CSS selectors: %s", e)
+            logger.warning("X: AI pipeline failed, falling back to CSS selectors: %s", e)
+
+        # Tier 2: CSS selectors (fallback / supplement)
 
         # Extract display name
         name_el = page.locator(X_DISPLAY_NAME)
@@ -616,19 +830,31 @@ async def scrape_linkedin_profile(playwright) -> dict:
         await page.goto(LI_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
-        # ── Try AI Vision extraction first ──
+        # ── 3-Tier Pipeline ──
         try:
-            from utils.ai_profile_scraper import ai_scrape_profile
-            ai_result = await ai_scrape_profile("linkedin", page)
-            if ai_result and ai_result.get("follower_count", 0) > 0:
-                logger.info("LinkedIn: AI extraction succeeded, skipping CSS selectors")
+            from utils.ai_profile_scraper import (
+                ai_scrape_profile_from_text, ai_scrape_profile, is_missing_key_fields,
+            )
+            collected_text = await _navigate_tabs_and_collect_text(page, "linkedin")
+            # Stay on profile page (LinkedIn tabs don't navigate away)
+
+            ai_result = await ai_scrape_profile_from_text("linkedin", page, collected_text)
+            if ai_result and not is_missing_key_fields(ai_result):
+                logger.info("LinkedIn: Tier 1 (text) extraction succeeded")
                 await context.close()
                 return ai_result
-        except Exception as e:
-            logger.warning("LinkedIn: AI scraping failed, falling back to CSS selectors: %s", e)
 
-        # Try CSS selectors first, then fall back to body text parsing.
-        # LinkedIn frequently changes CSS classes, so body text is more reliable.
+            if is_missing_key_fields(ai_result):
+                logger.info("LinkedIn: Tier 1 missing key fields, escalating to Tier 3")
+                vision_result = await ai_scrape_profile("linkedin", page)
+                if vision_result and not is_missing_key_fields(vision_result):
+                    logger.info("LinkedIn: Tier 3 (screenshot) extraction succeeded")
+                    await context.close()
+                    return vision_result
+        except Exception as e:
+            logger.warning("LinkedIn: AI pipeline failed, falling back to CSS: %s", e)
+
+        # Tier 2: CSS selectors (fallback)
 
         # Extract display name
         name_text = await _safe_text(page.locator(LI_DISPLAY_NAME))
@@ -1012,16 +1238,33 @@ async def scrape_facebook_profile(playwright) -> dict:
         await page.goto(FB_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
-        # ── Try AI Vision extraction first ──
+        # ── 3-Tier Pipeline ──
         try:
-            from utils.ai_profile_scraper import ai_scrape_profile
-            ai_result = await ai_scrape_profile("facebook", page)
-            if ai_result and ai_result.get("follower_count", 0) > 0:
-                logger.info("Facebook: AI extraction succeeded, skipping CSS selectors")
+            from utils.ai_profile_scraper import (
+                ai_scrape_profile_from_text, ai_scrape_profile, is_missing_key_fields,
+            )
+            collected_text = await _navigate_tabs_and_collect_text(page, "facebook")
+            # Navigate back to main profile for CSS fallback
+            await page.goto(FB_PROFILE_URL, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(2000)
+
+            ai_result = await ai_scrape_profile_from_text("facebook", page, collected_text)
+            if ai_result and not is_missing_key_fields(ai_result):
+                logger.info("Facebook: Tier 1 (text) extraction succeeded")
                 await context.close()
                 return ai_result
+
+            if is_missing_key_fields(ai_result):
+                logger.info("Facebook: Tier 1 missing key fields, escalating to Tier 3")
+                vision_result = await ai_scrape_profile("facebook", page)
+                if vision_result and not is_missing_key_fields(vision_result):
+                    logger.info("Facebook: Tier 3 (screenshot) extraction succeeded")
+                    await context.close()
+                    return vision_result
         except Exception as e:
-            logger.warning("Facebook: AI scraping failed, falling back to CSS selectors: %s", e)
+            logger.warning("Facebook: AI pipeline failed, falling back to CSS: %s", e)
+
+        # Tier 2: CSS selectors (fallback)
 
         # Extract display name — skip hidden h1 elements (e.g. "Notifications")
         h1_elements = page.locator('h1')
@@ -1332,18 +1575,40 @@ async def scrape_reddit_profile(playwright) -> dict:
         await page.goto(RD_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
-        # ── Try AI Vision extraction first ──
+        # ── 3-Tier Pipeline ──
         try:
-            from utils.ai_profile_scraper import ai_scrape_profile
-            ai_result = await ai_scrape_profile("reddit", page)
-            # Reddit may not show follower count — accept karma as a valid signal
-            karma = (ai_result or {}).get("profile_data", {}).get("karma", 0)
-            if ai_result and (ai_result.get("follower_count", 0) > 0 or karma > 0):
-                logger.info("Reddit: AI extraction succeeded, skipping CSS selectors")
-                await context.close()
-                return ai_result
+            from utils.ai_profile_scraper import (
+                ai_scrape_profile_from_text, ai_scrape_profile, is_missing_key_fields,
+            )
+            collected_text = await _navigate_tabs_and_collect_text(page, "reddit")
+            # Navigate back to overview for CSS fallback
+            await page.goto(RD_PROFILE_URL, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(2000)
+
+            ai_result = await ai_scrape_profile_from_text("reddit", page, collected_text)
+            # Reddit may not show follower count — accept karma as valid
+            if ai_result:
+                karma = (ai_result.get("profile_data") or {}).get("karma", 0)
+                has_key = ai_result.get("display_name") and (
+                    ai_result.get("follower_count", 0) > 0 or karma > 0
+                )
+                if has_key:
+                    logger.info("Reddit: Tier 1 (text) extraction succeeded")
+                    await context.close()
+                    return ai_result
+
+            logger.info("Reddit: Tier 1 missing key fields, escalating to Tier 3")
+            vision_result = await ai_scrape_profile("reddit", page)
+            if vision_result:
+                v_karma = (vision_result.get("profile_data") or {}).get("karma", 0)
+                if vision_result.get("follower_count", 0) > 0 or v_karma > 0:
+                    logger.info("Reddit: Tier 3 (screenshot) extraction succeeded")
+                    await context.close()
+                    return vision_result
         except Exception as e:
-            logger.warning("Reddit: AI scraping failed, falling back to CSS selectors: %s", e)
+            logger.warning("Reddit: AI pipeline failed, falling back to CSS: %s", e)
+
+        # Tier 2: CSS selectors (fallback)
 
         # Reddit may redirect to /user/{username}/ — read actual username from URL
         current_url = page.url

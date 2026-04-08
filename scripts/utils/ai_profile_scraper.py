@@ -1,12 +1,22 @@
-"""AI-powered profile scraping via Gemini Vision API.
+"""AI-powered profile scraping — 3-tier extraction pipeline.
 
-Takes a full-page screenshot of a social media profile page and uses
-Gemini 2.0 Flash (FREE tier) to extract structured profile data. This is
-more resilient than CSS selectors because it works regardless of DOM changes.
+Tier 1 (TEXT — cheapest, try first):
+    Extract all visible page text, send to text AI model (~500-1500 tokens).
+    Captures 80%+ of profile data without vision tokens.
+
+Tier 2 (CSS SELECTORS — free, supplement tier 1):
+    Use browser automation to query specific elements. Handled by profile_scraper.py.
+
+Tier 3 (SCREENSHOT + VISION — expensive, last resort):
+    Take targeted screenshot, send to Gemini Vision. Only if text extraction
+    fails to find key fields (no follower count, no display name).
 
 Usage:
+    # Tier 1 — text extraction (preferred)
+    result = await ai_scrape_profile_from_text("x", page)
+
+    # Tier 3 — screenshot fallback (only if tier 1 misses key fields)
     result = await ai_scrape_profile("x", page)
-    # Returns structured dict with follower_count, bio, recent_posts, etc.
 
 Falls back gracefully: if the Gemini API key is missing or the call fails,
 callers should fall back to CSS-based scraping.
@@ -118,7 +128,221 @@ Rules:
 Return ONLY valid JSON, no markdown fences, no explanation."""
 
 
-# ── Core Scraping Function ───────────────────────────────────────
+# ── Text Extraction Prompt ───────────────────────────────────────
+
+
+def _build_text_extraction_prompt(platform: str, page_text: str) -> str:
+    """Build a prompt for text-based extraction (Tier 1 — no vision)."""
+
+    platform_context = {
+        "x": (
+            "This is the full text content extracted from an X (Twitter) profile page. "
+            "The text contains the user's name, @handle, bio, follower/following counts, "
+            "and their recent tweets with engagement metrics (likes, retweets, replies, views). "
+            "Numbers may be abbreviated (1.2K = 1200, 3.4M = 3400000)."
+        ),
+        "linkedin": (
+            "This is the full text content extracted from a LinkedIn profile page. "
+            "The text contains the user's name, headline, location, follower/connection count, "
+            "About section, work experience, education, skills, and recent posts with "
+            "reactions/comments. Sections may include 'Show all' or '...more' markers."
+        ),
+        "facebook": (
+            "This is the full text content extracted from a Facebook profile page. "
+            "The text contains the user's name, friends count, bio/intro, personal details "
+            "(city, hometown, work, education), and recent posts with likes/comments/shares."
+        ),
+        "reddit": (
+            "This is the full text content extracted from a Reddit user profile page. "
+            "The text contains the username, karma, account age, follower count, "
+            "achievements/trophies, and recent posts with scores, comments, "
+            "and subreddit names (r/...)."
+        ),
+    }
+
+    context = platform_context.get(platform, f"This is text from a {platform} profile page.")
+
+    return f"""{context}
+
+Here is the extracted text:
+
+---
+{page_text[:8000]}
+---
+
+Extract ALL profile data from this text. Return a JSON object with EXACTLY this schema (use null for fields you cannot find, 0 for numeric fields you cannot find):
+
+{{
+    "display_name": "the user's display name",
+    "username": "handle or username (with @ for X, u/ for Reddit)",
+    "bio": "bio/headline/description text, or null",
+    "follower_count": 0,
+    "following_count": 0,
+    "post_count": 0,
+    "location": "location if shown, or null",
+    "website": "website URL if shown, or null",
+    "join_date": "join date or account age if shown, or null",
+    "verified": false,
+    "recent_posts": [
+        {{
+            "text": "post text (first 300 chars)",
+            "likes": 0,
+            "comments": 0,
+            "reposts": 0,
+            "views": 0,
+            "posted_at": "relative time like '2h ago' or date",
+            "subreddit": "subreddit name if Reddit, otherwise null",
+            "has_media": false
+        }}
+    ],
+    "posting_frequency": 0.0,
+    "profile_data": {{
+        "about": "about/summary section text or null",
+        "experience": null,
+        "education": null,
+        "skills": null,
+        "karma": null,
+        "reddit_age": null,
+        "active_subreddits": null,
+        "personal_details": null
+    }},
+    "ai_detected_niches": ["list", "of", "content", "niches"],
+    "content_quality": "low or medium or high",
+    "audience_demographics_estimate": {{
+        "age_range": "estimated age range like '18-34' or 'unknown'",
+        "interests": ["list", "of", "inferred", "interests"]
+    }}
+}}
+
+Rules:
+- Extract up to 10 recent posts if visible in the text
+- Parse abbreviated numbers: 1.2K = 1200, 3.4M = 3400000
+- posting_frequency: estimate posts per day from timestamps visible
+- ai_detected_niches: classify into 1-5 topic niches from bio + posts
+- content_quality: "low" = reposts/low effort, "medium" = basic original, "high" = thoughtful original
+- For LinkedIn: extract experience as [{{"title":"...","company":"...","duration":"..."}}]
+- For LinkedIn: extract education as [{{"school":"...","degree":"...","dates":"..."}}]
+- For LinkedIn: extract skills as a list of strings
+- For Reddit: extract karma, reddit_age, active_subreddits (ranked by frequency)
+- For Facebook: extract personal_details (city, hometown, work, education)
+- verified: true if you see a verified/blue checkmark badge mention
+
+Return ONLY valid JSON, no markdown fences, no explanation."""
+
+
+# ── Tier 1: Text-Based Extraction ────────────────────────────────
+
+
+async def ai_scrape_profile_from_text(
+    platform: str,
+    page: Page,
+    pre_collected_text: str | None = None,
+) -> Optional[dict]:
+    """Extract profile data from page text using a text model (Tier 1 — cheapest).
+
+    Sends page text to Gemini as a text prompt (no vision). Captures 80%+ of
+    profile data at ~500-1500 tokens instead of ~5000+ for a screenshot.
+
+    Args:
+        platform: One of "x", "linkedin", "facebook", "reddit"
+        page: Playwright page already navigated to the profile
+        pre_collected_text: Optional pre-collected text from tab navigation.
+            If provided, skips page.inner_text() and uses this directly.
+
+    Returns:
+        Structured profile dict, or None if extraction fails.
+    """
+    from utils.local_db import get_setting
+
+    api_key = get_setting("gemini_api_key")
+    if not api_key:
+        logger.info("AI text scraping skipped: no gemini_api_key configured")
+        return None
+
+    # Use pre-collected text if provided, otherwise extract from page
+    if pre_collected_text and len(pre_collected_text.strip()) >= 100:
+        page_text = pre_collected_text
+        logger.info("AI text scrape [%s]: using pre-collected text (%d chars)",
+                    platform, len(page_text))
+    else:
+        logger.info("AI text scrape [%s]: extracting page text...", platform)
+        try:
+            page_text = await page.inner_text("body", timeout=10000)
+        except Exception as e:
+            logger.warning("AI text scrape [%s]: text extraction failed: %s", platform, e)
+            return None
+
+    if not page_text or len(page_text.strip()) < 100:
+        logger.warning("AI text scrape [%s]: page text too short (%d chars), skipping",
+                        platform, len(page_text) if page_text else 0)
+        return None
+
+    logger.info("AI text scrape [%s]: sending %d chars to Gemini...",
+                platform, len(page_text))
+
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=api_key)
+        prompt = _build_text_extraction_prompt(platform, page_text)
+
+        # Try text models (no vision needed — much cheaper)
+        models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
+        last_err = None
+        raw_text = None
+        for model in models:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+                raw_text = response.text.strip()
+                logger.info("AI text scrape [%s]: got response from %s (%d chars)",
+                            platform, model, len(raw_text))
+                break
+            except Exception as e:
+                last_err = e
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    continue
+                raise
+
+        if raw_text is None:
+            raise last_err
+
+    except Exception as e:
+        logger.warning("AI text scrape [%s]: Gemini call failed: %s", platform, e)
+        return None
+
+    result = _parse_ai_response(raw_text, platform)
+    if result is None:
+        logger.warning("AI text scrape [%s]: failed to parse response", platform)
+        return None
+
+    logger.info(
+        "AI text scrape [%s]: extracted — display_name=%s, followers=%d, posts=%d, "
+        "niches=%s, quality=%s",
+        platform,
+        result.get("display_name"),
+        result.get("follower_count", 0),
+        len(result.get("recent_posts", [])),
+        result.get("ai_detected_niches", []),
+        result.get("content_quality"),
+    )
+    return result
+
+
+def is_missing_key_fields(result: Optional[dict]) -> bool:
+    """Check if a scrape result is missing critical fields (needs Tier 3 escalation)."""
+    if result is None:
+        return True
+    if not result.get("display_name"):
+        return True
+    if result.get("follower_count", 0) == 0 and result.get("following_count", 0) == 0:
+        return True
+    return False
+
+
+# ── Tier 3: Screenshot + Vision (last resort) ───────────────────
 
 
 async def ai_scrape_profile(platform: str, page: Page) -> Optional[dict]:
@@ -238,9 +462,15 @@ def _normalize_profile_data(data: dict, platform: str) -> Optional[dict]:
     result = {
         "platform": platform,
         "display_name": _safe_str(data.get("display_name")),
+        "username": _safe_str(data.get("username")),
         "bio": _safe_str(data.get("bio")),
         "follower_count": _safe_int(data.get("follower_count")),
         "following_count": _safe_int(data.get("following_count")),
+        "post_count": _safe_int(data.get("post_count")),
+        "location": _safe_str(data.get("location")),
+        "website": _safe_str(data.get("website")),
+        "join_date": _safe_str(data.get("join_date")),
+        "verified": bool(data.get("verified")),
         "recent_posts": [],
         "engagement_rate": 0.0,
         "posting_frequency": _safe_float(data.get("posting_frequency")),
@@ -264,6 +494,7 @@ def _normalize_profile_data(data: dict, platform: str) -> Optional[dict]:
                 "views": _safe_int(p.get("views")),
                 "posted_at": _safe_str(p.get("posted_at")),
                 "subreddit": _safe_str(p.get("subreddit")),
+                "has_media": bool(p.get("has_media")),
             }
             # Also handle X-specific field names
             if "retweets" in p and post["reposts"] == 0:
@@ -289,13 +520,23 @@ def _normalize_profile_data(data: dict, platform: str) -> Optional[dict]:
     if isinstance(raw_pd, dict):
         pd = {}
         if raw_pd.get("about"):
-            pd["about"] = _safe_str(raw_pd["about"], max_len=500)
+            pd["about"] = _safe_str(raw_pd["about"], max_len=1000)
         if raw_pd.get("experience") and isinstance(raw_pd["experience"], list):
             pd["experience"] = raw_pd["experience"][:10]
+        if raw_pd.get("education") and isinstance(raw_pd["education"], list):
+            pd["education"] = raw_pd["education"][:10]
+        elif raw_pd.get("education") and isinstance(raw_pd["education"], str):
+            pd["education"] = raw_pd["education"]
+        if raw_pd.get("skills") and isinstance(raw_pd["skills"], list):
+            pd["skills"] = [str(s).strip() for s in raw_pd["skills"][:30] if s]
         if raw_pd.get("karma") is not None:
             pd["karma"] = _safe_int(raw_pd["karma"])
         if raw_pd.get("reddit_age"):
             pd["reddit_age"] = _safe_str(raw_pd["reddit_age"])
+        if raw_pd.get("active_subreddits") and isinstance(raw_pd["active_subreddits"], list):
+            pd["active_subreddits"] = [str(s).strip() for s in raw_pd["active_subreddits"][:20] if s]
+        if raw_pd.get("personal_details") and isinstance(raw_pd["personal_details"], dict):
+            pd["personal_details"] = raw_pd["personal_details"]
         result["profile_data"] = pd
 
     # Normalize ai_detected_niches
