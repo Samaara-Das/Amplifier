@@ -1,10 +1,9 @@
 """Metric scraper — revisits posted URLs to scrape engagement data.
 
-Scraping schedule per post:
-- T+1h: verify post is live
-- T+6h: early engagement
-- T+24h: primary metric
-- T+72h: final metric (used for billing)
+Scraping schedule: once every 24 hours for the lifetime of the campaign
+(until campaign status is completed, cancelled, or expired).
+
+Every scrape is stored. The latest scrape is the billing source of truth.
 """
 
 import asyncio
@@ -660,22 +659,18 @@ SCRAPER_MAP = {
 }
 
 
-def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[bool, bool]:
-    """Check if a post should be scraped based on time since posting.
+def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> bool:
+    """Check if a post is due for its next 24-hour scrape.
 
-    Uses cumulative tiers — scrapes the next due tier regardless of when
-    the scraper runs. No rigid time windows that can be missed.
+    Simple schedule: one scrape every 24 hours, starting 24h after posting.
+    The latest scrape is always the billing source of truth — no "final" concept.
 
-    Early tiers: T+1h, T+6h, T+24h, T+72h (high frequency early on)
-    The T+72h scrape is marked as is_final=True for billing.
-    After T+72h: optional recurring scrapes every 24h (not final).
-
-    Returns (should_scrape, is_final).
+    Returns True if enough time has passed for the next scrape.
     """
     try:
         posted_at = datetime.fromisoformat(posted_at_str)
     except (ValueError, TypeError):
-        return False, False
+        return False
 
     now = datetime.now(timezone.utc)
     if posted_at.tzinfo is None:
@@ -683,36 +678,11 @@ def _should_scrape(posted_at_str: str, existing_scrape_count: int = 0) -> tuple[
 
     hours_since = (now - posted_at).total_seconds() / 3600
 
-    # Early tiers (first 72 hours — scrape frequently)
-    early_tiers = [1, 6, 24, 72]
+    # How many 24h scrapes should have happened by now?
+    # First scrape due at T+24h, then every 24h after that.
+    scrapes_due = int(hours_since / 24)
 
-    if existing_scrape_count < len(early_tiers):
-        # Still in early tier phase
-        due_tier_index = -1
-        for i, threshold in enumerate(early_tiers):
-            if hours_since >= threshold:
-                due_tier_index = i
-
-        if due_tier_index >= existing_scrape_count:
-            # Mark as final only when this is the LAST early tier scrape (T+72h)
-            # existing_scrape_count == 3 means we're about to do the 4th scrape (index 3 = 72h tier)
-            is_final = (existing_scrape_count == len(early_tiers) - 1)
-            return True, is_final
-        return False, False
-
-    # Past early tiers — optional recurring scrapes every 24h
-    # These are NOT final — the T+72h scrape already provided the final metric
-    hours_since_72h = hours_since - 72
-    if hours_since_72h < 0:
-        return False, False
-
-    recurring_scrapes_due = int(hours_since_72h / 24) + 1
-    recurring_scrapes_done = existing_scrape_count - len(early_tiers)
-
-    if recurring_scrapes_due > recurring_scrapes_done:
-        return True, False
-
-    return False, False
+    return scrapes_due > existing_scrape_count
 
 
 async def scrape_all_posts():
@@ -737,9 +707,8 @@ async def scrape_all_posts():
     posts_to_scrape = []
     for p in posts:
         scrape_count = metric_counts.get(p["id"], 0)
-        should, is_final = _should_scrape(p["posted_at"], scrape_count)
-        if should:
-            posts_to_scrape.append((p, is_final))
+        if _should_scrape(p["posted_at"], scrape_count):
+            posts_to_scrape.append(p)
 
     if not posts_to_scrape:
         logger.info("No posts due for scraping at this time")
@@ -764,7 +733,7 @@ async def scrape_all_posts():
             api_platforms.add("reddit")
 
     # Collect via API for supported platforms
-    for post, is_final in posts_to_scrape:
+    for post in posts_to_scrape:
         platform = post["platform"]
         if not post["post_url"]:
             continue
@@ -787,12 +756,10 @@ async def scrape_all_posts():
                     reposts=metrics.get("reposts", 0),
                     comments=metrics.get("comments", 0),
                     clicks=0,
-                    is_final=is_final,
                 )
-                logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d%s",
+                logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d",
                             metrics.get("impressions", 0), metrics.get("likes", 0),
-                            metrics.get("reposts", 0), metrics.get("comments", 0),
-                            " [FINAL]" if is_final else "")
+                            metrics.get("reposts", 0), metrics.get("comments", 0))
                 continue  # Skip Playwright scraping for this post
             except Exception as e:
                 err_msg = str(e).lower()
@@ -805,20 +772,19 @@ async def scrape_all_posts():
                              platform, e)
 
     # Collect remaining posts via Playwright
-    remaining = [(p, f) for p, f in posts_to_scrape
+    remaining = [p for p in posts_to_scrape
                  if p["platform"] not in api_platforms and p["post_url"]]
-    # Also include API platform posts that failed (already handled above via fallback)
 
     if not remaining:
         return
 
     # Group by platform for Playwright
     by_platform = {}
-    for post, is_final in remaining:
+    for post in remaining:
         platform = post["platform"]
         if platform not in by_platform:
             by_platform[platform] = []
-        by_platform[platform].append((post, is_final))
+        by_platform[platform].append(post)
 
     async with async_playwright() as pw:
         for platform, post_list in by_platform.items():
@@ -837,7 +803,7 @@ async def scrape_all_posts():
                 page = context.pages[0] if context.pages else await context.new_page()
                 consecutive_rate_limits = 0
 
-                for post, is_final in post_list:
+                for post in post_list:
                     if not post["post_url"]:
                         continue
 
@@ -876,12 +842,10 @@ async def scrape_all_posts():
                         reposts=metrics.get("reposts", 0),
                         comments=metrics.get("comments", 0),
                         clicks=0,
-                        is_final=is_final,
                     )
-                    logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d%s",
+                    logger.info("  imp=%d, likes=%d, reposts=%d, comments=%d",
                                 metrics.get("impressions", 0), metrics.get("likes", 0),
-                                metrics.get("reposts", 0), metrics.get("comments", 0),
-                                " [FINAL]" if is_final else "")
+                                metrics.get("reposts", 0), metrics.get("comments", 0))
 
                     await page.wait_for_timeout(2000)  # Brief pause between scrapes
 
@@ -908,7 +872,6 @@ def sync_metrics_to_server():
             "comments": m["comments"],
             "clicks": 0,
             "scraped_at": m["scraped_at"],
-            "is_final": bool(m["is_final"]),
         })
         metric_ids.append(m["id"])
 

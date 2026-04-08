@@ -126,12 +126,12 @@ def analyze_post_performance(post_id: int) -> dict | None:
     pillar_type = row[4] or "unknown"
     format_type = row[5] or "text"
 
-    # Get final metrics for this post
+    # Get latest metrics for this post (most recent scrape is billing source of truth)
     metric = conn.execute("""
         SELECT impressions, likes, reposts, comments
         FROM local_metric
-        WHERE post_id = ? AND is_final = 1
-        ORDER BY scraped_at DESC LIMIT 1
+        WHERE post_id = ?
+        ORDER BY id DESC LIMIT 1
     """, (post_id,)).fetchone()
 
     conn.close()
@@ -162,10 +162,11 @@ def analyze_post_performance(post_id: int) -> dict | None:
 
 
 def update_insights_from_metrics() -> int:
-    """Batch job: find posts with final metrics not yet analyzed,
+    """Batch job: find posts with metrics not yet analyzed,
     run performance analysis, and upsert into agent_content_insights.
 
     Called by background_agent.py after metric scraping completes.
+    Uses the latest metric per post (most recent scrape is billing source of truth).
 
     Returns: number of insights updated.
     """
@@ -173,14 +174,12 @@ def update_insights_from_metrics() -> int:
 
     conn = _get_db()
 
-    # Find posts with is_final=1 metrics that haven't been analyzed yet
-    # We use a simple heuristic: check posts where the metric is final
-    # and the last update to insights for this platform+hook is older
+    # Find posts with metrics that haven't been analyzed yet.
+    # Use posts with at least one metric, ordered by most recent scrape.
     rows = conn.execute("""
         SELECT DISTINCT lm.post_id
         FROM local_metric lm
         JOIN local_post lp ON lp.id = lm.post_id
-        WHERE lm.is_final = 1
         ORDER BY lm.scraped_at DESC
         LIMIT 50
     """).fetchall()

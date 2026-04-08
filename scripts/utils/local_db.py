@@ -523,7 +523,7 @@ def get_posts_for_scraping() -> list[dict]:
         AND lp.post_url NOT LIKE '%/comments/'
         AND lp.post_url NOT LIKE '%/profile.php%'
         AND COALESCE(lp.status, 'posted') != 'deleted'
-        AND lc.status NOT IN ('skipped', 'cancelled')
+        AND lc.status NOT IN ('skipped', 'cancelled', 'completed', 'expired')
         ORDER BY lp.posted_at ASC
     """).fetchall()
     conn.close()
@@ -599,8 +599,7 @@ def _check_metric_anomaly(conn, post_id: int, impressions: int, likes: int,
 
 
 def add_metric(post_id: int, impressions: int = 0, likes: int = 0,
-               reposts: int = 0, comments: int = 0, clicks: int = 0,
-               is_final: bool = False) -> int:
+               reposts: int = 0, comments: int = 0, clicks: int = 0) -> int:
     conn = _get_db()
 
     # Anomaly detection: flag 10x+ jumps from previous scrape
@@ -610,10 +609,10 @@ def add_metric(post_id: int, impressions: int = 0, likes: int = 0,
     cursor = conn.execute("""
         INSERT INTO local_metric (post_id, impressions, likes, reposts, comments,
                                   clicks, scraped_at, is_final, anomaly_flag)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
     """, (
         post_id, impressions, likes, reposts, comments, clicks,
-        datetime.now(timezone.utc).isoformat(), int(is_final), int(anomaly),
+        datetime.now(timezone.utc).isoformat(), int(anomaly),
     ))
     metric_id = cursor.lastrowid
     conn.commit()

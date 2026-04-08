@@ -111,7 +111,7 @@
         "id": "9",
         "title": "Metric scraping — detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "1"
@@ -120,7 +120,8 @@
           "tier": 3,
           "needs_spec": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-08T12:48:14.551Z"
       },
       {
         "id": "10",
@@ -505,7 +506,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-07T16:52:57.961Z",
+      "lastModified": "2026-04-08T12:48:14.551Z",
       "taskCount": 38,
       "completedCount": 8,
       "tags": [
