@@ -143,7 +143,7 @@
         "id": "11",
         "title": "Earnings display — server-to-local sync, withdrawal, verify E2E",
         "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
-        "status": "pending",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [
           "10"
@@ -152,7 +152,8 @@
           "tier": 3,
           "needs_spec": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-08T14:39:30.474Z"
       },
       {
         "id": "12",
@@ -503,12 +504,25 @@
         },
         "subtasks": [],
         "updatedAt": "2026-04-07T16:52:57.959Z"
+      },
+      {
+        "id": "39",
+        "title": "[DEFERRED] UGC-style content — make AI content look authentic and drive viral views",
+        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates — this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
+        "status": "deferred",
+        "priority": "medium",
+        "dependencies": [
+          "14"
+        ],
+        "metadata": {},
+        "subtasks": [],
+        "updatedAt": "2026-04-08T14:30:00.000Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-08T13:19:19.395Z",
-      "taskCount": 38,
+      "lastModified": "2026-04-08T14:39:30.475Z",
+      "taskCount": 39,
       "completedCount": 10,
       "tags": [
         "master"

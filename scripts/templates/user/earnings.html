@@ -26,7 +26,7 @@
         </svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value">${{ "%.2f"|format(current_balance) }}</span>
+        <span class="stat-value">${{ "%.2f"|format(available_balance) }}</span>
         <span class="stat-label">Available Balance</span>
       </div>
     </div>
@@ -45,7 +45,7 @@
 
   <!-- Withdraw Section -->
   <div class="earnings-withdraw-row">
-    {% if current_balance >= 10 %}
+    {% if available_balance >= 10 %}
       <button class="btn btn-primary" onclick="document.getElementById('withdraw-modal').style.display='flex'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -186,8 +186,8 @@
         <p>Withdraw your available balance to your linked payment method.</p>
         <div class="modal-amount">
           <span class="modal-amount-label">Amount</span>
-          <input type="number" name="amount" step="0.01" min="10" max="{{ current_balance }}"
-                 value="{{ current_balance }}"
+          <input type="number" name="amount" step="0.01" min="10" max="{{ available_balance }}"
+                 value="{{ available_balance }}"
                  style="font-size: 28px; font-weight: 700; color: var(--success); text-align: center; width: 100%; border: none; background: transparent; outline: none; font-family: inherit;" />
         </div>
       </div>

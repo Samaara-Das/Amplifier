@@ -1314,13 +1314,17 @@ def earnings():
     ctx = _base_context("earnings")
     try:
         from utils.server_client import get_earnings
+        from utils.local_db import sync_earnings_from_server
 
         server_earnings = get_earnings()
+        # Cache to local DB for offline fallback
+        sync_earnings_from_server(server_earnings)
     except Exception as e:
         logger.error("Failed to get server earnings: %s", e)
         server_earnings = {
             "total_earned": 0,
             "current_balance": 0,
+            "available_balance": 0,
             "pending": 0,
             "per_campaign": [],
             "per_platform": {},
@@ -1331,6 +1335,7 @@ def earnings():
         {
             "total_earned": server_earnings.get("total_earned", 0),
             "current_balance": server_earnings.get("current_balance", 0),
+            "available_balance": server_earnings.get("available_balance", 0),
             "pending": server_earnings.get("pending", 0),
             "per_campaign": server_earnings.get("per_campaign", []),
             "per_platform": server_earnings.get("per_platform", {}),

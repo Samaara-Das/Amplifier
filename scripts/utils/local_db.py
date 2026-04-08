@@ -660,6 +660,28 @@ def get_earnings_summary() -> dict:
     }
 
 
+def sync_earnings_from_server(server_data: dict) -> None:
+    """Cache server earnings data into local_earning table.
+
+    Replaces all local earnings with the per-campaign breakdown from the server.
+    Called after fetching from GET /api/users/me/earnings.
+    """
+    conn = _get_db()
+    # Clear existing local earnings and replace with server data
+    conn.execute("DELETE FROM local_earning")
+    for item in server_data.get("per_campaign", []):
+        conn.execute("""
+            INSERT INTO local_earning (campaign_server_id, amount, status, updated_at)
+            VALUES (?, ?, ?, datetime('now'))
+        """, (
+            item.get("campaign_id"),
+            item.get("earned", 0),
+            item.get("status", "pending"),
+        ))
+    conn.commit()
+    conn.close()
+
+
 def get_campaign_earnings() -> list[dict]:
     conn = _get_db()
     rows = conn.execute("""

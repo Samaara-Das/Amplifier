@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -76,8 +76,11 @@ async def get_earnings(
     - per_platform: aggregated from payout breakdown JSON
     - payout_history: withdrawal records (breakdown.withdrawal=true)
     """
-    # ── Pending: estimate from non-final metrics ──────────────────
+    # ── Pending: sum of payouts in 7-day hold ──────────────────────
     pending = await _calculate_pending(db, user.id)
+
+    # ── Available: sum of payouts past the hold period ────────────
+    available = await _calculate_available(db, user.id)
 
     # ── Per-campaign breakdown from payouts ───────────────────────
     per_campaign = await _build_per_campaign(db, user.id)
@@ -91,6 +94,7 @@ async def get_earnings(
     return {
         "total_earned": float(user.total_earned),
         "current_balance": float(user.earnings_balance),
+        "available_balance": available,
         "pending": pending,
         "per_campaign": per_campaign,
         "per_platform": per_platform,
@@ -166,6 +170,21 @@ async def _calculate_pending(db: AsyncSession, user_id: int) -> float:
             and_(
                 Payout.user_id == user_id,
                 Payout.status == "pending",
+                Payout.campaign_id.isnot(None),
+            )
+        )
+    )
+    return round(float(total), 2)
+
+
+async def _calculate_available(db: AsyncSession, user_id: int) -> float:
+    """Sum of available payouts (past the 7-day hold, ready for withdrawal)."""
+    total = await db.scalar(
+        select(func.coalesce(func.sum(Payout.amount), 0))
+        .where(
+            and_(
+                Payout.user_id == user_id,
+                Payout.status == "available",
                 Payout.campaign_id.isnot(None),
             )
         )
