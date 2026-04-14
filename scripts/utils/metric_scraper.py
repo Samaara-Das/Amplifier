@@ -25,6 +25,7 @@ from utils.local_db import (
     update_post_status,
 )
 from utils.server_client import report_metrics, report_post_deleted
+from utils.browser_config import apply_full_screen
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,6 @@ async def _launch_context(pw, platform: str):
     kwargs = dict(
         user_data_dir=str(profile_dir),
         headless=headless,
-        viewport={"width": 1280, "height": 800},
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -109,6 +109,7 @@ async def _launch_context(pw, platform: str):
         ),
         args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
     )
+    apply_full_screen(kwargs, headless=headless)
 
     proxy_url = PLATFORMS.get(platform, {}).get("proxy")
     if proxy_url:

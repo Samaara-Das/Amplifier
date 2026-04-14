@@ -30,6 +30,7 @@ from utils.local_db import (
     get_scraped_profile,
     get_all_scraped_profiles,
 )
+from utils.browser_config import apply_full_screen
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +75,9 @@ async def _launch_context(pw, platform: str) -> BrowserContext:
     kwargs = dict(
         user_data_dir=str(profile_dir),
         headless=use_headless,
-        viewport={"width": 1280, "height": 800},
         args=STEALTH_ARGS,
     )
+    apply_full_screen(kwargs, headless=use_headless)
 
     proxy_url = PLATFORMS.get(platform, {}).get("proxy")
     if proxy_url:

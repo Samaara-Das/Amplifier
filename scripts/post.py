@@ -15,6 +15,8 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from utils.browser_config import apply_full_screen
+
 load_dotenv(ROOT / "config" / ".env")
 os.environ.setdefault("AUTO_POSTER_ROOT", str(ROOT))
 
@@ -139,7 +141,6 @@ async def _launch_context(pw, platform: str):
     kwargs = dict(
         user_data_dir=str(profile_dir),
         headless=headless,
-        viewport={"width": 1280, "height": 800},
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -150,6 +151,7 @@ async def _launch_context(pw, platform: str):
             "--no-sandbox",
         ],
     )
+    apply_full_screen(kwargs, headless=headless)
 
     # Per-platform proxy support (for geo-restricted platforms like TikTok in India)
     proxy_url = PLATFORMS.get(platform, {}).get("proxy")

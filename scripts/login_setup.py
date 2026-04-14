@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+from utils.browser_config import apply_full_screen
 
 
 async def run_login(platform: str) -> None:
@@ -38,7 +40,6 @@ async def run_login(platform: str) -> None:
         kwargs = dict(
             user_data_dir=str(profile_dir),
             headless=False,
-            viewport={"width": 1280, "height": 800},
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -49,6 +50,7 @@ async def run_login(platform: str) -> None:
                 "--no-sandbox",
             ],
         )
+        apply_full_screen(kwargs, headless=False)
         # Proxy support for geo-restricted platforms (e.g. TikTok in India)
         proxy_url = platform_cfg.get("proxy")
         if proxy_url:
