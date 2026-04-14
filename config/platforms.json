@@ -4,7 +4,8 @@
     "compose_url": "https://x.com/compose/post",
     "home_url": "https://x.com/home",
     "timeout_seconds": 30,
-    "enabled": true
+    "enabled": false,
+    "note": "DISABLED 2026-04-14: User blocked twice by X anti-bot detection. Unsafe for amplifier users. Re-enable only when a safe automation method is found."
   },
   "linkedin": {
     "name": "LinkedIn",
