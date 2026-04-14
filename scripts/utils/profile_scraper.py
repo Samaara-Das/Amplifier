@@ -1780,6 +1780,420 @@ async def scrape_linkedin_profile(playwright) -> dict:
     return result
 
 
+# ── Facebook Extras Parsers ──────────────────────────────────────
+
+
+def _parse_facebook_contact_body(body: str) -> dict:
+    """Parse contact info from Facebook about_contact_and_basic_info page.
+
+    Returns dict with nullable fields: phone, email, instagram, websites.
+    """
+    result: dict = {}
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+    full_text = "\n".join(lines)
+
+    # Phone: international or local, at least 8 digits
+    phone_match = re.search(r'(\+?[\d][\d\s\-().]{7,18}\d)', full_text)
+    if phone_match:
+        candidate = phone_match.group(1).strip()
+        # Only accept if it has enough digits (not just a year)
+        digit_count = sum(c.isdigit() for c in candidate)
+        if digit_count >= 8:
+            result["phone"] = candidate
+
+    # Email
+    email_match = re.search(r'[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}', full_text)
+    if email_match:
+        result["email"] = email_match.group(0)
+
+    # Instagram handle — "Instagram\n@handle" or instagram.com/handle
+    ig_match = re.search(r'instagram\.com/([A-Za-z0-9_.]+)', full_text, re.IGNORECASE)
+    if not ig_match:
+        ig_match = re.search(r'Instagram\s*\n\s*@?([A-Za-z0-9_.]{2,30})', full_text, re.IGNORECASE)
+    if ig_match:
+        result["instagram"] = ig_match.group(1)
+
+    # Websites: http/https URLs, excluding facebook.com and instagram.com
+    website_matches = re.findall(r'https?://[^\s<>"\)]{4,100}', full_text)
+    websites = [
+        url.rstrip(".,;)")
+        for url in website_matches
+        if "facebook.com" not in url and "instagram.com" not in url
+    ]
+    if websites:
+        result["websites"] = websites[:5]
+
+    return result
+
+
+def _parse_facebook_reels_body(body: str) -> list:
+    """Parse reel view counts from Facebook Reels tab page body.
+
+    Returns list of dicts with {view_count}. Capped at 10.
+    """
+    reels = []
+    # Look for number patterns followed by "views" or "view" on nearby line
+    # Facebook shows: "1.2K views", "45K views", "1M views"
+    view_matches = re.findall(
+        r'([\d,.]+\s*[KkMm]?)\s*views?',
+        body,
+        re.IGNORECASE,
+    )
+    for raw in view_matches[:10]:
+        count = _parse_number(raw.strip())
+        if count > 0:
+            reels.append({"view_count": count})
+    return reels
+
+
+def _parse_facebook_likes_body(body: str) -> list:
+    """Parse liked pages from Facebook Likes page body.
+
+    Returns list of {name, category}. Capped at 10 per category, 30 total.
+    """
+    likes = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    CATEGORY_MAP = {
+        "all likes": "all_likes",
+        "tv shows": "tv_shows",
+        "artists": "artists",
+        "sports teams": "sports_teams",
+        "athletes": "athletes",
+        "apps and games": "apps_and_games",
+        "books": "books",
+        "music": "music",
+        "movies": "movies",
+        "restaurants": "restaurants",
+        "other": "other",
+    }
+    CATEGORY_HEADINGS = set(CATEGORY_MAP.keys())
+
+    NOISE = {
+        "likes", "like", "edit", "save", "cancel", "back", "show all",
+        "see more", "see less", "skip to main", "facebook", "home",
+        "notifications", "liked", "unlike", "add", "all",
+    }
+    NUMBER_RE = re.compile(r'^[\d,]+$')
+    COUNT_RE = re.compile(r'^[\d,\.]+[KkMm]?\s*(likes?|followers?|fans?)', re.IGNORECASE)
+
+    # Detect tab-navigation block (3+ category headings within 8 lines)
+    heading_positions = [i for i, l in enumerate(lines) if l.lower() in CATEGORY_HEADINGS]
+    tab_block_end = -1
+    for i in range(len(heading_positions)):
+        start = heading_positions[i]
+        window = [p for p in heading_positions if start <= p <= start + 8]
+        if len(window) >= 3:
+            tab_block_end = window[-1]
+            break
+
+    active_category = "all_likes"
+    start_idx = tab_block_end + 1 if tab_block_end >= 0 else 0
+    counts: dict = {}
+
+    for i in range(start_idx, len(lines)):
+        line = lines[i]
+        low = line.lower()
+
+        if low in CATEGORY_HEADINGS and i > tab_block_end:
+            active_category = CATEGORY_MAP[low]
+            counts.setdefault(active_category, 0)
+            continue
+
+        if low in NOISE or COUNT_RE.match(line) or NUMBER_RE.match(line):
+            continue
+        if len(line) < 3:
+            continue
+
+        counts.setdefault(active_category, 0)
+        if counts[active_category] >= 10:
+            continue
+        if len(likes) >= 30:
+            break
+
+        likes.append({"name": line, "category": active_category})
+        counts[active_category] += 1
+
+    return likes
+
+
+def _parse_facebook_checkins_body(body: str) -> list:
+    """Parse check-ins (places visited) from Facebook places_visited page.
+
+    Returns list of {location, date}. Capped at 10.
+    """
+    checkins = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    NOISE = {
+        "places you've been", "places visited", "check-ins", "check in",
+        "facebook", "edit", "see more", "see less", "add", "home",
+        "notifications",
+    }
+    # Date patterns: "January 2023", "March 15, 2022", "2022", etc.
+    DATE_RE = re.compile(
+        r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
+        r'Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|'
+        r'Dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?|\d{4}',
+        re.IGNORECASE,
+    )
+    NUMBER_RE = re.compile(r'^[\d,]+$')
+
+    i = 0
+    while i < len(lines) and len(checkins) < 10:
+        line = lines[i]
+        low = line.lower()
+        if low in NOISE or NUMBER_RE.match(line) or len(line) < 3:
+            i += 1
+            continue
+
+        # Check if next line is a date
+        date_str = None
+        if i + 1 < len(lines) and DATE_RE.search(lines[i + 1]):
+            date_str = lines[i + 1]
+            i += 2
+        elif DATE_RE.search(line):
+            # Date embedded in same line — skip (it's a label not a place)
+            i += 1
+            continue
+        else:
+            i += 1
+
+        # Must look like a place name (capitalised, not all-caps noise)
+        if len(line) >= 3 and not line.isupper():
+            checkins.append({"location": line, "date": date_str})
+
+    return checkins
+
+
+def _parse_facebook_events_body(body: str) -> list:
+    """Parse attended events from Facebook events page.
+
+    Returns list of event name strings. Capped at 10.
+    """
+    events = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    NOISE = {
+        "events", "event", "facebook", "edit", "see more", "see less",
+        "interested", "going", "not going", "maybe", "home", "notifications",
+        "upcoming events", "past events", "declined events", "hosting",
+        "explore events",
+    }
+    DATE_RE = re.compile(
+        r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)|'
+        r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|'
+        r'Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|'
+        r'Dec(?:ember)?)|'
+        r'\d{1,2}(?::\d{2})?\s*(?:AM|PM)',
+        re.IGNORECASE,
+    )
+    NUMBER_RE = re.compile(r'^[\d,]+$')
+
+    for line in lines:
+        if len(events) >= 10:
+            break
+        low = line.lower()
+        if low in NOISE or NUMBER_RE.match(line) or len(line) < 5:
+            continue
+        # Skip lines that look like date/time strings
+        if DATE_RE.search(line) and len(line) < 30:
+            continue
+        events.append(line)
+
+    return events
+
+
+def _parse_facebook_reviews_body(body: str) -> list:
+    """Parse reviews given from Facebook reviews page.
+
+    Returns list of {business_or_page, rating, snippet}. Capped at 10.
+    """
+    reviews = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    NOISE = {
+        "reviews", "review", "facebook", "edit", "see more", "see less",
+        "home", "notifications", "your reviews", "reviews you've given",
+        "all reviews",
+    }
+    STAR_RE = re.compile(r'(\d)\s*(?:star|Star|STAR|★|out of 5)', re.IGNORECASE)
+    NUMBER_RE = re.compile(r'^[\d,]+$')
+
+    i = 0
+    while i < len(lines) and len(reviews) < 10:
+        line = lines[i]
+        low = line.lower()
+        if low in NOISE or NUMBER_RE.match(line) or len(line) < 3:
+            i += 1
+            continue
+
+        # Look for a star rating on this or the next line
+        rating = None
+        star_match = STAR_RE.search(line)
+        if star_match:
+            rating = int(star_match.group(1))
+            i += 1
+            continue  # This line is the rating, not the business name
+
+        # Next line might have a rating
+        if i + 1 < len(lines):
+            next_star = STAR_RE.search(lines[i + 1])
+            if next_star:
+                rating = int(next_star.group(1))
+
+        # Collect snippet from lines after the rating
+        snippet_lines = []
+        j = i + (2 if rating is not None else 1)
+        while j < len(lines) and len(snippet_lines) < 3:
+            sline = lines[j]
+            if sline.lower() in NOISE or len(sline) < 3:
+                break
+            if STAR_RE.search(sline):
+                break
+            snippet_lines.append(sline)
+            j += 1
+
+        reviews.append({
+            "business_or_page": line,
+            "rating": rating,
+            "snippet": " ".join(snippet_lines)[:200] or None,
+        })
+        i = j
+
+    return reviews
+
+
+async def _scrape_facebook_extras(page, profile_url: str) -> dict:
+    """Navigate Facebook sub-tabs and return extracted supplementary data.
+
+    Args:
+        page: Playwright page with an active Facebook session.
+        profile_url: Resolved profile URL (vanity or profile.php numeric form).
+
+    Returns dict with keys: contact_info, reels, likes, checkins, events, reviews.
+    Each value is an empty list/dict if section doesn't exist or fails.
+    """
+    extras: dict = {
+        "contact_info": {},
+        "reels": [],
+        "likes": [],
+        "checkins": [],
+        "events": [],
+        "reviews": [],
+    }
+
+    # Build URL helper — ?sk= works on both vanity and numeric profile URLs
+    base = profile_url.split("?")[0].rstrip("/")
+    profile_id_match = re.search(r'[?&]id=(\d+)', profile_url)
+    if "profile.php" in base and profile_id_match:
+        profile_id = profile_id_match.group(1)
+        def build_url(sk: str) -> str:
+            return f"https://www.facebook.com/profile.php?id={profile_id}&sk={sk}"
+    else:
+        def build_url(sk: str) -> str:
+            return f"{base}?sk={sk}"
+
+    async def _fetch_and_parse(sk: str, parser, label: str):
+        url = build_url(sk)
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=18000)
+            await page.wait_for_timeout(4500)
+            # One scroll to trigger lazy-loaded content
+            await page.mouse.wheel(0, 600)
+            await page.wait_for_timeout(1500)
+            body = await page.inner_text("body")
+            return parser(body)
+        except Exception as e:
+            logger.warning("Facebook extras: failed to fetch sk=%s: %s", sk, e)
+            return {} if label == "contact_info" else []
+
+    # Contact info
+    try:
+        extras["contact_info"] = await _fetch_and_parse(
+            "about_contact_and_basic_info",
+            _parse_facebook_contact_body,
+            "contact_info",
+        )
+        logger.info("Facebook extras: contact_info keys=%s", list(extras["contact_info"].keys()))
+    except Exception as e:
+        logger.warning("Facebook extras: contact_info failed: %s", e)
+
+    # Reels
+    try:
+        extras["reels"] = await _fetch_and_parse(
+            "reels_tab",
+            _parse_facebook_reels_body,
+            "reels",
+        )
+        logger.info("Facebook extras: reels=%d", len(extras["reels"]))
+    except Exception as e:
+        logger.warning("Facebook extras: reels failed: %s", e)
+
+    # Likes
+    try:
+        extras["likes"] = await _fetch_and_parse(
+            "likes",
+            _parse_facebook_likes_body,
+            "likes",
+        )
+        logger.info("Facebook extras: likes=%d", len(extras["likes"]))
+    except Exception as e:
+        logger.warning("Facebook extras: likes failed: %s", e)
+
+    # Check-ins
+    try:
+        extras["checkins"] = await _fetch_and_parse(
+            "places_visited",
+            _parse_facebook_checkins_body,
+            "checkins",
+        )
+        logger.info("Facebook extras: checkins=%d", len(extras["checkins"]))
+    except Exception as e:
+        logger.warning("Facebook extras: checkins failed: %s", e)
+
+    # Events
+    try:
+        extras["events"] = await _fetch_and_parse(
+            "events",
+            _parse_facebook_events_body,
+            "events",
+        )
+        logger.info("Facebook extras: events=%d", len(extras["events"]))
+    except Exception as e:
+        logger.warning("Facebook extras: events failed: %s", e)
+
+    # Reviews
+    try:
+        extras["reviews"] = await _fetch_and_parse(
+            "reviews_given",
+            _parse_facebook_reviews_body,
+            "reviews",
+        )
+        logger.info("Facebook extras: reviews=%d", len(extras["reviews"]))
+    except Exception as e:
+        logger.warning("Facebook extras: reviews failed: %s", e)
+
+    return extras
+
+
+def _merge_facebook_extras(ai_result: dict, extras: dict) -> dict:
+    """Merge extras dict into ai_result's profile_data. Returns updated ai_result."""
+    pd = ai_result.get("profile_data") or {}
+    if not isinstance(pd, dict):
+        pd = {}
+    for key, value in extras.items():
+        if value and not pd.get(key):
+            pd[key] = value
+    if pd:
+        ai_result["profile_data"] = pd
+    logger.info(
+        "Facebook: supplemented profile_data with extras: %s",
+        {k: len(v) if isinstance(v, (list, dict)) else v for k, v in extras.items() if v},
+    )
+    return ai_result
+
+
 # ── Facebook Profile Scraper ─────────────────────────────────────
 
 
@@ -1848,6 +2262,14 @@ async def scrape_facebook_profile(playwright) -> dict:
                             ai_result["username"] = f"fb_{id_match.group(1)}"
                             logger.info("Facebook: username from URL (id): %s", ai_result["username"])
 
+                # Supplement with Facebook extras (contact, reels, likes, checkins, events, reviews)
+                try:
+                    _fb_extras_url = page.url
+                    extras = await _scrape_facebook_extras(page, _fb_extras_url)
+                    ai_result = _merge_facebook_extras(ai_result, extras)
+                except Exception as _fb_extras_err:
+                    logger.warning("Facebook: extras supplement failed (Tier 1): %s", _fb_extras_err)
+
                 await context.close()
                 return ai_result
 
@@ -1856,12 +2278,21 @@ async def scrape_facebook_profile(playwright) -> dict:
                 vision_result = await ai_scrape_profile("facebook", page)
                 if vision_result and not is_missing_key_fields(vision_result):
                     logger.info("Facebook: Tier 3 (screenshot) extraction succeeded")
+                    # Supplement with Facebook extras
+                    try:
+                        _fb_extras_url = page.url
+                        extras = await _scrape_facebook_extras(page, _fb_extras_url)
+                        vision_result = _merge_facebook_extras(vision_result, extras)
+                    except Exception as _fb_extras_err:
+                        logger.warning("Facebook: extras supplement failed (Tier 3): %s", _fb_extras_err)
                     await context.close()
                     return vision_result
         except Exception as e:
             logger.warning("Facebook: AI pipeline failed, falling back to CSS: %s", e)
 
         # Tier 2: CSS selectors (fallback)
+        # Capture the resolved profile URL now — About tab navigation will change page.url later
+        _css_profile_url_base = page.url
 
         # Extract display name — skip hidden h1 elements (e.g. "Notifications")
         h1_elements = page.locator('h1')
@@ -2114,6 +2545,24 @@ async def scrape_facebook_profile(playwright) -> dict:
 
         if posts:
             result["posting_frequency"] = round(len(posts) / 30, 2)
+
+        # Supplement with Facebook extras (contact, reels, likes, checkins, events, reviews)
+        try:
+            extras = await _scrape_facebook_extras(page, _css_profile_url_base)
+            pd = result.get("personal_details") or {}
+            if not isinstance(pd, dict):
+                pd = {}
+            for key, value in extras.items():
+                if value and not pd.get(key):
+                    pd[key] = value
+            if pd:
+                result["personal_details"] = pd
+            logger.info(
+                "Facebook: supplemented personal_details with extras (CSS path): %s",
+                {k: len(v) if isinstance(v, (list, dict)) else v for k, v in extras.items() if v},
+            )
+        except Exception as _fb_extras_err:
+            logger.warning("Facebook: extras supplement failed (CSS): %s", _fb_extras_err)
 
     except Exception as e:
         logger.error("Facebook: scraping failed: %s", e)
