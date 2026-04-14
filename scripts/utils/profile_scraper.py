@@ -1635,22 +1635,17 @@ async def scrape_reddit_profile(playwright) -> dict:
             await page.wait_for_timeout(2000)
 
             ai_result = await ai_scrape_profile_from_text("reddit", page, collected_text)
-            # Reddit may not show follower count — accept karma as valid
-            if ai_result:
-                karma = (ai_result.get("profile_data") or {}).get("karma", 0)
-                has_key = ai_result.get("display_name") and (
-                    ai_result.get("follower_count", 0) > 0 or karma > 0
-                )
-                if has_key:
-                    logger.info("Reddit: Tier 1 (text) extraction succeeded")
-                    await context.close()
-                    return ai_result
+            # Use shared lenient check — accepts posts/niches/bio as valid data
+            # even when follower_count is 0 (common for Reddit accounts)
+            if ai_result and not is_missing_key_fields(ai_result):
+                logger.info("Reddit: Tier 1 (text) extraction succeeded")
+                await context.close()
+                return ai_result
 
-            logger.info("Reddit: Tier 1 missing key fields, escalating to Tier 3")
-            vision_result = await ai_scrape_profile("reddit", page)
-            if vision_result:
-                v_karma = (vision_result.get("profile_data") or {}).get("karma", 0)
-                if vision_result.get("follower_count", 0) > 0 or v_karma > 0:
+            if is_missing_key_fields(ai_result):
+                logger.info("Reddit: Tier 1 missing key fields, escalating to Tier 3")
+                vision_result = await ai_scrape_profile("reddit", page)
+                if vision_result and not is_missing_key_fields(vision_result):
                     logger.info("Reddit: Tier 3 (screenshot) extraction succeeded")
                     await context.close()
                     return vision_result
