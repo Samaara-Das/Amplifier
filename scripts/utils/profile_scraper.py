@@ -2178,12 +2178,27 @@ def sync_profiles_to_server() -> dict | None:
 
         scraped_summary[platform] = summary
 
+    # Aggregate AI-detected niches from all platforms into a flat set.
+    # matching.py's fallback niche-overlap scoring reads user.ai_detected_niches
+    # (top-level). Without this, fallback scoring sees an empty set even when
+    # each platform has niches populated.
+    aggregated_niches = []
+    seen = set()
+    for summary in scraped_summary.values():
+        for niche in (summary.get("ai_detected_niches") or []):
+            n = str(niche).strip().lower()
+            if n and n not in seen:
+                seen.add(n)
+                aggregated_niches.append(n)
+
     try:
         result = update_profile(
             follower_counts=follower_counts,
             scraped_profiles=scraped_summary,
+            ai_detected_niches=aggregated_niches if aggregated_niches else None,
         )
-        logger.info("Synced profile data to server for %d platform(s)", len(profiles))
+        logger.info("Synced profile data to server for %d platform(s), %d aggregated niches",
+                    len(profiles), len(aggregated_niches))
         return result
     except Exception as e:
         logger.error("Failed to sync profiles to server: %s", e)
