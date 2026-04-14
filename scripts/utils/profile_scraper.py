@@ -2695,6 +2695,7 @@ async def scrape_reddit_profile(playwright) -> dict:
         "reddit_age": None,
         "active_communities": 0,
         "cake_day": None,
+        "profile_privacy": "public",  # "public" or "private"
     }
 
     context = None
@@ -2707,12 +2708,37 @@ async def scrape_reddit_profile(playwright) -> dict:
         await page.goto(RD_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(3000)
 
+        # Detect private profile — Reddit shows a specific phrase when a user
+        # has hidden their posts. Per spec: mark profile_privacy="private" and
+        # extract only sidebar stats (skip tab navigation to Posts/Comments).
+        PRIVATE_PHRASES = [
+            "likes to keep their posts hidden",
+            "keep my posts hidden",
+            "this user's profile is private",
+        ]
+        try:
+            initial_body = await page.inner_text("body", timeout=5000)
+            initial_body_lower = initial_body.lower()
+            if any(p in initial_body_lower for p in PRIVATE_PHRASES):
+                result["profile_privacy"] = "private"
+                logger.info("Reddit: private profile detected — skipping Posts/Comments tabs")
+        except Exception:
+            pass
+
         # ── 3-Tier Pipeline ──
         try:
             from utils.ai_profile_scraper import (
                 ai_scrape_profile_from_text, ai_scrape_profile, is_missing_key_fields,
             )
-            collected_text = await _navigate_tabs_and_collect_text(page, "reddit")
+            # For private profiles, skip tab navigation (no Posts/Comments to collect).
+            # Just use the Overview page text which has sidebar stats.
+            if result["profile_privacy"] == "private":
+                try:
+                    collected_text = await page.inner_text("body", timeout=10000)
+                except Exception:
+                    collected_text = ""
+            else:
+                collected_text = await _navigate_tabs_and_collect_text(page, "reddit")
             # Navigate back to overview for CSS fallback
             await page.goto(RD_PROFILE_URL, wait_until="domcontentloaded", timeout=15000)
             await page.wait_for_timeout(2000)
@@ -2762,6 +2788,9 @@ async def scrape_reddit_profile(playwright) -> dict:
                 except Exception as e:
                     logger.warning("Reddit: profile_data supplement failed: %s", e)
 
+                # Propagate profile_privacy flag (always set — "public" or "private")
+                ai_result["profile_privacy"] = result.get("profile_privacy", "public")
+
                 await context.close()
                 return ai_result
 
@@ -2770,6 +2799,7 @@ async def scrape_reddit_profile(playwright) -> dict:
                 vision_result = await ai_scrape_profile("reddit", page)
                 if vision_result and not is_missing_key_fields(vision_result):
                     logger.info("Reddit: Tier 3 (screenshot) extraction succeeded")
+                    vision_result["profile_privacy"] = result.get("profile_privacy", "public")
                     await context.close()
                     return vision_result
         except Exception as e:
@@ -2841,11 +2871,19 @@ async def scrape_reddit_profile(playwright) -> dict:
         if pic_url:
             result["profile_pic_url"] = pic_url
 
-        # Scrape recent posts — prefer shreddit-post attributes (most reliable)
+        # Scrape recent posts — prefer shreddit-post attributes (most reliable).
+        # Skip entirely for private profiles (no posts visible).
         posts = []
         seen_titles = set()
 
-        for scroll_round in range(8):
+        if result.get("profile_privacy") == "private":
+            logger.info("Reddit: private profile — skipping post scrape")
+            # Jump past the post scraping loop using a no-op range
+            scroll_rounds = 0
+        else:
+            scroll_rounds = 8
+
+        for scroll_round in range(scroll_rounds):
             # shreddit-post elements have score, comment-count, post-title, permalink as attributes
             shreddit_posts = page.locator('shreddit-post')
             sp_count = await shreddit_posts.count()
