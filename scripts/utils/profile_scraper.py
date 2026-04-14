@@ -1874,8 +1874,16 @@ def _parse_facebook_likes_body(body: str) -> list:
         "see more", "see less", "skip to main", "facebook", "home",
         "notifications", "liked", "unlike", "add", "all",
     }
+    # STOP_SECTIONS: other Facebook profile sections that may appear AFTER
+    # the Likes content. When we hit one, stop parsing — subsequent content
+    # belongs to a different section and shouldn't be treated as likes.
+    STOP_SECTIONS = {
+        "groups", "photos", "friends", "about", "reels", "videos", "posts",
+        "check-ins", "check ins", "reviews", "events", "music",
+        "more", "public", "private",
+    }
     NUMBER_RE = re.compile(r'^[\d,]+$')
-    COUNT_RE = re.compile(r'^[\d,\.]+[KkMm]?\s*(likes?|followers?|fans?)', re.IGNORECASE)
+    COUNT_RE = re.compile(r'^[\d,\.]+[KkMm]?\s*(likes?|followers?|fans?|members?)', re.IGNORECASE)
 
     # Detect tab-navigation block (3+ category headings within 8 lines)
     heading_positions = [i for i, l in enumerate(lines) if l.lower() in CATEGORY_HEADINGS]
@@ -1899,6 +1907,11 @@ def _parse_facebook_likes_body(body: str) -> list:
             active_category = CATEGORY_MAP[low]
             counts.setdefault(active_category, 0)
             continue
+
+        # Stop when we hit a non-likes section heading (e.g., "Groups")
+        # We've moved past the Likes content into a different profile section.
+        if low in STOP_SECTIONS and low not in CATEGORY_HEADINGS:
+            break
 
         if low in NOISE or COUNT_RE.match(line) or NUMBER_RE.match(line):
             continue
@@ -2094,6 +2107,18 @@ async def _scrape_facebook_extras(page, profile_url: str) -> dict:
         def build_url(sk: str) -> str:
             return f"{base}?sk={sk}"
 
+    # Section-specific anchor phrases. If the body doesn't contain at least
+    # ONE of these phrases (case-insensitive), the section likely doesn't
+    # exist on this profile and Facebook is showing default profile content.
+    SECTION_ANCHORS = {
+        "about_contact_and_basic_info": ["contact info", "basic info", "email", "mobile"],
+        "reels_tab": ["reels", "no reels yet"],
+        "likes": ["all likes", "pages liked", "no likes to show", "likes · "],
+        "places_visited": ["places", "check-in", "map", "no check-ins"],
+        "events": ["events", "past events", "upcoming events", "no events"],
+        "reviews_given": ["reviews", "rated", "no reviews", "review"],
+    }
+
     async def _fetch_and_parse(sk: str, parser, label: str):
         url = build_url(sk)
         try:
@@ -2102,7 +2127,68 @@ async def _scrape_facebook_extras(page, profile_url: str) -> dict:
             # One scroll to trigger lazy-loaded content
             await page.mouse.wheel(0, 600)
             await page.wait_for_timeout(1500)
+
+            # Detect redirect to main profile (Facebook redirects when the
+            # section doesn't exist on a profile). If page.url no longer
+            # contains our sk param, the section is unavailable.
+            current_url = page.url
+            logger.info("Facebook extras: sk=%s landed at %s", sk, current_url[:100])
+            if f"sk={sk}" not in current_url and sk not in current_url:
+                logger.info("Facebook extras: sk=%s redirected, skipping", sk)
+                return {} if label == "contact_info" else []
+
             body = await page.inner_text("body")
+            body_lower = body.lower()
+
+            # Detect default profile fallback: when a section doesn't exist,
+            # Facebook often silently shows the main profile page content
+            # (with friend recommendations, "Add cover photo", etc.) while
+            # keeping the ?sk= URL. Detect this by checking for main-profile
+            # chrome markers that wouldn't appear on a real section page.
+            DEFAULT_PROFILE_MARKERS = [
+                "people you may know",
+                "add to story",
+                "add cover photo",
+                "edit profile",
+            ]
+            default_marker_count = sum(1 for m in DEFAULT_PROFILE_MARKERS if m in body_lower)
+            # If 2+ default-profile markers present AND no section-specific
+            # strong markers, it's the main profile fallback
+            if default_marker_count >= 2:
+                anchors = SECTION_ANCHORS.get(sk, [])
+                # Need a section-specific anchor STRONGER than the default markers
+                STRONG_ANCHORS = {
+                    "about_contact_and_basic_info": ["contact info", "basic info", "mobile phone"],
+                    "reels_tab": ["reels · ", "reels by ", "no reels yet"],
+                    "likes": ["all likes", "pages liked", "music · ", "tv shows · ", "movies · ", "books · "],
+                    "places_visited": ["places visited", "check-ins", "map of"],
+                    "events": ["past events", "upcoming events", "events attended", "hosting"],
+                    "reviews_given": ["reviews given", "reviews · ", "has reviewed"],
+                }
+                strong = STRONG_ANCHORS.get(sk, [])
+                if strong and not any(s in body_lower for s in strong):
+                    logger.info("Facebook extras: sk=%s showing default profile fallback (no strong anchor)", sk)
+                    return {} if label == "contact_info" else []
+
+            # Validate section exists by checking for anchor phrases
+            anchors = SECTION_ANCHORS.get(sk, [])
+            if anchors and not any(a in body_lower for a in anchors):
+                logger.info("Facebook extras: sk=%s has no anchor phrase, skipping", sk)
+                return {} if label == "contact_info" else []
+
+            # Detect "no content" phrases — Facebook's empty-state indicators
+            NO_CONTENT_PHRASES = [
+                "no reels yet", "nothing to show",
+                "no places to show", "no check-ins",
+                "no events yet", "no events to show",
+                "no activity to show", "no reviews yet",
+                "no likes to show", "hasn't liked", "haven't added",
+                "not visible", "hasn't posted",
+            ]
+            if any(p in body_lower for p in NO_CONTENT_PHRASES):
+                logger.info("Facebook extras: sk=%s shows empty-state content", sk)
+                return {} if label == "contact_info" else []
+
             return parser(body)
         except Exception as e:
             logger.warning("Facebook extras: failed to fetch sk=%s: %s", sk, e)
