@@ -823,6 +823,303 @@ def _parse_linkedin_education_body(body: str) -> list[dict]:
     return schools
 
 
+def _parse_linkedin_featured_body(body: str) -> list[dict]:
+    """Parse featured items from LinkedIn /details/featured/ page body text.
+
+    Supports two formats:
+    1. Post-style (with engagement):
+        <Post title>
+        <preview>
+        N reactions · N comments
+    2. Link-style (featured external links, no engagement):
+        Link
+        <Title>
+        <Source>       (optional, e.g., "TradingView", "GitHub")
+        <Description>  (optional)
+
+    Returns list of {title, type, source, reactions, comments}.
+    """
+    items = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    NOISE = {
+        "featured", "add featured", "edit", "delete", "save", "cancel", "back",
+        "show all", "see more", "see less", "skip to main", "linkedin",
+        "home", "my network", "jobs", "messaging", "notifications",
+        "for business", "me",
+    }
+
+    REACTIONS_RE = re.compile(r'^([\d,]+)\s*reactions?', re.IGNORECASE)
+    COMMENTS_RE = re.compile(r'([\d,]+)\s*comments?', re.IGNORECASE)
+    seen_titles = set()
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        low = line.lower()
+
+        # Link-style entry: "Link" marker → next non-noise line is title
+        if low == "link":
+            # Find next non-noise line for title
+            j = i + 1
+            title = None
+            while j < len(lines) and j < i + 4:
+                cand = lines[j]
+                clow = cand.lower()
+                if clow in NOISE or len(cand) < 2:
+                    j += 1
+                    continue
+                if clow == "link":
+                    break
+                title = cand
+                break
+            if title and title not in seen_titles:
+                # Source is the next short line (e.g., "TradingView", "GitHub")
+                source = None
+                k = j + 1
+                while k < len(lines) and k < j + 3:
+                    cand = lines[k]
+                    clow = cand.lower()
+                    if clow in NOISE or clow == "link":
+                        break
+                    if len(cand) <= 40:  # Short line = likely source
+                        source = cand
+                        break
+                    break  # Long line = description, stop
+                items.append({
+                    "title": title,
+                    "type": "link",
+                    "source": source,
+                    "reactions": 0,
+                    "comments": 0,
+                })
+                seen_titles.add(title)
+            i = j + 1
+            continue
+
+        # Post-style entry: anchored on "N reactions"
+        m = REACTIONS_RE.match(line)
+        if m:
+            reactions = _parse_number(m.group(1))
+            comments = 0
+            cm = COMMENTS_RE.search(line)
+            if cm:
+                comments = _parse_number(cm.group(1))
+            else:
+                for adj in range(max(0, i - 1), min(len(lines), i + 2)):
+                    if adj == i:
+                        continue
+                    ca = COMMENTS_RE.search(lines[adj])
+                    if ca:
+                        comments = _parse_number(ca.group(1))
+                        break
+
+            # Title is 1-4 lines above
+            title = None
+            candidates = []
+            for back in range(1, 5):
+                if i - back < 0:
+                    break
+                candidate = lines[i - back]
+                clow = candidate.lower()
+                if clow in NOISE:
+                    continue
+                if REACTIONS_RE.match(candidate) or COMMENTS_RE.search(candidate):
+                    break
+                if re.match(r'^\d+[hdwmo]|^\d+yr', candidate):
+                    continue
+                if len(candidate) < 4:
+                    continue
+                candidates.append(candidate)
+            if candidates:
+                title = candidates[-1]
+
+            if title and title not in seen_titles:
+                items.append({
+                    "title": title,
+                    "type": "post",
+                    "source": None,
+                    "reactions": reactions,
+                    "comments": comments,
+                })
+                seen_titles.add(title)
+
+        i += 1
+
+    return items
+
+
+def _parse_linkedin_honors_body(body: str) -> list[dict]:
+    """Parse honors/awards from LinkedIn /details/honors/ page body text.
+
+    Body structure (approximate):
+        Honors & awards
+        <Award name>
+        Issued by <Issuer> · <Date>
+        <Description lines>
+        <Award name 2>
+        ...
+
+    We use "Issued by" lines as anchors; award name is the line immediately before.
+    """
+    awards = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    NOISE = {
+        "honors & awards", "honors and awards", "honors", "awards",
+        "add honors", "edit", "save", "cancel", "back",
+        "show all", "see more", "see less", "skip to main", "linkedin",
+        "home", "my network", "jobs", "messaging", "notifications",
+    }
+
+    ISSUED_RE = re.compile(r'^issued\s+by\s+(.+)', re.IGNORECASE)
+
+    for i, line in enumerate(lines):
+        m = ISSUED_RE.match(line)
+        if not m:
+            continue
+
+        issuer_part = m.group(1).strip()
+        issuer = issuer_part
+        issue_date = None
+
+        # "Issuer · Date" or "Issuer · Month YYYY"
+        if "·" in issuer_part:
+            parts = [p.strip() for p in issuer_part.split("·", 1)]
+            issuer = parts[0]
+            issue_date = parts[1] if len(parts) > 1 else None
+
+        # Award name is the closest non-noise line above
+        award_name = None
+        for back in range(1, 4):
+            if i - back < 0:
+                break
+            candidate = lines[i - back]
+            if candidate.lower() in NOISE or len(candidate) < 3:
+                continue
+            award_name = candidate
+            break
+
+        if award_name or issuer:
+            awards.append({
+                "award_name": award_name,
+                "issuer": issuer,
+                "issue_date": issue_date,
+            })
+
+    return awards
+
+
+def _parse_linkedin_interests_body(body: str) -> list[dict]:
+    """Parse interests from LinkedIn /details/interests/ page body text.
+
+    The Interests detail page has 5 tabs: Top Voices, Companies, Groups,
+    Newsletters, Schools. When the page loads, ALL 5 tab names appear
+    consecutively as navigation, then the ACTIVE tab's content follows.
+    The active tab is typically "Top Voices" (default).
+
+    To avoid misclassifying entries, detect the tab-navigation block (3+ tab
+    names within 6 consecutive non-noise lines) and treat content after it
+    as the default category ("top_voice").
+
+    Returns list of {name, category}. Capped at 10 per category.
+    """
+    interests = []
+    lines = [l.strip() for l in body.split("\n") if l.strip()]
+
+    CATEGORY_MAP = {
+        "top voices": "top_voice",
+        "companies": "company",
+        "groups": "group",
+        "newsletters": "newsletter",
+        "schools": "school",
+    }
+    CATEGORY_HEADINGS = set(CATEGORY_MAP.keys())
+
+    NOISE = {
+        "interests", "add interests", "edit", "save", "cancel", "back",
+        "show all", "see more", "see less", "skip to main", "linkedin",
+        "home", "my network", "jobs", "messaging", "notifications",
+        "follow", "following", "unfollow", "join", "joined", "subscribe",
+        "view", "private to you", "for business", "me",
+    }
+    COUNT_RE = re.compile(r'^[\d,\.]+[KkMm]?\s*(followers?|members?|subscribers?)', re.IGNORECASE)
+    NUMBER_RE = re.compile(r'^[\d,]+$')
+    CONNECTION_RE = re.compile(r'^·\s*\d+(?:st|nd|rd|th)?\+?$|^\d+(?:st|nd|rd|th)?\+?$', re.IGNORECASE)
+
+    # Step 1: Detect tab-navigation block. If 3+ CATEGORY_HEADINGS appear
+    # within a 6-line window, those lines are tabs (not category markers).
+    tab_block_end = -1
+    heading_positions = [i for i, l in enumerate(lines) if l.lower() in CATEGORY_HEADINGS]
+    for i in range(len(heading_positions)):
+        # Count headings within the next 6 positions starting from heading_positions[i]
+        start = heading_positions[i]
+        window_headings = [p for p in heading_positions if start <= p <= start + 8]
+        if len(window_headings) >= 3:
+            tab_block_end = window_headings[-1]
+            break
+
+    # Determine active category: default to "top_voice" if tab block detected
+    active_category = "top_voice" if tab_block_end >= 0 else None
+
+    # Step 2: Walk lines AFTER the tab block (or from start if no tab block)
+    start_idx = tab_block_end + 1 if tab_block_end >= 0 else 0
+    counts: dict[str, int] = {}
+    i = start_idx
+    skip_next_short = False  # Track if we just added a name (skip the "· 3rd" connection line)
+
+    while i < len(lines):
+        line = lines[i]
+        low = line.lower()
+
+        # If we encounter a category heading OUTSIDE the tab block, switch category
+        if low in CATEGORY_HEADINGS and i > tab_block_end:
+            active_category = CATEGORY_MAP[low]
+            counts.setdefault(active_category, 0)
+            i += 1
+            continue
+
+        if active_category is None or low in NOISE:
+            i += 1
+            continue
+        if COUNT_RE.match(line) or NUMBER_RE.match(line):
+            i += 1
+            continue
+        if CONNECTION_RE.match(line):
+            i += 1
+            continue
+        if len(line) < 3:
+            i += 1
+            continue
+
+        # Skip title/description lines — they typically contain commas,
+        # job-title keywords, or are long-form descriptions.
+        # Real names (top voices, companies, schools) are short and clean.
+        if active_category == "top_voice":
+            # Names are typically <= 40 chars, no commas, no job title keywords
+            JOB_KEYWORDS = re.compile(
+                r'\b(ceo|cto|cfo|coo|founder|co-founder|president|chairman|'
+                r'chief|director|manager|partner|vp|head\s+of|owner)\b',
+                re.IGNORECASE,
+            )
+            if len(line) > 40 or "," in line or JOB_KEYWORDS.search(line):
+                i += 1
+                continue
+        elif len(line) > 80:
+            # For other categories, skip very long lines (likely descriptions)
+            i += 1
+            continue
+
+        # This line is a candidate name
+        if counts.get(active_category, 0) < 10:
+            interests.append({"name": line, "category": active_category})
+            counts[active_category] = counts.get(active_category, 0) + 1
+
+        i += 1
+
+    return interests
+
+
 # ── LinkedIn Profile Scraper ─────────────────────────────────────
 
 
@@ -1061,6 +1358,61 @@ async def _scrape_linkedin_experience_education(
     return experience_list, education_list
 
 
+async def _scrape_linkedin_extras(
+    page,
+    profile_url_base: str,
+) -> tuple[list, list, list]:
+    """Navigate to LinkedIn featured/honors/interests detail pages and parse them.
+
+    Args:
+        page: Playwright page object with an active LinkedIn session.
+        profile_url_base: Canonical profile URL (e.g. https://www.linkedin.com/in/me/).
+
+    Returns:
+        (featured_list, honors_list, interests_list) — any may be empty on failure
+        or if the section doesn't exist on the profile.
+    """
+    logger.info("LinkedIn extras helper: navigating to profile base")
+    await page.goto(profile_url_base, wait_until="domcontentloaded", timeout=20000)
+    await page.wait_for_timeout(2000)
+
+    parsed = urlparse(page.url)
+    clean_base = urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
+
+    async def _fetch_and_parse(url: str, parser) -> list:
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(3000)
+            for _ in range(2):
+                await page.mouse.wheel(0, 600)
+                await page.wait_for_timeout(1000)
+            body = await page.inner_text("body")
+            return parser(body)
+        except Exception as e:
+            logger.warning("LinkedIn extras helper: failed to fetch %s: %s", url, e)
+            return []
+
+    featured_list = await _fetch_and_parse(
+        clean_base + "/details/featured/",
+        _parse_linkedin_featured_body,
+    )
+    logger.info("LinkedIn extras helper: extracted %d featured items", len(featured_list))
+
+    honors_list = await _fetch_and_parse(
+        clean_base + "/details/honors/",
+        _parse_linkedin_honors_body,
+    )
+    logger.info("LinkedIn extras helper: extracted %d honors entries", len(honors_list))
+
+    interests_list = await _fetch_and_parse(
+        clean_base + "/details/interests/",
+        _parse_linkedin_interests_body,
+    )
+    logger.info("LinkedIn extras helper: extracted %d interests entries", len(interests_list))
+
+    return featured_list, honors_list, interests_list
+
+
 async def scrape_linkedin_profile(playwright) -> dict:
     """Scrape the logged-in user's LinkedIn profile.
 
@@ -1121,7 +1473,57 @@ async def scrape_linkedin_profile(playwright) -> dict:
             if ai_result and not is_missing_key_fields(ai_result):
                 logger.info("LinkedIn: Tier 1 (text) extraction succeeded")
 
-                # Supplement with CSS post scraping when AI returned 0 posts
+                # Initialise profile_data for supplements
+                pd = ai_result.get("profile_data") or {}
+                if not isinstance(pd, dict):
+                    pd = {}
+
+                # Order by criticality:
+                # 1. Experience/education (acceptance criterion #3)
+                # 2. Featured/honors/interests (spec richness)
+                # 3. Posts (already partially supplemented by AI; least critical
+                #    since post scraping is the most likely to time out)
+
+                # 1. Experience and education from details pages
+                if not pd.get("experience") or not pd.get("education"):
+                    try:
+                        exp, edu = await _scrape_linkedin_experience_education(page, LI_PROFILE_URL)
+                        if exp and not pd.get("experience"):
+                            pd["experience"] = exp
+                        if edu and not pd.get("education"):
+                            pd["education"] = edu
+                        logger.info(
+                            "LinkedIn: supplemented profile_data with %d experience, %d education",
+                            len(exp) if exp else 0,
+                            len(edu) if edu else 0,
+                        )
+                    except Exception as e:
+                        logger.warning("LinkedIn: experience/education supplement failed: %s", e)
+
+                # 2. Featured, honors, interests from detail pages
+                try:
+                    featured, honors, interests = await _scrape_linkedin_extras(page, LI_PROFILE_URL)
+                    if featured and not pd.get("featured"):
+                        pd["featured"] = featured
+                    if honors and not pd.get("honors"):
+                        pd["honors"] = honors
+                    if interests and not pd.get("interests"):
+                        pd["interests"] = interests
+                    logger.info(
+                        "LinkedIn: supplemented profile_data with %d featured, %d honors, %d interests",
+                        len(featured) if featured else 0,
+                        len(honors) if honors else 0,
+                        len(interests) if interests else 0,
+                    )
+                except Exception as e:
+                    logger.warning("LinkedIn: featured/honors/interests supplement failed: %s", e)
+
+                # Write back profile_data now that all non-post supplements are in
+                if pd:
+                    ai_result["profile_data"] = pd
+
+                # 3. Posts (most likely to time out — run last so failure
+                #    doesn't block the more important supplements above)
                 existing_posts = ai_result.get("recent_posts", [])
                 if len(existing_posts) == 0:
                     logger.info("LinkedIn: Tier 1 returned 0 posts, supplementing with CSS post scrape")
@@ -1143,27 +1545,6 @@ async def scrape_linkedin_profile(playwright) -> dict:
                             ai_result["post_count"] = scraped_count
                     except Exception as e:
                         logger.warning("LinkedIn: CSS post supplement failed: %s", e)
-
-                # Supplement experience and education from details pages
-                pd = ai_result.get("profile_data") or {}
-                if not isinstance(pd, dict):
-                    pd = {}
-                if not pd.get("experience") or not pd.get("education"):
-                    try:
-                        exp, edu = await _scrape_linkedin_experience_education(page, LI_PROFILE_URL)
-                        if exp and not pd.get("experience"):
-                            pd["experience"] = exp
-                        if edu and not pd.get("education"):
-                            pd["education"] = edu
-                        if pd:
-                            ai_result["profile_data"] = pd
-                            logger.info(
-                                "LinkedIn: supplemented profile_data with %d experience, %d education",
-                                len(exp) if exp else 0,
-                                len(edu) if edu else 0,
-                            )
-                    except Exception as e:
-                        logger.warning("LinkedIn: experience/education supplement failed: %s", e)
 
                 # Extract username from URL when AI didn't return one
                 if not ai_result.get("username"):
@@ -1335,6 +1716,22 @@ async def scrape_linkedin_profile(playwright) -> dict:
             result["education"] = edu_list
         except Exception as e:
             logger.debug("LinkedIn: experience/education scraping failed: %s", e)
+
+        # Featured, Honors, Interests — navigate to detail pages via shared helper
+        try:
+            featured_list, honors_list, interests_list = await _scrape_linkedin_extras(page, LI_PROFILE_URL)
+            if featured_list:
+                result["featured"] = featured_list
+            if honors_list:
+                result["honors"] = honors_list
+            if interests_list:
+                result["interests"] = interests_list
+            logger.info(
+                "LinkedIn: extras — %d featured, %d honors, %d interests",
+                len(featured_list), len(honors_list), len(interests_list),
+            )
+        except Exception as e:
+            logger.debug("LinkedIn: featured/honors/interests scraping failed: %s", e)
 
         # Scrape recent posts via the shared helper (navigates to activity page internally)
         posts, eng_rate, post_freq, scraped_count = await _scrape_linkedin_posts(
