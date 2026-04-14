@@ -1711,6 +1711,46 @@ async def scrape_reddit_profile(playwright) -> dict:
             # even when follower_count is 0 (common for Reddit accounts)
             if ai_result and not is_missing_key_fields(ai_result):
                 logger.info("Reddit: Tier 1 (text) extraction succeeded")
+
+                # Supplement profile_data with karma/age/subreddits parsed from
+                # the collected text — the AI often misses these Reddit-specific
+                # sidebar fields, but they're always in the page text.
+                try:
+                    pd = ai_result.get("profile_data") or {}
+                    if not isinstance(pd, dict):
+                        pd = {}
+                    # Karma: "Karma\n<number>" or "<number>\nKarma" patterns
+                    if not pd.get("karma"):
+                        km = re.search(r'Karma\s*\n\s*([\d,.]+[KkMm]?)', collected_text)
+                        if not km:
+                            km = re.search(r'([\d,.]+[KkMm]?)\s*\n\s*Karma', collected_text)
+                        if km:
+                            pd["karma"] = _parse_number(km.group(1))
+                    # Reddit age: "Reddit Age\n<value>" or similar
+                    if not pd.get("reddit_age"):
+                        ra = re.search(r'Reddit Age\s*\n\s*([^\n]+)', collected_text)
+                        if not ra:
+                            ra = re.search(r'([^\n]+?)\s*\n\s*Reddit Age', collected_text)
+                        if ra:
+                            pd["reddit_age"] = ra.group(1).strip()
+                    # Active subreddits from Posts/Comments tab text (r/foo patterns)
+                    if not pd.get("active_subreddits"):
+                        subs = re.findall(r'r/([A-Za-z0-9_]+)', collected_text)
+                        if subs:
+                            # Dedup + keep top 10 by frequency
+                            from collections import Counter
+                            counts = Counter(subs)
+                            pd["active_subreddits"] = [
+                                f"r/{s}" for s, _ in counts.most_common(10)
+                            ]
+                    if pd:
+                        ai_result["profile_data"] = pd
+                        logger.info("Reddit: supplemented profile_data with karma=%s, age=%s, %d subreddits",
+                                    pd.get("karma"), pd.get("reddit_age"),
+                                    len(pd.get("active_subreddits", [])))
+                except Exception as e:
+                    logger.warning("Reddit: profile_data supplement failed: %s", e)
+
                 await context.close()
                 return ai_result
 
