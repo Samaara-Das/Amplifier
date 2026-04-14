@@ -830,7 +830,7 @@ async def _scrape_linkedin_posts(
     page,
     profile_url_base: str | None = None,
     follower_count: int = 0,
-) -> tuple[list, float, float]:
+) -> tuple[list, float, float, int]:
     """Navigate to LinkedIn activity page and scrape recent posts with engagement.
 
     Args:
@@ -841,7 +841,7 @@ async def _scrape_linkedin_posts(
         follower_count: User's follower/connection count used to compute engagement_rate.
 
     Returns:
-        (posts list, engagement_rate, posting_frequency)
+        (posts list, engagement_rate, posting_frequency, total_post_count)
     """
     # Selector constants — duplicated here since they can't access the parent function's locals
     _POST_CONTAINER = 'div.feed-shared-update-v2'
@@ -864,7 +864,17 @@ async def _scrape_linkedin_posts(
         await page.wait_for_timeout(5000)
     except Exception as e:
         logger.warning("LinkedIn posts helper: activity page navigation failed: %s", e)
-        return [], 0.0, 0.0
+        return [], 0.0, 0.0, 0
+
+    # Extract total post count from activity page header before scrolling
+    total_post_count = 0
+    try:
+        activity_body = await page.inner_text("body")
+        m = re.search(r'([\d,]+)\s*(?:posts?|articles?|activities?)', activity_body, re.IGNORECASE)
+        if m:
+            total_post_count = _parse_number(m.group(1))
+    except Exception:
+        pass
 
     # Initial scroll to trigger lazy-loading
     for _ in range(3):
@@ -943,11 +953,33 @@ async def _scrape_linkedin_posts(
                     posted_at = line.split("•")[0].strip()
                     break
 
+            # Detect media (image or video) in the post container
+            has_media = False
+            try:
+                media_el = container.locator(
+                    'img[class*="update-components-image"], video, '
+                    'div[class*="update-components-image"], '
+                    'div[class*="update-components-video"]'
+                )
+                has_media = await media_el.count() > 0
+            except Exception:
+                pass
+
+            # Extract impressions/views if shown on the post
+            views = 0
+            for line in lines:
+                vm = re.search(r'([\d,.]+[KkMm]?)\s*(?:impressions?|views?)', line, re.IGNORECASE)
+                if vm:
+                    views = _parse_number(vm.group(1))
+                    break
+
             posts.append({
                 "text": post_text[:500],
                 "likes": likes,
                 "comments": comments_count,
                 "reposts": reposts_count,
+                "views": views,
+                "has_media": has_media,
                 "posted_at": posted_at,
             })
 
@@ -966,8 +998,67 @@ async def _scrape_linkedin_posts(
     if posts:
         posting_frequency = round(len(posts) / 30, 2)
 
-    logger.info("LinkedIn posts helper: scraped %d posts (eng_rate=%.6f)", len(posts), engagement_rate)
-    return posts, engagement_rate, posting_frequency
+    logger.info("LinkedIn posts helper: scraped %d posts (eng_rate=%.6f, total_count=%d)",
+                len(posts), engagement_rate, total_post_count)
+    return posts, engagement_rate, posting_frequency, total_post_count
+
+
+async def _scrape_linkedin_experience_education(
+    page,
+    profile_url_base: str,
+) -> tuple[list, list]:
+    """Navigate to LinkedIn experience and education detail pages and parse them.
+
+    Args:
+        page: Playwright page object with an active LinkedIn session.
+        profile_url_base: Canonical profile URL (e.g. https://www.linkedin.com/in/me/).
+            Navigation starts here so URLs are built from a clean base.
+
+    Returns:
+        (experience_list, education_list) — either may be empty on failure.
+    """
+    # Navigate to profile base first to get a clean resolved URL
+    logger.info("LinkedIn exp/edu helper: navigating to profile base")
+    await page.goto(profile_url_base, wait_until="domcontentloaded", timeout=20000)
+    await page.wait_for_timeout(2000)
+
+    parsed = urlparse(page.url)
+    clean_base = urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
+
+    experience_list: list = []
+    education_list: list = []
+
+    # Experience details page
+    try:
+        exp_url = clean_base + "/details/experience/"
+        logger.info("LinkedIn exp/edu helper: navigating to experience: %s", exp_url)
+        await page.goto(exp_url, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(3000)
+        for _ in range(3):
+            await page.mouse.wheel(0, 600)
+            await page.wait_for_timeout(1000)
+        exp_body = await page.inner_text("body")
+        experience_list = _parse_linkedin_experience_body(exp_body)
+        logger.info("LinkedIn exp/edu helper: extracted %d experience entries", len(experience_list))
+    except Exception as e:
+        logger.debug("LinkedIn exp/edu helper: experience scraping failed: %s", e)
+
+    # Education details page — build from the clean profile base (not from experience URL)
+    try:
+        edu_url = clean_base + "/details/education/"
+        logger.info("LinkedIn exp/edu helper: navigating to education: %s", edu_url)
+        await page.goto(edu_url, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(3000)
+        for _ in range(2):
+            await page.mouse.wheel(0, 600)
+            await page.wait_for_timeout(1000)
+        edu_body = await page.inner_text("body")
+        education_list = _parse_linkedin_education_body(edu_body)
+        logger.info("LinkedIn exp/edu helper: extracted %d education entries", len(education_list))
+    except Exception as e:
+        logger.debug("LinkedIn exp/edu helper: education scraping failed: %s", e)
+
+    return experience_list, education_list
 
 
 async def scrape_linkedin_profile(playwright) -> dict:
@@ -994,6 +1085,7 @@ async def scrape_linkedin_profile(playwright) -> dict:
         "bio": None,
         "follower_count": 0,
         "following_count": 0,
+        "post_count": 0,
         "profile_pic_url": None,
         "recent_posts": [],
         "engagement_rate": 0.0,
@@ -1035,7 +1127,7 @@ async def scrape_linkedin_profile(playwright) -> dict:
                     logger.info("LinkedIn: Tier 1 returned 0 posts, supplementing with CSS post scrape")
                     try:
                         li_follower_count = ai_result.get("follower_count", 0) or 0
-                        posts, eng_rate, post_freq = await _scrape_linkedin_posts(
+                        posts, eng_rate, post_freq, scraped_count = await _scrape_linkedin_posts(
                             page,
                             profile_url_base=LI_PROFILE_URL,
                             follower_count=li_follower_count,
@@ -1047,8 +1139,31 @@ async def scrape_linkedin_profile(playwright) -> dict:
                             if post_freq > 0:
                                 ai_result["posting_frequency"] = post_freq
                             logger.info("LinkedIn: supplemented %d posts from CSS", len(posts))
+                        if scraped_count > 0 and not ai_result.get("post_count"):
+                            ai_result["post_count"] = scraped_count
                     except Exception as e:
                         logger.warning("LinkedIn: CSS post supplement failed: %s", e)
+
+                # Supplement experience and education from details pages
+                pd = ai_result.get("profile_data") or {}
+                if not isinstance(pd, dict):
+                    pd = {}
+                if not pd.get("experience") or not pd.get("education"):
+                    try:
+                        exp, edu = await _scrape_linkedin_experience_education(page, LI_PROFILE_URL)
+                        if exp and not pd.get("experience"):
+                            pd["experience"] = exp
+                        if edu and not pd.get("education"):
+                            pd["education"] = edu
+                        if pd:
+                            ai_result["profile_data"] = pd
+                            logger.info(
+                                "LinkedIn: supplemented profile_data with %d experience, %d education",
+                                len(exp) if exp else 0,
+                                len(edu) if edu else 0,
+                            )
+                    except Exception as e:
+                        logger.warning("LinkedIn: experience/education supplement failed: %s", e)
 
                 # Extract username from URL when AI didn't return one
                 if not ai_result.get("username"):
@@ -1213,54 +1328,16 @@ async def scrape_linkedin_profile(playwright) -> dict:
         except Exception as e:
             logger.debug("LinkedIn: body parse for location/about failed: %s", e)
 
-        # Experience — navigate to the details page for clean structured HTML
+        # Experience + Education — navigate to detail pages via shared helper
         try:
-            parsed_now = urlparse(page.url)
-            clean_base = urlunparse((parsed_now.scheme, parsed_now.netloc, parsed_now.path.rstrip("/"), "", "", ""))
-            exp_url = clean_base + "/details/experience/"
-            logger.info("LinkedIn: navigating to experience page: %s", exp_url)
-            await page.goto(exp_url, wait_until="domcontentloaded", timeout=20000)
-            await page.wait_for_timeout(3000)
-
-            # Scroll to load lazy content
-            for _ in range(3):
-                await page.mouse.wheel(0, 600)
-                await page.wait_for_timeout(1000)
-
-            # Parse body text — structured format on details page:
-            # Each job block is separated by whitespace/dividers.
-            # Lines follow a pattern: title → company/type → duration → location → description → skills
-            exp_body = await page.inner_text("body")
-            result["experience"] = _parse_linkedin_experience_body(exp_body)
-            logger.info("LinkedIn: extracted %d experience entries", len(result["experience"]))
+            exp_list, edu_list = await _scrape_linkedin_experience_education(page, LI_PROFILE_URL)
+            result["experience"] = exp_list
+            result["education"] = edu_list
         except Exception as e:
-            logger.debug("LinkedIn: experience scraping failed: %s", e)
-
-        # Education — navigate to details page
-        try:
-            parsed_now = urlparse(page.url)
-            clean_base = urlunparse((parsed_now.scheme, parsed_now.netloc, parsed_now.path.rstrip("/"), "", "", ""))
-            # Back to profile base before appending education path
-            # page.url after experience page is already .../details/experience/
-            # Strip /details/* to get back to profile base
-            profile_base = re.sub(r'/details/.*', '', clean_base)
-            edu_url = profile_base + "/details/education/"
-            logger.info("LinkedIn: navigating to education page: %s", edu_url)
-            await page.goto(edu_url, wait_until="domcontentloaded", timeout=20000)
-            await page.wait_for_timeout(3000)
-
-            for _ in range(2):
-                await page.mouse.wheel(0, 600)
-                await page.wait_for_timeout(1000)
-
-            edu_body = await page.inner_text("body")
-            result["education"] = _parse_linkedin_education_body(edu_body)
-            logger.info("LinkedIn: extracted %d education entries", len(result["education"]))
-        except Exception as e:
-            logger.debug("LinkedIn: education scraping failed: %s", e)
+            logger.debug("LinkedIn: experience/education scraping failed: %s", e)
 
         # Scrape recent posts via the shared helper (navigates to activity page internally)
-        posts, eng_rate, post_freq = await _scrape_linkedin_posts(
+        posts, eng_rate, post_freq, scraped_count = await _scrape_linkedin_posts(
             page,
             profile_url_base=LI_PROFILE_URL,
             follower_count=result["follower_count"],
@@ -1270,6 +1347,8 @@ async def scrape_linkedin_profile(playwright) -> dict:
             result["engagement_rate"] = eng_rate
         if post_freq > 0:
             result["posting_frequency"] = post_freq
+        if scraped_count > 0 and result["post_count"] == 0:
+            result["post_count"] = scraped_count
 
         # Scrape profile viewers + post impressions from home page sidebar
         try:
