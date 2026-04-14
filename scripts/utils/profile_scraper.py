@@ -826,6 +826,150 @@ def _parse_linkedin_education_body(body: str) -> list[dict]:
 # ── LinkedIn Profile Scraper ─────────────────────────────────────
 
 
+async def _scrape_linkedin_posts(
+    page,
+    profile_url_base: str | None = None,
+    follower_count: int = 0,
+) -> tuple[list, float, float]:
+    """Navigate to LinkedIn activity page and scrape recent posts with engagement.
+
+    Args:
+        page: Playwright page object (must already have an active LinkedIn session).
+        profile_url_base: If provided, navigate here first before building the
+            activity URL.  Pass the canonical /in/me/ URL when calling after Tier 1
+            (which may have left the page on a different URL).
+        follower_count: User's follower/connection count used to compute engagement_rate.
+
+    Returns:
+        (posts list, engagement_rate, posting_frequency)
+    """
+    # Selector constants — duplicated here since they can't access the parent function's locals
+    _POST_CONTAINER = 'div.feed-shared-update-v2'
+    _POST_TEXT = 'div.feed-shared-update-v2__description, span.break-words'
+    _ACTIVITY_SUFFIX = "/recent-activity/all/"
+
+    if profile_url_base:
+        logger.info("LinkedIn posts helper: navigating to profile before activity scrape")
+        await page.goto(profile_url_base, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(2000)
+
+    # Build activity URL from current page URL (strips query params cleanly)
+    parsed = urlparse(page.url)
+    clean_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
+    activity_url = clean_url + _ACTIVITY_SUFFIX
+    logger.info("LinkedIn posts helper: navigating to activity: %s", activity_url)
+
+    try:
+        await page.goto(activity_url, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(5000)
+    except Exception as e:
+        logger.warning("LinkedIn posts helper: activity page navigation failed: %s", e)
+        return [], 0.0, 0.0
+
+    # Initial scroll to trigger lazy-loading
+    for _ in range(3):
+        await page.mouse.wheel(0, 800)
+        await page.wait_for_timeout(2000)
+
+    # Additional scrolls to load more posts
+    for _ in range(5):
+        await page.mouse.wheel(0, 1000)
+        await page.wait_for_timeout(2000)
+
+    posts = []
+    seen_texts: set[str] = set()
+
+    post_containers = page.locator(_POST_CONTAINER)
+    count = await post_containers.count()
+    logger.info("LinkedIn posts helper: found %d post containers on activity page", count)
+
+    for i in range(min(count, 30)):
+        try:
+            container = post_containers.nth(i)
+            container_text = (await container.inner_text()).strip()
+
+            if not container_text or len(container_text) < 20:
+                continue
+
+            lines = [l.strip() for l in container_text.split("\n") if l.strip()]
+
+            # Try CSS selector first — targets actual post description
+            post_text = ""
+            try:
+                desc_el = container.locator(_POST_TEXT)
+                if await desc_el.count() > 0:
+                    post_text = (await desc_el.first.inner_text()).strip()
+            except Exception:
+                pass
+
+            if not post_text:
+                SKIP_WORDS = {"Like", "Comment", "Repost", "Send", "Share", "More"}
+                candidate_lines = []
+                for line in lines:
+                    if line in SKIP_WORDS:
+                        continue
+                    if re.match(r'^\d+\s*(reaction|comment|repost|like)', line, re.IGNORECASE):
+                        continue
+                    if re.match(r'^\d+[hdwmo]|^\d+yr', line):
+                        continue
+                    if len(line) < 10:
+                        continue
+                    candidate_lines.append(line)
+                substantial = [l for l in candidate_lines[1:] if len(l) > 20]
+                post_text = substantial[0] if substantial else (candidate_lines[0] if candidate_lines else "")
+
+            if not post_text or post_text[:80] in seen_texts:
+                continue
+            seen_texts.add(post_text[:80])
+
+            likes = 0
+            comments_count = 0
+            reposts_count = 0
+
+            for line in lines:
+                r_match = re.match(r'^([\d,]+)\s*reaction', line, re.IGNORECASE)
+                if r_match:
+                    likes = _parse_number(r_match.group(1))
+                c_match = re.match(r'^([\d,]+)\s*comment', line, re.IGNORECASE)
+                if c_match:
+                    comments_count = _parse_number(c_match.group(1))
+                rp_match = re.match(r'^([\d,]+)\s*repost', line, re.IGNORECASE)
+                if rp_match:
+                    reposts_count = _parse_number(rp_match.group(1))
+
+            posted_at = ""
+            for line in lines:
+                if re.match(r'^\d+[hdwmo]|^\d+yr', line):
+                    posted_at = line.split("•")[0].strip()
+                    break
+
+            posts.append({
+                "text": post_text[:500],
+                "likes": likes,
+                "comments": comments_count,
+                "reposts": reposts_count,
+                "posted_at": posted_at,
+            })
+
+        except Exception as e:
+            logger.debug("LinkedIn posts helper: error parsing post %d: %s", i, e)
+
+    # Compute engagement_rate and posting_frequency
+    engagement_rate = 0.0
+    posting_frequency = 0.0
+
+    if posts and follower_count > 0:
+        total_engagement = sum(p["likes"] + p["comments"] + p.get("reposts", 0) for p in posts)
+        avg_engagement = total_engagement / len(posts)
+        engagement_rate = round(avg_engagement / follower_count, 6)
+
+    if posts:
+        posting_frequency = round(len(posts) / 30, 2)
+
+    logger.info("LinkedIn posts helper: scraped %d posts (eng_rate=%.6f)", len(posts), engagement_rate)
+    return posts, engagement_rate, posting_frequency
+
+
 async def scrape_linkedin_profile(playwright) -> dict:
     """Scrape the logged-in user's LinkedIn profile.
 
@@ -884,6 +1028,35 @@ async def scrape_linkedin_profile(playwright) -> dict:
             ai_result = await ai_scrape_profile_from_text("linkedin", page, collected_text)
             if ai_result and not is_missing_key_fields(ai_result):
                 logger.info("LinkedIn: Tier 1 (text) extraction succeeded")
+
+                # Supplement with CSS post scraping when AI returned 0 posts
+                existing_posts = ai_result.get("recent_posts", [])
+                if len(existing_posts) == 0:
+                    logger.info("LinkedIn: Tier 1 returned 0 posts, supplementing with CSS post scrape")
+                    try:
+                        li_follower_count = ai_result.get("follower_count", 0) or 0
+                        posts, eng_rate, post_freq = await _scrape_linkedin_posts(
+                            page,
+                            profile_url_base=LI_PROFILE_URL,
+                            follower_count=li_follower_count,
+                        )
+                        if posts:
+                            ai_result["recent_posts"] = posts
+                            if eng_rate > 0:
+                                ai_result["engagement_rate"] = eng_rate
+                            if post_freq > 0:
+                                ai_result["posting_frequency"] = post_freq
+                            logger.info("LinkedIn: supplemented %d posts from CSS", len(posts))
+                    except Exception as e:
+                        logger.warning("LinkedIn: CSS post supplement failed: %s", e)
+
+                # Extract username from URL when AI didn't return one
+                if not ai_result.get("username"):
+                    url_match = re.search(r'/in/([^/?]+)', page.url)
+                    if url_match:
+                        ai_result["username"] = url_match.group(1)
+                        logger.info("LinkedIn: username from URL: %s", ai_result["username"])
+
                 await context.close()
                 return ai_result
 
@@ -1086,132 +1259,17 @@ async def scrape_linkedin_profile(playwright) -> dict:
         except Exception as e:
             logger.debug("LinkedIn: education scraping failed: %s", e)
 
-        # Navigate back to profile page before going to activity
-        logger.info("LinkedIn: navigating back to profile for activity scrape")
-        await page.goto(LI_PROFILE_URL, wait_until="domcontentloaded", timeout=20000)
-        await page.wait_for_timeout(2000)
-
-        # Navigate to activity page for recent posts
-        # Strip query params (e.g., ?isSelfProfile=true) before appending suffix
-        parsed_profile = urlparse(page.url)
-        clean_profile_url = urlunparse((parsed_profile.scheme, parsed_profile.netloc, parsed_profile.path.rstrip("/"), "", "", ""))
-        activity_url = clean_profile_url + LI_ACTIVITY_SUFFIX
-        logger.info("LinkedIn: navigating to activity: %s", activity_url)
-        await page.goto(activity_url, wait_until="domcontentloaded", timeout=20000)
-        await page.wait_for_timeout(5000)  # LinkedIn needs extra time to render posts
-
-        # Scroll down to trigger lazy-loading of posts
-        for _ in range(3):
-            await page.mouse.wheel(0, 800)
-            await page.wait_for_timeout(2000)
-
-        # Scrape recent posts using per-container inner_text parsing.
-        # LinkedIn's DOM classes change frequently, so we extract text from each
-        # feed-shared-update-v2 container and parse the structure.
-        posts = []
-        seen_texts = set()
-
-        # Scroll first to load more posts
-        for _ in range(5):
-            await page.mouse.wheel(0, 1000)
-            await page.wait_for_timeout(2000)
-
-        post_containers = page.locator(LI_POST_CONTAINER)
-        count = await post_containers.count()
-        logger.info("LinkedIn: found %d post containers on activity page", count)
-
-        for i in range(min(count, 30)):
-            try:
-                container = post_containers.nth(i)
-                container_text = (await container.inner_text()).strip()
-
-                if not container_text or len(container_text) < 20:
-                    continue
-
-                # Parse the container text — structure is:
-                # [Author info] [timestamp] [post text] [hashtags] [reactions] [Like Comment Repost]
-                lines = [l.strip() for l in container_text.split("\n") if l.strip()]
-
-                # Try CSS selector first — targets actual post description, not author/group name
-                post_text = ""
-                try:
-                    desc_el = container.locator(LI_POST_TEXT)
-                    if await desc_el.count() > 0:
-                        post_text = (await desc_el.first.inner_text()).strip()
-                except Exception:
-                    pass
-
-                if not post_text:
-                    # Fallback: parse inner_text but skip first lines (author/group, timestamp)
-                    # which appear before the actual post content in LinkedIn's DOM order
-                    SKIP_WORDS = {"Like", "Comment", "Repost", "Send", "Share", "More"}
-                    candidate_lines = []
-                    for line in lines:
-                        if line in SKIP_WORDS:
-                            continue
-                        if re.match(r'^\d+\s*(reaction|comment|repost|like)', line, re.IGNORECASE):
-                            continue
-                        if re.match(r'^\d+[hdwmo]|^\d+yr', line):  # timestamps like "1yr", "3mo"
-                            continue
-                        if len(line) < 10:
-                            continue
-                        candidate_lines.append(line)
-                    # Skip the first candidate line — it's typically the author/group name
-                    substantial = [l for l in candidate_lines[1:] if len(l) > 20]
-                    post_text = substantial[0] if substantial else (candidate_lines[0] if candidate_lines else "")
-
-                if not post_text or post_text[:80] in seen_texts:
-                    continue
-                seen_texts.add(post_text[:80])
-
-                # Extract engagement from container text
-                likes = 0
-                comments_count = 0
-                reposts_count = 0
-
-                for line in lines:
-                    r_match = re.match(r'^([\d,]+)\s*reaction', line, re.IGNORECASE)
-                    if r_match:
-                        likes = _parse_number(r_match.group(1))
-                    c_match = re.match(r'^([\d,]+)\s*comment', line, re.IGNORECASE)
-                    if c_match:
-                        comments_count = _parse_number(c_match.group(1))
-                    rp_match = re.match(r'^([\d,]+)\s*repost', line, re.IGNORECASE)
-                    if rp_match:
-                        reposts_count = _parse_number(rp_match.group(1))
-
-                # Extract timestamp
-                posted_at = ""
-                for line in lines:
-                    if re.match(r'^\d+[hdwmo]|^\d+yr', line):
-                        posted_at = line.split("•")[0].strip()
-                        break
-
-                posts.append({
-                    "text": post_text[:500],
-                    "likes": likes,
-                    "comments": comments_count,
-                    "reposts": reposts_count,
-                    "posted_at": posted_at,
-                })
-
-            except Exception as e:
-                logger.debug("LinkedIn: error parsing post %d: %s", i, e)
-
+        # Scrape recent posts via the shared helper (navigates to activity page internally)
+        posts, eng_rate, post_freq = await _scrape_linkedin_posts(
+            page,
+            profile_url_base=LI_PROFILE_URL,
+            follower_count=result["follower_count"],
+        )
         result["recent_posts"] = posts
-        logger.info("LinkedIn: scraped %d posts", len(posts))
-
-        # Calculate engagement rate
-        if posts and result["follower_count"] > 0:
-            total_engagement = sum(
-                p["likes"] + p["comments"] + p.get("reposts", 0) for p in posts
-            )
-            avg_engagement = total_engagement / len(posts)
-            result["engagement_rate"] = round(avg_engagement / result["follower_count"], 6)
-
-        # Posting frequency estimate
-        if posts:
-            result["posting_frequency"] = round(len(posts) / 30, 2)
+        if eng_rate > 0:
+            result["engagement_rate"] = eng_rate
+        if post_freq > 0:
+            result["posting_frequency"] = post_freq
 
         # Scrape profile viewers + post impressions from home page sidebar
         try:
@@ -1300,6 +1358,20 @@ async def scrape_facebook_profile(playwright) -> dict:
             ai_result = await ai_scrape_profile_from_text("facebook", page, collected_text)
             if ai_result and not is_missing_key_fields(ai_result):
                 logger.info("Facebook: Tier 1 (text) extraction succeeded")
+
+                # Extract username from URL when AI didn't return one
+                if not ai_result.get("username"):
+                    fb_url = page.url
+                    vanity_match = re.search(r'facebook\.com/([^/?]+)', fb_url)
+                    if vanity_match and vanity_match.group(1) not in ("profile.php", "me", "home.php"):
+                        ai_result["username"] = vanity_match.group(1)
+                        logger.info("Facebook: username from URL (vanity): %s", ai_result["username"])
+                    else:
+                        id_match = re.search(r'[?&]id=(\d+)', fb_url)
+                        if id_match:
+                            ai_result["username"] = f"fb_{id_match.group(1)}"
+                            logger.info("Facebook: username from URL (id): %s", ai_result["username"])
+
                 await context.close()
                 return ai_result
 
