@@ -135,3 +135,46 @@ def create_default_manager() -> AiManager:
         logger.error("No AI providers available. Set GEMINI_API_KEY in config/.env")
 
     return manager
+
+
+def create_manager_from_settings() -> AiManager:
+    """Create an AiManager with providers from local_db settings.
+
+    Used by user app components (profile scraper, etc.) where API keys
+    are stored encrypted in local SQLite, not in config/.env.
+    Falls back to create_default_manager() if no keys found in local_db.
+    """
+    from utils.local_db import get_setting
+
+    manager = AiManager()
+
+    gemini_key = get_setting("gemini_api_key") or ""
+    if gemini_key.strip():
+        try:
+            from ai.gemini_provider import GeminiProvider
+            manager.register(GeminiProvider(gemini_key.strip()))
+        except Exception as e:
+            logger.warning("Failed to init Gemini from settings: %s", e)
+
+    mistral_key = get_setting("mistral_api_key") or ""
+    if mistral_key.strip():
+        try:
+            from ai.mistral_provider import MistralProvider
+            manager.register(MistralProvider(mistral_key.strip()))
+        except Exception as e:
+            logger.warning("Failed to init Mistral from settings: %s", e)
+
+    groq_key = get_setting("groq_api_key") or ""
+    if groq_key.strip():
+        try:
+            from ai.groq_provider import GroqProvider
+            manager.register(GroqProvider(groq_key.strip()))
+        except Exception as e:
+            logger.warning("Failed to init Groq from settings: %s", e)
+
+    # Fall back to env-based manager if local_db has no keys
+    if not manager.has_providers:
+        logger.info("No AI keys in local_db, falling back to config/.env")
+        return create_default_manager()
+
+    return manager

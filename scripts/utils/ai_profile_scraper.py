@@ -252,13 +252,6 @@ async def ai_scrape_profile_from_text(
     Returns:
         Structured profile dict, or None if extraction fails.
     """
-    from utils.local_db import get_setting
-
-    api_key = get_setting("gemini_api_key")
-    if not api_key:
-        logger.info("AI text scraping skipped: no gemini_api_key configured")
-        return None
-
     # Use pre-collected text if provided, otherwise extract from page
     if pre_collected_text and len(pre_collected_text.strip()) >= 100:
         page_text = pre_collected_text
@@ -277,40 +270,19 @@ async def ai_scrape_profile_from_text(
                         platform, len(page_text) if page_text else 0)
         return None
 
-    logger.info("AI text scrape [%s]: sending %d chars to Gemini...",
-                platform, len(page_text))
-
     try:
-        from google import genai
+        from ai.manager import create_manager_from_settings
+        manager = create_manager_from_settings()
+        if not manager.has_providers:
+            logger.info("AI text scrape [%s]: no AI providers available", platform)
+            return None
 
-        client = genai.Client(api_key=api_key)
         prompt = _build_text_extraction_prompt(platform, page_text)
-
-        # Try text models (no vision needed — much cheaper)
-        models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
-        last_err = None
-        raw_text = None
-        for model in models:
-            try:
-                response = client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
-                raw_text = response.text.strip()
-                logger.info("AI text scrape [%s]: got response from %s (%d chars)",
-                            platform, model, len(raw_text))
-                break
-            except Exception as e:
-                last_err = e
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                    continue
-                raise
-
-        if raw_text is None:
-            raise last_err
-
+        logger.info("AI text scrape [%s]: sending %d chars to AI...", platform, len(page_text))
+        raw_text = await manager.generate(prompt)
+        logger.info("AI text scrape [%s]: got response (%d chars)", platform, len(raw_text))
     except Exception as e:
-        logger.warning("AI text scrape [%s]: Gemini call failed: %s", platform, e)
+        logger.warning("AI text scrape [%s]: AI call failed: %s", platform, e)
         return None
 
     result = _parse_ai_response(raw_text, platform)
@@ -332,12 +304,21 @@ async def ai_scrape_profile_from_text(
 
 
 def is_missing_key_fields(result: Optional[dict]) -> bool:
-    """Check if a scrape result is missing critical fields (needs Tier 3 escalation)."""
+    """Check if a scrape result is missing critical fields (needs Tier 3 escalation).
+
+    Lenient: if the AI returned meaningful data (niches, posts, bio), don't
+    escalate just because follower_count is 0 — small Facebook accounts and
+    new Reddit accounts legitimately have 0 followers.
+    """
     if result is None:
         return True
     if not result.get("display_name"):
         return True
-    if result.get("follower_count", 0) == 0 and result.get("following_count", 0) == 0:
+    # Only escalate if we got NO meaningful data at all
+    has_posts = len(result.get("recent_posts", [])) > 0
+    has_niches = len(result.get("ai_detected_niches", [])) > 0
+    has_bio = bool(result.get("bio"))
+    if result.get("follower_count", 0) == 0 and not has_posts and not has_niches and not has_bio:
         return True
     return False
 

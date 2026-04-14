@@ -158,11 +158,13 @@ async def _click_expand_buttons(page: Page, platform: str):
     expand_selectors = {
         "x": [],  # X uses infinite scroll, no expand buttons
         "linkedin": [
+            # Only click buttons that toggle content in-place.
+            # Do NOT click <a> "Show all" links — they navigate away from
+            # the profile page, breaking subsequent text extraction.
+            # Experience/education/skills are scraped via dedicated navigation.
             'button:has-text("…more")',
             'button:has-text("...more")',
             'button:has-text("see more")',
-            'a:has-text("Show all")',
-            'button:has-text("Show all")',
         ],
         "facebook": [
             'div[role="button"]:has-text("See more")',
@@ -710,7 +712,21 @@ def _parse_linkedin_education_body(body: str) -> list[dict]:
     schools = []
     lines = [l.strip() for l in body.split("\n") if l.strip()]
 
-    YEAR_RE = re.compile(r'^\d{4}\s*[-–]\s*(\d{4}|Present)', re.IGNORECASE)
+    # Broad year pattern: handles "2020 - 2024", "Jan 2020 - Jun 2024",
+    # "January 2020 - Present", "2020" alone, with any dash variant (-, –, —)
+    YEAR_RE = re.compile(
+        r'(?:'
+        r'(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+)?\d{4}'
+        r'\s*[-–—]\s*'
+        r'(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+)?(?:\d{4}|Present)'
+        r'|^\d{4}$'
+        r')',
+        re.IGNORECASE,
+    )
+    INSTITUTION_KEYWORDS = re.compile(
+        r'\b(university|college|school|institute|academy|polytechnic|iit|iim|nit)\b',
+        re.IGNORECASE,
+    )
     NOISE = {
         "education", "add education", "edit", "save", "cancel", "back",
         "show all", "see more", "see less", "skip to main", "linkedin",
@@ -776,6 +792,33 @@ def _parse_linkedin_education_body(body: str) -> list[dict]:
             continue
 
         i += 1
+
+    # Fallback: if no entries found via year anchor, look for institution-name lines
+    if not schools:
+        for j, line in enumerate(lines):
+            if line.lower() in NOISE or len(line) < 5:
+                continue
+            if INSTITUTION_KEYWORDS.search(line):
+                # Try to find a degree on the next non-noise line
+                degree = None
+                for k in range(j + 1, min(j + 3, len(lines))):
+                    nxt = lines[k]
+                    if nxt.lower() in NOISE or YEAR_RE.match(nxt):
+                        break
+                    if "\u00b7" in nxt or " · " in nxt:
+                        parts = [p.strip() for p in re.split(r'\s*\u00b7\s*', nxt, maxsplit=1)]
+                        degree = parts[0]
+                        break
+                    if len(nxt) > 3 and not INSTITUTION_KEYWORDS.search(nxt):
+                        degree = nxt
+                        break
+                schools.append({
+                    "school": line,
+                    "degree": degree,
+                    "field": None,
+                    "year_range": None,
+                    "description": None,
+                })
 
     return schools
 
@@ -1089,27 +1132,33 @@ async def scrape_linkedin_profile(playwright) -> dict:
                 # [Author info] [timestamp] [post text] [hashtags] [reactions] [Like Comment Repost]
                 lines = [l.strip() for l in container_text.split("\n") if l.strip()]
 
-                # Find post text — skip author/meta lines, take substantial content
+                # Try CSS selector first — targets actual post description, not author/group name
                 post_text = ""
-                for line in lines:
-                    # Skip short lines, buttons, meta
-                    if line in ("Like", "Comment", "Repost", "Send", "Share", "More"):
-                        continue
-                    if re.match(r'^\d+\s*(reaction|comment|repost|like)', line, re.IGNORECASE):
-                        continue
-                    if re.match(r'^\d+[hdwmo]|^\d+yr', line):  # timestamps like "1yr", "3mo"
-                        continue
-                    if len(line) < 10:
-                        continue
-                    # First substantial line is the post text
-                    if len(line) > 20:
-                        post_text = line
-                        break
+                try:
+                    desc_el = container.locator(LI_POST_TEXT)
+                    if await desc_el.count() > 0:
+                        post_text = (await desc_el.first.inner_text()).strip()
+                except Exception:
+                    pass
 
                 if not post_text:
-                    # Fallback: join all substantial lines
-                    substantial = [l for l in lines if len(l) > 15 and l not in ("Like", "Comment", "Repost", "Send")]
-                    post_text = " ".join(substantial[:3]) if substantial else ""
+                    # Fallback: parse inner_text but skip first lines (author/group, timestamp)
+                    # which appear before the actual post content in LinkedIn's DOM order
+                    SKIP_WORDS = {"Like", "Comment", "Repost", "Send", "Share", "More"}
+                    candidate_lines = []
+                    for line in lines:
+                        if line in SKIP_WORDS:
+                            continue
+                        if re.match(r'^\d+\s*(reaction|comment|repost|like)', line, re.IGNORECASE):
+                            continue
+                        if re.match(r'^\d+[hdwmo]|^\d+yr', line):  # timestamps like "1yr", "3mo"
+                            continue
+                        if len(line) < 10:
+                            continue
+                        candidate_lines.append(line)
+                    # Skip the first candidate line — it's typically the author/group name
+                    substantial = [l for l in candidate_lines[1:] if len(l) > 20]
+                    post_text = substantial[0] if substantial else (candidate_lines[0] if candidate_lines else "")
 
                 if not post_text or post_text[:80] in seen_texts:
                     continue
@@ -1715,7 +1764,9 @@ async def scrape_reddit_profile(playwright) -> dict:
                         pass
 
                     posts.append({
+                        "text": title[:300],
                         "title": title[:300],
+                        "likes": score,
                         "score": score,
                         "comments": comment_count,
                         "views": views,
@@ -1742,7 +1793,7 @@ async def scrape_reddit_profile(playwright) -> dict:
                         if not title or title in seen_titles or len(title) < 10:
                             continue
                         seen_titles.add(title)
-                        posts.append({"title": title[:300], "score": 0, "comments": 0, "subreddit": ""})
+                        posts.append({"text": title[:300], "title": title[:300], "likes": 0, "score": 0, "comments": 0, "subreddit": ""})
                     except Exception:
                         pass
 
