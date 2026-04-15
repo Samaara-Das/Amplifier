@@ -1,0 +1,32 @@
+wing: auto_posting_system
+rooms:
+- name: configuration
+  description: Files from config/
+- name: data
+  description: Files from data/
+- name: documentation
+  description: Files from docs/
+- name: drafts
+  description: Files from drafts/
+- name: logs
+  description: Files from logs/
+- name: profiles
+  description: Files from profiles/
+- name: ralph_logs
+  description: Files from ralph_logs/
+- name: scripts
+  description: Files from scripts/
+- name: backend
+  description: Files from server/
+- name: social_media_profiles
+  description: Files from social media profiles/
+- name: tauri_app
+  description: Files from tauri-app/
+- name: testing
+  description: Files from tests/
+- name: planning
+  description: Files from specs/
+- name: frontend
+  description: Files from client/
+- name: general
+  description: Files that don't fit other rooms

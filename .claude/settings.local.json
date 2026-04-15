@@ -1,3 +1,4 @@
 {
-  "outputStyle": "Brand Strategist"
+  "outputStyle": "Brand Strategist",
+  "enabledMcpjsonServers": ["tradingview"]
 }

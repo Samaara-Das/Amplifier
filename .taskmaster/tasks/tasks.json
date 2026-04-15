@@ -173,14 +173,15 @@
         "id": "13",
         "title": "AI profile scraping — Gemini Vision, per-platform detailed spec",
         "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 3,
           "needs_spec": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-14T13:17:46.839Z"
       },
       {
         "id": "14",
@@ -522,9 +523,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-08T15:57:06.799Z",
+      "lastModified": "2026-04-14T13:17:46.840Z",
       "taskCount": 39,
-      "completedCount": 12,
+      "completedCount": 13,
       "tags": [
         "master"
       ]

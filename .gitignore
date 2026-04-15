@@ -50,3 +50,9 @@ tauri-app/node_modules/
 scripts/.claude/
 .claude/scheduled_tasks.lock
 .claude/codebase-analysis-*.md
+
+# Ephemeral diagnostic / test artifacts
+diag_*.png
+diag_*.txt
+scrape_test_results.json
+debug_fb_*.txt
