@@ -120,8 +120,12 @@ def login_page():
         return render_template("user/login.html", error=str(e), email=email, action=action)
 
 
-@app.route("/logout", methods=["POST"])
+@app.route("/logout", methods=["GET", "POST"])
+@csrf.exempt
 def logout():
+    """Logout is idempotent and CSRF-exempt — it only clears local state.
+    Safe because the user app is localhost-only and there's nothing an
+    attacker could gain from forcing a logout."""
     auth_file = ROOT / "config" / "server_auth.json"
     if auth_file.exists():
         auth_file.unlink()

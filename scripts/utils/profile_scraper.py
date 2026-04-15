@@ -1094,16 +1094,24 @@ def _parse_linkedin_interests_body(body: str) -> list[dict]:
             continue
 
         # Skip title/description lines — they typically contain commas,
-        # job-title keywords, or are long-form descriptions.
+        # job-title keywords, "@"/" at ", URLs, or are long-form descriptions.
         # Real names (top voices, companies, schools) are short and clean.
         if active_category == "top_voice":
-            # Names are typically <= 40 chars, no commas, no job title keywords
             JOB_KEYWORDS = re.compile(
                 r'\b(ceo|cto|cfo|coo|founder|co-founder|president|chairman|'
-                r'chief|director|manager|partner|vp|head\s+of|owner)\b',
+                r'chief|director|manager|partner|vp|head\s+of|owner|investing|'
+                r'investor|startup|podcaster|author|co-host|creator|entrepreneur|'
+                r'advisor|mentor|consultant|speaker|analyst|engineer)\b',
                 re.IGNORECASE,
             )
-            if len(line) > 40 or "," in line or JOB_KEYWORDS.search(line):
+            # Also skip lines containing URLs, " at ", or " - " (description patterns)
+            if (len(line) > 40 or
+                "," in line or
+                JOB_KEYWORDS.search(line) or
+                re.search(r'\.(com|io|co|org|net|ai)\b', line, re.IGNORECASE) or
+                re.search(r'\s+at\s+[A-Z]', line) or
+                " - " in line or
+                " | " in line):
                 i += 1
                 continue
         elif len(line) > 80:
@@ -1143,8 +1151,13 @@ async def _scrape_linkedin_posts(
     """
     # Selector constants — duplicated here since they can't access the parent function's locals
     _POST_CONTAINER = 'div.feed-shared-update-v2'
-    _POST_TEXT = 'div.feed-shared-update-v2__description, span.break-words'
-    _ACTIVITY_SUFFIX = "/recent-activity/all/"
+    # Target post description specifically — span.break-words alone is too generic
+    # (matches author names, comments, reaction labels). The description div is
+    # scoped to actual post content.
+    _POST_TEXT = 'div.feed-shared-update-v2__description, div.update-components-text'
+    # Use /shares/ endpoint = posts only. /all/ mixes in comments, reactions,
+    # and images which pollutes results.
+    _ACTIVITY_SUFFIX = "/recent-activity/shares/"
 
     if profile_url_base:
         logger.info("LinkedIn posts helper: navigating to profile before activity scrape")
@@ -1244,6 +1257,23 @@ async def _scrape_linkedin_posts(
                 rp_match = re.match(r'^([\d,]+)\s*repost', line, re.IGNORECASE)
                 if rp_match:
                     reposts_count = _parse_number(rp_match.group(1))
+
+            # Fallback: LinkedIn sometimes shows just a bare number for reactions
+            # (e.g., line "11" before "X comments" / "Like Comment Repost" buttons).
+            # If we didn't find explicit "N reactions" but found comments/reposts,
+            # look backward in the lines for a lone number that precedes the
+            # engagement bar — that's the reaction count.
+            if likes == 0 and (comments_count > 0 or reposts_count > 0):
+                # Find the index of "Like" button
+                try:
+                    like_idx = next(i for i, l in enumerate(lines) if l == "Like")
+                    # Scan up to 5 lines back for a standalone number
+                    for j in range(like_idx - 1, max(-1, like_idx - 8), -1):
+                        if re.match(r'^[\d,]+$', lines[j]):
+                            likes = _parse_number(lines[j])
+                            break
+                except StopIteration:
+                    pass
 
             posted_at = ""
             for line in lines:
@@ -1523,11 +1553,15 @@ async def scrape_linkedin_profile(playwright) -> dict:
                 if pd:
                     ai_result["profile_data"] = pd
 
-                # 3. Posts (most likely to time out — run last so failure
-                #    doesn't block the more important supplements above)
+                # 3. Posts — always run CSS supplement if AI got fewer than 3 posts
+                # (spec minimum per acceptance criterion). The AI scraping reads
+                # the profile-page overview text which only shows a snippet of
+                # activity; the CSS path navigates to the full /shares/ endpoint
+                # and reliably captures more.
                 existing_posts = ai_result.get("recent_posts", [])
-                if len(existing_posts) == 0:
-                    logger.info("LinkedIn: Tier 1 returned 0 posts, supplementing with CSS post scrape")
+                if len(existing_posts) < 3:
+                    logger.info("LinkedIn: Tier 1 returned %d post(s), supplementing with CSS post scrape",
+                                len(existing_posts))
                     try:
                         li_follower_count = ai_result.get("follower_count", 0) or 0
                         posts, eng_rate, post_freq, scraped_count = await _scrape_linkedin_posts(
@@ -1535,13 +1569,16 @@ async def scrape_linkedin_profile(playwright) -> dict:
                             profile_url_base=LI_PROFILE_URL,
                             follower_count=li_follower_count,
                         )
-                        if posts:
+                        # Use CSS posts if we got more than AI, OR if AI had 0.
+                        # Never downgrade from a rich AI result.
+                        if posts and len(posts) > len(existing_posts):
                             ai_result["recent_posts"] = posts
                             if eng_rate > 0:
                                 ai_result["engagement_rate"] = eng_rate
                             if post_freq > 0:
                                 ai_result["posting_frequency"] = post_freq
-                            logger.info("LinkedIn: supplemented %d posts from CSS", len(posts))
+                            logger.info("LinkedIn: supplemented %d posts from CSS (replacing %d AI posts)",
+                                        len(posts), len(existing_posts))
                         if scraped_count > 0 and not ai_result.get("post_count"):
                             ai_result["post_count"] = scraped_count
                     except Exception as e:
