@@ -2373,6 +2373,47 @@ async def scrape_facebook_profile(playwright) -> dict:
             if ai_result and not is_missing_key_fields(ai_result):
                 logger.info("Facebook: Tier 1 (text) extraction succeeded")
 
+                # Supplement personal_details (birthday, relationship) from the
+                # collected text if the AI missed them. Facebook shows these on
+                # the main profile page as "Personal details\n<birthday>\n<status>".
+                try:
+                    pd = ai_result.get("profile_data") or {}
+                    if not isinstance(pd, dict):
+                        pd = {}
+                    existing_pdetails = pd.get("personal_details") or {}
+                    if not isinstance(existing_pdetails, dict):
+                        existing_pdetails = {}
+
+                    # Birthday pattern: "3 April 2003" / "April 3, 2003" / etc.
+                    if not existing_pdetails.get("birthday"):
+                        bday_match = re.search(
+                            r'(?:Personal details|Born on|Birthday:?)\s*\n+\s*'
+                            r'((?:\d{1,2}\s+)?(?:January|February|March|April|May|June|'
+                            r'July|August|September|October|November|December)'
+                            r'(?:\s+\d{1,2})?[,\s]+\d{4})',
+                            collected_text, re.IGNORECASE,
+                        )
+                        if bday_match:
+                            existing_pdetails["birthday"] = bday_match.group(1).strip()
+
+                    # Relationship status pattern: line after birthday
+                    if not existing_pdetails.get("relationship_status"):
+                        rel_match = re.search(
+                            r'\b(Single|Married|In a relationship|Engaged|'
+                            r'Divorced|Widowed|It\'s complicated|Separated)\b',
+                            collected_text,
+                        )
+                        if rel_match:
+                            existing_pdetails["relationship_status"] = rel_match.group(1)
+
+                    if existing_pdetails:
+                        pd["personal_details"] = existing_pdetails
+                        ai_result["profile_data"] = pd
+                        logger.info("Facebook: supplemented personal_details with %s",
+                                    list(existing_pdetails.keys()))
+                except Exception as e:
+                    logger.debug("Facebook: personal_details supplement failed: %s", e)
+
                 # Extract username from URL when AI didn't return one
                 if not ai_result.get("username"):
                     fb_url = page.url
