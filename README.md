@@ -71,12 +71,11 @@ python scripts/campaign_runner.py           # start polling loop
 ### Personal Brand Engine
 
 ```bash
-python scripts/login_setup.py x            # one-time login per platform
-python scripts/login_setup.py linkedin
+# X, TikTok, Instagram are currently disabled in config/platforms.json.
+# Only LinkedIn, Facebook, and Reddit are active as of 2026-04-14.
+python scripts/login_setup.py linkedin     # one-time login per active platform
 python scripts/login_setup.py facebook
-python scripts/login_setup.py instagram
 python scripts/login_setup.py reddit
-python scripts/login_setup.py tiktok
 
 powershell scripts/generate.ps1            # generate drafts via Claude CLI
 python scripts/review_dashboard.py         # review at localhost:5111
@@ -129,12 +128,12 @@ data/                    Local SQLite database (gitignored)
 
 | Platform | Engine | Campaign Mode | Notes |
 |----------|--------|---------------|-------|
-| X (Twitter) | Yes | Yes | `dispatch_event("click")` for overlay workaround |
+| X (Twitter) | Disabled | Disabled | **DISABLED 2026-04-14** — 2 account blocks by anti-bot detection. Re-enable only after finding a safe automation method (API v2, stealth browser). |
 | LinkedIn | Yes | Yes | Shadow DOM — use `locator()` not `wait_for_selector()` |
 | Facebook | Yes | Yes | Image upload via "Photo/video" button |
-| Instagram | Yes | Yes | Multi-step dialog, `force=True` for overlays |
+| Instagram | Disabled | Disabled | Disabled in `config/platforms.json` — code preserved |
 | Reddit | Yes | Yes | Posts to random subreddit from configured list |
-| TikTok | Yes | Yes | VPN required in some regions, Draft.js caption clearing |
+| TikTok | Disabled | Disabled | Disabled in `config/platforms.json` — VPN required in India; code preserved |
 
 ## Documentation
 

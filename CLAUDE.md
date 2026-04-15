@@ -38,6 +38,20 @@ python scripts/campaign_runner.py --once   # single poll + process
 python scripts/utils/metric_scraper.py     # scrape engagement metrics from posted URLs
 ```
 
+## How Claude Works on This Project
+
+**Opus plans. Sonnet codes.** Delegate ALL coding (features, bugs, refactors) to the `amplifier-coder` sub-agent. Exception: changes under ~5 lines.
+
+**MemPalace is the memory system.** Use it actively, not just at session boundaries:
+- **Before touching code**: `mempalace_search(query="[area]", wing="auto_posting_system")` — check for past bugs, gotchas, patterns
+- **When you find a bug/gotcha/quirk**: `mempalace_add_drawer(wing="auto_posting_system", room="discoveries", content="...")` — save immediately
+- **When you make a decision**: save to `decisions` room + add KG fact
+- **At session end** (via `/update-context`): update KG facts for `amplifier_project` (focus, next_task, tasks_done, branch, blockers), save session summary to `sessions` room
+
+**KG entity**: `amplifier_project` — query it at session start for current state. Invalidate stale facts before adding new ones.
+
+**Slash commands**: `/get-context` (session start), `/update-context` (session end), `/smoke-test` (after features), `/commit-push` (commit + auto-deploy)
+
 ## Architecture
 
 ### Amplifier Engine
@@ -92,7 +106,9 @@ Local Flask dashboard + campaign runner that connects to the server.
 - `scripts/utils/crypto.py` — Client-side encryption using machine-derived key
 - `scripts/utils/post_scheduler.py` — Smart post scheduling (region-aware peak windows, platform-specific timing, 30-min spacing, jitter, daily limits)
 - `scripts/utils/session_health.py` — Platform session health monitoring (30-min interval, marks expired sessions)
-- `scripts/utils/profile_scraper.py` — Per-platform profile scraping (followers, bio, posts, engagement rate, LinkedIn extended data)
+- `scripts/utils/profile_scraper.py` — Per-platform profile scraping with 3-tier pipeline (Tier 1 text via AiManager → Tier 2 CSS selectors → Tier 3 Gemini Vision). Platform-specific supplements: LinkedIn experience/education from `/details/*/` pages, Featured (link-style + post-style) from `/details/featured/`, Honors + Interests from respective detail pages, posts from `/recent-activity/shares/` (not `/all/` which mixes comments/reactions). Facebook About sub-tabs + Reels + More dropdown (likes/checkins/events/reviews) via `?sk=` query params with redirect + empty-state detection. Reddit private profile handling (`profile_privacy="private"`) + karma/age/subreddits regex supplement. Helpers: `_scrape_linkedin_posts`, `_scrape_linkedin_experience_education`, `_scrape_linkedin_extras`, `_scrape_facebook_extras`.
+- `scripts/utils/ai_profile_scraper.py` — AI-powered profile extraction. `ai_scrape_profile_from_text()` (Tier 1) routes through AiManager with per-platform extraction prompts; `ai_scrape_profile()` (Tier 3) uses Gemini Vision on a screenshot. `is_missing_key_fields()` is lenient — accepts posts/niches/bio as valid data even when follower_count=0.
+- `scripts/utils/browser_config.py` — `apply_full_screen(kwargs, headless)` helper standardises viewport setup for all Playwright `launch_persistent_context()` calls. Headless → 1920x1080 viewport. Headed → `--start-maximized` + `no_viewport=True`.
 - `scripts/generate_campaign.ps1` — Preserved but unused for campaigns (replaced by content_generator.py)
 
 ## Platform-Specific Selector Patterns
@@ -173,7 +189,7 @@ Claude operates as cofounder and CTO of Amplifier — not an assistant, not a ye
 - Windows-only (Windows fonts in image generator, PowerShell for generation, Task Scheduler for automation). Image post-processing requires `numpy>=1.24.0` and `piexif>=1.1.3` (added to requirements.txt).
 - Each platform needs a one-time manual login via `login_setup.py` to establish the persistent browser profile
 - Per-platform proxy support in `_launch_context()` for geo-restricted platforms (configured in `platforms.json`)
-- MVP platforms (enabled): X, LinkedIn, Facebook, Reddit. TikTok and Instagram disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped
+- Active platforms: LinkedIn, Facebook, Reddit. **X DISABLED 2026-04-14** after 2 account blocks by anti-bot detection — do not re-enable without a safe automation method (X API v2, stealth browser like camoufox, or equivalent). TikTok and Instagram also disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped
 - Reddit posts to 1 random subreddit per run from the configured list
 - No test suite exists — verify changes by running against real platforms
 - Server uses SQLite for local dev, Supabase PostgreSQL in production (Vercel). Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)

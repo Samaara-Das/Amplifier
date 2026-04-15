@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: 2026-04-04
+Last updated: 2026-04-15
 
 ---
 
@@ -93,6 +93,7 @@ These are the main code areas. When files here change, docs likely need updating
 | Local database | `scripts/utils/local_db.py` | CLAUDE.md, docs/PRD.md |
 | Metric collection | `scripts/utils/metric_collector.py`, `scripts/utils/metric_scraper.py` | CLAUDE.md |
 | User app | `scripts/user_app.py` | CLAUDE.md, docs/PRD.md |
+| Profile scraping | `scripts/utils/profile_scraper.py`, `scripts/utils/ai_profile_scraper.py`, `scripts/utils/browser_config.py` | CLAUDE.md |
 | Server API | `server/app/routers/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
 | Server models | `server/app/models/` | CLAUDE.md, docs/PRD.md |
 | Server services | `server/app/services/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
