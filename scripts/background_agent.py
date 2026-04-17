@@ -178,7 +178,8 @@ async def generate_daily_content() -> dict:
 
         gen = ContentAgent()
         generated_count = 0
-        platforms = ['x', 'linkedin', 'facebook', 'reddit']
+        from utils.guard import filter_disabled
+        platforms = filter_disabled(['x', 'linkedin', 'facebook', 'reddit'])
         mode = get_setting("mode", "semi_auto") or "semi_auto"
 
         for campaign in active:

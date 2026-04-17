@@ -220,6 +220,9 @@ def schedule_posts(
 
     Returns: list of {campaign_id, platform, scheduled_at (datetime), content, image_path}
     """
+    from utils.guard import filter_disabled
+    platforms = filter_disabled(platforms)
+
     if not platforms:
         return []
 

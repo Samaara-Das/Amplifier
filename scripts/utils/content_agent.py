@@ -301,8 +301,9 @@ def _build_strategy(campaign: dict, research: dict, insights: list[dict] = None)
                 "goal": goal, "content_angles": research.get("content_angles", []),
                 "emotional_hooks": research.get("emotional_hooks", [])}
 
-    for platform in ["x", "linkedin", "facebook", "reddit"]:
-        plat_base = dict(base.get(platform, base.get("x", {})))
+    from utils.guard import filter_disabled
+    for platform in filter_disabled(["x", "linkedin", "facebook", "reddit"]):
+        plat_base = dict(base.get(platform, base.get("linkedin", {})))
 
         # Override formats if company specified preferences
         if platform in preferred and preferred[platform]:
@@ -530,7 +531,11 @@ class ContentAgent:
         import random
 
         if enabled_platforms is None:
-            enabled_platforms = ["x", "linkedin", "facebook", "reddit"]
+            from utils.guard import filter_disabled
+            enabled_platforms = filter_disabled(["x", "linkedin", "facebook", "reddit"])
+        else:
+            from utils.guard import filter_disabled
+            enabled_platforms = filter_disabled(enabled_platforms)
 
         # Build strategy (lightweight — no AI calls)
         research = {"content_angles": [], "emotional_hooks": []}
@@ -600,7 +605,11 @@ class ContentAgent:
         Returns: {platform: text, ..., image_prompt: str}
         """
         if enabled_platforms is None:
-            enabled_platforms = ["x", "linkedin", "facebook", "reddit"]
+            from utils.guard import filter_disabled
+            enabled_platforms = filter_disabled(["x", "linkedin", "facebook", "reddit"])
+        else:
+            from utils.guard import filter_disabled
+            enabled_platforms = filter_disabled(enabled_platforms)
 
         if not self._manager.has_providers:
             raise RuntimeError("No AI providers available. Set GEMINI_API_KEY in config/.env")

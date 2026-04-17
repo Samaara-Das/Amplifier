@@ -424,7 +424,7 @@ Per-platform deep extraction:
 - `feature/earnings` — Earnings summary + history
 - `feature/payouts` — Overview, withdraw, payment methods
 - `feature/settings` — Profile, notification prefs, social accounts
-- `accessibility/` — AccessibilityService + 5 platform automators (TikTok + Instagram proven, YouTube + Twitter + Facebook scaffolded)
+- `accessibility/` — AccessibilityService + 5 platform automators (TikTok + Instagram proven, YouTube + Twitter + Facebook scaffolded) _(X disabled 2026-04-14)_
 
 ### 4.3 v3 — Android App (Kotlin, Phase 1 MVP Complete)
 
@@ -468,7 +468,7 @@ QUEUED → APPROVED → POSTING → POSTED → VERIFIED (Phase 3)
 4. Analytics — posted count, platform breakdown
 5. Settings — Accessibility Service status/enable, Gemini connection status/login
 
-**Phase 1 Scope:** 2 platforms (Instagram + X), 1 AI provider (Gemini), local campaigns only, no backend sync, sideload APK distribution.
+**Phase 1 Scope:** 2 platforms (Instagram + X), 1 AI provider (Gemini), local campaigns only, no backend sync, sideload APK distribution. _(X disabled 2026-04-14)_
 
 ---
 

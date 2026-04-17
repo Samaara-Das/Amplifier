@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from utils.browser_config import apply_full_screen
+from utils.guard import filter_disabled
 
 
 async def run_login(platform: str) -> None:
@@ -83,7 +84,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Login setup helper for auto-poster")
     parser.add_argument(
         "platform",
-        choices=["x", "linkedin", "facebook", "instagram", "reddit", "tiktok"],
+        choices=filter_disabled(["x", "linkedin", "facebook", "instagram", "reddit", "tiktok"]),
         help="Platform to log into",
     )
     args = parser.parse_args()

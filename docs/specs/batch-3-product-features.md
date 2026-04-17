@@ -14,14 +14,16 @@ Expand posting beyond single text + image to the most-used content formats per p
 
 Before implementing, research the most-used content formats on each platform in 2026 by actual engagement data. Build formats people use, not an exhaustive list.
 
+> **NOTE**: X thread/poll formats are deferred while X posting is disabled (Task #40, 2026-04-14). Active platforms for Task #16 remain: LinkedIn, Facebook, Reddit.
+
 ### Content Formats by Platform
 
 | Platform | Format | Priority | Description |
 |----------|--------|----------|-------------|
 | **X** | Text post | Already working | Single post, 280 character limit |
 | **X** | Text + image | Already working | Post with attached image |
-| **X** | Thread | HIGH | Multiple linked posts published together. 3-5 posts typical. |
-| **X** | Poll | MEDIUM | Post with poll options. Duration 1-7 days. |
+| **X** | Thread | DEFERRED | Multiple linked posts published together. 3-5 posts typical. |
+| **X** | Poll | DEFERRED | Post with poll options. Duration 1-7 days. |
 | **LinkedIn** | Text post | Already working | Single post |
 | **LinkedIn** | Text + image | Already working | Post with attached image |
 | **LinkedIn** | Poll | HIGH | Poll with question + 2-4 options. Duration 1-2 weeks. |
@@ -62,7 +64,7 @@ If a format is not supported on a given platform (e.g., thread on Reddit), the s
 
 ### Acceptance Criteria
 
-1. The content agent can generate thread content for X consisting of 3-5 linked posts. The thread appears on X as properly linked posts.
+1. The content agent can generate thread content for X consisting of 3-5 linked posts. The thread appears on X as properly linked posts. _(DEFERRED — X disabled, see Task #40)_
 2. The content agent can generate a poll for LinkedIn with a question and 2-4 options. The poll appears on LinkedIn with all options functional.
 3. The content agent can generate a link post for Reddit with a title and external URL. The link post appears on Reddit correctly.
 4. When a format is requested on an unsupported platform, the system falls back to a text post without errors.

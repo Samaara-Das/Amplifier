@@ -122,7 +122,7 @@ Defines all 6 supported platforms. Read by `scripts/post.py` and other engine sc
 
 | Platform | Enabled | Key URLs |
 |----------|---------|----------|
-| X (Twitter) | Yes | compose: `x.com/compose/post`, home: `x.com/home` |
+| X (Twitter) (DISABLED 2026-04-14) | No | compose: `x.com/compose/post`, home: `x.com/home` |
 | LinkedIn | Yes | home: `linkedin.com/feed/` |
 | Facebook | Yes | home: `facebook.com/` |
 | Instagram | No | home: `instagram.com/` |

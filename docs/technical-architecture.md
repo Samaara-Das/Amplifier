@@ -39,7 +39,7 @@ graph TB
     CD <-->|"Campaign CRUD<br/>Billing, Analytics"| V
     AD <-->|"User/Company Mgmt<br/>Fraud, Payouts"| V
     BA <-->|"Poll campaigns<br/>Submit posts+metrics"| V
-    PW -->|"Post to platforms"| SM["X  LinkedIn  Facebook  Reddit"]
+    PW -->|"Post to platforms"| SM["X (disabled)  LinkedIn  Facebook  Reddit"]
     PW -->|"Scrape metrics"| SM
 
     style V fill:#3b82f6,color:#fff

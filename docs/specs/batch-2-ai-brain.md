@@ -56,6 +56,8 @@ Fallback: if no API key is set, use CSS selectors only (existing behavior).
 
 The AI must be told specifically what to look for on each platform. Each platform's UI is different and shows different data.
 
+> **NOTE**: X profile scraping is deferred while X posting is disabled (Task #40, 2026-04-14). This spec is preserved as reference for re-enablement.
+
 #### X (Twitter)
 
 **Navigate to:** User's profile page (`https://x.com/{username}`)
@@ -377,7 +379,7 @@ All platforms return the same normalized structure containing:
 
 ### Acceptance Criteria
 
-1. Connect X. Profile scraper runs. Result includes: follower count > 0, display name, at least 3 recent posts with engagement metrics.
+1. Connect X. Profile scraper runs. Result includes: follower count > 0, display name, at least 3 recent posts with engagement metrics. _(N/A while X posting disabled — see Task #40)_
 2. Disconnect AI key. Scraper falls back to element-based extraction. Still returns data (less rich but functional).
 3. Connect LinkedIn. Result includes: at least 1 work experience entry, headline.
 4. Connect Reddit. Result includes: karma > 0, active subreddits, posts with scores.
@@ -540,7 +542,7 @@ Generates campaign content across 4 platforms that feels like a real person reco
 
 **The AI strategy prompt should reason about:**
 1. What content angles will resonate with this creator's audience?
-2. How many posts per day per platform? (X can handle 2-3, LinkedIn 1, Reddit less than 1)
+2. How many posts per day per platform? (X historically 2-3/day but currently disabled; LinkedIn 1, Reddit less than 1)
 3. Should posts include images? (depends on the product and platform)
 4. What hook styles should we use? (question, story, stat, contrarian, etc.)
 5. What time of day works best for this creator's audience region?

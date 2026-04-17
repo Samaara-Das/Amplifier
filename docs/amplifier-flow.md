@@ -236,7 +236,7 @@ Generated (approved=0) → Approved (approved=1) → Posted (posted=1)
 ### Scheduling Logic
 - Base time: max(now + 5min, last_queued + 30min)
 - Jitter: + random 0-10 minutes
-- Peak windows considered: X (8-10, 12-13, 17-19), LinkedIn (8-10, 12-13), Facebook (12-14, 19-21), Reddit (8-11, 18-21)
+- Peak windows considered: X (8-10, 12-13, 17-19), LinkedIn (8-10, 12-13), Facebook (12-14, 19-21), Reddit (8-11, 18-21) _(X disabled 2026-04-14; active: LinkedIn, Facebook, Reddit)_
 - All times in target region's timezone
 
 ---

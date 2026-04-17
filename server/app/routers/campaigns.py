@@ -23,6 +23,7 @@ from app.schemas.campaign import (
 )
 from app.models.campaign_post import CampaignPost
 from app.services.matching import get_matched_campaigns
+from app.utils.platform_guard import contains_disabled, is_platform_disabled
 
 MINIMUM_CAMPAIGN_BUDGET = 50.0
 
@@ -43,6 +44,21 @@ async def create_campaign(
             status_code=400,
             detail=f"Minimum campaign budget is ${MINIMUM_CAMPAIGN_BUDGET:.2f}",
         )
+
+    # Reject campaigns targeting disabled platforms
+    required_platforms = (data.targeting.required_platforms or []) if data.targeting else []
+    if contains_disabled(required_platforms):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot target disabled platform: X is not supported. See docs/platform-posting-playbook.md.",
+        )
+    min_f = (data.targeting.min_followers or {}) if data.targeting else {}
+    if is_platform_disabled("x") and min_f.get("x", 0) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot set min_followers_x: X is not supported. See docs/platform-posting-playbook.md.",
+        )
+
     # Drafts don't require balance — only deduct on activation
     campaign = Campaign(
         company_id=company.id,

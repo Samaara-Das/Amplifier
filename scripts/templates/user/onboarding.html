@@ -54,24 +54,19 @@
           <p class="ob-subtitle">A browser will open for you to log in. If you're already logged in, just close the browser. This is a one-time setup.</p>
 
           <div class="ob-platform-grid">
-            <!-- X (Twitter) -->
-            <div class="ob-platform-card {{ 'connected' if platforms.get('x') else '' }}">
+            <!-- X (Twitter) — DISABLED due to anti-bot detection (Task #40, 2026-04-14) -->
+            <div class="ob-platform-card" style="opacity: 0.5;">
               <div class="ob-platform-card-icon x">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
               </div>
               <div class="ob-platform-card-info">
                 <span class="ob-platform-card-name">X (Twitter)</span>
-                <span class="ob-platform-card-status">{{ 'Connected' if platforms.get('x') else 'Not connected' }}</span>
+                <span class="ob-platform-card-status" style="color: var(--text-muted);">
+                  <span style="background: #f59e0b; color: #000; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Disabled</span>
+                </span>
               </div>
-              {% if platforms.get('x') %}
-                <form method="post" action="{{ url_for('onboarding_connect', platform='x') }}" style="margin:0;">
-                  <button type="submit" class="btn btn-sm ob-connect-btn connected" title="Click to reconnect with a different account">Reconnect</button>
-                </form>
-              {% else %}
-                <form method="post" action="{{ url_for('onboarding_connect', platform='x') }}" style="margin:0;">
-                  <button type="submit" class="btn btn-primary btn-sm ob-connect-btn">Connect</button>
-                </form>
-              {% endif %}
+              <button type="button" class="btn btn-sm ob-connect-btn" disabled
+                title="X is disabled — Amplifier does not post to X due to X's anti-bot detection. See platform docs.">Connect</button>
             </div>
 
             <!-- LinkedIn -->

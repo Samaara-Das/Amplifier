@@ -306,7 +306,11 @@ class ContentGenerator:
             raise RuntimeError("No AI providers available. Set GEMINI_API_KEY in config/.env")
 
         if enabled_platforms is None:
-            enabled_platforms = ["x", "linkedin", "facebook", "reddit"]
+            from utils.guard import filter_disabled
+            enabled_platforms = filter_disabled(["x", "linkedin", "facebook", "reddit"])
+        else:
+            from utils.guard import filter_disabled
+            enabled_platforms = filter_disabled(enabled_platforms)
 
         prompt = CONTENT_PROMPT.format(
             title=campaign.get("title", ""),

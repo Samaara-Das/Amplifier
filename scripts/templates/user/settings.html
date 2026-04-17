@@ -46,6 +46,25 @@
         } %}
 
         {% for p in ['x', 'linkedin', 'facebook', 'reddit'] %}
+          {% if p == 'x' %}
+          <div class="platform-settings-row" style="opacity: 0.5;">
+            <div class="platform-settings-info">
+              <div class="platform-settings-icon">
+                {{ platform_icons[p]|safe }}
+              </div>
+              <div class="platform-settings-details">
+                <div class="platform-settings-name">{{ platform_names[p] }}</div>
+                <div class="platform-settings-status">
+                  <span style="background: #f59e0b; color: #000; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Disabled</span>
+                </div>
+              </div>
+            </div>
+            <div class="platform-settings-actions">
+              <button type="button" class="btn btn-secondary btn-sm" disabled
+                title="X is disabled — Amplifier does not post to X due to X's anti-bot detection. See platform docs.">Connect</button>
+            </div>
+          </div>
+          {% else %}
           <div class="platform-settings-row">
             <div class="platform-settings-info">
               <div class="platform-settings-icon">
@@ -77,6 +96,7 @@
               </form>
             </div>
           </div>
+          {% endif %}
         {% endfor %}
       </div>
     </div>

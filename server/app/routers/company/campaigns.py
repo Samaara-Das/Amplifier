@@ -18,6 +18,7 @@ from app.models.assignment import CampaignAssignment
 from app.models.post import Post
 from app.models.metric import Metric
 from app.services.metric_helpers import latest_metric_filter, latest_metric_join_condition
+from app.utils.platform_guard import is_platform_disabled
 from app.models.payout import Payout
 from app.models.user import User
 from app.routers.company import (
@@ -394,6 +395,12 @@ async def campaign_create_submit(
 
     # Create CampaignPost records for repost campaigns
     if campaign_type == "repost":
+        if repost_x.strip() and is_platform_disabled("x"):
+            from fastapi import HTTPException as _HTTPException
+            raise _HTTPException(
+                status_code=400,
+                detail="Cannot create X repost content: X is not supported. See docs/platform-posting-playbook.md.",
+            )
         post_order = 1
         repost_entries = [
             ("x", repost_x.strip(), repost_x_image.strip()),

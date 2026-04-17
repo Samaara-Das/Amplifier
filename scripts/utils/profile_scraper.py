@@ -31,6 +31,7 @@ from utils.local_db import (
     get_all_scraped_profiles,
 )
 from utils.browser_config import apply_full_screen
+from utils.guard import filter_disabled, guard_platform
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +354,7 @@ async def scrape_x_profile(playwright) -> dict:
     Extracts: display_name, bio, follower_count, following_count,
     profile_pic_url, recent posts with engagement metrics.
     """
+    guard_platform("x", "scrape_profile")
     # Selectors
     X_HOME_URL = "https://x.com/home"
     X_PROFILE_LINK = 'a[data-testid="AppTabBar_Profile_Link"]'
@@ -3086,6 +3088,11 @@ async def scrape_all_profiles(platforms: list[str] | None = None) -> dict:
     if platforms is None:
         # Default to all enabled platforms
         platforms = [p for p, cfg in PLATFORMS.items() if cfg.get("enabled", False)]
+
+    # Always filter out hardcoded-disabled platforms regardless of config
+    platforms = filter_disabled(platforms)
+    if not platforms:
+        return {}
 
     results = {}
 

@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from utils.local_db import get_setting, init_db, set_setting
 from utils.server_client import _load_auth, get_profile, is_logged_in, login, register
+from utils.guard import filter_disabled
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -514,7 +515,7 @@ def onboarding_scrape():
 
     connected = [
         p
-        for p in ["x", "linkedin", "facebook", "reddit"]
+        for p in filter_disabled(["x", "linkedin", "facebook", "reddit"])
         if (ROOT / "profiles" / f"{p}-profile").exists()
         and any((ROOT / "profiles" / f"{p}-profile").iterdir())
     ]
@@ -919,7 +920,7 @@ def generate_content(campaign_id):
                     "assets": campaign.get("assets", "{}"),
                     "disclaimer_text": campaign.get("disclaimer_text"),
                 },
-                enabled_platforms=["x", "linkedin", "facebook", "reddit"],
+                enabled_platforms=filter_disabled(["x", "linkedin", "facebook", "reddit"]),
             )
         )
 
@@ -951,7 +952,7 @@ def regenerate_drafts(campaign_id):
         flash("Campaign not found.", "error")
         return redirect(url_for("campaigns"))
 
-    platforms = ["x", "linkedin", "facebook", "reddit"]
+    platforms = filter_disabled(["x", "linkedin", "facebook", "reddit"])
     platform = request.form.get("platform", "")  # Optional: regenerate for specific platform
 
     try:
@@ -1494,7 +1495,7 @@ def settings_scrape():
 
     connected = [
         p
-        for p in ["x", "linkedin", "facebook", "reddit"]
+        for p in filter_disabled(["x", "linkedin", "facebook", "reddit"])
         if (ROOT / "profiles" / f"{p}-profile").exists()
         and any((ROOT / "profiles" / f"{p}-profile").iterdir())
     ]

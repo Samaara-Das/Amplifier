@@ -20,7 +20,7 @@ After posting, the system must capture the post's permanent URL so the metric sc
 
 | Platform | Status | Issue |
 |----------|--------|-------|
-| X | Working | Finds the `/status/` URL from the profile page |
+| X | DISABLED (2026-04-14) — code preserved. See Task #40. | Finds the `/status/` URL from the profile page |
 | LinkedIn | May fail | Waits for a "View post" dialog that doesn't appear for text-only posts |
 | Facebook | May fail | Returns the profile URL, not the actual post URL |
 | Reddit | May fail | Redirect to `/comments/` is not detected |
@@ -56,7 +56,7 @@ After posting, the system must capture the post's permanent URL so the metric sc
 1. LinkedIn post URL contains `/feed/update/` or at minimum `/recent-activity/`.
 2. Facebook post URL contains `/posts/` or `/permalink/` or at minimum is a profile URL.
 3. Reddit post URL contains `/comments/`.
-4. X post URL still contains `/status/` (regression check).
+4. X post URL still contains `/status/` (regression check). _(N/A while X disabled — see Task #40)_
 5. When URL extraction fails entirely, the post is marked `posted_no_url`, not `failed`.
 
 ---
@@ -86,7 +86,7 @@ Not all metrics are visible on all platforms. Only scrape what is actually shown
 | **Comments** | YES | YES | YES | YES |
 | **Reposts/Shares** | YES | YES (reposts) | YES (shares) | NO |
 
-**Key implication:** Views are available on X and Reddit. LinkedIn and Facebook do not show view counts on post pages. The billing formula accounts for this -- `rate_per_1k_views` generates earnings on X and Reddit posts.
+**Key implication:** Views are available on X and Reddit. LinkedIn and Facebook do not show view counts on post pages. The billing formula accounts for this -- `rate_per_1k_views` generates earnings on X and Reddit posts. _(X disabled 2026-04-14; applies to Reddit only until X is re-enabled)_
 
 ### Per-Platform Scraping Behavior
 
@@ -180,7 +180,7 @@ After each scraping run, unreported metrics are batched and sent to the server. 
 
 ### Acceptance Criteria
 
-1. X post scraped after 24+ hours returns non-zero views or likes.
+1. X post scraped after 24+ hours returns non-zero views or likes. _(N/A while X disabled — see Task #40)_
 2. LinkedIn post scraped returns reactions count.
 3. Reddit post scraped returns view count, upvote score, and comment count.
 4. Facebook post scraped returns likes, comments, or shares.

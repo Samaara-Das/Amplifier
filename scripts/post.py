@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from utils.browser_config import apply_full_screen
+from utils.guard import filter_disabled, guard_platform, is_platform_disabled
 
 load_dotenv(ROOT / "config" / ".env")
 os.environ.setdefault("AUTO_POSTER_ROOT", str(ROOT))
@@ -320,6 +321,7 @@ async def post_to_platform(draft: dict, pw, platform: str) -> str | None:
 
     This is the single entry point for all platform posting.
     """
+    guard_platform(platform, "post")
     # Try script-driven posting first
     script_path = _get_script_path(platform)
     if script_path:
@@ -364,8 +366,9 @@ X_TEXTBOX = '[role="textbox"]'
 X_POST_BUTTON = '[data-testid="tweetButton"]'
 
 
-async def post_to_x(draft: dict, pw) -> str | None:
+async def post_to_x(draft: dict, pw=None) -> str | None:
     """Post content to X (Twitter). Returns post URL on success, None on failure."""
+    guard_platform("x", "post")
     context = None
     image_path = None
     try:
@@ -1492,7 +1495,11 @@ def get_slot_platforms(slot: int) -> list[str]:
         if today in rules["days"]:
             platforms.append(platform)
 
-    return platforms
+    filtered = filter_disabled(platforms)
+    if len(filtered) < len(platforms):
+        removed = set(platforms) - set(filtered)
+        logger.info("Filtered out disabled platforms: %s", removed)
+    return filtered
 
 
 async def main() -> None:

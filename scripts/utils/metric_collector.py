@@ -10,6 +10,7 @@ Priority per platform:
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 
 import httpx
@@ -17,6 +18,9 @@ import httpx
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from utils.guard import guard_platform
 
 
 class MetricCollector:
@@ -48,6 +52,9 @@ class MetricCollector:
 
         Returns: {"impressions": int, "likes": int, "reposts": int, "comments": int, "clicks": int}
         """
+        # Guard BEFORE try/except — must not be swallowed by the fallback handler
+        guard_platform(platform, "metrics_collection")
+
         default = {"impressions": 0, "likes": 0, "reposts": 0, "comments": 0, "clicks": 0}
 
         try:

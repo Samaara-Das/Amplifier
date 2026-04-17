@@ -26,6 +26,7 @@ from utils.local_db import (
 )
 from utils.server_client import report_metrics, report_post_deleted
 from utils.browser_config import apply_full_screen
+from utils.guard import is_platform_disabled
 
 logger = logging.getLogger(__name__)
 
@@ -725,11 +726,15 @@ async def scrape_all_posts():
     except Exception as e:
         logger.info("MetricCollector not available, using Playwright scrapers: %s", e)
 
-    # Platforms that have API collection available
+    # Filter out hardcoded-disabled platforms before any processing
+    posts_to_scrape = [p for p in posts_to_scrape if not is_platform_disabled(p["platform"])]
+    if not posts_to_scrape:
+        logger.info("No posts to scrape after filtering disabled platforms")
+        return
+
+    # Platforms that have API collection available (X excluded — disabled for safety)
     api_platforms = set()
     if collector:
-        if collector._x_bearer:
-            api_platforms.add("x")
         if collector._reddit:
             api_platforms.add("reddit")
 

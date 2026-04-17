@@ -18,6 +18,7 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.invitation_log import CampaignInvitationLog
 from app.models.user import User
+from app.utils.platform_guard import contains_disabled
 from app.schemas.campaign import CampaignBrief, CampaignPostResponse
 
 logger = logging.getLogger(__name__)
@@ -375,8 +376,16 @@ def _passes_hard_filters(campaign: Campaign, user: User) -> bool:
     """Check hard filters. Returns True if user is eligible for the campaign."""
     targeting = campaign.targeting or {}
 
-    # Required platforms — user must have AT LEAST ONE of the required platforms
+    # Reject campaigns that require a disabled platform (e.g. X) — users cannot post there
     required_platforms = targeting.get("required_platforms", [])
+    if required_platforms and contains_disabled(required_platforms):
+        logger.debug(
+            "Campaign %d rejected by hard filter: requires disabled platform in %s",
+            campaign.id, required_platforms,
+        )
+        return False
+
+    # Required platforms — user must have AT LEAST ONE of the required platforms
     if required_platforms:
         user_platforms = set()
         for k, v in (user.platforms or {}).items():

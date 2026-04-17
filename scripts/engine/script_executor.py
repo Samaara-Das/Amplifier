@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from engine import error_recovery, human_timing, selector_chain
+from utils.guard import guard_platform
 from engine.script_parser import (
     DelayRange,
     PlatformScript,
@@ -62,6 +63,7 @@ class ScriptExecutor:
 
     async def execute(self, script: PlatformScript) -> ExecutionResult:
         """Run all steps in a script. Returns ExecutionResult."""
+        guard_platform(script.platform, "post_via_script")
         self._log = []
         self.post_url = None
 

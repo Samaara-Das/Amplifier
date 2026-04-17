@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from utils.local_db import get_setting, set_setting
 from utils.browser_config import apply_full_screen
+from utils.guard import filter_disabled
 
 logger = logging.getLogger(__name__)
 
@@ -298,9 +299,9 @@ async def check_all_sessions() -> dict:
     profiles_dir = ROOT / "profiles"
     results = {}
 
-    # Discover which platforms have profile directories
+    # Discover which platforms have profile directories (skip hardcoded-disabled ones)
     connected_platforms = []
-    for platform in PLATFORMS:
+    for platform in filter_disabled(list(PLATFORMS.keys())):
         profile_path = profiles_dir / f"{platform}-profile"
         if profile_path.exists() and profile_path.is_dir():
             connected_platforms.append(platform)

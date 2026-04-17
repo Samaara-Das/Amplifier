@@ -194,7 +194,7 @@ A public-facing website that explains Amplifier to both companies and users. Mus
 1. Navigate to the landing page URL. Page loads in under 2 seconds. Both company and user messaging is visible.
 2. Click "Create Campaign". Redirects to company login/register page.
 3. Click "Download Amplifier". Installer download starts.
-4. Share the URL on X/LinkedIn. Preview card appears with title, description, and image (OG tags working).
+4. Share the URL on LinkedIn/Facebook/Reddit. Preview card appears with title, description, and image (OG tags working).
 5. View on mobile (375px width). All content is readable, CTAs are tappable, no horizontal scroll.
 6. FAQ section answers the 4 key questions.
 
@@ -248,7 +248,7 @@ The same metric values should not be billed twice. The billing system must check
 
 ### Acceptance Criteria
 
-1. Delete a post on X. Run the scraper. The post is marked as "deleted" in the database. No zero-metric row is stored. Future scraping skips this post.
+1. Delete a post on X. Run the scraper. The post is marked as "deleted" in the database. No zero-metric row is stored. Future scraping skips this post. _(N/A while X disabled; test equivalent on LinkedIn/Facebook/Reddit)_
 2. A post with 0 likes and 0 comments (real post, just no engagement). Scraper stores the zeros correctly. This is valid data.
 3. Platform rate limits the scraper 3 times in a row. Scraping for that platform pauses for 1 hour. Other platforms continue normally.
 4. Same metric data submitted to the server twice. Only one earning record is created (no duplicates).
