@@ -131,7 +131,7 @@ The server is the central marketplace that connects companies with creators, han
 
 ### 3.2 Data Models
 
-#### Server Database (11 models in v1, 53 models in v2)
+#### Server Database (13 models in v1, 53 models in v2)
 
 **Core Models (v1 — deployed):**
 
@@ -374,8 +374,20 @@ The creator app runs on the creator's device, handles onboarding, campaign brows
 | Generate daily content | 120s | Create drafts for active campaigns (per platform, anti-repetition) |
 | Poll campaigns | 10min | Fetch new invitations from server, sync statuses |
 | Check sessions | 30min | Verify platform login sessions are alive |
-| Scrape metrics | Tiered | T+1h, T+6h, T+24h, T+72h engagement collection |
-| Refresh profiles | 7 days | Re-scrape follower counts, bios, recent posts |
+| Scrape metrics | 60s check | T+1h, T+6h, T+24h, T+72h engagement collection |
+| Refresh profiles | 7 days | Re-scrape all connected platform profiles via 3-tier pipeline |
+
+**Profile Scraping (3-Tier Pipeline — `scripts/utils/profile_scraper.py` + `ai_profile_scraper.py`):**
+- **Tier 1 (Text):** Extracts all visible page text, sends to AiManager for structured extraction. Captures 80%+ of profile data without vision tokens.
+- **Tier 2 (CSS selectors):** Platform-specific CSS queries supplement Tier 1 where text extraction is ambiguous (follower counts, post engagement metrics).
+- **Tier 3 (Gemini Vision):** Screenshot + vision model. Only escalated if `is_missing_key_fields()` returns True after Tier 1+2.
+
+Per-platform deep extraction:
+- **LinkedIn:** Experience/education from `/details/*/` sub-pages, Featured (link + post style), Honors/Interests, posts from `/recent-activity/shares/` (not `/all/` which mixes comments).
+- **Facebook:** About sub-tabs + Reels + More dropdown (likes/checkins/events/reviews) via `?sk=` params, redirect + empty-state detection.
+- **Reddit:** Private profile handling (`profile_privacy="private"`), karma/age/subreddits via regex supplement.
+
+**Browser Config (`scripts/utils/browser_config.py`):** `apply_full_screen()` standardises all Playwright `launch_persistent_context()` calls. Headless → 1920×1080 viewport. Headed → `--start-maximized` + `no_viewport=True`.
 
 **Local Database (13 SQLite tables):**
 - `local_campaign` — Server campaign mirror with local status
@@ -573,7 +585,7 @@ Before generating content, the system can enrich the campaign brief:
 
 **How it works:** Launches real browser instances with persistent user profiles (established via one-time manual login). Each platform gets its own browser context. Posts are created by navigating the platform's compose UI and interacting with real DOM elements.
 
-**Supported Platforms:** X, LinkedIn, Facebook, Reddit (enabled). TikTok, Instagram (code preserved, disabled).
+**Supported Platforms:** LinkedIn, Facebook, Reddit (enabled). X (Twitter) disabled 2026-04-14 after 2 account lockouts from anti-bot detection — code and JSON script preserved, do not re-enable without X API v2 or stealth browser. TikTok, Instagram (code preserved, disabled).
 
 **JSON Script Engine (`scripts/engine/`):**
 

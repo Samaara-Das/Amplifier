@@ -158,22 +158,29 @@ Company pays $1.00 for engagement
 
 | Component | Status | Details |
 |---|---|---|
-| **Server API** | Live | ~90 routes (27 API + 36 admin + 21 company + 2 system + 2 health), Vercel + Supabase PostgreSQL |
-| **Company Dashboard** | Live | Campaign wizard, analytics, billing, settings |
-| **Admin Dashboard** | Live | Users, campaigns, fraud detection, payouts |
-| **User Desktop App** | Working | 5-step onboarding, campaign management, earnings |
-| **AI Matching** | Working | Gemini-powered profile scoring + hard filters |
-| **AI Content Generation** | Working | Platform-native text + images for X, LinkedIn, Facebook, Reddit. img2img from campaign product photos, daily image rotation. |
-| **Posting Engine** | Working | 4 platforms, JSON script engine with fallback selector chains, human emulation, image support |
-| **Metric Scraping** | Working | API + browser hybrid, tiered schedule |
-| **Billing Engine** | Working | Incremental, dedup, auto-pause on budget exhaustion |
-| **Trust & Fraud** | Working | Score system, deletion + anomaly detection |
-| **Payments** | Working | Stripe Checkout + Connect (test mode) |
+| **Server API** | Built | ~90 routes (27 API + 36 admin + 21 company + 2 system + 2 health), FastAPI + Supabase PostgreSQL |
+| **Company Dashboard** | Built | Campaign wizard, analytics, billing, settings — 10 pages |
+| **Admin Dashboard** | Built | Users, campaigns, fraud detection, payouts — 14 pages |
+| **User Desktop App** | Working | 5-step onboarding, campaign management, earnings dashboard (localhost:5222) |
+| **Money Loop (E2E)** | Verified | Post URL capture → metric scraping → billing → earnings display → deleted post detection — all verified end-to-end |
+| **AI Matching** | Working | Weighted scoring: topic relevance 40%, audience fit 25%, authenticity 20%, content quality 15%. Min score 40. Brand safety filter. Niche-overlap fallback. 30 unit tests + E2E verified. |
+| **3-Tier Profile Scraping** | Working | Tier 1 (page text → AiManager), Tier 2 (CSS selectors), Tier 3 (Gemini Vision). Per-platform deep pages: LinkedIn experience/education/featured, Facebook About sub-tabs/Reels/More, Reddit private handling. UAT verified against 3 real profiles. |
+| **AI Content Generation** | Working | Platform-native text + images for LinkedIn, Facebook, Reddit. img2img from campaign product photos, daily image rotation. 5-provider fallback chain. |
+| **Posting Engine** | Working | 3 active platforms (LinkedIn, Facebook, Reddit), JSON script engine with fallback selector chains, human emulation, image support |
+| **Metric Scraping** | Working | API + browser hybrid (X/Reddit: official APIs, LinkedIn/Facebook: Browser Use + Playwright), tiered schedule (T+1h/6h/24h/72h) |
+| **Billing Engine** | Working | Integer cents math, incremental billing, 7-day earning hold, tier CPM multiplier (2x for Amplifier tier), auto-pause on budget exhaustion |
+| **Reputation Tiers** | Working | Seedling (3 campaigns) → Grower (10 campaigns, 20+ posts) → Amplifier (unlimited, 100+ posts + trust ≥ 80, 2x CPM) |
+| **Trust & Fraud** | Working | Trust score system, post deletion detection, engagement anomaly detection |
+| **Payments** | Working | Stripe Checkout (company top-ups) + Connect (user payouts, test mode) |
 
-### Live URLs
-- Company Dashboard: `server-five-omega-23.vercel.app/company/login`
-- Admin Dashboard: `server-five-omega-23.vercel.app/admin/login`
-- API Docs: `server-five-omega-23.vercel.app/docs`
+### Note on Deployment
+Server code is deployed; live URL currently offline due to a Vercel billing issue. Runs fully on local FastAPI + Supabase.
+
+### Local Demo URLs
+- Company Dashboard: `localhost:8000/company/login`
+- Admin Dashboard: `localhost:8000/admin/login`
+- API Docs: `localhost:8000/docs`
+- User App: `localhost:5222`
 
 ---
 
@@ -187,7 +194,7 @@ Company pays $1.00 for engagement
 ### User Experience
 - **Zero-Effort Earning** — AI generates content. App posts it. Metrics are tracked. Money appears.
 - **Semi-Auto or Full-Auto** — Review every post before it goes live, or let the AI handle everything.
-- **Multi-Platform** — One app, four platforms (X, LinkedIn, Facebook, Reddit). More coming.
+- **Multi-Platform** — One app, three active platforms (LinkedIn, Facebook, Reddit). X disabled pending safe automation method; TikTok/Instagram coming.
 
 ### AI Content Quality
 - **Platform-native** — A tweet doesn't look like a LinkedIn post doesn't look like a Reddit thread
@@ -201,11 +208,11 @@ Company pays $1.00 for engagement
 
 | Phase | Timeline | Focus |
 |---|---|---|
-| **V1 Verification** | Now | Fix remaining bugs, verify all features end-to-end |
+| **Batch 1: Money Loop** | Done (Apr 2026) | Post URL capture, metric scraping, billing, earnings display, deleted post detection — all verified E2E |
+| **Batch 2: AI Brain** | Now (Apr 2026) | AI matching (done), 3-tier profile scraping (done), 4-phase content agent (next), AI campaign quality gate |
 | **Beta Launch** | Q2 2026 | First 10 companies, 100 users. Validate unit economics. |
-| **Content Quality** | Q3 2026 | 4-phase AI content agent, image/video generation, platform preview |
-| **Reliability** | Q3 2026 | Official platform APIs (replace Playwright), X lockout fix |
-| **Scale** | Q4 2026 | Free/paid tiers, self-learning content, mobile companion app |
+| **Reliability** | Q3 2026 | Official platform APIs (replace Playwright), X safe automation method |
+| **Scale** | Q3-Q4 2026 | Free/paid tiers, self-learning content, video generation |
 | **Distribution** | 2027 | Web-based user dashboard, Tauri desktop agent, public API |
 
 ### Key milestones:

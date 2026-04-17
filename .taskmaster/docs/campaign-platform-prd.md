@@ -1,5 +1,13 @@
 # Amplifier PRD
 
+> **Implementation Note (2026-04-17):** This is the original planning PRD. The actual implementation has diverged in several areas. For current state, see `docs/PRD.md`.
+>
+> Key divergences from this document:
+> - **Server hosting:** Vercel (not Railway). Supabase PostgreSQL (not Redis/ARQ — background jobs handled by user-side background_agent.py).
+> - **AI generation:** AiManager (Gemini→Mistral→Groq Python SDK) replaces Claude CLI for campaign content. Claude CLI retained for personal brand engine only.
+> - **Active platforms:** LinkedIn, Facebook, Reddit only. X disabled 2026-04-14 after account lockouts. Instagram/TikTok remain disabled.
+> - **Implementation status:** 13 of 39 tasks done. Batch 1 (Money Loop) complete + verified. Batch 2 (AI Brain): AI matching + 3-tier profile scraping done, 4-phase content agent next.
+
 ## Overview
 
 Build a two-sided marketplace where companies pay to promote products/campaigns, and users earn money by auto-posting campaign content to their 6 social media platforms using an AI-powered desktop application. The central server is a lightweight campaign marketplace. All AI generation, posting, and metric scraping happens on user devices.

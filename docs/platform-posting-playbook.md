@@ -81,7 +81,9 @@ Optional proxy support from `platforms.json`: `kwargs["proxy"] = {"server": prox
 
 ## X (Twitter)
 
-> **Note:** X posting is now primarily handled by `config/scripts/x_post.json` via the script engine. The selectors and flow below are the legacy fallback, retained as reference.
+> **DISABLED (2026-04-14):** X posting is disabled after 2 account blocks caused by Playwright automation detection. `"enabled": false` in `config/platforms.json`. Do NOT re-enable without a safe automation method (X API v2, stealth browser like camoufox, or equivalent). The code and JSON script below are preserved as historical reference for when a safe method is implemented.
+
+> **Note:** X posting was primarily handled by `config/scripts/x_post.json` via the script engine. The selectors and flow below are the legacy fallback, retained as reference.
 
 ### Selectors
 ```python

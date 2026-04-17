@@ -143,7 +143,7 @@ Amplifier fills this gap.
 3. **Users get invitations** → 3-day TTL, max 3 active campaigns per user
 4. **User accepts** → AI generates platform-native content for each connected platform
 5. **User reviews** → Semi-auto: approve/edit/reject. Full-auto: auto-post.
-6. **Posting engine fires** → Playwright automation with human emulation, posts to X/LinkedIn/Facebook/Reddit
+6. **Posting engine fires** → Playwright automation with human emulation, posts to LinkedIn/Facebook/Reddit (X disabled 2026-04-14)
 7. **Metrics scraped** → At T+1h, T+6h, T+24h, T+72h via APIs (X, Reddit) or browser scraping (LinkedIn, Facebook)
 8. **Billing runs** → Incremental billing on every metric submission. User earns, company budget deducted, Amplifier takes 20%.
 9. **User cashes out** → $10 minimum, Stripe Connect payout
@@ -333,12 +333,18 @@ draft → active → paused → active (resume)
 9. User status is not suspended/banned
 
 **AI Scoring (Gemini):**
-- Reads user's full scraped profile data (bio, recent posts with engagement metrics, follower/following counts, platform-specific data)
+- Reads user's full scraped profile data (bio, recent posts with engagement metrics, follower/following counts, extended platform fields)
 - Reads campaign brief, content guidance, targeting criteria
-- Scores 0-100 on: topic relevance, audience fit, authenticity
-- Key instruction: "Most users are normal people, not influencers. Low followers or infrequent posting should NOT be penalized."
+- Weighted scoring across 4 criteria (0-100 total):
+  - Topic relevance: 40% — do their posts/bio match the campaign topic? Niche depth rewarded.
+  - Audience fit: 25% — would their followers be interested? Judged per required platform, not averaged.
+  - Authenticity fit: 20% — would this person promoting this product feel natural?
+  - Content quality: 15% — writing quality, engagement relative to follower count, originality.
+- Brand safety filter: controversial/offensive content → score capped 20-40 regardless of relevance
+- Self-selected niches weighted equally to AI-detected niches for topic relevance
+- Minimum score threshold: 40 (campaigns scoring below 40 are not invited)
 - Results cached 24 hours per (campaign, user) pair
-- On AI failure: falls back to niche-overlap scoring (each overlapping niche = +30 points)
+- On AI failure: falls back to niche-overlap scoring (each overlapping niche = +25 points, base 50 if no niche targeting, minimum 10)
 
 **Invitation Flow:**
 1. User polls GET `/api/campaigns/mine` → triggers matching if < 3 active campaigns
@@ -429,14 +435,17 @@ Flask web app (localhost:5222) + background agent running on user's Windows desk
 - Keys stored locally in SQLite settings table, NEVER sent to server
 
 **Step 2 — Connect Platforms:**
-- Cards for X, LinkedIn, Facebook, Reddit (enabled); Instagram, TikTok (disabled)
+- Cards for LinkedIn, Facebook, Reddit (enabled); X, Instagram, TikTok (disabled)
 - "Connect" button launches Playwright browser with persistent profile
 - User logs in manually, closes browser when done
 - Connection verified by checking for auth indicators (compose button, profile link, etc.)
 
-**Step 3 — Profile Scraping:**
+**Step 3 — Profile Scraping (3-tier pipeline):**
 - Auto-runs after platform connection
-- Per-platform extraction: display name, bio, follower/following count, profile picture, recent posts with engagement metrics, engagement rate, posting frequency
+- Tier 1 (text): Extracts all visible page text, sends to AiManager for structured extraction
+- Tier 2 (CSS selectors): Supplements with platform-specific CSS queries for follower counts, posts, etc.
+- Tier 3 (Gemini Vision): Screenshot + vision model if key fields still missing after Tier 1/2
+- Per-platform deep extraction: LinkedIn experience/education/featured/honors/interests, Facebook About sub-tabs/Reels/More, Reddit karma/age/subreddits, private profile handling
 - AI niche detection from post content (5 niches from 21 categories)
 - Real-time polling (3-second intervals) shows scraping progress in UI
 - Data stored locally + synced to server
@@ -487,12 +496,12 @@ Multi-platform Playwright automation with human behavior emulation.
 
 | Platform | Status | Post Types | Key Technique |
 |---|---|---|---|
-| **X (Twitter)** | Enabled | Text, Image+Text, Image-only | `Ctrl+Enter` to bypass overlay intercepts. `data-testid` selectors. |
+| **X (Twitter)** | **DISABLED** (2026-04-14) | Text, Image+Text, Image-only | Disabled after 2 account blocks by anti-bot detection. Re-enable only with X API v2 or stealth browser. Code preserved. |
 | **LinkedIn** | Enabled | Text, Image+Text, Image-only | `page.locator()` pierces shadow DOM. ClipboardEvent paste for images. |
-| **Facebook** | Enabled | Text, Image+Text, Image-only | "Photo/video" button reveals hidden file input. Profile URL fallback. |
+| **Facebook** | Enabled | Text, Image+Text, Image-only | ClipboardEvent paste for images. Profile URL as permalink fallback. |
 | **Reddit** | Enabled | Title+Body, Image+Title | Posts to user profile (`/user/{username}/submit`). Lexical editor via JS focus. |
-| **Instagram** | Disabled | Image+Caption | Multi-step dialog (Create→Post→Upload→Next→Next→Caption→Share). |
-| **TikTok** | Disabled | Video+Caption | Draft.js editor. Requires VPN in some regions. |
+| **Instagram** | Disabled | Image+Caption | Disabled in `config/platforms.json`. Multi-step dialog (Create→Post→Upload→Next→Next→Caption→Share). Code preserved. |
+| **TikTok** | Disabled | Video+Caption | Disabled in `config/platforms.json`. Draft.js editor. VPN required in some regions. Code preserved. |
 
 #### Human Emulation
 
@@ -1028,38 +1037,46 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 
 ## 12. Implementation Status
 
-### Completed (27+ of 80 tasks)
+**Current progress: 13 of 39 tasks done** (as of 2026-04-17). 15 pending, 11 deferred.
+
+### Batch 1: Money Loop — COMPLETE
 
 | Component | Status | Details |
 |---|---|---|
-| **Server API** | Done | ~90 routes, 11 models, 7 services |
+| **Server API** | Done | ~90 routes, 13 models, 7 services |
 | **Company Dashboard** | Done | 10 pages, campaign CRUD, AI wizard, billing, influencers, stats, settings |
 | **Admin Dashboard** | Done | 14 pages, users, companies, campaigns, financial, fraud, analytics, review queue, audit log, settings |
 | **User Onboarding** | Done & Verified | 5-step flow, API keys, platform login, scraping, niche/region, mode |
-| **Campaign Matching** | Done & Verified | Hard filters + Gemini AI scoring + niche-overlap fallback. Tier-based campaign limits. |
 | **Campaign Polling** | Done & Verified | Invitation flow, 3-day TTL, max 3 active, auto-expire |
-| **Content Generation** | Done & Verified | AiManager (Gemini→Mistral→Groq), ImageManager (5-provider fallback: Gemini→Cloudflare→Together→Pollinations→PIL + UGC post-processing). Three image modes: img2img product photo via `transform()`, txt2img via `generate()`, PIL fallback. Daily image rotation via `_pick_daily_image()`. |
+| **Content Generation** | Done & Verified | AiManager (Gemini→Mistral→Groq), ImageManager (5-provider fallback: Gemini→Cloudflare→Together→Pollinations→PIL + UGC post-processing). Three image modes: img2img product photo, txt2img, PIL fallback. Daily image rotation. |
 | **Content Review** | Done & Verified | Approve/reject/edit/restore/unapprove, Reddit JSON display, auto-reload |
-| **Posting Engine** | Done (Partial Verify) | JSON script engine (4 platforms). All 4 platforms post successfully, URL capture needs fixes. |
-| **Metric Scraping** | Built, Not Verified | API-first (X, Reddit) + browser fallback (LinkedIn, Facebook) |
-| **Billing** | Done | Integer cents math, earning hold period (7 days), tier CPM multiplier, earning promotion, payout auto-processing |
+| **Posting Engine** | Done & Verified | JSON script engine (3 active platforms: LinkedIn, Facebook, Reddit). URL capture working. X disabled 2026-04-14 after account lockouts. |
+| **Metric Scraping** | Done & Verified | API-first (X, Reddit) + Browser Use + Playwright hybrid (LinkedIn, Facebook). Tiered schedule T+1h/6h/24h/72h. |
+| **Billing** | Done & Verified | Integer cents math, earning hold period (7 days), tier CPM multiplier (2x Amplifier), earning promotion, payout auto-processing. E2E verified. |
+| **Earnings Display** | Done & Verified | Per-campaign breakdown, balance, payout history in user dashboard and server admin. |
+| **Deleted Post Detection** | Done & Verified | Deletion detection in fraud check, trust score penalty, void earnings. |
 | **Financial Safety** | Done | AES-256-GCM encryption for API keys (client + server), structured error codes + retry lifecycle in post_schedule |
 | **Reputation Tiers** | Done | Seedling/Grower/Amplifier tiers with auto-promotion in billing cycle |
-| **Trust/Fraud** | Built, Not Verified | Trust events, deletion detection, anomaly detection |
-| **Payments** | Done | Stripe Connect (stub). `process_pending_payouts()` auto-processing added. |
-| **Deployment** | Done | Vercel + Supabase (US East), company/admin dashboards live |
+| **Trust/Fraud** | Done | Trust events, deletion detection, anomaly detection |
+| **Payments** | Done | Stripe Checkout (company top-ups) + Connect (user payouts, test mode). `process_pending_payouts()` auto-processing. |
+| **Deployment** | Done | FastAPI + Supabase (US East). Vercel deployment currently offline (billing issue) — runs locally. |
 
-### In Progress
+### Batch 2: AI Brain — In Progress
 
-- **#28: Scheduled Posting Verification** — URL capture broken for LinkedIn/Facebook/Reddit.
+| Component | Status | Details |
+|---|---|---|
+| **AI Matching** | Done & Verified | Weighted Gemini scoring (topic 40%, audience 25%, authenticity 20%, quality 15%). Min score 40, brand safety, self-selected niche respect. 30 unit tests + E2E verified. |
+| **3-Tier Profile Scraping** | Done & Verified | Tier 1 (page text → AiManager), Tier 2 (CSS selectors), Tier 3 (Gemini Vision). LinkedIn: experience/education/featured/honors/interests. Facebook: About sub-tabs/Reels/More dropdown. Reddit: private handling, karma/age/subreddits. UAT verified against 3 real profiles. |
+| **4-Phase Content Agent** | Next up | Research → Strategy → Creation → Review pipeline. Not started. |
+| **AI Campaign Quality Gate** | Pending | 85%+ quality score required before activation. Not started. |
 
-### Pending Verification
+### Pending Tasks (#14-#28)
 
-Tasks #29-#50: Metric Scraping, Earnings, Stripe, Campaign Detail, System Tray, Dashboard Stats, Admin Overview/Users/Campaigns/Payouts.
+Tasks #14-#28: 4-phase content agent, content formats (threads), free/Pro tiers, automated tests, Stripe live, PyInstaller packaging, Mac support, landing page, DB backup, UI polish tasks, server-side post URL dedup, ToS/privacy policy.
 
-### Future Features
+### Deferred Tasks (#29-#39)
 
-Tasks #51-#80: AI profile scraping, sophisticated content generation, video generation, official platform APIs, AI quality gate, free/paid tiers, self-learning content, X lockout detection, repost campaign type.
+Tasks #29-#39 deferred: political campaign support, self-learning content, video generation, FLUX.1 image gen, GDPR export, accessibility, CSV export for users, mobile responsiveness, local lightweight DB, UGC-style content formatter, repost campaign type.
 
 ---
 
@@ -1146,7 +1163,8 @@ Complete verification of all built features (tasks #27-#50). Fix bugs found duri
     "compose_url": "https://x.com/compose/post",
     "home_url": "https://x.com/home",
     "timeout_seconds": 30,
-    "enabled": true
+    "enabled": false,
+    "note": "DISABLED 2026-04-14 — 2 account blocks by anti-bot detection"
   },
   "linkedin": {
     "name": "LinkedIn",
