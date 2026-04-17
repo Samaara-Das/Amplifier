@@ -40,7 +40,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 
 ### Deployed Server
 
-The server is live on Vercel with Supabase PostgreSQL:
+The server is deployed on Vercel with Supabase PostgreSQL. **Currently offline** (Vercel billing issue — run locally per Quick Start below while this is resolved):
 
 - **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
 - **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login

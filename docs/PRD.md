@@ -1227,6 +1227,8 @@ Complete verification of all built features (tasks #27-#50). Fix bugs found duri
 
 ## Appendix C: Deployed URLs
 
+> **Note:** Vercel deployment is currently offline (billing issue). Run locally per Quick Start in README.md while this is resolved.
+
 | Resource | URL |
 |---|---|
 | Company Dashboard | https://server-five-omega-23.vercel.app/company/login |

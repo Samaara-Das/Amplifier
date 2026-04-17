@@ -1,6 +1,6 @@
 # Amplifier -- API Reference
 
-Base URL: `https://server-five-omega-23.vercel.app` (production) or `http://localhost:8000` (local)
+Base URL: `https://server-five-omega-23.vercel.app` (production — **currently offline, Vercel billing issue**) or `http://localhost:8000` (local)
 
 ## Authentication
 
