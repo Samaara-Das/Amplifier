@@ -55,7 +55,7 @@
       },
       {
         "id": "5",
-        "title": "Invitation UX — countdown timers, expired badge, decline reason",
+        "title": "Invitation UX \u00e2\u20ac\u201d countdown timers, expired badge, decline reason",
         "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
         "status": "done",
         "priority": "medium",
@@ -68,7 +68,7 @@
       },
       {
         "id": "6",
-        "title": "Metrics accuracy — populate anomaly_flag, cross-validation",
+        "title": "Metrics accuracy \u00e2\u20ac\u201d populate anomaly_flag, cross-validation",
         "description": "anomaly_flag column exists but never populated. No cross-validation between Playwright and API metrics.",
         "status": "done",
         "priority": "high",
@@ -83,7 +83,7 @@
       },
       {
         "id": "7",
-        "title": "[DEFERRED] Repost campaign — company creation, frequency, user display",
+        "title": "[DEFERRED] Repost campaign \u00e2\u20ac\u201d company creation, frequency, user display",
         "description": "Full repost campaign feature: companies provide exact pre-written post content per platform instead of AI generation. Formats: text only, image only, text+image. Posting frequency: once, daily, every X days, weekly (stored as repost_frequency on Campaign model). Company dashboard: create form with per-platform text + image URL fields, campaign detail shows repost content card with edit support (POST /campaigns/{id}/repost-content), frequency selector. User dashboard: repost drafts shown as read-only with banner, no edit/regenerate, approve/reject only. Background agent: skips 4-phase AI pipeline for reposts, uses CampaignPost records directly, respects frequency setting, converts Reddit title+body format. Bugs already fixed: field name mismatch (campaign_posts vs repost_content) in local_db.py and background_agent.py, Reddit format conversion. Quality gate: image-only posts valid, content_guidance not required. Content rotation (multiple posts per platform) is a future sub-feature.",
         "status": "deferred",
         "priority": "medium",
@@ -109,7 +109,7 @@
       },
       {
         "id": "9",
-        "title": "Metric scraping — detailed spec per platform, verify E2E",
+        "title": "Metric scraping \u00e2\u20ac\u201d detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
         "status": "done",
         "priority": "high",
@@ -125,7 +125,7 @@
       },
       {
         "id": "10",
-        "title": "Billing — detailed spec for earnings calc, verify E2E",
+        "title": "Billing \u00e2\u20ac\u201d detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
         "status": "done",
         "priority": "high",
@@ -141,7 +141,7 @@
       },
       {
         "id": "11",
-        "title": "Earnings display — server-to-local sync, withdrawal, verify E2E",
+        "title": "Earnings display \u00e2\u20ac\u201d server-to-local sync, withdrawal, verify E2E",
         "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
         "status": "done",
         "priority": "high",
@@ -157,7 +157,7 @@
       },
       {
         "id": "12",
-        "title": "AI matching — detailed spec for scoring logic, verify accuracy",
+        "title": "AI matching \u00e2\u20ac\u201d detailed spec for scoring logic, verify accuracy",
         "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
         "status": "done",
         "priority": "high",
@@ -171,7 +171,7 @@
       },
       {
         "id": "13",
-        "title": "AI profile scraping — Gemini Vision, per-platform detailed spec",
+        "title": "AI profile scraping \u00e2\u20ac\u201d Gemini Vision, per-platform detailed spec",
         "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
         "status": "done",
         "priority": "high",
@@ -185,7 +185,7 @@
       },
       {
         "id": "14",
-        "title": "4-phase content agent — research, strategy, creation, review",
+        "title": "4-phase content agent \u00e2\u20ac\u201d research, strategy, creation, review",
         "description": "Current strategy is static dict. Needs deeper spec for goal-driven strategy, creator voice matching, trending topics, platform-native content.",
         "status": "pending",
         "priority": "high",
@@ -200,7 +200,7 @@
       },
       {
         "id": "15",
-        "title": "AI campaign quality gate — detailed rubric spec",
+        "title": "AI campaign quality gate \u00e2\u20ac\u201d detailed rubric spec",
         "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
         "status": "pending",
         "priority": "medium",
@@ -213,7 +213,7 @@
       },
       {
         "id": "16",
-        "title": "Content formats — threads, polls, carousels across platforms",
+        "title": "Content formats \u00e2\u20ac\u201d threads, polls, carousels across platforms",
         "description": "Research most-used formats per platform by engagement data. Build JSON posting scripts for top formats. Re-enable Instagram/TikTok.",
         "status": "pending",
         "priority": "high",
@@ -228,7 +228,7 @@
       },
       {
         "id": "17",
-        "title": "Free/Pro tiers — wire Stripe subscription billing",
+        "title": "Free/Pro tiers \u00e2\u20ac\u201d wire Stripe subscription billing",
         "description": "SUBSCRIPTION_TIERS config exists. Wire Stripe subscription checkout, webhook handler, enforce feature gates.",
         "status": "pending",
         "priority": "medium",
@@ -255,7 +255,7 @@
       },
       {
         "id": "19",
-        "title": "Stripe live integration — company Checkout + user Connect onboarding",
+        "title": "Stripe live integration \u00e2\u20ac\u201d company Checkout + user Connect onboarding",
         "description": "Live Stripe keys on Vercel. Webhook endpoint for payment confirmation. User Stripe Connect Express onboarding for real payouts.",
         "status": "pending",
         "priority": "high",
@@ -271,7 +271,7 @@
       },
       {
         "id": "20",
-        "title": "PyInstaller packaging — Windows installer",
+        "title": "PyInstaller packaging \u00e2\u20ac\u201d Windows installer",
         "description": "Update amplifier.spec for current codebase. Bundle all modules + Playwright + templates. Build Inno Setup installer.",
         "status": "pending",
         "priority": "high",
@@ -284,7 +284,7 @@
       },
       {
         "id": "21",
-        "title": "Mac support — cross-platform audit + packaging",
+        "title": "Mac support \u00e2\u20ac\u201d cross-platform audit + packaging",
         "description": "Audit Windows-specific code (fonts, paths, crypto). Fix for Mac. Build Mac package. Test full pipeline.",
         "status": "pending",
         "priority": "medium",
@@ -299,7 +299,7 @@
       },
       {
         "id": "22",
-        "title": "Landing page — public-facing site for acquisition",
+        "title": "Landing page \u00e2\u20ac\u201d public-facing site for acquisition",
         "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
         "status": "pending",
         "priority": "medium",
@@ -386,7 +386,7 @@
       },
       {
         "id": "29",
-        "title": "[DEFERRED] Political campaigns — geo-targeting, FEC compliance",
+        "title": "[DEFERRED] Political campaigns \u00e2\u20ac\u201d geo-targeting, FEC compliance",
         "description": "Post-launch. Requires US legal entity. Geo micro-targeting, political content mode, FEC disclaimers, rapid deployment.",
         "status": "deferred",
         "priority": "high",
@@ -494,7 +494,7 @@
       },
       {
         "id": "38",
-        "title": "E2E deleted post detection — full pipeline verification",
+        "title": "E2E deleted post detection \u00e2\u20ac\u201d full pipeline verification",
         "description": "Verify the full deleted post pipeline on ALL 4 platforms (X, LinkedIn, Facebook, Reddit): scraper visits deleted URL, detects deletion, marks post deleted locally, notifies server via PATCH /api/posts/{id}/status, server voids pending earnings, funds return to campaign budget. Must test each platform individually. Scraper detection was tested in Task #6 but the full server notification + earning voiding E2E flow was not.",
         "status": "done",
         "priority": "high",
@@ -509,8 +509,8 @@
       },
       {
         "id": "39",
-        "title": "[DEFERRED] UGC-style content — make AI content look authentic and drive viral views",
-        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates — this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
+        "title": "[DEFERRED] UGC-style content \u00e2\u20ac\u201d make AI content look authentic and drive viral views",
+        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates \u00e2\u20ac\u201d this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [
@@ -519,6 +519,20 @@
         "metadata": {},
         "subtasks": [],
         "updatedAt": "2026-04-08T14:30:00.000Z"
+      },
+      {
+        "id": "40",
+        "title": "Fully disable X across Amplifier \u2014 hardcoded safety guard",
+        "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard \u2014 not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding \u2014 a suspended user is a product-killer.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "metadata": {
+          "tier": 1,
+          "reason": "safety-critical; 3 X suspensions total across 2 accounts"
+        },
+        "updatedAt": "2026-04-17T03:33:57.686803+00:00",
+        "subtasks": []
       }
     ],
     "metadata": {
