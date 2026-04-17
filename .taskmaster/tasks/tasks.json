@@ -524,14 +524,14 @@
         "id": "40",
         "title": "Fully disable X across Amplifier \u2014 hardcoded safety guard",
         "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard \u2014 not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding \u2014 a suspended user is a product-killer.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 1,
           "reason": "safety-critical; 3 X suspensions total across 2 accounts"
         },
-        "updatedAt": "2026-04-17T03:33:57.686803+00:00",
+        "updatedAt": "2026-04-17T04:33:07.853549+00:00",
         "subtasks": []
       }
     ],
