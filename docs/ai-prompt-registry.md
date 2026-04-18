@@ -4,9 +4,9 @@ Every AI prompt used across the Amplifier codebase — where it lives, what mode
 
 ---
 
-## 1. Content Generation
+## 1. Content Generation (Legacy Single-Prompt Fallback)
 
-**Purpose:** Generate per-platform UGC-style social media posts for campaign content.
+**Purpose:** Generate per-platform UGC-style social media posts for campaign content. Used as fallback when the 4-phase ContentAgent pipeline fails.
 
 **File:** `scripts/utils/content_generator.py` → `ContentGenerator.generate()`
 **Model:** Gemini 2.5-flash → 2.0-flash → 2.5-flash-lite (via AiManager) → Mistral → Groq
@@ -43,6 +43,120 @@ not corporate marketing, not influencer cringe.
 - Each platform version must be genuinely different
 - Include a minor caveat ("I wish it had X") to sound real
 - Reddit: no hashtags, no emojis, no self-promo
+
+---
+
+## 1a. Phase 1 — Research (4-Phase ContentAgent)
+
+**Purpose:** Synthesize deep product knowledge from campaign brief + scraped URLs into a structured research context. Also fetches recent niche news and analyzes product images.
+
+**File:** `scripts/utils/content_agent.py` → `_run_research()`
+**Model:** Gemini (text synthesis) + Gemini Search grounding (news) + Gemini Vision (images)
+**Runs on:** User's device
+**Cache:** 7 days per campaign (stored in `agent_research` table, `research_type="full_research"`)
+
+**Prompt summary (text synthesis):**
+```
+Analyze this campaign and provide a structured research brief.
+CAMPAIGN TITLE / BRIEF / GUIDANCE / GOAL / TONE + scraped URL content
+→ Return JSON with: product_summary, key_features, target_audience,
+  competitive_angle, content_angles, emotional_hooks, pricing, testimonials
+```
+
+**Inputs injected:**
+- Campaign title, brief, content guidance, goal, tone
+- Up to 3 scraped company URLs (full text via `_scrape_url_deep`)
+- Campaign assets (product images for vision analysis)
+
+**Expected output (JSON):**
+```json
+{
+  "product_summary": "1-2 sentence product description",
+  "key_features": ["feature 1", "feature 2", "feature 3"],
+  "target_audience": "who would benefit",
+  "competitive_angle": "what makes it different",
+  "content_angles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"],
+  "emotional_hooks": ["trigger 1", "trigger 2", "trigger 3"],
+  "pricing": "pricing info or empty string",
+  "testimonials": ["testimonial 1", "testimonial 2"],
+  "recent_niche_news": ["headline 1", "headline 2", "headline 3"],
+  "image_analysis": "visual description of product photos"
+}
+```
+
+**Additional calls:**
+- `generate_with_search()` for 3-5 niche news headlines (Gemini grounded, 1 call/week)
+- `generate_with_vision()` for product image analysis if local image files present (1 call/week)
+
+---
+
+## 1b. Phase 2 — Strategy Refinement (4-Phase ContentAgent)
+
+**Purpose:** AI refines the base static GOAL_STRATEGY dict based on creator profile, campaign research, and performance insights. Adds creator_voice_notes per platform.
+
+**File:** `scripts/utils/content_agent.py` → `_refine_strategy_with_ai()`
+**Model:** Gemini → Mistral → Groq (via AiManager)
+**Runs on:** User's device
+**Cache:** 7 days per campaign (stored in `agent_research` table, `research_type="strategy"`)
+
+**Prompt summary:**
+```
+You are a social media strategist for Amplifier.
+Given campaign goal, tone, research summary, creator profiles, and base strategy JSON:
+→ Refine the base strategy. Output same JSON structure but adapted to creator voice.
+→ Add "creator_voice_notes" per platform (1-2 sentences on how to match creator's tone).
+```
+
+**Inputs injected:**
+- Campaign goal + tone
+- Research summary (product_summary, target_audience, top 3 content_angles)
+- User profiles (platform, follower_count, bio, style_notes, niches, recent posts — up to 300 chars)
+- Base strategy JSON (from GOAL_STRATEGY + performance insights)
+
+**Expected output:** Same JSON structure as base strategy + `creator_voice_notes` field per platform entry.
+
+**Fallback:** If AI call fails or output is invalid, returns base strategy unchanged.
+
+---
+
+## 1c. Phase 3 — Creation (4-Phase ContentAgent)
+
+**Purpose:** Generate actual per-platform post text following the refined strategy. Platform-native, hook-driven, goal-aligned.
+
+**File:** `scripts/utils/content_agent.py` → `_run_creation()`
+**Model:** Gemini → Mistral → Groq (via AiManager)
+**Runs on:** User's device
+
+**Prompt summary:**
+```
+You are a UGC creator posting on behalf of a brand campaign...
+[Campaign context + Research + Strategy + Platform instructions + Hook style +
+ Daily variation + Recent news (if available) + Hard rules]
+```
+
+**Inputs injected:**
+- All Phase 1 research fields
+- Phase 2 refined strategy (goal, tone, content angle, hook, creator_voice_notes per platform)
+- Day number + previous hooks (anti-repetition)
+- `recent_niche_news` injected as "── RECENT NEWS ──" section (soft instruction to reference if naturally fits)
+- Per-platform creator_voice_notes appended to platform instruction lines
+
+**Platform-specific rules in prompt:**
+| Platform | Rules |
+|---|---|
+| X | Max 280 chars, punchy hook + key benefit, 1-3 hashtags |
+| LinkedIn | 500-1500 chars, story format, aggressive line breaks, end with question |
+| Facebook | 200-800 chars, conversational, ask a question, 0-2 hashtags |
+| Reddit | Title 60-120 chars + Body 500-1500 chars, MANDATORY caveat/limitation (non-negotiable for authenticity) |
+
+**Expected output (JSON):** Same as legacy generator. FTC disclosure appended automatically after generation.
+
+**Post-generation validation** (via `content_quality.validate_content()`):
+- X ≤ 280 chars (post-FTC)
+- Reddit has valid title + body
+- No banned phrases (case-insensitive substring)
+- Diversity vs last 3 days (cosine < 0.8 via embeddings; SequenceMatcher < 0.85 fallback)
+- Retries once with expanded previous_hooks if validation fails; raises RuntimeError if still invalid
 
 ---
 
@@ -272,7 +386,12 @@ Applied to ALL generated images regardless of provider:
 
 | Prompt | File | Model | Runs On | Tokens/Call |
 |---|---|---|---|---|
-| Content generation | content_generator.py | Gemini/Mistral/Groq | User device | ~2000-4000 |
+| Content generation (fallback) | content_generator.py | Gemini/Mistral/Groq | User device | ~2000-4000 |
+| Phase 1 — Research | content_agent.py `_run_research` | Gemini | User device | ~1500-3000 |
+| Phase 1 — Niche news | content_agent.py `_run_research` | Gemini (search grounded) | User device | ~500-1000 |
+| Phase 1 — Image analysis | content_agent.py `_run_research` | Gemini Vision | User device | ~500-1000 |
+| Phase 2 — Strategy refinement | content_agent.py `_refine_strategy_with_ai` | Gemini/Mistral/Groq | User device | ~1000-2000 |
+| Phase 3 — Creation | content_agent.py `_run_creation` | Gemini/Mistral/Groq | User device | ~2000-4000 |
 | Campaign wizard | campaign_wizard.py | Gemini | Server | ~3000-5000 |
 | AI matching | matching.py | Gemini | Server | ~1500-3000 |
 | Content screening | campaign_wizard.py | Gemini | Server | ~1000-2000 |

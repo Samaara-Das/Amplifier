@@ -264,10 +264,25 @@ async def generate_daily_content() -> dict:
                             logger.info("Full-auto: approved + scheduled %d repost drafts", len(draft_ids))
                 continue  # Skip AI generation for repost campaigns
 
-            # Get previous drafts for anti-repetition
+            # Get previous drafts for anti-repetition.
+            # Spec (Task #14): diversity checked against last 3 days only.
+            # Filter by date to avoid false positives from same-product drafts
+            # generated weeks ago (cosine similarity stays high within a campaign).
+            from datetime import datetime as _dt2, timedelta as _td2
+            cutoff = _dt2.utcnow() - _td2(days=3)
             previous = get_all_drafts(campaign_id)
+            recent = []
+            for d in previous:
+                ts = d.get('created_at', '')
+                try:
+                    # SQLite datetime('now') format: 'YYYY-MM-DD HH:MM:SS' (UTC-naive)
+                    dt = _dt2.fromisoformat(ts.replace('Z', '')) if ts else None
+                    if dt and dt >= cutoff:
+                        recent.append(d)
+                except ValueError:
+                    continue
             previous_hooks = []
-            for d in previous[:12]:  # Most recent 12 drafts (~3 days worth, ordered DESC)
+            for d in recent[:12]:  # Cap at 12 for prompt length
                 text = d.get('draft_text', '')
                 if text:
                     first_line = text.split('\n')[0][:80]
@@ -291,9 +306,13 @@ async def generate_daily_content() -> dict:
                 "preferred_formats": campaign.get("preferred_formats", {}),
             }
             try:
+                # Fetch user profiles for creator voice adaptation (Phase 2 strategy)
+                from utils.local_db import get_user_profiles as _get_user_profiles
+                user_profiles = _get_user_profiles(platforms_needing_drafts)
+
                 result = await asyncio.to_thread(
-                    lambda c=campaign_data, pf=platforms_needing_drafts, dn=day_number, ph=previous_hooks: asyncio.run(
-                        gen.generate_content(c, enabled_platforms=pf, day_number=dn, previous_hooks=ph)
+                    lambda c=campaign_data, pf=platforms_needing_drafts, dn=day_number, ph=previous_hooks, up=user_profiles: asyncio.run(
+                        gen.generate_content(c, enabled_platforms=pf, day_number=dn, previous_hooks=ph, user_profiles=up)
                     )
                 )
 

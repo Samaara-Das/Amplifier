@@ -61,6 +61,59 @@ class AiManager:
     def has_providers(self) -> bool:
         return bool(self._providers)
 
+    async def generate_with_search(self, prompt: str) -> str | None:
+        """Generate text with grounded web search via Gemini.
+
+        Gemini-only capability. Returns None if Gemini is unavailable so
+        callers can skip the news-injection step gracefully.
+        """
+        provider = self.get("gemini")
+        if provider is None or not provider.is_connected:
+            logger.info("generate_with_search: Gemini not available, skipping.")
+            return None
+        if not hasattr(provider, "generate_with_search"):
+            logger.info("generate_with_search: provider lacks method, skipping.")
+            return None
+        try:
+            return await provider.generate_with_search(prompt)
+        except Exception as e:
+            logger.warning("generate_with_search failed: %s", e)
+            return None
+
+    async def generate_with_vision(self, prompt: str, image_paths: list[str]) -> str | None:
+        """Generate text from prompt + local image files via Gemini.
+
+        Gemini-only capability. Returns None if unavailable.
+        """
+        provider = self.get("gemini")
+        if provider is None or not provider.is_connected:
+            logger.info("generate_with_vision: Gemini not available, skipping.")
+            return None
+        if not hasattr(provider, "generate_with_vision"):
+            logger.info("generate_with_vision: provider lacks method, skipping.")
+            return None
+        try:
+            return await provider.generate_with_vision(prompt, image_paths)
+        except Exception as e:
+            logger.warning("generate_with_vision failed: %s", e)
+            return None
+
+    async def embed(self, text: str) -> list[float] | None:
+        """Generate a text embedding (768-dim) via Gemini text-embedding-004.
+
+        Returns None if Gemini unavailable; caller falls back to SequenceMatcher.
+        """
+        provider = self.get("gemini")
+        if provider is None or not provider.is_connected:
+            return None
+        if not hasattr(provider, "embed"):
+            return None
+        try:
+            return await provider.embed(text)
+        except Exception as e:
+            logger.warning("embed failed: %s", e)
+            return None
+
     async def generate(self, prompt: str, preferred: str | None = None) -> str:
         """Generate text using the best available provider.
 
