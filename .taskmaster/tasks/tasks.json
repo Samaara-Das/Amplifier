@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Fix URL capture for LinkedIn, Facebook, Reddit",
         "description": "URL capture fails on 3/4 platforms. Only X works. Without post URLs, metric scraping and billing cannot run.",
         "status": "done",
@@ -15,7 +15,7 @@
         "subtasks": []
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Stripe top-up verification + idempotency fix",
         "description": "Verify test-mode Stripe Checkout credits company balance correctly. Fix double-credit bug on success redirect.",
         "status": "done",
@@ -28,7 +28,7 @@
         "updatedAt": "2026-04-06T14:30:29.631Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "Verify CSRF tokens in all Flask forms",
         "description": "flask-wtf installed but need to verify every POST form has csrf_token() hidden input and CSRFProtect is initialized.",
         "status": "done",
@@ -41,7 +41,7 @@
         "updatedAt": "2026-04-06T15:12:37.635Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "Install slowapi + apply rate limiting to auth endpoints",
         "description": "slowapi not installed on server. Add rate limiting to login/register endpoints (5/minute).",
         "status": "done",
@@ -54,7 +54,7 @@
         "updatedAt": "2026-04-06T15:00:04.277Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Invitation UX â€” countdown timers, expired badge, decline reason",
         "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
         "status": "done",
@@ -67,7 +67,7 @@
         "updatedAt": "2026-04-07T13:39:58.023Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "Metrics accuracy â€” populate anomaly_flag, cross-validation",
         "description": "anomaly_flag column exists but never populated. No cross-validation between Playwright and API metrics.",
         "status": "done",
@@ -82,7 +82,7 @@
         "updatedAt": "2026-04-06T15:52:48.043Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "[DEFERRED] Repost campaign â€” company creation, frequency, user display",
         "description": "Full repost campaign feature: companies provide exact pre-written post content per platform instead of AI generation. Formats: text only, image only, text+image. Posting frequency: once, daily, every X days, weekly (stored as repost_frequency on Campaign model). Company dashboard: create form with per-platform text + image URL fields, campaign detail shows repost content card with edit support (POST /campaigns/{id}/repost-content), frequency selector. User dashboard: repost drafts shown as read-only with banner, no edit/regenerate, approve/reject only. Background agent: skips 4-phase AI pipeline for reposts, uses CampaignPost records directly, respects frequency setting, converts Reddit title+body format. Bugs already fixed: field name mismatch (campaign_posts vs repost_content) in local_db.py and background_agent.py, Reddit format conversion. Quality gate: image-only posts valid, content_guidance not required. Content rotation (multiple posts per platform) is a future sub-feature.",
         "status": "deferred",
@@ -95,7 +95,7 @@
         "updatedAt": "2026-04-07T16:00:00.000Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "Admin payout void/approve actions",
         "description": "Admin payout page is read-only. Need void and approve buttons for fraud management.",
         "status": "done",
@@ -108,7 +108,7 @@
         "updatedAt": "2026-04-07T13:24:51.009Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "Metric scraping â€” detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
         "status": "done",
@@ -124,7 +124,7 @@
         "updatedAt": "2026-04-08T12:54:34.955Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Billing â€” detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
         "status": "done",
@@ -140,7 +140,7 @@
         "updatedAt": "2026-04-08T13:19:19.394Z"
       },
       {
-        "id": "11",
+        "id": 11,
         "title": "Earnings display â€” server-to-local sync, withdrawal, verify E2E",
         "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
         "status": "done",
@@ -156,7 +156,7 @@
         "updatedAt": "2026-04-08T14:43:58.686Z"
       },
       {
-        "id": "12",
+        "id": 12,
         "title": "AI matching â€” detailed spec for scoring logic, verify accuracy",
         "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
         "status": "done",
@@ -170,7 +170,7 @@
         "updatedAt": "2026-04-08T15:57:06.798Z"
       },
       {
-        "id": "13",
+        "id": 13,
         "title": "AI profile scraping â€” Gemini Vision, per-platform detailed spec",
         "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
         "status": "done",
@@ -184,7 +184,7 @@
         "updatedAt": "2026-04-14T13:17:46.839Z"
       },
       {
-        "id": "14",
+        "id": 14,
         "title": "4-phase content agent â€” research, strategy, creation, review",
         "description": "Current strategy is static dict. Needs deeper spec for goal-driven strategy, creator voice matching, trending topics, platform-native content.",
         "status": "done",
@@ -200,7 +200,7 @@
         "updatedAt": "2026-04-18T13:44:33.709Z"
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "AI campaign quality gate â€” detailed rubric spec",
         "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
         "status": "pending",
@@ -213,7 +213,7 @@
         "subtasks": []
       },
       {
-        "id": "16",
+        "id": 16,
         "title": "Content formats â€” threads, polls, carousels across platforms",
         "description": "Research most-used formats per platform by engagement data. Build JSON posting scripts for top formats. Re-enable Instagram/TikTok.",
         "status": "deferred",
@@ -229,7 +229,7 @@
         "updatedAt": "2026-04-18T13:07:44.377Z"
       },
       {
-        "id": "17",
+        "id": 17,
         "title": "Free/Pro tiers â€” wire Stripe subscription billing",
         "description": "SUBSCRIPTION_TIERS config exists. Wire Stripe subscription checkout, webhook handler, enforce feature gates.",
         "status": "pending",
@@ -241,7 +241,7 @@
         "subtasks": []
       },
       {
-        "id": "18",
+        "id": 18,
         "title": "Write automated test suite (pytest)",
         "description": "Zero automated tests. Create pytest infrastructure, server/client/integration tests covering the full money loop.",
         "status": "pending",
@@ -256,7 +256,7 @@
         "subtasks": []
       },
       {
-        "id": "19",
+        "id": 19,
         "title": "Stripe live integration â€” company Checkout + user Connect onboarding",
         "description": "Live Stripe keys on Vercel. Webhook endpoint for payment confirmation. User Stripe Connect Express onboarding for real payouts.",
         "status": "pending",
@@ -272,7 +272,7 @@
         "subtasks": []
       },
       {
-        "id": "20",
+        "id": 20,
         "title": "PyInstaller packaging â€” Windows installer",
         "description": "Update amplifier.spec for current codebase. Bundle all modules + Playwright + templates. Build Inno Setup installer.",
         "status": "pending",
@@ -285,7 +285,7 @@
         "subtasks": []
       },
       {
-        "id": "21",
+        "id": 21,
         "title": "Mac support â€” cross-platform audit + packaging",
         "description": "Audit Windows-specific code (fonts, paths, crypto). Fix for Mac. Build Mac package. Test full pipeline.",
         "status": "pending",
@@ -300,7 +300,7 @@
         "subtasks": []
       },
       {
-        "id": "22",
+        "id": 22,
         "title": "Landing page â€” public-facing site for acquisition",
         "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
         "status": "pending",
@@ -315,7 +315,7 @@
         "subtasks": []
       },
       {
-        "id": "23",
+        "id": 23,
         "title": "Periodic DB backup in background agent",
         "description": "Copy data/local.db to data/local.db.bak every 6 hours in background agent loop.",
         "status": "pending",
@@ -327,7 +327,7 @@
         "subtasks": []
       },
       {
-        "id": "24",
+        "id": 24,
         "title": "Status label renaming in user app templates",
         "description": "Replace internal names: pending_invitation to Invited, content_generated to Draft Ready, posted to Live, paid to Earned.",
         "status": "pending",
@@ -339,7 +339,7 @@
         "subtasks": []
       },
       {
-        "id": "25",
+        "id": 25,
         "title": "Clipboard copy button for post URLs",
         "description": "Add Copy URL button next to each post URL on Posts tab.",
         "status": "pending",
@@ -351,7 +351,7 @@
         "subtasks": []
       },
       {
-        "id": "26",
+        "id": 26,
         "title": "Client-side form validation in user app",
         "description": "Add required attributes, email format, number range validation to all forms.",
         "status": "pending",
@@ -363,7 +363,7 @@
         "subtasks": []
       },
       {
-        "id": "27",
+        "id": 27,
         "title": "Server-side post URL dedup",
         "description": "Prevent same post URL registered twice via POST /api/posts. Return error on duplicate.",
         "status": "pending",
@@ -375,7 +375,7 @@
         "subtasks": []
       },
       {
-        "id": "28",
+        "id": 28,
         "title": "ToS and privacy policy acceptance in registration",
         "description": "Add ToS checkbox to registration. Block if unchecked. Create /privacy and /terms pages.",
         "status": "pending",
@@ -387,7 +387,7 @@
         "subtasks": []
       },
       {
-        "id": "29",
+        "id": 29,
         "title": "[DEFERRED] Political campaigns â€” geo-targeting, FEC compliance",
         "description": "Post-launch. Requires US legal entity. Geo micro-targeting, political content mode, FEC disclaimers, rapid deployment.",
         "status": "deferred",
@@ -399,7 +399,7 @@
         "subtasks": []
       },
       {
-        "id": "30",
+        "id": 30,
         "title": "[DEFERRED] Self-learning content generation",
         "description": "Post-launch. Performance feedback loop from metrics into content strategy. Needs real post data first.",
         "status": "deferred",
@@ -411,7 +411,7 @@
         "subtasks": []
       },
       {
-        "id": "31",
+        "id": 31,
         "title": "[DEFERRED] Video generation integration",
         "description": "Post-launch. Short-form UGC videos for TikTok, Reels, LinkedIn, Facebook. Research free/cheap video gen tools.",
         "status": "deferred",
@@ -423,7 +423,7 @@
         "subtasks": []
       },
       {
-        "id": "32",
+        "id": 32,
         "title": "[DEFERRED] Flux.1 image generation upgrade",
         "description": "Post-launch. Higher quality images via Flux.1. Current 5-provider free pipeline works for now.",
         "status": "deferred",
@@ -435,7 +435,7 @@
         "subtasks": []
       },
       {
-        "id": "33",
+        "id": 33,
         "title": "[DEFERRED] GDPR export and account deletion",
         "description": "Post-launch. User data export + account deletion cascade. Not needed for US-only launch.",
         "status": "deferred",
@@ -447,7 +447,7 @@
         "subtasks": []
       },
       {
-        "id": "34",
+        "id": 34,
         "title": "[DEFERRED] ARIA accessibility audit",
         "description": "Post-launch. ARIA labels, WCAG color contrast, keyboard navigation.",
         "status": "deferred",
@@ -459,7 +459,7 @@
         "subtasks": []
       },
       {
-        "id": "35",
+        "id": 35,
         "title": "[DEFERRED] CSV export for earnings",
         "description": "Post-launch. Download per-campaign earnings breakdown as CSV.",
         "status": "deferred",
@@ -471,7 +471,7 @@
         "subtasks": []
       },
       {
-        "id": "36",
+        "id": 36,
         "title": "[DEFERRED] Mobile responsive dashboard",
         "description": "Post-launch. Media queries for tablet (768px) and mobile (480px).",
         "status": "deferred",
@@ -483,7 +483,7 @@
         "subtasks": []
       },
       {
-        "id": "37",
+        "id": 37,
         "title": "[DEFERRED] Local lightweight LLM for user-side AI operations",
         "description": "Post-launch. Replace cloud API calls with a lightweight local LLM on user's desktop/laptop for profile scraping, content generation, and other AI tasks. Eliminates API key dependency and cost.",
         "status": "deferred",
@@ -495,7 +495,7 @@
         "subtasks": []
       },
       {
-        "id": "38",
+        "id": 38,
         "title": "E2E deleted post detection â€” full pipeline verification",
         "description": "Verify the full deleted post pipeline on ALL 4 platforms (X, LinkedIn, Facebook, Reddit): scraper visits deleted URL, detects deletion, marks post deleted locally, notifies server via PATCH /api/posts/{id}/status, server voids pending earnings, funds return to campaign budget. Must test each platform individually. Scraper detection was tested in Task #6 but the full server notification + earning voiding E2E flow was not.",
         "status": "done",
@@ -510,7 +510,7 @@
         "updatedAt": "2026-04-07T16:52:57.959Z"
       },
       {
-        "id": "39",
+        "id": 39,
         "title": "[DEFERRED] UGC-style content â€” make AI content look authentic and drive viral views",
         "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates â€” this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
         "status": "deferred",
@@ -523,7 +523,7 @@
         "updatedAt": "2026-04-08T14:30:00.000Z"
       },
       {
-        "id": "40",
+        "id": 40,
         "title": "Fully disable X across Amplifier — hardcoded safety guard",
         "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard — not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding — a suspended user is a product-killer.",
         "status": "done",
@@ -535,6 +535,17 @@
         },
         "updatedAt": "2026-04-17T04:33:07.853549+00:00",
         "subtasks": []
+      },
+      {
+        "id": 41,
+        "title": "Plan + execute Vercel migration (target host undecided)",
+        "description": "Server offline after Vercel billed ~$47/cycle (serverless model incompatible with Amplifier's high poll volume from user apps). Project deleted, billing disputed. Migration path NOT YET DECIDED — still in planning. Full planning doc with analysis, options, and step-by-step plan: docs/MIGRATION-FROM-VERCEL.md. Leading candidate is shared Hostinger KVM VPS (owned by Nili+Daniel, co-hosts TTE+Stock Buddy) but not confirmed. Fallback options include Render flat-fee and Railway.",
+        "details": "READ FIRST: docs/MIGRATION-FROM-VERCEL.md — 12 sections covering options analysis, server requirements, step-by-step setup, env vars, client cutover, Vercel cleanup (~62 files), cutover sequence, rollback, cost comparison, follow-ups, and open questions. Before executing: (1) decide target host (Hostinger VPS vs Render vs Railway vs other), (2) confirm with Nili/Daniel if going Hostinger route — KVM tier, SSH access, existing Caddy/Redis/UFW, subdomain, (3) audit ENCRYPTION_KEY usage before rotating, (4) verify ARQ WorkerSettings entrypoint exists. Clients still pointing to dead Vercel URL via config/.env:7 and scripts/utils/server_client.py:22. Server is OFFLINE right now — users can't access anything until this ships.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -544,7 +555,10 @@
       "completedCount": 15,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2026-04-19T07:43:55.781Z",
+      "description": "Tasks for master context",
+      "updated": "2026-04-19T07:55:07.355Z"
     }
   }
 }

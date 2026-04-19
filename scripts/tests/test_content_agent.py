@@ -285,6 +285,44 @@ class TestAC6BrandAwarenessStrategy:
         assert ppd < 1, f"brand_awareness Reddit should be fractional, got {ppd}"
         assert ppd == 0.3, f"Expected 0.3, got {ppd}"
 
+    def test_brand_awareness_linkedin_daily(self):
+        """brand_awareness LinkedIn must post >= 1/day so day 1 is never empty.
+
+        Live UAT (2026-04-18) found that when all non-X platforms were
+        fractional (LinkedIn 0.5, Facebook 0.5, Reddit 0.3), a fresh
+        brand_awareness campaign generated ZERO drafts on day 1. Dead-on-arrival
+        UX. LinkedIn bumped to 1/day as the minimum-viable presence anchor.
+        """
+        from utils.content_agent import GOAL_STRATEGY
+        ppd = GOAL_STRATEGY["brand_awareness"]["linkedin"]["posts_per_day"]
+        assert ppd >= 1, f"brand_awareness LinkedIn must be >= 1/day, got {ppd}"
+
+    def test_brand_awareness_day1_has_nonzero_platforms(self):
+        """Day 1 of brand_awareness must schedule at least one platform.
+
+        Regression test for the 'dead on arrival' bug where every platform
+        was fractional and day 1 % round(1/ppd) != 0 skipped everything.
+        """
+        from utils.content_agent import ContentAgent
+
+        agent = ContentAgent.__new__(ContentAgent)
+        agent._manager = _make_manager()
+        agent._image_manager = MagicMock()
+        campaign = _make_campaign("brand_awareness")
+
+        with patch("utils.local_db.get_content_insights", return_value=[]):
+            plan = agent.get_posting_plan(
+                campaign, ["linkedin", "facebook", "reddit"], day_number=1,
+            )
+
+        total = sum(
+            p.get("post_count", 0) for p in plan.get("platforms", {}).values()
+        )
+        assert total >= 1, (
+            f"brand_awareness day 1 must schedule >= 1 post across platforms, "
+            f"got {total}. Plan: {plan}"
+        )
+
     def test_get_posting_plan_brand_awareness(self):
         """get_posting_plan returns correct structure for brand_awareness."""
         from utils.content_agent import ContentAgent

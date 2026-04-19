@@ -70,7 +70,7 @@ GOAL_STRATEGY = {
                "image_probability": 0.4,
                "hooks": ["story", "social_proof", "curiosity"]},
         "linkedin": {"formats": ["text", "image_text"], "cta": "natural_mention",
-                     "posts_per_day": 0.5, "post_times_est": ["10:00"],
+                     "posts_per_day": 1, "post_times_est": ["10:00"],
                      "image_probability": 0.6,
                      "hooks": ["story", "stat"]},
         "facebook": {"formats": ["text", "image_text"], "cta": "natural_mention",
