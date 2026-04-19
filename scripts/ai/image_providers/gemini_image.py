@@ -20,10 +20,11 @@ logger = logging.getLogger(__name__)
 class GeminiImageProvider(ImageProvider):
     """Gemini Flash Image — txt2img via generate_images, img2img via multimodal generate_content."""
 
-    # Models to try in order for text-to-image
-    _TXT2IMG_MODELS = ["gemini-2.0-flash-exp", "imagen-3.0-generate-002"]
-    # Model for img2img (multimodal — accepts image + text, outputs image)
-    _IMG2IMG_MODEL = "gemini-2.0-flash-exp"
+    # Unified model list for both txt2img and img2img — Gemini native image
+    # models (free-tier) accept text-only OR image+text input via generate_content
+    # with response_modalities=["IMAGE"]. Imagen 4 requires paid plan so we
+    # cannot use it on the free tier.
+    _IMAGE_MODELS = ["gemini-2.5-flash-image", "gemini-3.1-flash-image-preview"]
 
     def __init__(self, api_key: str):
         from google import genai
@@ -55,40 +56,31 @@ class GeminiImageProvider(ImageProvider):
         width: int = 1080, height: int = 1080,
         negative_prompt: str | None = None,
     ) -> str:
-        """Generate image via Gemini generate_images API."""
+        """Generate image via Gemini native image model (free-tier)."""
         from google.genai import types
 
-        # Determine aspect ratio from dimensions
-        aspect = self._get_aspect_ratio(width, height)
-
-        config = types.GenerateImagesConfig(
-            number_of_images=1,
-            aspect_ratio=aspect,
-            output_mime_type="image/jpeg",
-            output_compression_quality=90,
-            person_generation="ALLOW_ADULT",
-            safety_filter_level="BLOCK_ONLY_HIGH",
-            add_watermark=False,
-        )
+        full_prompt = prompt
         if negative_prompt:
-            config.negative_prompt = negative_prompt
+            full_prompt = f"{prompt}\n\nAvoid: {negative_prompt}"
+
+        config = types.GenerateContentConfig(response_modalities=["IMAGE"])
+        contents = [types.Part.from_text(text=full_prompt)]
 
         last_err = None
-        for model in self._TXT2IMG_MODELS:
+        for model in self._IMAGE_MODELS:
             try:
-                response = self._client.models.generate_images(
-                    model=model,
-                    prompt=prompt,
-                    config=config,
+                response = self._client.models.generate_content(
+                    model=model, contents=contents, config=config,
                 )
-                if response.generated_images:
-                    img_bytes = response.generated_images[0].image.image_bytes
-                    Path(output_path).write_bytes(img_bytes)
-                    logger.info("Gemini txt2img: saved %d bytes to %s (model=%s)",
-                                len(img_bytes), output_path, model)
-                    return output_path
-                else:
-                    last_err = RuntimeError("Gemini returned no images")
+                if response.candidates:
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
+                            img_bytes = part.inline_data.data
+                            Path(output_path).write_bytes(img_bytes)
+                            logger.info("Gemini txt2img: saved %d bytes to %s (model=%s)",
+                                        len(img_bytes), output_path, model)
+                            return output_path
+                last_err = RuntimeError(f"Gemini returned no image (model={model})")
             except Exception as e:
                 last_err = e
                 err_str = str(e)
@@ -114,45 +106,63 @@ class GeminiImageProvider(ImageProvider):
         quota as text generation but with image output enabled.
         """
         from google.genai import types
-        from PIL import Image
 
         # Load source image as bytes
         with open(source_image_path, "rb") as f:
             source_bytes = f.read()
 
-        try:
-            response = self._client.models.generate_content(
-                model=self._IMG2IMG_MODEL,
-                contents=[
-                    types.Part.from_bytes(data=source_bytes, mime_type="image/jpeg"),
-                    types.Part.from_text(
-                        f"Generate a new lifestyle photograph inspired by this product image. "
-                        f"{prompt} "
-                        f"The output should be a single photorealistic image that looks like "
-                        f"a casual phone photo, not a studio shot. Output ONLY the image."
-                    ),
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="image/jpeg",
-                ),
-            )
+        # Detect mime from extension; default to jpeg
+        ext = Path(source_image_path).suffix.lower()
+        source_mime = {
+            ".png": "image/png",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+        }.get(ext, "image/jpeg")
 
-            # Extract image from response
-            if response.candidates:
-                for part in response.candidates[0].content.parts:
-                    if hasattr(part, "inline_data") and part.inline_data:
-                        img_bytes = part.inline_data.data
-                        Path(output_path).write_bytes(img_bytes)
-                        logger.info("Gemini img2img: saved %d bytes to %s", len(img_bytes), output_path)
-                        return output_path
+        contents = [
+            types.Part.from_bytes(data=source_bytes, mime_type=source_mime),
+            types.Part.from_text(text=(
+                f"Generate a new lifestyle photograph inspired by this product image. "
+                f"{prompt} "
+                f"The output should be a single photorealistic image that looks like "
+                f"a casual phone photo, not a studio shot. Output ONLY the image."
+            )),
+        ]
 
-            raise RuntimeError("Gemini img2img returned no image in response")
+        # Gemini native image models need response_modalities=["IMAGE"] so they
+        # return an image as inline_data instead of text.
+        config = types.GenerateContentConfig(
+            response_modalities=["IMAGE"],
+        )
 
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                self._rate_limited_until = time.time() + 60
-            raise
+        last_err = None
+        for model in self._IMAGE_MODELS:
+            try:
+                response = self._client.models.generate_content(
+                    model=model, contents=contents, config=config,
+                )
+                if response.candidates:
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
+                            img_bytes = part.inline_data.data
+                            Path(output_path).write_bytes(img_bytes)
+                            logger.info("Gemini img2img: saved %d bytes to %s (model=%s)",
+                                        len(img_bytes), output_path, model)
+                            return output_path
+                last_err = RuntimeError(f"Gemini img2img returned no image (model={model})")
+            except Exception as e:
+                last_err = e
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    self._rate_limited_until = time.time() + 60
+                    logger.warning("Gemini img2img rate-limited on %s", model)
+                    continue
+                if "not found" in err_str.lower() or "not supported" in err_str.lower():
+                    logger.warning("Gemini img2img model %s not available, trying next", model)
+                    continue
+                raise
+
+        raise last_err or RuntimeError("All Gemini img2img models failed")
 
     @staticmethod
     def _get_aspect_ratio(width: int, height: int) -> str:
