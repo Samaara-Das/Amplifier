@@ -1,3 +1,11 @@
+> ## ⚠️ DEPRECATED — task IDs below reference an earlier task-master state
+>
+> **Deprecated 2026-04-24.** This file maps files-touched to task IDs from an earlier 80-task `task-master` state. Task-master was reset to a 41-task list (commit `c20a639`) and the task IDs referenced below (e.g. #52/#63, #60, #62, #68, Phase C schema migration) no longer match current task-master entries.
+>
+> **For current file-change planning:** check the task's description via `task-master show <id>`, then grep the repo for the affected function/module names directly. The mapping below is stale reference only.
+>
+> ---
+
 # Amplifier — File Change Index
 
 **Purpose**: Which files each task touches. Use this to plan your work, avoid conflicts (two tasks modifying the same function), and know exactly what to open.

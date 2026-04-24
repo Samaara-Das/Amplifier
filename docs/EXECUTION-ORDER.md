@@ -1,3 +1,16 @@
+> ## ⚠️ DEPRECATED — do not use this doc for execution planning
+>
+> **Deprecated 2026-04-24.** This file was written for an earlier 80-task `task-master` state that no longer exists. The task-master tasks.json was reset to a 41-task list (commit `c20a639 chore: reset task-master with finalized 36-task list`) and the Phase A-G grouping below references task IDs (#28-#38, #52/#63, etc.) that have been renumbered or removed.
+>
+> **For current execution order, use:**
+> 1. `task-master list` — authoritative pending/done/deferred status
+> 2. `docs/specs/batch-1-money-loop.md`, `batch-2-ai-brain.md`, `batch-3-product-features.md`, `batch-4-business-launch.md` — feature buckets with acceptance criteria
+> 3. Rule: pick the lowest-numbered pending task in the current batch whose dependencies are met. Ignore task-master's "recommended next" algorithm.
+>
+> The content below is preserved for historical reference only.
+>
+> ---
+
 # Amplifier — Task Execution Order
 
 **Purpose**: Which tasks to do in what sequence. Tasks are ordered by dependency — later tasks consume data or features that earlier tasks create.
