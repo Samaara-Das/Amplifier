@@ -19,6 +19,9 @@ dev-debug.log
 node_modules/
 # Environment variables
 .env
+server/.env
+server/.env.production
+server/.env.local
 # Editor directories and files
 .idea
 .vscode
