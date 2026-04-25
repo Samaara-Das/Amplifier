@@ -133,17 +133,21 @@ Platform posting is now driven by JSON scripts in `config/scripts/` via `scripts
 
 ## Server Hosting
 
-**Server is currently offline.** The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) was taken down due to billing incompatibility with serverless. Migration to Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41).
+**Server is LIVE** at **`https://api.pointcapitalis.com`** as of 2026-04-25.
 
-Until migration completes, run the server locally:
+- **Host**: Hostinger KVM 1 VPS (Mumbai, Ubuntu 24.04, `31.97.207.162`)
+- **Reverse proxy**: Caddy with auto-TLS via Let's Encrypt
+- **Process**: systemd unit `amplifier-web.service` running uvicorn (1 worker, 127.0.0.1:8000)
+- **Local Redis** for ARQ (worker not yet implemented — Task #9)
+- **Supabase PostgreSQL** via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)
+- **SSH access**: `ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162` (key-only, no passwords). NOPASSWD sudo for `sammy`. Backup access via Hostinger hPanel browser terminal.
+- **Hardening**: SSH key-only, UFW (22/80/443 only), fail2ban, unattended-upgrades, Tailscale (`amplifier-vps` on `dassamaara@gmail.com` tailnet at `100.81.109.43`)
+- **Migration history + decision rationale**: `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md`. VPS reinstalled fresh after the previous registration on Nili's Hostinger account was found compromised by Outlaw/Shellbot cryptominer (entry vector: weakly-passworded mail server). Recovery + cleanup runbook: `docs/VPS-RECON-AND-CLEANUP.md`.
 
+For local dev, set `CAMPAIGN_SERVER_URL=http://localhost:8000` in `config/.env` and run:
 ```bash
 cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-
-Set `CAMPAIGN_SERVER_URL=http://localhost:8000` in `config/.env` for the user app to connect.
-
-**Supabase PostgreSQL** remains available for when the VPS is live. Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility). Use `printf` (not `echo`) when setting env vars to avoid trailing newline corruption.
 
 ## Scheduling (US-aligned)
 

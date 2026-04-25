@@ -11,9 +11,11 @@
 - **Compromise discovered during recon:** Outlaw/Shellbot cryptominer + GitHub PAT + plaintext API keys (Anthropic + Gemini) found on the VPS. All keys revoked, PAT was already expired. Full forensics in `MEMORY.md` discoveries. Reinstall (rather than cleanup) chosen — only safe option for hosting a money-handling service.
 - VPS reinstalled to fresh Ubuntu 24.04.4 LTS via Hostinger hPanel. Hardening applied: SSH key-only (no passwords, no root login), UFW (deny in, allow 22/80/443 only), fail2ban, unattended-upgrades, NOPASSWD sudo for sammy.
 - Tailscale reinstalled and joined `dassamaara@gmail.com` tailnet as device `amplifier-vps` (`100.81.109.43`). Old `srv924232` registration on `dassamaara@gmail.com` tailnet (from before reinstall) is offline and can be removed.
-- Amplifier deployed to `/home/amplifier/app` on the VPS. Repo cloned via GitHub deploy key (read-only). Python venv + deps installed. Caddy reverse-proxies `https://api.marketdavinci.com` → `127.0.0.1:8000`. Auto-TLS via Let's Encrypt.
+- Amplifier deployed to `/home/amplifier/app` on the VPS. Repo cloned via GitHub deploy key (read-only). Python venv + deps installed. Caddy reverse-proxies `https://api.pointcapitalis.com` → `127.0.0.1:8000`. Auto-TLS via Let's Encrypt (cert expires 2026-07-24, Caddy auto-renews).
 - ARQ worker entrypoint not yet implemented (Task #9 deferred) — web server only ships in v1.
-- Final cutover to `https://api.marketdavinci.com` pending DNS propagation + smoke test.
+- **Subdomain note**: originally planned `api.marketdavinci.com` but discovered marketdavinci.com is NOT in the Hostinger domain portfolio (only DNS-hosted sites listed in Business Web Hosting; not actually owned). Switched to `api.pointcapitalis.com` — Sammy-owned, root already pointed at the same VPS IP from the previous setup.
+- One small bug fix needed during deploy: `server/app/core/config.py` was missing field declarations for `gemini_api_key`, `admin_password`, `encryption_key`, `stripe_webhook_secret`. Pydantic-settings v2.13 defaults to `extra="forbid"` and rejected them. Fix: added the fields + set `extra="ignore"`. Commit `5ef01bf`.
+- **Status: LIVE** as of 2026-04-25 ~16:50 IST. `https://api.pointcapitalis.com/health` returns `{"status":"ok"}`.
 
 ## Decision
 
