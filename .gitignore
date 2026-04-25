@@ -59,3 +59,8 @@ debug_fb_*.txt
 ai chat transcript - *.txt
 .claude/worktrees/
 docs/recon/
+
+# Recon / inventory / backup temp files (local-only, contain sensitive infra info)
+base64.txt
+inventory*.txt
+recon*.txt
