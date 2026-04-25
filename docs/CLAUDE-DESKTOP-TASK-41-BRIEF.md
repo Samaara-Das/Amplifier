@@ -15,7 +15,51 @@ You are being brought in as an outside technical advisor on a hosting decision f
 
 ## Step 1 — Read these files in this order to get context
 
-The repo is at `C:/Users/dassa/Work/Auto-Posting-System` (Windows). All paths below are relative to that root.
+**You MUST read every file in Tier 1 and Tier 2 below before forming any opinion.** Tier 3 is optional but encouraged if your context allows. Skipping the reading list will produce a bad recommendation — the docs contain non-obvious facts (workload shape, stack constraints, prior failure mode) that you cannot infer from the question alone.
+
+The repo is **`Samaara-Das/Amplifier`** on GitHub, branch **`main`**. If you have GitHub access via MCP or web fetch, pull the files directly from `https://github.com/Samaara-Das/Amplifier/blob/main/<path>`. If you have local filesystem access instead, the repo root is `C:/Users/dassa/Work/Auto-Posting-System`. All paths below are relative to the repo root.
+
+If a file you're told to read isn't accessible, STOP and tell me — don't proceed with partial context.
+
+### TIER 1 — REQUIRED, read first, in this exact order
+1. `CLAUDE.md` — project overview, commands, architecture summary, decision-making philosophy. Single best entry point.
+2. `README.md` — public-facing summary.
+3. `docs/MIGRATION-FROM-VERCEL.md` — **the source of truth for Task #41**. Read every section (~540 lines).
+4. `docs/concept.md` — what Amplifier is at a product level.
+5. `docs/AMPLIFIER-SPEC.md` — full product spec.
+6. `docs/technical-architecture.md` — system architecture across all three components.
+7. `docs/amplifier-flow.md` — end-to-end data and control flow.
+8. `docs/api-reference.md` — server API surface (~90 routes). Lets you understand request volume.
+9. `docs/env-vars.md` — every env var across server, user app, engine.
+10. `docs/deployment-guide.md` — current deployment doc (treat as partially stale; #3 supersedes it).
+11. `docs/REMAINING-WORK.md` — what's left.
+12. `.taskmaster/tasks/tasks.json` — canonical task list (15/43 done as of 2026-04-25). At minimum read titles + descriptions of pending tasks.
+
+### TIER 2 — STRONGLY RECOMMENDED, read after Tier 1
+13. `docs/PRD.md` — product requirements with phases.
+14. `docs/database-models.md` — server DB schema (12 tables).
+15. `docs/local-database-schema.md` — user app SQLite schema (13 tables).
+16. `docs/server-client-sync-map.md` — how the server and user app exchange data.
+17. `docs/status-lifecycle.md` — every status field and transition.
+18. `docs/content-generation.md` — the 4-phase AI content pipeline (relevant because it dictates AI API call volume from server).
+19. `docs/background-agent-reference.md` — the always-on agent on each user device. **Critical for understanding poll volume hitting the server.**
+20. `docs/campaign-matching.md` — matching engine.
+21. `docs/billing-and-earnings.md` — money flow.
+22. `docs/config-reference.md` — config file walkthrough.
+
+### TIER 3 — OPTIONAL, read only if your context allows
+23. `docs/platform-posting-playbook.md` — per-platform Playwright posting quirks.
+24. `docs/ai-prompt-registry.md` — every AI prompt the system uses.
+25. `docs/selector-inventory.md` — 150+ CSS selectors used for posting and scraping.
+26. `docs/development-setup.md` — local dev setup.
+27. `docs/testing-guide.md` — test approach.
+28. `docs/troubleshooting.md` — common issues.
+29. `docs/SCHEMA-CHANGES.md` — recent schema changes.
+30. `docs/V2-V3-UPGRADE-PLAN.md` — broader Amplifier roadmap (sibling versions exist; ours is v1).
+
+### DO NOT READ — explicitly skip these
+- `docs/EXECUTION-ORDER.md` and `docs/FILE-CHANGE-INDEX.md` — both have **DEPRECATED** banners. Stale task IDs. Ignore.
+- `docs/archive/*` — historical, irrelevant.
 
 **Top-level orientation (read first, in order):**
 1. `CLAUDE.md` — project overview, commands, architecture summary, decision-making philosophy. This is the single best entry point.
@@ -23,44 +67,6 @@ The repo is at `C:/Users/dassa/Work/Auto-Posting-System` (Windows). All paths be
 3. `docs/concept.md` — what Amplifier is at a product level.
 4. `docs/AMPLIFIER-SPEC.md` — full product spec.
 5. `docs/PRD.md` — product requirements doc with phases.
-
-**Architecture (read after orientation):**
-6. `docs/technical-architecture.md` — system architecture across all three components.
-7. `docs/amplifier-flow.md` — end-to-end data and control flow.
-8. `docs/database-models.md` — server DB schema (12 tables).
-9. `docs/local-database-schema.md` — user app SQLite schema (13 tables).
-10. `docs/api-reference.md` — server API surface (~90 routes).
-11. `docs/server-client-sync-map.md` — how the server and user app exchange data.
-12. `docs/status-lifecycle.md` — every status field and transition.
-
-**Key subsystems:**
-13. `docs/content-generation.md` — the 4-phase AI content pipeline.
-14. `docs/background-agent-reference.md` — the always-on agent on the user device.
-15. `docs/campaign-matching.md` — how campaigns get matched to users.
-16. `docs/billing-and-earnings.md` — money flow, integer cents, 7-day hold.
-17. `docs/platform-posting-playbook.md` — per-platform Playwright posting quirks.
-18. `docs/ai-prompt-registry.md` — every AI prompt the system uses.
-19. `docs/selector-inventory.md` — 150+ CSS selectors used for posting and scraping.
-
-**Configuration / ops:**
-20. `docs/env-vars.md` — every env var across server, user app, engine.
-21. `docs/config-reference.md` — config file walkthrough.
-22. `docs/deployment-guide.md` — current deployment doc (treat as partially stale; the migration doc below supersedes it).
-23. `docs/development-setup.md` — local dev setup.
-24. `docs/testing-guide.md` — test approach (note: there is no automated test suite).
-25. `docs/troubleshooting.md` — common issues.
-
-**Status of work:**
-26. `docs/REMAINING-WORK.md` — what's left.
-27. `.taskmaster/tasks/tasks.json` — canonical task list (15/43 done as of 2026-04-25). Read at least the titles + descriptions of pending tasks.
-28. `docs/SCHEMA-CHANGES.md` — recent schema changes.
-29. `docs/V2-V3-UPGRADE-PLAN.md` — context on the broader Amplifier roadmap (there are sibling versions of Amplifier built by Daniel; do NOT assume those are merged in — ours is v1).
-
-**THE CRITICAL FILE FOR THIS TASK:**
-30. `docs/MIGRATION-FROM-VERCEL.md` — full planning doc for the hosting migration. Read every section (~540 lines). It already contains an analysis of Hostinger VPS vs Render vs Railway, but does NOT yet weigh the three options I'm asking you about.
-
-**Note on stale docs (do not rely on these):**
-- `docs/EXECUTION-ORDER.md` and `docs/FILE-CHANGE-INDEX.md` — both have **DEPRECATED** banners at the top. The task IDs inside are stale. Skip them.
 
 ## Step 2 — Lock in the picture
 
