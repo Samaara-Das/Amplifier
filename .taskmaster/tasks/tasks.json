@@ -55,7 +55,7 @@
       },
       {
         "id": 5,
-        "title": "Invitation UX â€” countdown timers, expired badge, decline reason",
+        "title": "Invitation UX \u00e2\u20ac\u201d countdown timers, expired badge, decline reason",
         "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
         "status": "done",
         "priority": "medium",
@@ -68,7 +68,7 @@
       },
       {
         "id": 6,
-        "title": "Metrics accuracy â€” populate anomaly_flag, cross-validation",
+        "title": "Metrics accuracy \u00e2\u20ac\u201d populate anomaly_flag, cross-validation",
         "description": "anomaly_flag column exists but never populated. No cross-validation between Playwright and API metrics.",
         "status": "done",
         "priority": "high",
@@ -83,7 +83,7 @@
       },
       {
         "id": 7,
-        "title": "[DEFERRED] Repost campaign â€” company creation, frequency, user display",
+        "title": "[DEFERRED] Repost campaign \u00e2\u20ac\u201d company creation, frequency, user display",
         "description": "Full repost campaign feature: companies provide exact pre-written post content per platform instead of AI generation. Formats: text only, image only, text+image. Posting frequency: once, daily, every X days, weekly (stored as repost_frequency on Campaign model). Company dashboard: create form with per-platform text + image URL fields, campaign detail shows repost content card with edit support (POST /campaigns/{id}/repost-content), frequency selector. User dashboard: repost drafts shown as read-only with banner, no edit/regenerate, approve/reject only. Background agent: skips 4-phase AI pipeline for reposts, uses CampaignPost records directly, respects frequency setting, converts Reddit title+body format. Bugs already fixed: field name mismatch (campaign_posts vs repost_content) in local_db.py and background_agent.py, Reddit format conversion. Quality gate: image-only posts valid, content_guidance not required. Content rotation (multiple posts per platform) is a future sub-feature.",
         "status": "deferred",
         "priority": "medium",
@@ -109,7 +109,7 @@
       },
       {
         "id": 9,
-        "title": "Metric scraping â€” detailed spec per platform, verify E2E",
+        "title": "Metric scraping \u00e2\u20ac\u201d detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
         "status": "done",
         "priority": "high",
@@ -125,7 +125,7 @@
       },
       {
         "id": 10,
-        "title": "Billing â€” detailed spec for earnings calc, verify E2E",
+        "title": "Billing \u00e2\u20ac\u201d detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
         "status": "done",
         "priority": "high",
@@ -141,7 +141,7 @@
       },
       {
         "id": 11,
-        "title": "Earnings display â€” server-to-local sync, withdrawal, verify E2E",
+        "title": "Earnings display \u00e2\u20ac\u201d server-to-local sync, withdrawal, verify E2E",
         "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
         "status": "done",
         "priority": "high",
@@ -157,7 +157,7 @@
       },
       {
         "id": 12,
-        "title": "AI matching â€” detailed spec for scoring logic, verify accuracy",
+        "title": "AI matching \u00e2\u20ac\u201d detailed spec for scoring logic, verify accuracy",
         "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
         "status": "done",
         "priority": "high",
@@ -171,7 +171,7 @@
       },
       {
         "id": 13,
-        "title": "AI profile scraping â€” Gemini Vision, per-platform detailed spec",
+        "title": "AI profile scraping \u00e2\u20ac\u201d Gemini Vision, per-platform detailed spec",
         "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
         "status": "done",
         "priority": "high",
@@ -185,7 +185,7 @@
       },
       {
         "id": 14,
-        "title": "4-phase content agent â€” research, strategy, creation, review",
+        "title": "4-phase content agent \u00e2\u20ac\u201d research, strategy, creation, review",
         "description": "Current strategy is static dict. Needs deeper spec for goal-driven strategy, creator voice matching, trending topics, platform-native content.",
         "status": "done",
         "priority": "high",
@@ -201,7 +201,7 @@
       },
       {
         "id": 15,
-        "title": "AI campaign quality gate â€” detailed rubric spec",
+        "title": "AI campaign quality gate \u00e2\u20ac\u201d detailed rubric spec",
         "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
         "status": "pending",
         "priority": "medium",
@@ -214,7 +214,7 @@
       },
       {
         "id": 16,
-        "title": "Content formats â€” threads, polls, carousels across platforms",
+        "title": "Content formats \u00e2\u20ac\u201d threads, polls, carousels across platforms",
         "description": "Research most-used formats per platform by engagement data. Build JSON posting scripts for top formats. Re-enable Instagram/TikTok.",
         "status": "deferred",
         "priority": "high",
@@ -230,7 +230,7 @@
       },
       {
         "id": 17,
-        "title": "Free/Pro tiers â€” wire Stripe subscription billing",
+        "title": "Free/Pro tiers \u00e2\u20ac\u201d wire Stripe subscription billing",
         "description": "SUBSCRIPTION_TIERS config exists. Wire Stripe subscription checkout, webhook handler, enforce feature gates.",
         "status": "pending",
         "priority": "medium",
@@ -257,7 +257,7 @@
       },
       {
         "id": 19,
-        "title": "Stripe live integration â€” company Checkout + user Connect onboarding",
+        "title": "Stripe live integration \u00e2\u20ac\u201d company Checkout + user Connect onboarding",
         "description": "Live Stripe keys on Vercel. Webhook endpoint for payment confirmation. User Stripe Connect Express onboarding for real payouts.",
         "status": "pending",
         "priority": "high",
@@ -273,7 +273,7 @@
       },
       {
         "id": 20,
-        "title": "PyInstaller packaging â€” Windows installer",
+        "title": "PyInstaller packaging \u00e2\u20ac\u201d Windows installer",
         "description": "Update amplifier.spec for current codebase. Bundle all modules + Playwright + templates. Build Inno Setup installer.",
         "status": "pending",
         "priority": "high",
@@ -286,7 +286,7 @@
       },
       {
         "id": 21,
-        "title": "Mac support â€” cross-platform audit + packaging",
+        "title": "Mac support \u00e2\u20ac\u201d cross-platform audit + packaging",
         "description": "Audit Windows-specific code (fonts, paths, crypto). Fix for Mac. Build Mac package. Test full pipeline.",
         "status": "pending",
         "priority": "medium",
@@ -301,7 +301,7 @@
       },
       {
         "id": 22,
-        "title": "Landing page â€” public-facing site for acquisition",
+        "title": "Landing page \u00e2\u20ac\u201d public-facing site for acquisition",
         "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
         "status": "pending",
         "priority": "medium",
@@ -388,7 +388,7 @@
       },
       {
         "id": 29,
-        "title": "[DEFERRED] Political campaigns â€” geo-targeting, FEC compliance",
+        "title": "[DEFERRED] Political campaigns \u00e2\u20ac\u201d geo-targeting, FEC compliance",
         "description": "Post-launch. Requires US legal entity. Geo micro-targeting, political content mode, FEC disclaimers, rapid deployment.",
         "status": "deferred",
         "priority": "high",
@@ -496,7 +496,7 @@
       },
       {
         "id": 38,
-        "title": "E2E deleted post detection â€” full pipeline verification",
+        "title": "E2E deleted post detection \u00e2\u20ac\u201d full pipeline verification",
         "description": "Verify the full deleted post pipeline on ALL 4 platforms (X, LinkedIn, Facebook, Reddit): scraper visits deleted URL, detects deletion, marks post deleted locally, notifies server via PATCH /api/posts/{id}/status, server voids pending earnings, funds return to campaign budget. Must test each platform individually. Scraper detection was tested in Task #6 but the full server notification + earning voiding E2E flow was not.",
         "status": "done",
         "priority": "high",
@@ -511,8 +511,8 @@
       },
       {
         "id": 39,
-        "title": "[DEFERRED] UGC-style content â€” make AI content look authentic and drive viral views",
-        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates â€” this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
+        "title": "[DEFERRED] UGC-style content \u00e2\u20ac\u201d make AI content look authentic and drive viral views",
+        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates \u00e2\u20ac\u201d this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [
@@ -524,8 +524,8 @@
       },
       {
         "id": 40,
-        "title": "Fully disable X across Amplifier — hardcoded safety guard",
-        "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard — not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding — a suspended user is a product-killer.",
+        "title": "Fully disable X across Amplifier \u2014 hardcoded safety guard",
+        "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard \u2014 not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding \u2014 a suspended user is a product-killer.",
         "status": "done",
         "priority": "high",
         "dependencies": [],
@@ -539,12 +539,36 @@
       {
         "id": 41,
         "title": "Plan + execute Vercel migration (target host undecided)",
-        "description": "Server offline after Vercel billed ~$47/cycle (serverless model incompatible with Amplifier's high poll volume from user apps). Project deleted, billing disputed. Migration path NOT YET DECIDED — still in planning. Full planning doc with analysis, options, and step-by-step plan: docs/MIGRATION-FROM-VERCEL.md. Leading candidate is shared Hostinger KVM VPS (owned by Nili+Daniel, co-hosts TTE+Stock Buddy) but not confirmed. Fallback options include Render flat-fee and Railway.",
-        "details": "READ FIRST: docs/MIGRATION-FROM-VERCEL.md — 12 sections covering options analysis, server requirements, step-by-step setup, env vars, client cutover, Vercel cleanup (~62 files), cutover sequence, rollback, cost comparison, follow-ups, and open questions. Before executing: (1) decide target host (Hostinger VPS vs Render vs Railway vs other), (2) confirm with Nili/Daniel if going Hostinger route — KVM tier, SSH access, existing Caddy/Redis/UFW, subdomain, (3) audit ENCRYPTION_KEY usage before rotating, (4) verify ARQ WorkerSettings entrypoint exists. Clients still pointing to dead Vercel URL via config/.env:7 and scripts/utils/server_client.py:22. Server is OFFLINE right now — users can't access anything until this ships.",
+        "description": "Server offline after Vercel billed ~$47/cycle (serverless model incompatible with Amplifier's high poll volume from user apps). Project deleted, billing disputed. Migration path NOT YET DECIDED \u2014 still in planning. Full planning doc with analysis, options, and step-by-step plan: docs/MIGRATION-FROM-VERCEL.md. Leading candidate is shared Hostinger KVM VPS (owned by Nili+Daniel, co-hosts TTE+Stock Buddy) but not confirmed. Fallback options include Render flat-fee and Railway.",
+        "details": "READ FIRST: docs/MIGRATION-FROM-VERCEL.md \u2014 12 sections covering options analysis, server requirements, step-by-step setup, env vars, client cutover, Vercel cleanup (~62 files), cutover sequence, rollback, cost comparison, follow-ups, and open questions. Before executing: (1) decide target host (Hostinger VPS vs Render vs Railway vs other), (2) confirm with Nili/Daniel if going Hostinger route \u2014 KVM tier, SSH access, existing Caddy/Redis/UFW, subdomain, (3) audit ENCRYPTION_KEY usage before rotating, (4) verify ARQ WorkerSettings entrypoint exists. Clients still pointing to dead Vercel URL via config/.env:7 and scripts/utils/server_client.py:22. Server is OFFLINE right now \u2014 users can't access anything until this ships.\n\n=== HOSTING DECISION (added 2026-04-25 after father review) ===\nThree viable options compared. Recommended: Option B (existing shared Hostinger VPS).\n\nOption A \u2014 New free Vercel account: REJECTED. Same trap. Serverless billing scales with traffic;\n  Amplifier's 10-min poll loop from every user app instance will burn the free tier quickly and\n  generate the same surprise charge that killed the original project ($47/cycle).\n\nOption B \u2014 Existing Hostinger KVM VPS (shared with TTE + Stock Buddy, owned by Daniel + Nili):\n  RECOMMENDED. Flat fee already paid (sunk cost). Has Caddy + Redis + UFW configured. Supports\n  systemd + ARQ workers cleanly. Requires SSH access handoff from Nili. Risk: shared resource\n  contention with TTE (1300+ symbols scaling to 14k) and Stock Buddy. If contention becomes an\n  issue, fall back to Option C.\n\nOption C \u2014 Second Hostinger account (separate VPS dedicated to Amplifier): FALLBACK. Pros: no\n  shared-resource concern, full control. Cons: extra ongoing cost, extra ops surface. Use only if\n  Amplifier outgrows shared resources or Daniel/Nili want isolation.\n\nDECISION ORDER:\n  1. Start with Option B. Get SSH access from Nili. Deploy via the migration steps already in\n     docs/MIGRATION-FROM-VERCEL.md. ~2-3 hours of work.\n  2. Monitor resource usage for first 4 weeks. If stable, stay on B.\n  3. If contention shows up (CPU steal, DB slowdowns from neighbors), migrate to Option C.\n\nOption A (new free Vercel) is OFF the table \u2014 same failure mode.",
         "testStrategy": "",
         "status": "pending",
         "dependencies": [],
         "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 42,
+        "title": "[DEFERRED] Re-enable TikTok, Instagram, and X (cheap API path)",
+        "description": "Re-enable the three currently-disabled platforms so creators have full 6-platform reach. TikTok and Instagram use static test videos/images (no AI video generation in this task). X re-enables only via the official paid API v2 \u2014 never resume browser automation on X.",
+        "details": "CONTEXT \u2014 current state:\n- X: hardcoded-disabled via scripts/utils/guard.py (Task #40 done) after 3 X account suspensions\n  caused by anti-bot detection. The user's father has indicated the X API is now cheaper than\n  before; verify the actual pricing of X API v2 'Basic' tier before committing budget.\n- TikTok: enabled=false in config/platforms.json. Code paths in scripts/post.py + config/scripts/\n  exist but are not actively maintained. TikTok requires VPN to non-India server (Surfshark or\n  equivalent) because it is geo-blocked from India. Document VPN setup in onboarding.\n- Instagram: enabled=false in config/platforms.json. Multi-step posting flow (Create \u2192 Post \u2192\n  Upload \u2192 Next \u2192 Next \u2192 Caption \u2192 Share) preserved but not exercised in months. All clicks need\n  force=True due to overlay intercepts.\n\nSCOPE \u2014 three sub-tasks, each independently testable:\n\n1. X API integration (re-enable via official API only):\n   - Research X API v2 pricing as of implementation date. 'Basic' tier ($100/mo) allows up to\n     10K writes/month \u2014 enough for many users. 'Free' tier is read-only.\n   - If pricing acceptable: integrate via tweepy or direct httpx calls. Token stored encrypted\n     locally per-user (each user provides their own X API key in onboarding).\n   - Remove the hardcoded guard in scripts/utils/guard.py and server/app/utils/platform_guard.py.\n     Replace with a soft 'X API not configured' fallback so users without an X key just skip X.\n   - DO NOT re-enable browser automation on X under any circumstance \u2014 only the API path.\n   - Test on a fresh disposable X developer account before rolling out to existing users.\n\n2. TikTok (with test videos):\n   - Restore the existing posting flow in config/scripts/ (TikTok posting script).\n   - Onboarding addition: detect if user is in a geo-blocked region (e.g., India) and prompt\n     them to configure a VPN before connecting TikTok.\n   - For this task ONLY use static test videos from a local folder. NO AI video generation;\n     that is Task #31 (deferred separately).\n   - Verify TikTok still detects the Draft.js editor reliably (Ctrl+A \u2192 Backspace clear before typing).\n\n3. Instagram (images + test videos):\n   - Restore the multi-step dialog flow. Test images first; videos require Instagram's separate\n     Reel flow which is fragile.\n   - All buttons need force=True due to overlay intercepts \u2014 preserve this.\n   - Image upload via 'Photo/video' button + hidden file input.\n\nINTEGRATION POINTS:\n- All three platforms must show in the user app's Connect Platforms wizard\n- Matching engine must include them as eligible target platforms\n- Billing must support per-platform payout rates for all three\n- Profile scraping must work on all three (TikTok/IG already have stubs)",
+        "testStrategy": "Per-platform smoke test:\n1. TikTok: connect on a VPN-enabled machine, post a 5-second test video, capture URL, scrape metrics 24h later. Verify metrics arrive.\n2. Instagram: connect, upload a test image with caption, capture URL, scrape metrics. Verify the permalink resolves to the actual post.\n3. X (API path): with a developer key configured, post a tweet via the API, capture URL, scrape metrics via the same API. Verify the user's X account is NOT suspended (key signal of API-vs-automation success).\nAcceptance: all three platforms post a test piece of content and metrics flow back to the server. X re-enable can be split into a separate sub-task if API cost remains prohibitive.",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 43,
+        "title": "[DEFERRED] Shared research pool \u2014 campaigns share research across users",
+        "description": "When the 4-phase content agent does research for a campaign on one user's machine, push that research to the server so other users assigned to the same campaign can read it instead of re-doing the work. Forms a collective research pool per campaign that all assigned users contribute to and consume from.",
+        "details": "CONTEXT \u2014 current behaviour (Task #14, shipped):\n- The content agent's Phase 1 (Research) runs on the user's machine. It scrapes the company's URLs\n  (up to 3), reads campaign images via vision AI, searches the web for recent niche news, and\n  synthesizes a 'research context' (product summary, key features, content angles, emotional\n  hooks, recent news headlines, etc.).\n- This research is cached LOCALLY for 7 days (per scripts/utils/content_generator.py).\n- Every other user on the same campaign re-does the exact same work on their own machine.\n- Wasteful: identical Gemini calls, identical web scrapes, identical token cost.\n\nGOAL \u2014 turn it into a shared pool:\n1. After research finishes locally, agent uploads the research blob to the server keyed by\n   (campaign_id, research_version). Server stores it on a new CampaignResearch table.\n2. Before doing research locally, agent first asks server: 'do you have research for campaign X\n   that is < 7 days old?'. If yes, downloads and caches locally. If partial (e.g., URLs scraped\n   but no news search done yet), agent does only the missing parts and uploads the delta.\n3. Research is split into discrete sections (product_scrape, image_analysis, niche_news,\n   emotional_hooks, content_angles). Each section is independently versionable so partial\n   research is mergeable.\n4. Server merges contributions from multiple users \u2014 last-write-wins per section, but the union\n   of all sections forms the final cached pool.\n\nSCHEMA additions (new model):\n- CampaignResearch: id, campaign_id (FK), section ('product_scrape' | 'image_analysis' |\n  'niche_news' | 'emotional_hooks' | 'content_angles'), payload (JSON), contributed_by_user_id,\n  created_at, expires_at\n- Index: (campaign_id, section, created_at desc) for fast 'latest fresh research' lookup\n\nAPI additions (new endpoints):\n- GET  /api/campaigns/{id}/research \u2192 returns latest non-expired sections, merged\n- POST /api/campaigns/{id}/research \u2192 upload a section payload\n\nAGENT changes (scripts/utils/content_generator.py):\n- Before each research section: GET from server, use if fresh\n- After each research section: POST to server with payload + section name\n- Local 7-day cache becomes a fallback if server is unreachable\n\nBENEFITS:\n- Token cost per campaign drops from O(users \u00d7 research) to O(research)\n- Faster onboarding for late-joiners \u2014 research already cached\n- Companies could optionally see the research pool (could become a 'transparency' feature later)\n\nEDGE CASES:\n- Race conditions: two users research the same section at the same time \u2192 last-write-wins is fine\n- Stale research: 7-day TTL expires \u2192 next user redoes it; subsequent users benefit again\n- Privacy: nothing user-identifying in research payloads (just product/market info), safe to share\n- Trust: a malicious user could inject bad research. Mitigation: server-side AI can validate or\n  flag obviously-junk research before caching it (post-MVP refinement)",
+        "testStrategy": "1. Two users (User A, User B) accept the same campaign within minutes of each other.\n2. User A's agent runs research first \u2192 uploads 5 sections to server.\n3. User B's agent starts research second \u2192 expect server returns existing sections, B does NO\n   Gemini calls, downloads research, generates content using A's research.\n4. User C joins same campaign 5 days later \u2192 same behaviour as B.\n5. User D joins 8 days later \u2192 research is expired, D redoes research and re-uploads.\n6. Subsequent users in the same 7-day window after D benefit from D's fresh research.\nVerify: token spend dropped on B/C/D's machines. Server logs show GET hit + POST contributions.",
+        "status": "deferred",
+        "dependencies": [
+          14
+        ],
+        "priority": "medium",
         "subtasks": []
       }
     ],
