@@ -1,0 +1,84 @@
+[User]
+give me info of this hostinger plan that i currently have. list its benefits. also tell me what domains/websites i set up and how else i have used hostinger
+(25/04/2026 12:22)
+
+[Kodee]
+You’re on **Business Web Hosting** for **poolsifi.com**. Main benefits/limits in your plan: **2 CPU cores, 3 GB RAM, daily backups, LiteSpeed web server, CDN support, free SSL, up to 300 databases, 100 subdomains, and 100 parked domains**.
+
+**Websites/subdomains you’ve set up:**  
+- **poolsifi.com** (main site)  
+- **learn.poolsifi.com**  
+- **myadmin.poolsifi.com**  
+- **analysis.poolsifi.com**  
+- **marketdavinci.com**  
+- **silverpips.com**  
+- **thebrutalcapitalist.com**
+
+**Other Hostinger services you’ve used:**  
+- **Domains:** pointcapitalis.com, onbchain.com, poolsifi.com  
+- **Email:** marketdavinci.com, myadmin.poolsifi.com, silverpips.com  
+- **Website Builder:** policyvote.info  
+- **VPS:** one KVM VPS active
+
+If you want, I can also give you a **clean “account overview”** with which of these are active, parked, or need attention.
+(25/04/2026 12:22)
+
+[User]
+Yes, please provide the clean account overview.
+(25/04/2026 12:22)
+
+[Kodee]
+Here’s a clean account overview:
+
+- **Hosting plan:** Business Web Hosting for **poolsifi.com**
+- **Active websites/domains on hosting:** poolsifi.com, learn.poolsifi.com, myadmin.poolsifi.com, analysis.poolsifi.com, marketdavinci.com, silverpips.com, thebrutalcapitalist.com
+- **Other Hostinger services used:** 3 domains, 3 email setups, 1 Website Builder site, and 1 VPS
+- **Everything looks active** overall; the only item worth checking is **marketdavinci.com**, which appears to have an SSL issue
+
+If you want, I can also turn this into a **table with “active / needs attention / service type”**.
+(25/04/2026 12:22)
+
+[User]
+is there anything else i should know?
+(25/04/2026 12:22)
+
+[Kodee]
+A few useful things:  
+- Your hosting runs on **LiteSpeed** in the **USA (Arizona)**, with **CDN available** and **daily backups**.  
+- You don’t have **shell/SSH access** enabled on this plan.  
+- You’ve used a small portion of your space and databases, so you still have plenty of room.  
+- The main thing to check is **marketdavinci.com**, because its **SSL certificate shows an issue**.
+
+If you want, I can next give you a **“what’s healthy vs what needs attention”** checklist for your whole account.
+(25/04/2026 12:22)
+
+[User]
+is there a VPS? give me info about it
+(25/04/2026 12:27)
+
+[Kodee]
+Yes — you have **1 VPS** and it’s **running**.
+
+**Quick info:**
+- **OS:** Ubuntu 24.04 LTS
+- **Location:** Mumbai
+- **Resources:** 1 vCPU, 4 GB RAM, 50 GB disk
+- **IP:** IPv4 + IPv6 assigned
+- **Status:** Active, not expired
+- **Backups:** Daily backup is **off**
+- **Firewall:** Web ports **80/443** are open
+- **Current note:** CPU usage is **very high** right now
+
+If you want, I can also check **what’s causing the high CPU** or give you a **full VPS health summary**.
+(25/04/2026 12:27)
+
+[User]
+What is causing the high CPU usage on my VPS?
+(25/04/2026 12:28)
+
+[Kodee]
+The main CPU consumer is **`openclaw-gateway`**, which is using most of the CPU and memory on the VPS.  
+Your VPS also shows **very high steal time**, which usually means the physical host is busy and your VM is not getting all the CPU it wants.  
+So the slowdown is likely a mix of **that app/process** plus **host-level contention/CPU throttling**.  
+If you want, I can help you **find what inside OpenClaw is driving it** and lower the load.
+(25/04/2026 12:28)

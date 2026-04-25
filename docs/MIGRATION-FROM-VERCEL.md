@@ -1,10 +1,46 @@
 # Migration Plan — Amplifier Server Off Vercel
 
-Planning document. Not a to-do list — execute when you're ready.
+> **STATUS: DECISION LOCKED 2026-04-25.** Execution runbook below. Hard deadline: `/health` returning 200 by **end of week 2026-05-02**.
 
 **Trigger:** Vercel Hobby (`araamas-projects`) billed ~$47 in one cycle for the Amplifier FastAPI server. Root causes: 3.9M function invocations (721% over free tier), 904% Fluid Active CPU, 350 build minutes. Vercel is serverless — every HTTP request spawns a function. Amplifier makes *lots* of requests (campaign polling from every user app instance every 10 min + metric scraping + background agent health checks). Serverless pricing scales linearly with traffic and has no hard cap; one noisy user could bankrupt you.
 
-**Current state:** Project deleted from Vercel, billing disputed, server offline. Clients still point to `https://server-five-omega-23.vercel.app` via `config/.env:CAMPAIGN_SERVER_URL`.
+**Current state:** Project deleted from Vercel, billing disputed, server offline. Clients now default to `http://localhost:8000` after `759e3c2` (`server_client.py:22` + `config/.env:7`); will be updated to the new VPS subdomain at cutover.
+
+---
+
+## 0. Decision summary (2026-04-25)
+
+After consultation with Claude.ai web (full transcript and brief at `docs/CLAUDE-DESKTOP-TASK-41-BRIEF.md`), the following is locked:
+
+**PICK:** Deploy Amplifier on Nili + Daniel's existing Hostinger **KVM 1 VPS** (Mumbai, Ubuntu 24.04, 1 vCPU / 4 GB / 50 GB). Single-tenant after OpenClaw removal. No upgrade. No new VPS.
+
+**Rejected options (do not revisit unless stated condition changes):**
+
+| Option | Why rejected |
+|---|---|
+| **A — New free Vercel account** | Vercel Hobby ToS prohibits commercial use; auto-detection will suspend. Same per-invocation billing trap (1M free invocations/mo consumed in ~7-8 days at expected user volume). Same architectural failure mode. **Permanently off the table.** |
+| **C — Nili Business Web Hosting (poolsifi)** | Shared LiteSpeed in USA/Arizona, no SSH on plan tier, can't run uvicorn / Redis / systemd. Sandboxed for PHP/CMS via hPanel. Hosts 7 sites (poolsifi + subdomains, marketdavinci, silverpips, thebrutalcapitalist) but is a separate physical server from the VPS — killing things on the VPS does NOT affect any website. |
+| **D — KVM 8 on `kingsdxb2025@gmail.com`** | Bought specifically for Stock Buddy + TTE under employer (Rahul) authority. Employer has full account access. Privacy / IP risk: do not want employer to see Amplifier source, env vars, Stripe keys. Father confirmed off-limits. **Revisit only if employer-access situation changes.** |
+| **Upgrade Nili KVM 1 → KVM 2** | Premature — KVM 2 is sized for 50k MAU (100x current scale). Pre-buying capacity = comfort spending. In-place upgrade is one-click in hPanel (~10 min reboot) when actually needed. Trigger conditions in §10. |
+| **New small VPS under own account** | Solves imaginary isolation problem. Nili KVM is already single-tenant for Amplifier (TTE / Stock Buddy not landing there). $60-96/yr duplicate of free capacity already available. |
+
+**Workload sanity check on KVM 1 (why it's sufficient):**
+- FastAPI + asyncpg (1 worker): ~250-350 MB
+- ARQ worker (idle, polling Redis): ~80-120 MB
+- Local Redis: ~20-60 MB
+- Caddy: ~30-50 MB
+- Ubuntu 24.04 baseline + journald + sshd: ~400-600 MB
+- **Total: ~0.8-1.2 GB on 4 GB box → 2.8-3.2 GB headroom**
+- Workload is I/O-bound (waiting on Supabase, Gemini, Stripe). 1 vCPU async event loop handles hundreds of concurrent waiting requests easily.
+- 500 active users × 1 poll / 10 min = 50 polls/min → trivial.
+
+**Three execution-time tweaks vs. the original plan below** (all reflect single-tenant, no neighbor):
+
+1. §4.5 systemd web unit: drop `CPUQuota=80%` (no neighbor to protect), raise `MemoryMax=` to `2500M`, use `--workers 1` (one worker fits I/O-bound load shape, saves ~150 MB RAM).
+2. §4.2 baseline: kill OpenClaw cleanly (`systemctl stop openclaw-gateway && systemctl disable openclaw-gateway`) BEFORE installing anything. Verify `htop` <10% CPU and `free -h` ≥3 GB available before proceeding. **Do NOT delete OpenClaw binaries** — preserve on disk for Phase 7.
+3. §4.6 ARQ worker: before writing the systemd unit, run `grep -rn "WorkerSettings\|class Worker" server/app/` to confirm entrypoint exists. If not, defer worker as a follow-up task and ship the web server first.
+
+**Pre-cleanup recon is mandatory.** The Nili VPS has unidentified processes besides OpenClaw. Do NOT stop services blindly. Full recon-first procedure is documented in `docs/VPS-RECON-AND-CLEANUP.md`.
 
 ---
 
