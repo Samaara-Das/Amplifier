@@ -44,6 +44,27 @@ When ImageManager is updated, check these docs for the provider chain order:
 
 When `ImageManager` gains new methods, check: `docs/AMPLIFIER-SPEC.md` Section 5.3 uses method names (`transform()` for img2img, NOT `generate_variation()`). The `generate()` method is txt2img.
 
+## Vercel Offline Pattern (2026-04-25)
+
+Server moved fully offline after Vercel billing issue. Dead URL (`server-five-omega-23.vercel.app`) was in 14 doc files. Standard replacement:
+- As default URL (config/env-vars docs): change to `http://localhost:8000`, add note pointing to `docs/MIGRATION-FROM-VERCEL.md`
+- As "production deployment" (architecture/PRD/spec docs): replace with "server is currently offline — previous Vercel deployment taken down; see docs/MIGRATION-FROM-VERCEL.md for VPS migration plan"
+- NEVER touch `docs/MIGRATION-FROM-VERCEL.md` — it's the source of truth for Task #41.
+- Vercel `your-domain.vercel.app` generic references in deployment-guide.md are OK to leave (historical reference).
+
+## Task Count Drift Pattern
+
+`docs/REMAINING-WORK.md` task counts drift badly — was "27 of 80" when reality was 15/43. Always run `task-master list` to get authoritative numbers before updating any doc that cites task counts. The header in REMAINING-WORK.md needs manual update each sprint.
+
+## 4-Phase ContentAgent Pattern (2026-04-18, Task #14)
+
+New modules added: `scripts/utils/content_agent.py` + `scripts/utils/content_quality.py`. Background agent now calls `ContentAgent.generate()` (not `ContentGenerator`). Key behavior changes:
+- Reddit body max: 1500 → 2500 chars
+- "leverage" removed from BANNED_PHRASES (false positives on finance/tech content)
+- Research/strategy cached 7 days per campaign (cache bug fixed — naive/UTC datetime mismatch)
+- Phase 1 vision reads from `data/product_images/{campaign_id}/` (not `assets.product_images`)
+Docs that needed updating: `content-generation.md`, `background-agent-reference.md`, `CLAUDE.md` (User App section).
+
 ## Campaign Image Pipeline Pattern (2026-04-04)
 
 `background_agent.py` has two new helpers that must be documented in all Architecture sections:
