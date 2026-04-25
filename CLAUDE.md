@@ -52,7 +52,7 @@ python scripts/utils/metric_scraper.py     # scrape engagement metrics from post
 
 **Slash commands**: `/get-context` (session start), `/update-context` (session end), `/smoke-test` (after features), `/commit-push` (commit + auto-deploy)
 
-**Task Master (project-specific override of global rule):** Edit `.taskmaster/tasks/tasks.json` **DIRECTLY** for adds, updates, status changes, and deletions. The `task-master add-task` CLI requires `ANTHROPIC_API_KEY` for AI mode and even the manual `--title`/`--description` mode is slow (~30 sec per call) — direct JSON edit is faster and avoids both issues. Bump the highest existing `id` by 1 for new tasks. Keep the schema consistent with surrounding entries (status: pending|in-progress|done|review|deferred|cancelled, priority: high|medium|low, dependencies: [], details: "", testStrategy: "", subtasks: []). Commit `tasks.json` changes with `chore(tasks): ...` messages. The global rule "never edit tasks.json manually" is overridden here for speed.
+**Task Master:** Edit `.taskmaster/tasks/tasks.json` directly (faster than CLI, no API key needed). Match existing schema; bump highest `id` for new tasks. Overrides global "never edit manually" rule.
 
 ## Architecture
 
