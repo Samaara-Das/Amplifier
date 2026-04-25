@@ -27,12 +27,26 @@ class Settings(BaseSettings):
 
     # Stripe (optional — test mode)
     stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
 
     # Supabase Storage (for campaign asset uploads)
     supabase_url: str = ""
     supabase_service_key: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # Admin
+    admin_password: str = "admin"
+
+    # AI providers (also read directly via os.environ in services)
+    gemini_api_key: str = ""
+
+    # Encryption (also read directly via os.environ in app/utils/crypto.py)
+    encryption_key: str = ""
+
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",  # don't fail on unknown env vars
+    }
 
 
 @lru_cache
