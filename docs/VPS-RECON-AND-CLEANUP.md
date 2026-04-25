@@ -3,6 +3,8 @@
 **Target VPS:** Nili + Daniel's Hostinger KVM 1 (Mumbai, Ubuntu 24.04, 1 vCPU / 4 GB / 50 GB)
 **Purpose:** Identify everything running on the VPS, get explicit go-ahead from Nili / Daniel before stopping anything, then cleanly stop unneeded services to free the box for Amplifier deploy per `docs/MIGRATION-FROM-VERCEL.md`.
 
+> **Pre-recon update from Hostinger Kodee 2026-04-25:** Kodee reports the only running non-OpenClaw processes are stock Ubuntu daemons: `systemd-journald`, `tailscaled`, `fwupd`, `snapd`, `systemd-resolved`, `rsyslogd`, `multipathd`. All using "very little CPU and small RAM" per Kodee. **OpenClaw is the only real cleanup target.** Tailscale is the one Nili-specific item — ask her if she's actively using it for remote access before disabling.
+
 > **Why this runbook exists.** Last attempt at OpenClaw removal left it still running (likely systemd auto-restart) AND we noticed other unidentified processes on the box. The single most common way migrations like this fail is: "I cleaned up stuff I shouldn't have." 1-2 days for a proper inventory + handoff conversation is cheap insurance vs. discovering 3 days post-deploy that you broke a TTE-related service.
 
 ---
@@ -86,6 +88,8 @@ scp amplifier@<VPS_IP>:/tmp/recon-*.txt C:\Users\dassa\Work\Auto-Posting-System\
 ---
 
 ## Phase 3 — Identify each unknown service
+
+> **Likely-empty phase.** Per Kodee 2026-04-25, the only non-OS process is OpenClaw. If recon confirms this, skip directly to Phase 4 with a single ask for Nili: "Are you actively using Tailscale on this box for remote access?" If recon turns up surprises (anything not in the known list), work through them here.
 
 For every systemd unit you don't recognize, run:
 
