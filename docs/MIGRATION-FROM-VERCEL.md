@@ -10,7 +10,7 @@
 
 ## 0. Decision summary (2026-04-25)
 
-After consultation with Claude.ai web (full transcript and brief at `docs/CLAUDE-DESKTOP-TASK-41-BRIEF.md`), the following is locked:
+After consultation with Claude.ai web (full transcript and brief archived at `docs/archive/CLAUDE-DESKTOP-TASK-41-BRIEF.md`), the following is locked:
 
 **PICK:** Deploy Amplifier on Nili + Daniel's existing Hostinger **KVM 1 VPS** (Mumbai, Ubuntu 24.04, 1 vCPU / 4 GB / 50 GB). Single-tenant after OpenClaw removal. No upgrade. No new VPS.
 
@@ -42,7 +42,7 @@ After consultation with Claude.ai web (full transcript and brief at `docs/CLAUDE
 
 **Pre-cleanup recon is mandatory.** The Nili VPS has unidentified processes besides OpenClaw. Do NOT stop services blindly. Full recon-first procedure is documented in `docs/VPS-RECON-AND-CLEANUP.md`. Per Hostinger Kodee 2026-04-25, the only non-OS process is OpenClaw — Tailscale is the one Nili-specific item to confirm before disabling.
 
-**Subdomain:** `api.marketdavinci.com` (confirmed 2026-04-25). Free, already owned via the Nili Hostinger account. Migration to a branded domain (`api.amplifier.app` or similar) is a future cleanup task once user volume justifies the $15/yr — process is straightforward (new DNS A record, add Caddy block, update `config/.env` + `server_client.py`, ship new user app build, keep old domain as redirect for ~30 days).
+**Subdomain:** `api.pointcapitalis.com` (LIVE as of 2026-04-25). Sammy-owned via his Hostinger account. Originally planned `api.marketdavinci.com` but discovered marketdavinci.com is hosted on Business Web Hosting but not actually in the domain portfolio — switched to pointcapitalis.com which Sammy owns and whose root already pointed at the same VPS IP from the previous nginx setup. Migration to a brand-name domain (`api.amplifier.app` or similar) is a future cleanup task once user volume justifies the $15/yr — process is straightforward (new DNS A record, add Caddy block, update `config/.env` + `server_client.py`, ship new user app build, keep old domain as redirect for ~30 days).
 
 **SSH access:** hPanel browser terminal on the `nili.thp@gmail.com` Hostinger account → VPS section. Confirmed working 2026-04-25, no need to coordinate with Nili. Use `tmux` for multi-step operations.
 
@@ -50,7 +50,7 @@ After consultation with Claude.ai web (full transcript and brief at `docs/CLAUDE
 
 1. **Phase 2 (system setup + hardening):** Single bash block pasted in hPanel terminal. Updates system, installs essentials (ufw, fail2ban, tmux, curl, git, etc.), creates `sammy` user, configures UFW (allow 22/80/443 only), hardens sshd (no passwords, no root login), enables fail2ban + unattended-upgrades, installs Tailscale. ~3-5 min.
 2. **Phase 3 (Tailscale auth):** Manual one-liner — `tailscale up --ssh`, click the printed URL, approve the new node in the Tailscale admin console as `nili.thp@gmail.com`. ~30 sec interactive.
-3. **Phase 4 (Amplifier deploy):** Script at `scripts/deploy/phase4-amplifier-deploy.sh`. Paste in hPanel terminal as root. Generates GitHub deploy SSH key, pauses for you to add it as a deploy key in the GitHub repo, clones the repo, sets up Python venv + deps, generates fresh JWT_SECRET_KEY/ADMIN_PASSWORD/ENCRYPTION_KEY (safe to rotate — codebase audit confirmed `crypto.encrypt`/`decrypt` are never called from production code), prompts for DATABASE_URL + GEMINI_API_KEY + SUPABASE_URL + SUPABASE_SERVICE_KEY, writes `.env` (mode 600, root:amplifier), installs Redis, writes systemd unit (drop CPUQuota, MemoryMax=2500M, --workers 1), installs Caddy + Caddyfile for `api.marketdavinci.com` with auto-TLS, starts everything, runs smoke tests. ~5-8 min.
+3. **Phase 4 (Amplifier deploy):** Script at `scripts/deploy/phase4-amplifier-deploy.sh`. Paste in hPanel terminal as root. Generates GitHub deploy SSH key, pauses for you to add it as a deploy key in the GitHub repo, clones the repo, sets up Python venv + deps, generates fresh JWT_SECRET_KEY/ADMIN_PASSWORD/ENCRYPTION_KEY (safe to rotate — codebase audit confirmed `crypto.encrypt`/`decrypt` are never called from production code), prompts for DATABASE_URL + GEMINI_API_KEY + SUPABASE_URL + SUPABASE_SERVICE_KEY, writes `.env` (mode 600, root:amplifier), installs Redis, writes systemd unit (drop CPUQuota, MemoryMax=2500M, --workers 1), installs Caddy + Caddyfile for `api.pointcapitalis.com` with auto-TLS, starts everything, runs smoke tests. ~5-8 min.
 
 **ARQ worker:** Confirmed missing entrypoint via grep (no `WorkerSettings` class anywhere in `server/app/`). Per §4.6 below: defer the worker, ship web-only first. Tracked as a follow-up task. Billing/trust periodic sweeps won't auto-run until implemented; money still moves correctly via synchronous API calls.
 
