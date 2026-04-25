@@ -40,7 +40,11 @@ After consultation with Claude.ai web (full transcript and brief at `docs/CLAUDE
 2. §4.2 baseline: kill OpenClaw cleanly (`systemctl stop openclaw-gateway && systemctl disable openclaw-gateway`) BEFORE installing anything. Verify `htop` <10% CPU and `free -h` ≥3 GB available before proceeding. **Do NOT delete OpenClaw binaries** — preserve on disk for Phase 7.
 3. §4.6 ARQ worker: before writing the systemd unit, run `grep -rn "WorkerSettings\|class Worker" server/app/` to confirm entrypoint exists. If not, defer worker as a follow-up task and ship the web server first.
 
-**Pre-cleanup recon is mandatory.** The Nili VPS has unidentified processes besides OpenClaw. Do NOT stop services blindly. Full recon-first procedure is documented in `docs/VPS-RECON-AND-CLEANUP.md`.
+**Pre-cleanup recon is mandatory.** The Nili VPS has unidentified processes besides OpenClaw. Do NOT stop services blindly. Full recon-first procedure is documented in `docs/VPS-RECON-AND-CLEANUP.md`. Per Hostinger Kodee 2026-04-25, the only non-OS process is OpenClaw — Tailscale is the one Nili-specific item to confirm before disabling.
+
+**Subdomain:** `api.marketdavinci.com` (confirmed 2026-04-25). Free, already owned via the Nili Hostinger account. Migration to a branded domain (`api.amplifier.app` or similar) is a future cleanup task once user volume justifies the $15/yr — process is straightforward (new DNS A record, add Caddy block, update `config/.env` + `server_client.py`, ship new user app build, keep old domain as redirect for ~30 days).
+
+**SSH access:** hPanel browser terminal on the `nili.thp@gmail.com` Hostinger account → VPS section. Confirmed working 2026-04-25, no need to coordinate with Nili. Use `tmux` for multi-step operations.
 
 ---
 

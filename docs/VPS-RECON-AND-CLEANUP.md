@@ -9,17 +9,16 @@
 
 ---
 
-## Phase 1 — Get SSH access (blocks everything)
+## Phase 1 — SSH access (RESOLVED)
 
-Message to send Nili (today):
+Use the **hPanel browser terminal** for the Nili Hostinger account (`nili.thp@gmail.com`) → VPS section → Browser terminal. Confirmed working 2026-04-25. No need to coordinate with Nili.
 
-> Hey Nili, I'm deploying Amplifier to the Mumbai KVM VPS this week. Can you add my SSH public key to the box, ideally under a dedicated `amplifier` user with sudo? I'll send you my public key. Will also need to do a recon pass on what's currently running and check with you and Daniel before stopping any unknown services.
+For multi-step operations (installs, migrations) that take >2 minutes, run inside `tmux` so the work survives terminal disconnects:
 
-If you don't have an SSH keypair, generate one on Windows:
-```powershell
-ssh-keygen -t ed25519 -C "amplifier-deploy"
-# Default path: C:\Users\dassa\.ssh\id_ed25519 (private) + id_ed25519.pub (public)
-# Send the .pub file contents to Nili
+```bash
+tmux                  # start a session — work inside it
+# Ctrl+B then D       # detach (commands keep running)
+tmux attach           # reconnect later
 ```
 
 ---
