@@ -56,3 +56,5 @@ diag_*.png
 diag_*.txt
 scrape_test_results.json
 debug_fb_*.txt
+ai chat transcript - *.txt
+.claude/worktrees/
