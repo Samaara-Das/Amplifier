@@ -9,7 +9,7 @@ Amplifier is a two-sided marketplace: companies create campaigns, users (amplifi
 ```mermaid
 graph TB
     subgraph Internet
-        V["Vercel Serverless<br/>FastAPI"]
+        V["FastAPI Server<br/>(VPS — migration pending)"]
         DB["Supabase PostgreSQL<br/>aws-1-us-east-1"]
         V --- DB
     end
@@ -52,7 +52,7 @@ graph TB
 
 ## 1. Amplifier Server (`server/`)
 
-FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). Deployed on Vercel serverless.
+FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **Currently offline** — previous Vercel deployment taken down; migration to Hostinger KVM VPS in progress (Task #41, see `docs/MIGRATION-FROM-VERCEL.md`).
 
 ### Routes
 

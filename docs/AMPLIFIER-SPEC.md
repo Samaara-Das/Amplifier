@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: April 3, 2026
-**Status**: Three implementations exist (v1 deployed, v2 shelved, v3 Phase 1 complete)
+**Status**: Three implementations exist (v1 server offline — migrating from Vercel to Hostinger VPS; v2 shelved; v3 Phase 1 complete). See `docs/MIGRATION-FROM-VERCEL.md`.
 
 ---
 
@@ -762,18 +762,17 @@ The three implementations are naturally complementary:
 
 ## 9. Deployment & Infrastructure
 
-### 9.1 Server (v1 — Currently Deployed)
+### 9.1 Server (v1 — Currently Offline)
 
-- **Host:** Vercel (serverless functions)
+- **Host:** Hostinger KVM VPS (migration in progress — see `docs/MIGRATION-FROM-VERCEL.md`, Task #41). Previous Vercel deployment (`server-five-omega-23.vercel.app`) taken down due to billing incompatibility.
 - **Database:** Supabase PostgreSQL (aws-1-us-east-1, transaction pooler port 6543)
 - **Connection:** NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)
-- **Build:** `vercel deploy --yes --prod --cwd server`
 - **Environment:** DATABASE_URL, JWT_SECRET_KEY, ADMIN_PASSWORD, GEMINI_API_KEY
 
-**Live URLs:**
-- Company dashboard: `server-five-omega-23.vercel.app/company/login`
-- Admin dashboard: `server-five-omega-23.vercel.app/admin/login`
-- API docs (Swagger): `server-five-omega-23.vercel.app/docs`
+**Local development URLs:**
+- Company dashboard: `http://localhost:8000/company/login`
+- Admin dashboard: `http://localhost:8000/admin/login`
+- API docs (Swagger): `http://localhost:8000/docs`
 
 ### 9.2 Creator App (v1 — Desktop)
 

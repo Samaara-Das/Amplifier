@@ -65,7 +65,7 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + Supabase PostgreSQL (deployed) / SQLite (local dev). ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health).
+FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health). **Currently offline** — previous Vercel deployment taken down; migration to Hostinger KVM VPS in progress (see `docs/MIGRATION-FROM-VERCEL.md`, Task #41).
 
 **API endpoints** (`/api/`):
 - Auth: user + company register/login (JWT) — 4 routes
@@ -101,6 +101,8 @@ Local Flask dashboard + campaign runner that connects to the server.
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
 - `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` column (path to generated or downloaded product image).
 - `scripts/utils/content_generator.py` — AI content generation using AiManager (text) and ImageManager (images). Three image modes: img2img (product photo via `ImageManager.transform()`), txt2img (`ImageManager.generate()`), PIL fallback. Replaces PowerShell + Claude CLI for campaign content.
+- `scripts/utils/content_agent.py` — 4-phase AI content agent (Task #14): Phase 1 Research (weekly, webcrawler + product images), Phase 2 Strategy (weekly, goal→format mapping via `GOAL_STRATEGY`), Phase 3 Creation (daily, AiManager with retry + quality gate), Phase 4 Review (auto-approve or queue). Supersedes single-prompt `ContentGenerator` for campaign content.
+- `scripts/utils/content_quality.py` — Quality validator for the content agent pipeline. Checks character limits, banned AI phrases (`BANNED_PHRASES`), cosine/sequence similarity (dedup), and per-platform format rules. Returns `(bool, [reasons])`.
 - `scripts/utils/metric_collector.py` — Hybrid metric collection: X and Reddit via official APIs, LinkedIn and Facebook via Browser Use + Gemini (falls back to Playwright selectors)
 - `scripts/utils/metric_scraper.py` — Revisits posts at T+1h/6h/24h/72h to scrape engagement via Playwright
 - `scripts/utils/crypto.py` — Client-side encryption using machine-derived key
@@ -129,28 +131,19 @@ Platform posting is now driven by JSON scripts in `config/scripts/` via `scripts
 - `config/content-templates.md` — Brand voice, content pillars, emotion-first + value-first principles, platform format rules
 - `server/.env.example` — Server config (database URL, JWT secret, Stripe keys, platform cut %)
 
-## Deployed Server
+## Server Hosting
 
-- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
-- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login
-- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
+**Server is currently offline.** The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) was taken down due to billing incompatibility with serverless. Migration to Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41).
 
-**Vercel environment variables:**
+Until migration completes, run the server locally:
 
-| Variable | Status |
-|----------|--------|
-| `DATABASE_URL` | Set — Supabase transaction pooler (`aws-1-us-east-1.pooler.supabase.com:6543`) |
-| `JWT_SECRET_KEY` | Set — encrypted |
-| `ADMIN_PASSWORD` | Set — encrypted |
-
-**Vercel deploy command:**
 ```bash
-vercel deploy --yes --prod --cwd "C:/Users/dassa/Work/Auto-Posting-System/server"
-# Use printf (not echo) when setting env vars to avoid trailing newline corruption:
-printf "value" | vercel env add VAR_NAME production --cwd server
+cd server && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-**vercel.json** — `rootDirectory` is a Vercel project-level setting (set via dashboard / CLI). Do not include it in `vercel.json`; the CLI rejects it.
+Set `CAMPAIGN_SERVER_URL=http://localhost:8000` in `config/.env` for the user app to connect.
+
+**Supabase PostgreSQL** remains available for when the VPS is live. Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility). Use `printf` (not `echo`) when setting env vars to avoid trailing newline corruption.
 
 ## Scheduling (US-aligned)
 
@@ -192,4 +185,4 @@ Claude operates as cofounder and CTO of Amplifier — not an assistant, not a ye
 - Active platforms: LinkedIn, Facebook, Reddit. **X DISABLED 2026-04-14** after 2 account blocks by anti-bot detection — do not re-enable without a safe automation method (X API v2, stealth browser like camoufox, or equivalent). TikTok and Instagram also disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped
 - Reddit posts to 1 random subreddit per run from the configured list
 - No test suite exists — verify changes by running against real platforms
-- Server uses SQLite for local dev, Supabase PostgreSQL in production (Vercel). Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)
+- Server uses SQLite for local dev, Supabase PostgreSQL in production. Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility). Production hosting migrating from Vercel to Hostinger KVM VPS (Task #41).

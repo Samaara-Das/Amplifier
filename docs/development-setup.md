@@ -132,8 +132,8 @@ task-master set-status --id=19 --status=done
 
 | Environment | URL |
 |-------------|-----|
-| Company Dashboard (prod) | https://server-five-omega-23.vercel.app/company/login |
-| Admin Dashboard (prod) | https://server-five-omega-23.vercel.app/admin/login |
-| Swagger Docs (prod) | https://server-five-omega-23.vercel.app/docs |
+| Company Dashboard (prod) | **Offline** — previous Vercel deployment taken down. See `docs/MIGRATION-FROM-VERCEL.md`. |
+| Admin Dashboard (prod) | **Offline** — see above |
+| Swagger Docs (prod) | **Offline** — see above |
 | User App (local) | http://localhost:5222 |
 | Server (local) | http://localhost:8000 |

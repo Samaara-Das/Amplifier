@@ -248,7 +248,7 @@ If status is `pending_invitation`, the user hasn't accepted the campaign yet. Ac
 | **Fix** | Verify the user's profile has matching niche tags, correct audience region, and the platforms required by available campaigns. Check via API: |
 
 ```bash
-curl -H "Authorization: Bearer <token>" https://server-five-omega-23.vercel.app/api/users/me
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/users/me
 ```
 
 ### Server Unreachable (Connection Errors)
@@ -256,11 +256,11 @@ curl -H "Authorization: Bearer <token>" https://server-five-omega-23.vercel.app/
 | | |
 |---|---|
 | **Problem** | `server_client.py` logs "Server unreachable" with exponential backoff retries. |
-| **Cause** | Vercel cold start, network issue, or server is down. |
-| **Fix** | The client retries 3 times with exponential backoff (5s, 10s, 20s). If all retries fail, the error propagates. Check server health: |
+| **Cause** | Server not running, wrong URL in `CAMPAIGN_SERVER_URL`, or network issue. The production server is currently offline — ensure you're running locally. |
+| **Fix** | The client retries 3 times with exponential backoff (5s, 10s, 20s). If all retries fail, the error propagates. Start the server locally (`cd server && uvicorn app.main:app`) and check health: |
 
 ```bash
-curl https://server-five-omega-23.vercel.app/health
+curl http://localhost:8000/health
 ```
 
 ### Metric Scraping Schedule
@@ -305,7 +305,7 @@ LIMIT 10;
 | `GEMINI_API_KEY` | Gemini API key (primary content gen) | (none) |
 | `MISTRAL_API_KEY` | Mistral API key (fallback) | (none) |
 | `GROQ_API_KEY` | Groq API key (fallback) | (none) |
-| `CAMPAIGN_SERVER_URL` | Override server URL | `https://server-five-omega-23.vercel.app` |
+| `CAMPAIGN_SERVER_URL` | Override server URL | `http://localhost:8000` (production offline — see `docs/MIGRATION-FROM-VERCEL.md`) |
 
 ### Platform Not Posting
 
@@ -345,8 +345,8 @@ python scripts/utils/session_health.py
 # Check local database for recent activity
 sqlite3 data/local.db "SELECT 'campaigns:', COUNT(*) FROM local_campaign UNION ALL SELECT 'posts:', COUNT(*) FROM local_post UNION ALL SELECT 'drafts:', COUNT(*) FROM agent_draft UNION ALL SELECT 'scheduled:', COUNT(*) FROM post_schedule WHERE status='queued' UNION ALL SELECT 'failed:', COUNT(*) FROM post_schedule WHERE status='failed';"
 
-# Check server connectivity
-curl -s https://server-five-omega-23.vercel.app/health
+# Check server connectivity (run server locally first)
+curl -s http://localhost:8000/health
 
 # View recent poster logs
 tail -50 logs/poster.log

@@ -164,7 +164,7 @@ SQLite at `data/local.db` with WAL mode. Key tables:
 All API calls go through `scripts/utils/server_client.py`:
 - Auth token stored in `config/server_auth.json`
 - Auto-retry with exponential backoff (3 attempts, 5s base delay)
-- Server URL: `CAMPAIGN_SERVER_URL` env var, default `https://server-five-omega-23.vercel.app`
+- Server URL: `CAMPAIGN_SERVER_URL` env var, default `http://localhost:8000` (production server offline — see `docs/MIGRATION-FROM-VERCEL.md`)
 
 ## Config Files
 

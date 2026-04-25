@@ -119,7 +119,7 @@ Loaded via `dotenv.load_dotenv("config/.env")` in most scripts.
 | `AUTO_POSTER_ROOT` | (project path) | post.py | Absolute path to project root. |
 | `LOG_LEVEL` | `INFO` | post.py | Python logging level. |
 | `GENERATE_COUNT` | `6` | generate.ps1 | Drafts to generate per run (personal brand engine). |
-| `CAMPAIGN_SERVER_URL` | `https://server-five-omega-23.vercel.app` | server_client.py | Amplifier server URL. Override with `http://localhost:8000` for local dev. |
+| `CAMPAIGN_SERVER_URL` | `http://localhost:8000` | server_client.py | Amplifier server URL. Production server offline — defaults to localhost. See `docs/MIGRATION-FROM-VERCEL.md`. |
 | `FIRST_POST_DATE` | (empty = today) | generate.ps1 | First post date for CTA rotation. Month 1 = 100% value, Month 2+ = 80/15/5 mix. |
 
 ---

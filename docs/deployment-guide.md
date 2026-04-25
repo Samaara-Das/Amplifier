@@ -1,6 +1,8 @@
 # Deployment Guide
 
-How to deploy the Amplifier Server to Vercel with Supabase PostgreSQL, and how to run it locally.
+> **Status (2026-04-25):** Production server is **offline**. The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) was taken down due to serverless billing incompatibility. Migration to a Hostinger KVM VPS is planned — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41). The Vercel instructions below remain useful as reference for the VPS setup.
+
+How to run the Amplifier Server locally and (previously) deploy to Vercel with Supabase PostgreSQL.
 
 ## Local Development
 
@@ -121,7 +123,7 @@ Then verify dashboards:
 - Admin dashboard: `https://your-domain.vercel.app/admin/login`
 - Company dashboard: `https://your-domain.vercel.app/company/login`
 
-Current production deployment: `https://server-five-omega-23.vercel.app`
+**Previous production deployment** (`https://server-five-omega-23.vercel.app`) is **offline**. Migration to Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41). The Vercel-specific sections below document how the server was deployed and remain useful reference for the VPS migration.
 
 ---
 

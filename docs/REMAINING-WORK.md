@@ -1,8 +1,8 @@
 # Amplifier — Remaining Work (Complete Task Specification)
 
-**Date**: April 4, 2026
-**Status**: 27 of 80 tasks done. 53 remaining.
-**Current state**: Core loop built but unverified. v2/v3 upgrade sprint completed (JSON posting engine, financial safety, AI abstraction, image generation, reputation tiers). No automated tests. No real payments. URL capture broken on 3/4 platforms.
+**Date**: April 4, 2026 (last full rewrite) — **status updated April 25, 2026**
+**Status**: 15 of 43 tasks done. 14 pending, 14 deferred.
+**Current state**: Money loop verified E2E. 4-phase content agent (Task #14) live. X platform hardcoded-disabled (Task #40). Server offline — migrating from Vercel to Hostinger KVM VPS (Task #41). Next task: #15 (AI quality gate) or #41 (hosting migration).
 
 ---
 
@@ -1083,7 +1083,7 @@ Amplifier is currently Windows-only. Mac support expands the user base significa
 A public-facing website explaining Amplifier to potential users and companies. Must convert visitors into sign-ups.
 
 #### Current state
-- **No landing page exists**. The deployed server at `server-five-omega-23.vercel.app` shows only the login pages.
+- **No landing page exists**. The server currently runs locally only (previous Vercel deployment taken down — see `docs/MIGRATION-FROM-VERCEL.md`).
 - **Company login**: `/company/login` — functional but no onboarding flow from cold traffic.
 - **User sign-up**: Users must download the desktop app and register through it. No web-based sign-up flow.
 

@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: April 2, 2026
-**Status**: V1 Built, In Verification Phase
+**Status**: V1 Built — 15/43 tasks done. Server currently offline (Vercel taken down, migrating to Hostinger KVM VPS — Task #41). 4-phase content agent live (Task #14).
 
 ---
 
@@ -1227,12 +1227,12 @@ Complete verification of all built features (tasks #27-#50). Fix bugs found duri
 
 ## Appendix C: Deployed URLs
 
-> **Note:** Vercel deployment is currently offline (billing issue). Run locally per Quick Start in README.md while this is resolved.
+> **Note:** The previous Vercel deployment (`server-five-omega-23.vercel.app`) has been taken down. Production server is currently offline. Migration to Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41). Run locally in the meantime.
 
 | Resource | URL |
 |---|---|
-| Company Dashboard | https://server-five-omega-23.vercel.app/company/login |
-| Admin Dashboard | https://server-five-omega-23.vercel.app/admin/login |
-| Swagger API Docs | https://server-five-omega-23.vercel.app/docs |
-| Health Check | https://server-five-omega-23.vercel.app/health |
+| Company Dashboard (local) | http://localhost:8000/company/login |
+| Admin Dashboard (local) | http://localhost:8000/admin/login |
+| Swagger API Docs (local) | http://localhost:8000/docs |
+| Health Check (local) | http://localhost:8000/health |
 | GitHub (Private) | https://github.com/Samaara-Das/Amplifier |

@@ -15,7 +15,7 @@ Loaded by the engine scripts. Controls API keys, posting behavior, browsing emul
 | `AUTO_POSTER_ROOT` | (project path) | Absolute path to the project root directory |
 | `LOG_LEVEL` | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `GENERATE_COUNT` | `6` | Number of content drafts to generate per run |
-| `CAMPAIGN_SERVER_URL` | `https://server-five-omega-23.vercel.app` | Amplifier server URL. Override with `http://localhost:8000` for local dev |
+| `CAMPAIGN_SERVER_URL` | `http://localhost:8000` | Amplifier server URL. Production server is currently offline (see `docs/MIGRATION-FROM-VERCEL.md`) — defaults to localhost until VPS migration completes. |
 
 ### Content Generation API Keys
 

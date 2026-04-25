@@ -14,7 +14,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 | Admin dashboard  |       | Local SQLite     |       | Image gen        |
 | Matching engine  |       | Metric scraper   |       | (Personal brand: |
 +------------------+       +------------------+       |  Claude CLI)     |
-     Vercel                   User's desktop           +------------------+
+     VPS (pending)            User's desktop           +------------------+
                                                          User's desktop
 ```
 
@@ -27,7 +27,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 | Server | Python, FastAPI, SQLAlchemy, Supabase PostgreSQL (prod) / SQLite (dev), ARQ, Jinja2 |
 | User App | Python, Flask, Playwright, AiManager (Gemini/Mistral/Groq), httpx, SQLite |
 | Distribution | PyInstaller, Inno Setup |
-| Deployment | Vercel + Supabase (server), Windows installer (user app) |
+| Deployment | Hostinger KVM VPS + Supabase (server — migration in progress), Windows installer (user app) |
 
 ## Quick Start
 
@@ -38,13 +38,9 @@ Two systems in one repo: a **personal social media automation engine** that gene
 - Claude Code CLI (installed and authenticated)
 - PowerShell 5.1+ (Windows default)
 
-### Deployed Server
+### Server Hosting
 
-The server is deployed on Vercel with Supabase PostgreSQL. **Currently offline** (Vercel billing issue — run locally per Quick Start below while this is resolved):
-
-- **Company dashboard**: https://server-five-omega-23.vercel.app/company/login
-- **Admin dashboard**: https://server-five-omega-23.vercel.app/admin/login
-- **Swagger docs**: https://server-five-omega-23.vercel.app/docs
+**The server is currently offline.** The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) has been taken down. Migration to a Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md`. Run locally until migration completes:
 
 ### Server (local development)
 
@@ -148,7 +144,7 @@ data/                    Local SQLite database (gitignored)
 | [System Flow](docs/amplifier-flow.md) | E2E flow diagrams (Mermaid) |
 | [Database Models](docs/database-models.md) | Server DB model field reference |
 | [Local DB Schema](docs/local-database-schema.md) | User-side SQLite schema (13 tables) |
-| [Deployment Guide](docs/deployment-guide.md) | Vercel + Supabase deployment, env vars |
+| [Deployment Guide](docs/deployment-guide.md) | Server deployment (VPS + Supabase), env vars |
 | [Platform Posting Playbook](docs/platform-posting-playbook.md) | Platform-specific posting flows and gotchas |
 | [Background Agent Reference](docs/background-agent-reference.md) | Background agent tasks, schedule, internals |
 

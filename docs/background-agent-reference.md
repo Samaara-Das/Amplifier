@@ -75,7 +75,7 @@ Generates per-platform content for all active campaigns that don't have today's 
 3. If any platform is missing today's draft:
    - Collects previous draft hooks (last 12) for anti-repetition.
    - Calculates day number from unique draft dates.
-   - Calls `ContentGenerator.research_and_generate()` with campaign data and previous hooks.
+   - Calls `ContentAgent.generate()` (4-phase pipeline: Research → Strategy → Creation → Review). Falls back to `ContentGenerator.generate()` if the pipeline fails.
    - **Image generation**: If the campaign has product images, downloads them and uses `ImageManager` for img2img generation (product image as base). Otherwise, generates images via txt2img from the campaign brief. The resulting `image_path` is stored on each draft.
    - **Daily image rotation**: `_pick_daily_image()` selects which campaign product image to use as the base, rotating through available images across days.
    - Stores drafts in `agent_draft` table.

@@ -267,11 +267,9 @@ Amplifier is not a pitch deck. It's a working product.
 - **Security** — AES-256-GCM encryption on server (ENCRYPTION_KEY) and client (machine-derived key). API keys encrypted at rest.
 - **Payments** — Stripe Checkout for company top-ups, Stripe Connect for user payouts (test mode), automated payout processing.
 
-### Live URLs
+### Server Status
 
-- Company Dashboard: `https://server-five-omega-23.vercel.app/company/login`
-- Admin Dashboard: `https://server-five-omega-23.vercel.app/admin/login`
-- API Docs: `https://server-five-omega-23.vercel.app/docs`
+**Production server is currently offline.** The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) has been taken down due to billing incompatibility with serverless. Migration to a Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md`. Run locally at `http://localhost:8000`.
 
 ---
 

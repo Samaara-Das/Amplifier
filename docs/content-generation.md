@@ -1,10 +1,20 @@
 # Amplifier -- Content Generation Pipeline
 
-**File:** `scripts/utils/content_generator.py`
+**Files:** `scripts/utils/content_agent.py` (4-phase pipeline, Task #14) + `scripts/utils/content_generator.py` (single-prompt fallback) + `scripts/utils/content_quality.py` (quality validator)
 
 ## Overview
 
 Content generation creates UGC-style posts for campaigns across platforms. Uses free AI APIs with a fallback chain.
+
+The **4-phase ContentAgent** (`content_agent.py`) is the primary path for campaign content as of Task #14 (2026-04-18):
+1. **Research** (weekly per campaign) — webcrawler BFS on company URLs + product image analysis
+2. **Strategy** (weekly per campaign) — maps `campaign_goal` + `tone` to per-platform format plan via `GOAL_STRATEGY` dict
+3. **Creation** (daily) — AiManager generates platform-native content; `content_quality.py` validates; up to 3 retries with failure feedback
+4. **Review** — auto-approves in `full_auto` mode, queues for user review in `semi_auto` mode
+
+If the 4-phase pipeline fails for any reason, it falls back to the single-prompt `ContentGenerator.generate()`.
+
+The sections below document the underlying generation mechanics shared by both paths.
 
 ## AI Provider Fallback Chain
 
@@ -81,9 +91,7 @@ BODY:
 - Simple, conversational language
 
 HARD RULES:
-- NEVER sound like AI (no "game-changer", "unlock potential", "leverage",
-  "dive in", "let's explore", "synergy", "innovative solution", "cutting-edge",
-  "In today's fast-paced world")
+- NEVER sound like AI (no "game-changer", "unlock potential", "dive in", "let's explore", "synergy", "innovative solution", "cutting-edge", "In today's fast-paced world"). Note: "leverage" was removed from `BANNED_PHRASES` in `content_quality.py` after live UAT (2026-04-18) — it's a legitimate business/finance word that generated false positives.
 - Each platform version must be GENUINELY DIFFERENT
 - Must-include phrases woven naturally (not forced into every post)
 - Must-avoid items never appear
@@ -96,7 +104,7 @@ HARD RULES:
 | **X** | Tweet | Max 280 chars. One punchy hook + key benefit. 1-3 hashtags naturally placed. |
 | **LinkedIn** | Story post | 500-1500 chars. Personal experience format. Aggressive line breaks (first 2 lines = all people see before "see more"). Ends with question. 3-5 hashtags at end. |
 | **Facebook** | Conversational | 200-800 chars. Like telling friends. Ask question for comments. 0-2 hashtags. |
-| **Reddit** | Title + body | Title: 60-120 chars (descriptive, NOT clickbait). Body: 500-1500 chars. Community member sharing a genuine find. No hashtags, no emojis, no self-promo. Include what you liked AND didn't. |
+| **Reddit** | Title + body | Title: 60-120 chars (descriptive, NOT clickbait). Body: 500-2500 chars (relaxed from 1500 after UAT — Gemini writes longer organically; real Reddit posts often run 1500-2500 chars). Community member sharing a genuine find. No hashtags, no emojis, no self-promo. Include what you liked AND didn't. |
 | **image_prompt** | Description | 1 sentence. Vivid, lifestyle-oriented, scroll-stopping. |
 
 ## Research Phase (Webcrawler Integration)

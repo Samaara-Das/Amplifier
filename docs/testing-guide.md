@@ -78,13 +78,13 @@ The full campaign lifecycle: create campaign (company) -> match to user -> gener
 Use the company dashboard or the API directly:
 
 ```bash
-# Register a test company
-curl -X POST https://server-five-omega-23.vercel.app/api/auth/company/register \
+# Register a test company (run server locally first: cd server && uvicorn app.main:app)
+curl -X POST http://localhost:8000/api/auth/company/register \
   -H "Content-Type: application/json" \
   -d '{"email": "test@example.com", "password": "test1234", "company_name": "TestCo"}'
 
 # Create a campaign (use the returned token)
-curl -X POST https://server-five-omega-23.vercel.app/api/campaigns \
+curl -X POST http://localhost:8000/api/campaigns \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -171,7 +171,7 @@ The test creates:
 
 And 3 users with corresponding niche profiles. The test verifies both positive matches (user matches correct campaign) and negative matches (user does NOT match wrong campaign).
 
-**Note**: This test runs against the production server (`server-five-omega-23.vercel.app`) and creates real data. Always run `cleanup` after testing.
+**Note**: This test runs against a local server (`http://localhost:8000`) and creates real data. Production server is offline — always run locally. Always run `cleanup` after testing.
 
 ---
 
