@@ -5,6 +5,16 @@
 **Decision owner:** Sammy + father (consulted) + Claude.ai web (outside advisor)
 **Hard deadline:** `/health` returning 200 by **end of week 2026-05-02**
 
+## Execution log (2026-04-25 — same day as decision)
+
+- Backup of existing VPS data verified at `docs/recon/vps-backup-2026-04-25/` (tarball + extracted files, gitignored).
+- **Compromise discovered during recon:** Outlaw/Shellbot cryptominer + GitHub PAT + plaintext API keys (Anthropic + Gemini) found on the VPS. All keys revoked, PAT was already expired. Full forensics in `MEMORY.md` discoveries. Reinstall (rather than cleanup) chosen — only safe option for hosting a money-handling service.
+- VPS reinstalled to fresh Ubuntu 24.04.4 LTS via Hostinger hPanel. Hardening applied: SSH key-only (no passwords, no root login), UFW (deny in, allow 22/80/443 only), fail2ban, unattended-upgrades, NOPASSWD sudo for sammy.
+- Tailscale reinstalled and joined `dassamaara@gmail.com` tailnet as device `amplifier-vps` (`100.81.109.43`). Old `srv924232` registration on `dassamaara@gmail.com` tailnet (from before reinstall) is offline and can be removed.
+- Amplifier deployed to `/home/amplifier/app` on the VPS. Repo cloned via GitHub deploy key (read-only). Python venv + deps installed. Caddy reverse-proxies `https://api.marketdavinci.com` → `127.0.0.1:8000`. Auto-TLS via Let's Encrypt.
+- ARQ worker entrypoint not yet implemented (Task #9 deferred) — web server only ships in v1.
+- Final cutover to `https://api.marketdavinci.com` pending DNS propagation + smoke test.
+
 ## Decision
 
 Deploy Amplifier server on **Nili + Daniel's existing Hostinger KVM 1 VPS** (Mumbai, Ubuntu 24.04, 1 vCPU / 4 GB RAM / 50 GB disk). Single-tenant for Amplifier after OpenClaw removal. No upgrade. No new VPS.
