@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Amplifier — Working Dashboard (for Daniel)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .arrow-r::after { content: ""; display:inline-block; border:6px solid transparent; border-left-color:#94a3b8; vertical-align:middle; margin-left:-1px; }
+  .arrow-d::after { content: ""; display:block; width:0; height:0; margin: -2px auto 0; border:6px solid transparent; border-top-color:#94a3b8; }
+  .pill { display:inline-flex; align-items:center; gap:.25rem; padding:.125rem .5rem; border-radius:9999px; font-size:.7rem; font-weight:600; }
+  .step { position:relative; }
+  .step + .step::before { content:""; position:absolute; left:-12px; top:50%; width:12px; border-top:2px dashed #cbd5e1; }
+  @media print { .no-print { display:none; } body { background:white; } }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+
+<!-- ── HEADER ───────────────────────────────────────────── -->
+<header class="border-b border-slate-200 pb-4 mb-8">
+  <div class="flex flex-wrap items-baseline justify-between gap-3">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900">Amplifier — Working Dashboard</h1>
+      <p class="text-sm text-slate-500 mt-1">For Daniel · Snapshot 2026-04-25</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <span class="pill bg-red-100 text-red-700">🔴 Server offline</span>
+      <span class="pill bg-amber-100 text-amber-700">15 / 41 tasks done</span>
+      <span class="pill bg-slate-200 text-slate-700">X disabled</span>
+      <span class="pill bg-slate-200 text-slate-700">Stripe in test mode</span>
+    </div>
+  </div>
+</header>
+
+<!-- ── 1. WHAT IT IS ────────────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">What Amplifier is</h2>
+  <p class="text-base leading-relaxed bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+    Amplifier is a marketplace. <b>Companies</b> pay to have real people post about their products on social media.
+    <b>Users</b> (we call them Amplifiers) install our app, get matched to campaigns that fit them, post the
+    content, and earn money based on how the post performs. <b>We take 20% of every payout.</b>
+  </p>
+</section>
+
+<!-- ── 2. ARCHITECTURE ─────────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Architecture — three components</h2>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-semibold text-slate-900">User App</h3>
+        <span class="pill bg-blue-100 text-blue-700">Runs on user's PC</span>
+      </div>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        Lives on the user's Windows computer. Logs into their social media accounts in a real browser, generates
+        the post content using AI, posts it, and tracks how it performs.
+      </p>
+      <p class="text-xs text-slate-500 mt-3"><b>Owns:</b> browser logins, AI keys, draft queue, posting, scraping.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-semibold text-slate-900">Amplifier Server</h3>
+        <span class="pill bg-red-100 text-red-700">Currently offline</span>
+      </div>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        The brain in the cloud. Holds all campaigns, matches users to campaigns, calculates earnings, holds the
+        money ledger, and serves the web dashboards for companies and admins.
+      </p>
+      <p class="text-xs text-slate-500 mt-3"><b>Owns:</b> campaigns, matching, billing, payouts, ledgers.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-semibold text-slate-900">Companies</h3>
+        <span class="pill bg-slate-200 text-slate-700">Web only</span>
+      </div>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        Log into our website. Create campaigns, top up their balance via Stripe, see how their posts are
+        performing, and pay only for real engagement.
+      </p>
+      <p class="text-xs text-slate-500 mt-3"><b>Touchpoints:</b> company dashboard, AI campaign wizard, billing.</p>
+    </div>
+  </div>
+
+  <!-- Data ownership -->
+  <div class="mt-6 bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+    <h3 class="text-sm font-semibold text-slate-900 mb-3">Data ownership — the trust promise</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div>
+        <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Stays on the user's PC (never sent anywhere)</p>
+        <ul class="list-disc list-inside text-slate-700 space-y-1">
+          <li>Browser logins for X / LinkedIn / Facebook / Reddit (cookies, 2FA sessions)</li>
+          <li>Their personal AI API keys (encrypted on disk)</li>
+          <li>Draft posts, scheduled posts, generated images</li>
+        </ul>
+      </div>
+      <div>
+        <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">On the server</p>
+        <ul class="list-disc list-inside text-slate-700 space-y-1">
+          <li>Campaigns, invitations, assignments</li>
+          <li>Earnings ledger, payouts, trust score, reputation tier</li>
+          <li>Post records (URL, platform, when posted) and scraped engagement metrics</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- External services -->
+  <div class="mt-4 bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+    <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">External services we depend on</p>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <span class="pill bg-slate-100 text-slate-700"><b>Supabase</b>&nbsp;— database (Postgres) + file storage</span>
+      <span class="pill bg-slate-100 text-slate-700"><b>Stripe</b>&nbsp;— money in (Checkout) + money out (Connect)</span>
+      <span class="pill bg-slate-100 text-slate-700"><b>Gemini / Mistral / Groq</b>&nbsp;— AI for writing posts (with fallback chain)</span>
+      <span class="pill bg-slate-100 text-slate-700"><b>Cloudflare / Together / Pollinations</b>&nbsp;— AI for images (with fallback)</span>
+      <span class="pill bg-slate-100 text-slate-700"><b>Playwright</b>&nbsp;— the tool that drives the browser to post</span>
+      <span class="pill bg-slate-100 text-slate-700"><b>Vercel</b>&nbsp;— old hosting, abandoned</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── 3. MONEY LOOP ────────────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">The money loop — 10 steps from idea to payout</h2>
+  <p class="text-xs text-slate-500 mb-3">
+    <span class="pill bg-emerald-100 text-emerald-700">green</span> working
+    <span class="pill bg-amber-100 text-amber-700 ml-2">amber</span> built but not verified end-to-end
+    <span class="pill bg-red-100 text-red-700 ml-2">red</span> not built yet
+  </p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    <!-- Step cards -->
+    <!-- 1 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">1</span><span class="font-semibold text-sm">Company creates campaign</span></div>
+      <p class="text-xs text-slate-600">Fills in product info, target audience, payout rates, budget.</p>
+    </div>
+    <!-- 2 -->
+    <div class="bg-white border border-red-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-red-100 text-red-700">2</span><span class="font-semibold text-sm">Quality gate scores it</span></div>
+      <p class="text-xs text-slate-600">Server checks if the campaign is good enough to send. <b>Not built yet</b> (#15).</p>
+    </div>
+    <!-- 3 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">3</span><span class="font-semibold text-sm">AI matches users</span></div>
+      <p class="text-xs text-slate-600">For each user, AI scores fit 0–100. Below 40 = skip.</p>
+    </div>
+    <!-- 4 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">4</span><span class="font-semibold text-sm">User accepts invite</span></div>
+      <p class="text-xs text-slate-600">Invitation appears in their app. They accept or reject.</p>
+    </div>
+    <!-- 5 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">5</span><span class="font-semibold text-sm">Agent generates draft</span></div>
+      <p class="text-xs text-slate-600">AI writes the post text, picks/generates an image, tailors per platform.</p>
+    </div>
+    <!-- 6 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">6</span><span class="font-semibold text-sm">User reviews draft</span></div>
+      <p class="text-xs text-slate-600">Reads, edits, approves or rejects. (Or auto-posts if full-auto mode.)</p>
+    </div>
+    <!-- 7 -->
+    <div class="bg-white border border-amber-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-amber-100 text-amber-700">7</span><span class="font-semibold text-sm">Agent posts via browser</span></div>
+      <p class="text-xs text-slate-600">Opens the user's logged-in browser, types the post, hits submit.</p>
+    </div>
+    <!-- 8 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">8</span><span class="font-semibold text-sm">Metrics scraped daily</span></div>
+      <p class="text-xs text-slate-600">Every 24 hours, agent revisits the post and reads likes/views/comments.</p>
+    </div>
+    <!-- 9 -->
+    <div class="bg-white border border-emerald-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-emerald-100 text-emerald-700">9</span><span class="font-semibold text-sm">Server bills + 7-day hold</span></div>
+      <p class="text-xs text-slate-600">Earnings calculated, locked for 7 days (in case the post is fake or deleted).</p>
+    </div>
+    <!-- 10 -->
+    <div class="bg-white border border-red-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center gap-2 mb-1"><span class="pill bg-red-100 text-red-700">10</span><span class="font-semibold text-sm">User withdraws via Stripe</span></div>
+      <p class="text-xs text-slate-600">Earnings transferred to bank. <b>Not live yet</b> (#19).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── 4. PROGRESS BAR ─────────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Status — where we are overall</h2>
+  <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+    <div class="flex items-center gap-4 mb-2 flex-wrap">
+      <div class="text-sm"><b>15</b> done</div>
+      <div class="text-sm"><b>14</b> pending</div>
+      <div class="text-sm"><b>12</b> deferred</div>
+      <div class="text-sm text-slate-500">/ 41 total</div>
+    </div>
+    <div class="w-full bg-slate-200 rounded h-3 overflow-hidden flex">
+      <div class="bg-emerald-500" style="width:36.6%"></div>
+      <div class="bg-amber-400" style="width:34.1%"></div>
+      <div class="bg-slate-400" style="width:29.3%"></div>
+    </div>
+    <div class="text-xs text-slate-500 mt-2">37% complete (deferred = parked, not abandoned)</div>
+  </div>
+</section>
+
+<!-- ── 4b. HOW THE PRODUCT ACTUALLY WORKS ─────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">How the product actually works — step by step</h2>
+  <p class="text-sm text-slate-600 mb-5">
+    Four walkthroughs: how a company uses Amplifier, how a new user gets set up, what a user does day-to-day, and what
+    the agent does silently on the user's computer.
+  </p>
+
+  <!-- Journey A — Company side -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-5 overflow-hidden">
+    <div class="bg-blue-50 border-b border-blue-200 px-5 py-2">
+      <h3 class="font-semibold text-blue-900">A · A company uses Amplifier</h3>
+      <p class="text-xs text-blue-700">From signup to seeing real posts in the wild</p>
+    </div>
+    <ol class="divide-y divide-slate-100 text-sm">
+      <li class="px-5 py-3"><b>1. Sign up.</b> Marketer goes to <code>/company/login</code>, registers with email + password, gets a session token. No paperwork, no sales call.</li>
+      <li class="px-5 py-3"><b>2. Top up balance.</b> They click "Add Funds" on the Billing page, pay via Stripe Checkout (minimum $50). Stripe webhook credits their balance. They can't run campaigns until they have money on hand.</li>
+      <li class="px-5 py-3"><b>3. Create a campaign — two options.</b>
+        <ul class="list-disc list-inside text-slate-600 mt-1 space-y-1">
+          <li><b>AI wizard</b> (the easy way): paste 1–3 of your website URLs. Server scrapes them, Gemini reads everything, and writes a draft campaign for you — title, brief, content guidance, suggested payout rates, suggested target niches. The marketer reviews, edits if needed, saves.</li>
+          <li><b>Manual form</b>: fill in everything yourself — product info, brief, target platforms, follower minimums, target regions, budget, payout rates per metric (cents per like, cents per 1000 views, cents per comment, cents per repost).</li>
+        </ul>
+      </li>
+      <li class="px-5 py-3"><b>4. Quality gate (Task #15 — not built yet).</b> When they click "Activate", the server will score the campaign 0–100. Below 85 = blocked with specific feedback ("brief is too short", "no payout rates set"). Above 85 = AI also checks for harmful content or product/audience mismatch. Until #15 ships, weak campaigns can go live without checks.</li>
+      <li class="px-5 py-3"><b>5. Server matches users.</b> Once active, the server runs the matching engine: hard filters (right platform, enough followers, right region, not over their tier limit) then Gemini scores each candidate 0–100 on relevance. Anyone above 40 gets an invitation; the rest are skipped.</li>
+      <li class="px-5 py-3"><b>6. What the company sees on their dashboard (10 pages).</b>
+        <span class="text-slate-600">Login · Overview · Campaigns list · Create campaign · AI wizard · Campaign detail (live stats, creators reached, posts made, impressions, engagement, budget used/remaining, invitation funnel, decline reasons) · Billing · Influencers (top creators on their campaigns) · Stats · Settings.</span>
+      </li>
+      <li class="px-5 py-3"><b>7. Pay only for results.</b> They never pay per impression upfront. They pay only when scraped metrics come in — likes, views, comments, reposts. If posts under-perform, less budget is consumed. Unused budget refunds when the campaign ends or is cancelled.</li>
+    </ol>
+  </div>
+
+  <!-- Journey B — User onboarding -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-5 overflow-hidden">
+    <div class="bg-emerald-50 border-b border-emerald-200 px-5 py-2">
+      <h3 class="font-semibold text-emerald-900">B · A user (Amplifier) sets up the app</h3>
+      <p class="text-xs text-emerald-700">First-run experience — installer to first campaign in ~10 minutes</p>
+    </div>
+    <ol class="divide-y divide-slate-100 text-sm">
+      <li class="px-5 py-3"><b>1. Download &amp; install.</b> They visit our website, click "Download Amplifier", get <code>AmplifierSetup.exe</code> (~350MB — bundled Chromium browser inside). Double-click, Inno Setup wizard, install to <code>C:\Program Files\Amplifier\</code>, finish. <span class="text-slate-500">(Installer not built yet — Task #20.)</span></li>
+      <li class="px-5 py-3"><b>2. First launch.</b> A small icon appears in the Windows system tray. The agent opens their default browser to our register/login page (or, if they signed up earlier, prompts them to log in).</li>
+      <li class="px-5 py-3"><b>3. Log in.</b> They register with email + password. The web page hands a token back to the local agent (via a localhost callback URL). The agent encrypts and stores the token. They never have to log in again on that machine.</li>
+      <li class="px-5 py-3"><b>4. Connect each social platform.</b> They right-click the tray icon → "Connect Platforms". For each platform (LinkedIn, Facebook, Reddit), the app opens a real browser window pointed at that platform's login page. The user types their password and 2FA themselves. We never see it. When they're logged in, we save the browser session (cookies) into a folder on their machine. From now on, posting is automatic — they don't log in again unless the session expires.</li>
+      <li class="px-5 py-3"><b>5. Profile scan (automatic).</b> The agent quietly visits their profile on each connected platform and reads: follower count, bio, recent posts, engagement rates. AI then figures out what topics they post about. We try cheap text reading first; only use the expensive image-AI if text fails.</li>
+      <li class="px-5 py-3"><b>6. Pick niches, region, mode.</b> The user confirms or adjusts the niches AI detected, picks their region, and chooses a mode:
+        <ul class="list-disc list-inside text-slate-600 mt-1 space-y-1">
+          <li><b>Semi-auto</b> — agent generates drafts, user reviews and approves before posting.</li>
+          <li><b>Full-auto</b> — agent generates and posts without asking. For users who trust the AI.</li>
+        </ul>
+      </li>
+      <li class="px-5 py-3"><b>7. Enter AI API keys.</b> They paste in a Gemini key (free tier works), optionally Mistral and Groq for fallback. The agent tests each key with a tiny request — green check or red X. Keys are encrypted on disk with a key derived from their machine. They never leave the computer.</li>
+      <li class="px-5 py-3"><b>8. Done.</b> Background agent starts. From this moment, it polls our server for campaigns, generates content, posts at the right times, and scrapes metrics — all without the user opening anything.</li>
+    </ol>
+  </div>
+
+  <!-- Journey C — Daily life -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-5 overflow-hidden">
+    <div class="bg-amber-50 border-b border-amber-200 px-5 py-2">
+      <h3 class="font-semibold text-amber-900">C · A user's daily life on Amplifier</h3>
+      <p class="text-xs text-amber-700">What actually happens day-to-day, from waking up to getting paid</p>
+    </div>
+    <ol class="divide-y divide-slate-100 text-sm">
+      <li class="px-5 py-3"><b>1. Morning — invitations arrive.</b> Every 10 minutes the agent quietly polls the server for new campaign matches. When new ones come in, the user gets a small desktop notification: "You have 2 new campaign invitations."</li>
+      <li class="px-5 py-3"><b>2. They open the app and review invites.</b> Each invitation card shows the campaign brief, the company, the payout rates ("$0.01 per like, $0.50 per 1k views"), required platforms, and a live countdown until the invite expires. They click <b>Accept</b> or <b>Reject</b> (with a quick decline reason).</li>
+      <li class="px-5 py-3"><b>3. Drafts are generated automatically.</b> The agent runs the 4-phase content engine in the background. For each accepted campaign, it produces one draft per platform per day — different angle, different hook, different length, sometimes with an AI-generated image based on the company's product photo.</li>
+      <li class="px-5 py-3"><b>4. They review drafts (semi-auto users only).</b> In the dashboard, today's drafts appear card-by-card: LinkedIn version, Facebook version, Reddit title + body. They can edit the text, swap the image, reject it (agent regenerates), or approve. Full-auto users skip this step entirely.</li>
+      <li class="px-5 py-3"><b>5. Posts go out at peak hours (US-aligned).</b> The agent posts at 6 fixed slots optimised for US audiences:
+        <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs text-slate-600">
+          <span>Slot 1 — 8:00 AM EST</span><span>Slot 2 — 10:00 AM EST</span><span>Slot 3 — 1:00 PM EST</span>
+          <span>Slot 4 — 3:00 PM EST</span><span>Slot 5 — 6:00 PM EST</span><span>Slot 6 — 8:00 PM EST</span>
+        </div>
+        <span class="text-slate-600">When a slot arrives, the agent opens the user's logged-in browser, types the post like a human (slow typing, scrolling, mouse movement), uploads any image, and clicks Post.</span>
+      </li>
+      <li class="px-5 py-3"><b>6. Agent captures the post URL.</b> Right after posting, the agent finds the link to the new post and saves it. We need that URL to revisit later and read the engagement.</li>
+      <li class="px-5 py-3"><b>7. Metrics start arriving.</b> Every 24 hours after posting, the agent revisits each post URL and reads likes, comments, views, reposts. The numbers are sent to the server.</li>
+      <li class="px-5 py-3"><b>8. Earnings tick up.</b> The server multiplies each metric by the campaign's payout rate, takes our 20% cut, and credits the user. New earnings show as <b>Pending</b> for 7 days — the hold protects against fake metrics or deleted posts.</li>
+      <li class="px-5 py-3"><b>9. Withdraw.</b> After the 7-day hold, earnings move to <b>Available</b>. Once available balance hits $10+, they click Withdraw, money is sent to their bank via Stripe Connect, typically arriving in 2–3 business days. <span class="text-slate-500">(Stripe payouts not live yet — Task #19.)</span></li>
+      <li class="px-5 py-3"><b>10. Tier up over time.</b> After 20 successful posts they're promoted to <b>Grower</b> (more campaigns at once). After 100 posts + good trust score they hit <b>Amplifier</b> tier — earnings double.</li>
+    </ol>
+  </div>
+
+  <!-- Journey D — On-PC agent -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="bg-slate-100 border-b border-slate-200 px-5 py-2">
+      <h3 class="font-semibold text-slate-900">D · What the agent does on the user's computer</h3>
+      <p class="text-xs text-slate-600">Seven background loops running quietly while the user lives their life</p>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+        <tr>
+          <th class="text-left px-4 py-2 font-semibold">Loop</th>
+          <th class="text-left px-4 py-2 font-semibold">How often</th>
+          <th class="text-left px-4 py-2 font-semibold">What it does</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr><td class="px-4 py-2 font-medium">Post execution</td><td class="px-4 py-2 text-slate-600">every 60s</td><td class="px-4 py-2 text-slate-600">Checks if any post is due. If yes, opens the browser, posts it, captures the URL.</td></tr>
+        <tr><td class="px-4 py-2 font-medium">Content generation</td><td class="px-4 py-2 text-slate-600">every 2 min</td><td class="px-4 py-2 text-slate-600">For each accepted campaign missing today's drafts, runs the 4-phase content engine and writes new drafts.</td></tr>
+        <tr><td class="px-4 py-2 font-medium">Campaign polling</td><td class="px-4 py-2 text-slate-600">every 10 min</td><td class="px-4 py-2 text-slate-600">Asks the server "any new campaign invitations for me?". If yes, shows a desktop notification.</td></tr>
+        <tr><td class="px-4 py-2 font-medium">Server command poll</td><td class="px-4 py-2 text-slate-600">every 60s</td><td class="px-4 py-2 text-slate-600">Asks the server "anything I should do?" (e.g., the user just approved a draft on the web — schedule it for posting).</td></tr>
+        <tr><td class="px-4 py-2 font-medium">Metric scraping</td><td class="px-4 py-2 text-slate-600">every 24h per post</td><td class="px-4 py-2 text-slate-600">Revisits each posted URL, reads engagement numbers, sends them to the server.</td></tr>
+        <tr><td class="px-4 py-2 font-medium">Session health check</td><td class="px-4 py-2 text-slate-600">every 30 min</td><td class="px-4 py-2 text-slate-600">Confirms the saved browser logins are still valid. If a platform logged the user out, notify them.</td></tr>
+        <tr><td class="px-4 py-2 font-medium">Profile refresh</td><td class="px-4 py-2 text-slate-600">every 7 days</td><td class="px-4 py-2 text-slate-600">Re-scrapes the user's profile on each platform — followers grow, niches shift over time, matching needs fresh data.</td></tr>
+      </tbody>
+    </table>
+    <div class="px-5 py-3 text-xs text-slate-500 bg-slate-50 border-t border-slate-100">
+      Resource cost when idle: ~25–35 MB RAM, 0% CPU. About the same as Dropbox running in the background.
+      Spikes only when posting (one Chromium tab opens for ~30 seconds).
+    </div>
+  </div>
+</section>
+
+<!-- ── 5. HOW EACH TASK WORKS ──────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">How each task works — by batch</h2>
+  <p class="text-sm text-slate-600 mb-4">Each task explained in 2-3 plain sentences. Status: ✅ done · ⏳ pending · ⏸ deferred.</p>
+
+  <!-- Batch 1 -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-4 overflow-hidden">
+    <div class="bg-emerald-50 border-b border-emerald-200 px-5 py-2 flex items-center justify-between">
+      <h3 class="font-semibold text-emerald-900">Batch 1 — Money Loop</h3>
+      <span class="pill bg-emerald-200 text-emerald-800">4 / 4 done</span>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="px-5 py-3 text-sm">
+        <p><b>#1 Capture post URL ✅</b> — After the user posts, the agent grabs the link to the new post (e.g. the LinkedIn URL). Without this we can't find the post later to read its likes and comments. Each platform stores the URL differently, so we have a different trick per platform.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#9 Metric scraping ✅</b> — Every 24 hours, the agent revisits each posted URL and reads the engagement numbers (likes, views, comments). Reddit and X show view counts; LinkedIn and Facebook hide them. We also detect "this post was deleted" so we don't bill for vanished posts.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#10 Billing ✅</b> — When metrics arrive, the server multiplies them by the payout rates (cents per like, cents per 1000 views, etc.), takes our 20% cut, and credits the user. Earnings stay locked for 7 days before withdrawal — gives us time to void if the post turns out fake or gets deleted.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#11 Earnings display ✅</b> — The user's app shows total earned, available balance, and pending balance (still in the 7-day hold). When available balance hits $10+, a Withdraw button lets them cash out.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch 2 -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-4 overflow-hidden">
+    <div class="bg-amber-50 border-b border-amber-200 px-5 py-2 flex items-center justify-between">
+      <h3 class="font-semibold text-amber-900">Batch 2 — AI Brain</h3>
+      <span class="pill bg-amber-200 text-amber-800">3 / 4 done</span>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="px-5 py-3 text-sm">
+        <p><b>#13 Profile scraping ✅</b> — When the user connects a platform, our agent reads their profile (followers, bio, recent posts, engagement) and uses AI to figure out what topics they post about. This data feeds into matching. We try to do it cheaply: read the page text first, only use the expensive image-AI as a last resort.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#12 AI matching ✅</b> — When a campaign goes live, the server checks each user against it. First it filters with hard rules (right platform, enough followers, right region). Then Gemini scores fit 0–100 based on whether the user's content is actually relevant. Anyone scoring below 40 is skipped — no point inviting them.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#14 Content agent ✅</b> — Generates posts in 4 phases: <b>(1) Research</b> — read the company's website and find recent niche news; <b>(2) Strategy</b> — pick the angle for today based on the campaign goal (awareness, leads, virality, engagement); <b>(3) Creation</b> — write a different version per platform; <b>(4) Review</b> — user approves, or auto-post in full-auto mode.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#15 Quality gate ⏳ NOT BUILT</b> — Will check campaigns before they go live. Two layers: an instant rule check (is the brief long enough? is the budget at least $100? are payout rates set?) plus an AI review (is the brief coherent? does the targeting match the product? anything harmful?). Campaigns scoring below 85/100 will be blocked with feedback telling the company exactly what to fix.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch 3 -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-4 overflow-hidden">
+    <div class="bg-slate-50 border-b border-slate-200 px-5 py-2 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Batch 3 — Product Features</h3>
+      <span class="pill bg-slate-200 text-slate-700">2 done · 2 deferred</span>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="px-5 py-3 text-sm">
+        <p><b>#5 Invitation UX ✅</b> — Each invitation shows a live countdown ("2h 15m left"), turns yellow under 6 hours, red under 1 hour, and goes "EXPIRED" when time runs out. When users decline, they can pick a quick reason ("payout too low", "not relevant", "no time"). Companies see decline reasons so they can fix targeting.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#8 Admin payout actions ✅</b> — Admins can void a payout (suspected fake metrics → returns money to the campaign budget) or force-approve (skip the 7-day hold for verified users). Both actions log to an audit trail.</p>
+      </div>
+      <div class="px-5 py-3 text-sm text-slate-500">
+        <p><b>#16 Content formats ⏸ DEFERRED</b> — Was going to add LinkedIn polls, Facebook photo albums, Reddit link posts. Pushed back; current single-text-or-image post format is enough for launch.</p>
+      </div>
+      <div class="px-5 py-3 text-sm text-slate-500">
+        <p><b>#7 Repost campaigns ⏸ DEFERRED</b> — Was going to let companies provide pre-written content for users to copy-paste. Pushed back to post-launch.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch 4 -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-4 overflow-hidden">
+    <div class="bg-red-50 border-b border-red-200 px-5 py-2 flex items-center justify-between">
+      <h3 class="font-semibold text-red-900">Batch 4 — Business &amp; Launch</h3>
+      <span class="pill bg-red-200 text-red-800">1 / 4 done</span>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="px-5 py-3 text-sm">
+        <p><b>#6 Metrics accuracy ✅</b> — Hardens the metric scraping: detects deleted posts (so we void instead of recording fake zeros), handles rate limits (pauses 1 hour after 3 in a row), and prevents duplicate billing.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#17 Free / Pro tiers ⏳</b> — Will add a $19.99/month subscription. Free users: 4 posts per day. Pro users: 20 posts per day plus a 20% boost in matching score (so Pro users get more campaigns). Stripe Checkout handles the subscription.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#19 Stripe live integration ⏳</b> — Two flows. <b>(1) Companies pay in</b> via Stripe Checkout — already works in test mode, needs live keys + idempotency check. <b>(2) Users get paid out</b> via Stripe Connect — they onboard with bank details and tax info, then transfers go directly to their bank. <b>Currently only fake/test mode. No real money moves yet.</b></p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#22 Landing page ⏳</b> — Public website. One page, two audiences: "Get real people to post about your product" (companies) and "Earn money posting about products you love" (users). Two CTAs: Create Campaign / Download Amplifier.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Infrastructure -->
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="bg-slate-100 border-b border-slate-200 px-5 py-2 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Infrastructure &amp; Other</h3>
+      <span class="pill bg-slate-200 text-slate-700">5 done · 3 pending</span>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="px-5 py-3 text-sm">
+        <p><b>#2 Stripe top-up ✅</b> — Companies can top up their balance via Stripe Checkout (test mode).</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#3 CSRF tokens ✅</b> — Security: every form submission includes a hidden token to prevent attackers tricking users into submitting requests they didn't intend.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#4 Rate limiting ✅</b> — Caps how many requests one user can make per minute. Stops bots from hammering the server.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#18 Test suite ⏳</b> — Right now we don't have automated tests. Every change is verified manually. Risky for a money product. We need a real test suite before we scale.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#20 Windows installer ⏳</b> — Right now users would need to install Python and run scripts manually — non-starter. Need to build a real <code>.exe</code> installer (planning to use Nuitka — smaller, faster, fewer antivirus false positives than PyInstaller).</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#38 Deleted post detection ✅</b> — When a user deletes their post, we detect it on the next scrape and stop billing. Funds return to the campaign budget.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#40 X disabled (hardcoded) ✅</b> — Three X account suspensions taught us X's anti-bot detection is too good. Hardcoded guard prevents any code path from posting to X. Re-enabled only with the official paid X API.</p>
+      </div>
+      <div class="px-5 py-3 text-sm">
+        <p><b>#41 Vercel migration ⏳</b> — Plan exists in <code>docs/migration-from-vercel.md</code>. Target: the Hostinger VPS that you and Nili already own.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 6. CRITICAL BLOCKERS ────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Critical blockers — full honesty</h2>
+
+  <div class="space-y-4">
+
+    <div class="bg-white border-l-4 border-red-500 border-y border-r border-slate-200 rounded-r-lg p-5 shadow-sm">
+      <div class="flex items-center gap-2 mb-2"><span class="pill bg-red-100 text-red-700">🔴 Blocking</span><h3 class="font-semibold">Server offline (Task #41)</h3></div>
+      <p class="text-sm text-slate-700">
+        Vercel project deleted on 2026-04-19 after a $47 surprise bill for one month. Amplifier hits the server
+        constantly (every user app polls every 10 minutes), and Vercel charges per request — costs are
+        unpredictable.
+      </p>
+      <p class="text-sm text-slate-700 mt-2">
+        <b>Plan:</b> move to your Hostinger VPS (already paid for, shared with TTE + Stock Buddy).
+        Roughly 2-3 hours of work once we have SSH access. <b>Fallback:</b> Render at $17/month flat if VPS
+        coordination drags.
+      </p>
+    </div>
+
+    <div class="bg-white border-l-4 border-red-500 border-y border-r border-slate-200 rounded-r-lg p-5 shadow-sm">
+      <div class="flex items-center gap-2 mb-2"><span class="pill bg-red-100 text-red-700">🔴 Permanent</span><h3 class="font-semibold">X (Twitter) disabled</h3></div>
+      <p class="text-sm text-slate-700">
+        Three X account suspensions in a row (last one April 14). X's anti-bot detection is too strong for
+        any browser-automation approach. A hardcoded safety guard now blocks all X code paths so we can never
+        accidentally trigger another suspension.
+      </p>
+      <p class="text-sm text-slate-700 mt-2">
+        <b>Re-enable</b> only with the official paid X API or a stealth-browser solution. Not on the roadmap.
+      </p>
+    </div>
+
+    <div class="bg-white border-l-4 border-amber-500 border-y border-r border-slate-200 rounded-r-lg p-5 shadow-sm">
+      <div class="flex items-center gap-2 mb-2"><span class="pill bg-amber-100 text-amber-700">🟡 Blocking launch</span><h3 class="font-semibold">Stripe not live (Task #19)</h3></div>
+      <p class="text-sm text-slate-700">
+        Currently in test mode. <b>Real money cannot move</b> until we wire up live keys and complete the user
+        payout onboarding (Stripe Connect Express). Plan: use your company's existing Stripe account.
+      </p>
+    </div>
+
+    <div class="bg-white border-l-4 border-amber-500 border-y border-r border-slate-200 rounded-r-lg p-5 shadow-sm">
+      <div class="flex items-center gap-2 mb-2"><span class="pill bg-amber-100 text-amber-700">🟡 Risk</span><h3 class="font-semibold">No automated tests (Task #18)</h3></div>
+      <p class="text-sm text-slate-700">
+        Every change is verified manually right now. There are about ten smoke-test scripts but no continuous
+        integration. For a money product this is risky — regressions in URL capture, metric scraping, or
+        billing can ship silently.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 7. PLATFORMS ────────────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Platforms</h2>
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+        <tr><th class="text-left px-4 py-2 font-semibold">Platform</th><th class="text-left px-4 py-2 font-semibold">Status</th><th class="text-left px-4 py-2 font-semibold">Why</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr><td class="px-4 py-2">LinkedIn</td><td class="px-4 py-2"><span class="pill bg-emerald-100 text-emerald-700">✅ Active</span></td><td class="px-4 py-2 text-slate-600">Stable</td></tr>
+        <tr><td class="px-4 py-2">Facebook</td><td class="px-4 py-2"><span class="pill bg-emerald-100 text-emerald-700">✅ Active</span></td><td class="px-4 py-2 text-slate-600">Stable</td></tr>
+        <tr><td class="px-4 py-2">Reddit</td><td class="px-4 py-2"><span class="pill bg-emerald-100 text-emerald-700">✅ Active</span></td><td class="px-4 py-2 text-slate-600">Stable, has official API as fallback</td></tr>
+        <tr><td class="px-4 py-2">X</td><td class="px-4 py-2"><span class="pill bg-red-100 text-red-700">❌ Disabled</span></td><td class="px-4 py-2 text-slate-600">3 account bans — hardcoded off</td></tr>
+        <tr><td class="px-4 py-2">TikTok</td><td class="px-4 py-2"><span class="pill bg-slate-200 text-slate-700">❌ Disabled</span></td><td class="px-4 py-2 text-slate-600">Geo-blocked in India, needs VPN</td></tr>
+        <tr><td class="px-4 py-2">Instagram</td><td class="px-4 py-2"><span class="pill bg-slate-200 text-slate-700">❌ Disabled</span></td><td class="px-4 py-2 text-slate-600">Multi-step posting flow not actively maintained</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ── 8. BUSINESS MECHANICS ──────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Business mechanics</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <h3 class="text-sm font-semibold mb-2">Money flow</h3>
+      <p class="text-sm text-slate-600">Companies top up (min <b>$50</b> via Stripe) → we take <b>20%</b> → users earn → <b>7-day hold</b> → users withdraw (min <b>$10</b>) via Stripe Connect.</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <h3 class="text-sm font-semibold mb-2">Reputation tiers (earned)</h3>
+      <ul class="text-sm text-slate-600 space-y-1">
+        <li><b>Seedling</b> — default. No multiplier.</li>
+        <li><b>Grower</b> — 20+ successful posts. Higher campaign limit.</li>
+        <li><b>Amplifier</b> — 100+ posts &amp; trust ≥80. <b>2× earnings.</b></li>
+      </ul>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <h3 class="text-sm font-semibold mb-2">Subscription tiers (paid)</h3>
+      <ul class="text-sm text-slate-600 space-y-1">
+        <li><b>Free</b> — 4 posts/day, standard matching.</li>
+        <li><b>Pro</b> — $19.99/month. 20 posts/day, +20% match score boost.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ── 9. GROWTH (BRIEF) ───────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Growth &amp; retention — open questions</h2>
+  <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+    <p class="text-sm text-slate-700 mb-3">
+      Today the product has almost no built-in growth or retention mechanics. We need to decide which of these to add — your call.
+    </p>
+    <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+      <li>Should creators earn a % when they refer another creator?</li>
+      <li>Should there be a public leaderboard of top earners?</li>
+      <li>Should companies be able to directly invite specific creators (in addition to AI matching)?</li>
+      <li>Should every Amplifier-posted piece of content carry a discreet link back to amplifier.com?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── 10. DECISIONS NEEDED ────────────────────────────── -->
+<section class="mb-10">
+  <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Decisions I need from you</h2>
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <ul class="divide-y divide-slate-100 text-sm">
+      <li class="px-5 py-3"><b>Hosting:</b> Confirm we can use the Hostinger VPS — when can Nili hand off SSH access? If that drags, do I move to Render ($17/mo) instead?</li>
+      <li class="px-5 py-3"><b>Stripe:</b> Approve using your company's Stripe account for live payouts to users?</li>
+      <li class="px-5 py-3"><b>Architecture:</b> The user app is currently one Flask process on the user's PC. Should we split it into a hosted web dashboard + a small headless agent? (Spec at <code>docs/specs/user-app-tech-stack.md</code>.)</li>
+      <li class="px-5 py-3"><b>Launch order:</b> Migrate hosting → ship #15 quality gate → ship #19 Stripe live → ship #20 installer → ship #22 landing page → open beta. Confirm or reorder.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── FOOTER ──────────────────────────────────────────── -->
+<footer class="border-t border-slate-200 pt-4 text-xs text-slate-500">
+  <p class="mb-1">Reference docs:
+    <code>docs/specs/batch-1-money-loop.md</code>,
+    <code>batch-2-ai-brain.md</code>,
+    <code>batch-3-product-features.md</code>,
+    <code>batch-4-business-launch.md</code>,
+    <code>user-app-tech-stack.md</code>,
+    <code>migration-from-vercel.md</code>.
+  </p>
+  <p>Generated 2026-04-25 · Single static HTML, no tracking, no JS. Open in any browser.</p>
+</footer>
+
+</div>
+</body>
+</html>
