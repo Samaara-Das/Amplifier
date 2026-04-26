@@ -812,8 +812,9 @@ Separate from the campaign marketplace — a personal social media automation pi
 | `settings` | Key-value config (mode, audience_region, API keys, onboarding_done) |
 | `local_notification` | Desktop notification queue with type, read status |
 | `agent_research` | Campaign research findings (web scrape results, competitor analysis) |
-| `agent_user_profile` | Extracted user profile style notes per platform |
 | `agent_content_insights` | Engagement analytics per platform/pillar for content optimization |
+
+> Note: `agent_user_profile` was dropped 2026-04-26 (Bug #55). The content agent now reads from `scraped_profile` directly via `get_user_profiles()` — single source of truth for per-platform profile data.
 
 ---
 
@@ -1066,8 +1067,8 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 | Component | Status | Details |
 |---|---|---|
 | **AI Matching** | Done & Verified | Weighted Gemini scoring (topic 40%, audience 25%, authenticity 20%, quality 15%). Min score 40, brand safety, self-selected niche respect. 30 unit tests + E2E verified. |
-| **3-Tier Profile Scraping** | Done & Verified | Tier 1 (page text → AiManager), Tier 2 (CSS selectors), Tier 3 (Gemini Vision). LinkedIn: experience/education/featured/honors/interests. Facebook: About sub-tabs/Reels/More dropdown. Reddit: private handling, karma/age/subreddits. UAT verified against 3 real profiles. |
-| **4-Phase Content Agent** | Next up | Research → Strategy → Creation → Review pipeline. Not started. |
+| **3-Tier Profile Scraping** | Done & Verified | Tier 1 (page text → AiManager), Tier 2 (CSS selectors), Tier 3 (Gemini Vision). LinkedIn: experience/education/featured/honors/interests. Facebook: About sub-tabs/Reels/More dropdown + display-name-anchored follower_count supplement (Bug #53 fix 2026-04-26). Reddit: private handling, karma/age/subreddits. UAT verified against 3 real profiles. Re-verified 2026-04-26 via /uat-task. |
+| **4-Phase Content Agent** | Done & Verified | Task #14 — Research → Strategy → Creation → Review. Verified end-to-end 2026-04-26 via /uat-task 14: 18 ACs PASS including real LinkedIn/Facebook/Reddit posts, autonomous deletion, day-1 vs day-2 diversity. |
 | **AI Campaign Quality Gate** | Pending | 85%+ quality score required before activation. Not started. |
 
 ### Pending Tasks (#14-#28)

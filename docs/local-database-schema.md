@@ -160,19 +160,9 @@ Queue of posts scheduled for future execution by the background agent. Created w
 
 ---
 
-## Table: `agent_user_profile`
+## Table: `agent_user_profile` (DROPPED 2026-04-26)
 
-Agent pipeline table. Stores the user's writing style and voice per platform, extracted from their real posts. Used to generate on-brand content.
-
-| Column | Type | Default | Description |
-|--------|------|---------|-------------|
-| `id` | INTEGER | **PK, AUTOINCREMENT** | Row ID |
-| `platform` | TEXT | UNIQUE | Platform name |
-| `bio` | TEXT | NULL | User's bio on this platform |
-| `recent_posts` | TEXT | NULL | JSON string of recent posts for style reference |
-| `style_notes` | TEXT | NULL | AI-extracted style notes (tone, vocabulary, patterns) |
-| `follower_count` | INTEGER | `0` | Follower count at extraction time |
-| `extracted_at` | TEXT | NULL | ISO timestamp of when profile was extracted |
+> **Removed.** This table existed historically but had no active writer; `get_user_profiles()` always returned an empty list, causing the content agent's strategy refinement to silently no-op on real users. Bug #55 fix consolidated profile reads onto `scraped_profile` (the table the profile scraper actually writes to during onboarding). Kept here only for historical context — fresh DB inits no longer create this table.
 
 ---
 
@@ -264,8 +254,7 @@ local_campaign (server_id)
   +-- agent_research (campaign_id)      [logical, no FK constraint]
 
 
-scraped_profile          -- standalone, one row per platform (UNIQUE)
-agent_user_profile       -- standalone, one row per platform (UNIQUE)
+scraped_profile          -- standalone, one row per platform (UNIQUE) — content agent reads from this directly
 agent_content_insights   -- standalone, indexed by platform + pillar + hook
 settings                 -- standalone key-value store
 local_notification       -- standalone notification feed

@@ -50,7 +50,7 @@ python scripts/utils/metric_scraper.py     # scrape engagement metrics from post
 
 **KG entity**: `amplifier_project` — query it at session start for current state. Invalidate stale facts before adding new ones.
 
-**Slash commands**: `/get-context` (session start), `/update-context` (session end), `/smoke-test` (after features), `/commit-push` (commit + auto-deploy)
+**Slash commands**: `/get-context` (session start), `/update-context` (session end), `/smoke-test` (after features), `/commit-push` (commit + auto-deploy), `/uat-task <id>` (full UAT verification of a task — drives real product, captures screenshots, refuses to mark done unless every AC passes; learnings compound in `docs/uat/skills/uat-task/LEARNINGS.md`)
 
 **Task Master:** Edit `.taskmaster/tasks/tasks.json` directly (faster than CLI, no API key needed). Match existing schema; bump highest `id` for new tasks. Overrides global "never edit manually" rule.
 
@@ -103,7 +103,7 @@ Local Flask dashboard + campaign runner that connects to the server.
 - `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
 - `scripts/campaign_runner.py` — Legacy campaign polling loop (replaced by background_agent.py)
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
-- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` column (path to generated or downloaded product image).
+- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` column (path to generated or downloaded product image). `get_user_profiles()` reads from `scraped_profile` (the table the profile scraper writes to during onboarding) — vestigial `agent_user_profile` table dropped 2026-04-26 (Bug #55).
 - `scripts/utils/content_generator.py` — AI content generation using AiManager (text) and ImageManager (images). Three image modes: img2img (product photo via `ImageManager.transform()`), txt2img (`ImageManager.generate()`), PIL fallback. Replaces PowerShell + Claude CLI for campaign content.
 - `scripts/utils/content_agent.py` — 4-phase AI content agent (Task #14): Phase 1 Research (weekly, webcrawler + product images), Phase 2 Strategy (weekly, goal→format mapping via `GOAL_STRATEGY`), Phase 3 Creation (daily, AiManager with retry + quality gate), Phase 4 Review (auto-approve or queue). Supersedes single-prompt `ContentGenerator` for campaign content.
 - `scripts/utils/content_quality.py` — Quality validator for the content agent pipeline. Checks character limits, banned AI phrases (`BANNED_PHRASES`), cosine/sequence similarity (dedup), and per-platform format rules. Returns `(bool, [reasons])`.
@@ -112,10 +112,11 @@ Local Flask dashboard + campaign runner that connects to the server.
 - `scripts/utils/crypto.py` — Client-side encryption using machine-derived key
 - `scripts/utils/post_scheduler.py` — Smart post scheduling (region-aware peak windows, platform-specific timing, 30-min spacing, jitter, daily limits)
 - `scripts/utils/session_health.py` — Platform session health monitoring (30-min interval, marks expired sessions)
-- `scripts/utils/profile_scraper.py` — Per-platform profile scraping with 3-tier pipeline (Tier 1 text via AiManager → Tier 2 CSS selectors → Tier 3 Gemini Vision). Platform-specific supplements: LinkedIn experience/education from `/details/*/` pages, Featured (link-style + post-style) from `/details/featured/`, Honors + Interests from respective detail pages, posts from `/recent-activity/shares/` (not `/all/` which mixes comments/reactions). Facebook About sub-tabs + Reels + More dropdown (likes/checkins/events/reviews) via `?sk=` query params with redirect + empty-state detection. Reddit private profile handling (`profile_privacy="private"`) + karma/age/subreddits regex supplement. Helpers: `_scrape_linkedin_posts`, `_scrape_linkedin_experience_education`, `_scrape_linkedin_extras`, `_scrape_facebook_extras`.
+- `scripts/utils/profile_scraper.py` — Per-platform profile scraping with 3-tier pipeline (Tier 1 text via AiManager → Tier 2 CSS selectors → Tier 3 Gemini Vision). Platform-specific supplements: LinkedIn experience/education from `/details/*/` pages, Featured (link-style + post-style) from `/details/featured/`, Honors + Interests from respective detail pages, posts from `/recent-activity/shares/` (not `/all/` which mixes comments/reactions). Facebook About sub-tabs + Reels + More dropdown (likes/checkins/events/reviews) via `?sk=` query params with redirect + empty-state detection. Facebook follower_count supplemented in AI Tier 1 via display-name-anchored regex on live page text — prevents matching aggregate "X friends" elsewhere on the page (Bug #53 fix 2026-04-26). Reddit private profile handling (`profile_privacy="private"`) + karma/age/subreddits regex supplement. Helpers: `_scrape_linkedin_posts`, `_scrape_linkedin_experience_education`, `_scrape_linkedin_extras`, `_scrape_facebook_extras`.
 - `scripts/utils/ai_profile_scraper.py` — AI-powered profile extraction. `ai_scrape_profile_from_text()` (Tier 1) routes through AiManager with per-platform extraction prompts; `ai_scrape_profile()` (Tier 3) uses Gemini Vision on a screenshot. `is_missing_key_fields()` is lenient — accepts posts/niches/bio as valid data even when follower_count=0.
 - `scripts/utils/browser_config.py` — `apply_full_screen(kwargs, headless)` helper standardises viewport setup for all Playwright `launch_persistent_context()` calls. Headless → 1920x1080 viewport. Headed → `--start-maximized` + `no_viewport=True`.
 - `scripts/generate_campaign.ps1` — Preserved but unused for campaigns (replaced by content_generator.py)
+- `scripts/uat/` — UAT helper scripts driven by the `/uat-task` skill (NOT for production). Contains `seed_campaign.py` (creates UAT campaign + force-accepts invitation), `reset_local_cache.py` (truncates research/drafts/schedule for one campaign), `dump_research.py` + `dump_drafts.py` (extract fields for AC verification), `cleanup_campaign.py` (voids UAT campaigns — refuses non-UAT-prefixed titles), `delete_post.py` (autonomous post deletion via Playwright + persistent profile, supports `--update-local-db`), `uat_task14.py` + `conftest.py` (pytest harness for Task #14 ACs).
 
 ## Platform-Specific Selector Patterns
 
@@ -132,8 +133,15 @@ Platform posting is now driven by JSON scripts in `config/scripts/` via `scripts
 
 - `config/platforms.json` — Enable/disable platforms, set URLs, configure subreddits and proxy per platform
 - `config/.env` — Timing params (browse duration, typing delays, post intervals), headless mode, not secrets
+- `config/.env.example` — Canonical template for `config/.env` including all UAT test-mode flags
 - `config/content-templates.md` — Brand voice, content pillars, emotion-first + value-first principles, platform format rules
 - `server/.env.example` — Server config (database URL, JWT secret, Stripe keys, platform cut %)
+
+**UAT test-mode env flags** (real code behind env vars, default behavior preserved when unset):
+- `AMPLIFIER_UAT_INTERVAL_SEC` — shortens content-gen loop interval + research/strategy cache TTL
+- `AMPLIFIER_UAT_BYPASS_AI` — forces ContentAgent fallback path (exercises ContentGenerator.generate())
+- `AMPLIFIER_UAT_FORCE_DAY` — overrides day_number in `generate_daily_content` (tests diversity)
+- `AMPLIFIER_UAT_POST_NOW` — schedules approved drafts ~1min out instead of next slot
 
 ## Server Hosting
 

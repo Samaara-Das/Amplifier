@@ -143,7 +143,7 @@ data/                    Local SQLite database (gitignored)
 | [Technical Architecture](docs/technical-architecture.md) | Architecture overview, routes, services, models |
 | [System Flow](docs/amplifier-flow.md) | E2E flow diagrams (Mermaid) |
 | [Database Models](docs/database-models.md) | Server DB model field reference |
-| [Local DB Schema](docs/local-database-schema.md) | User-side SQLite schema (13 tables) |
+| [Local DB Schema](docs/local-database-schema.md) | User-side SQLite schema (12 tables — `agent_user_profile` dropped 2026-04-26) |
 | [Deployment Guide](docs/deployment-guide.md) | Server deployment (VPS + Supabase), env vars |
 | [Platform Posting Playbook](docs/platform-posting-playbook.md) | Platform-specific posting flows and gotchas |
 | [Background Agent Reference](docs/background-agent-reference.md) | Background agent tasks, schedule, internals |

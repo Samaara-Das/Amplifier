@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: 2026-04-15
+Last updated: 2026-04-26
 
 ---
 
@@ -20,6 +20,12 @@ Last updated: 2026-04-15
 | `docs/PRD.md` | Full product requirements: all features, data models, API spec, billing, trust, implementation status | Developers, stakeholders | Every feature sprint |
 | `docs/AMPLIFIER-SPEC.md` | Complete system spec covering all 3 implementations (v1/v2/v3), content gen, posting, metrics, comparison table | Developers, co-founders | Architecture changes |
 | `docs/pitch-deck.md` | Investor/co-founder pitch deck (Slide 9: What's Built is traction-sensitive) | Co-founders, investors | After major milestones |
+| `docs/specs/batch-1-money-loop.md` | Per-task specs (Tasks #1, #9, #10, #11) + Verification Procedure blocks | Developers | When task scope changes |
+| `docs/specs/batch-2-ai-brain.md` | Per-task specs (Tasks #12, #13, #14, #15) + Verification Procedure blocks (Task #14 has 18 ACs) | Developers | When task scope changes |
+| `docs/specs/batch-3-product-features.md` | Per-task specs (Tasks #5, #7, #8, #16) | Developers | When task scope changes |
+| `docs/specs/batch-4-business-launch.md` | Per-task specs (Tasks #6, #17, #19, #22) | Developers | When task scope changes |
+| `docs/specs/user-app-tech-stack.md` | User app architecture decision: web dashboard + headless agent split | Developers, co-founders | When tech stack reconsidered (Task #54) |
+| `docs/uat/AC-FORMAT.md` | Format spec for `## Verification Procedure` blocks; rules for `/uat-task` skill | Developers, Claude | When AC format evolves |
 
 ## Tier 3: Reference Docs (audit when relevant subsystems change)
 
@@ -57,6 +63,9 @@ Last updated: 2026-04-15
 | `.claude/commands/update-context.md` | Context update command | Rarely changes |
 | `.claude/output-styles/brand-strategist.md` | Brand strategist output style for Claude | Update when brand strategy changes |
 | `.claude/ralph-tasks.md` | Ralph task queue | Task management |
+| `.claude/skills/uat-task/SKILL.md` | `/uat-task` skill — runs end-to-end UAT, refuses to mark done unless every AC passes | Skill grows via LEARNINGS.md |
+| `docs/uat/skills/uat-task/LEARNINGS.md` | Persistent corrections for `/uat-task` skill — read first on every invocation, compounds across runs | Append-only |
+| `docs/uat/reports/` | Generated UAT reports per run (committed to git) | One file per `/uat-task <id>` run |
 
 ## Tier 5: MVP Spec (audit when MVP scope changes)
 
@@ -73,8 +82,9 @@ Last updated: 2026-04-15
 | `.claude/skills/update-docs/references/doc-inventory.md` | This file |
 | `config/platforms.json` | Platform URLs, timeouts, enable flags, proxy, subreddits |
 | `config/.env` | Timing params, headless mode, behavior config, API keys |
+| `config/.env.example` | Canonical template for `config/.env` — documents UAT_TEST_* creds + AMPLIFIER_UAT_* test-mode flags |
 | `server/.env.example` | Server config template (DB URL, JWT, Stripe, platform cut) |
-| `vercel.json` | Vercel deployment config (rootDirectory is a project-level setting, not here) |
+| `vercel.json` | Vercel deployment config (LEGACY — server now on Hostinger VPS as of 2026-04-25) |
 | `amplifier.spec` | PyInstaller build spec |
 | `installer.iss` | Inno Setup Windows installer |
 
@@ -98,4 +108,5 @@ These are the main code areas. When files here change, docs likely need updating
 | Server models | `server/app/models/` | CLAUDE.md, docs/PRD.md |
 | Server services | `server/app/services/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
 | Config | `config/` | CLAUDE.md |
-| Deployment | `vercel.json`, `server/.env.example` | CLAUDE.md, docs/deployment-guide.md |
+| Deployment | `vercel.json`, `server/.env.example`, Hostinger VPS systemd unit | CLAUDE.md, docs/deployment-guide.md, docs/HOSTING-DECISION-RECORD.md, docs/MIGRATION-FROM-VERCEL.md |
+| UAT infrastructure | `scripts/uat/`, `.claude/skills/uat-task/`, `docs/uat/`, `docs/specs/batch-*.md` Verification Procedure blocks | CLAUDE.md, doc-inventory.md, docs/uat/AC-FORMAT.md |
