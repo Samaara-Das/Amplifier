@@ -2,6 +2,8 @@
 
 Two systems in one repo: a **personal social media automation engine** that generates content via Claude CLI and posts to 6 platforms using Playwright, and a **two-sided marketplace server** where companies create campaigns and users earn money by posting campaign content.
 
+> **Start here for current state**: [`docs/STATUS.md`](docs/STATUS.md) — batches, every task's status, deferred reasons, AC/UAT workflow, server state. Read this **before** opening any spec file. Per-task specs live in [`docs/specs/`](docs/specs/).
+
 ## Architecture
 
 ```
@@ -40,7 +42,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 
 ### Server Hosting
 
-**The server is currently offline.** The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) has been taken down. Migration to a Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md`. Run locally until migration completes:
+**Server is LIVE at https://api.pointcapitalis.com** — Hostinger KVM 1 VPS (Mumbai), Caddy + uvicorn + Supabase PostgreSQL. Migrated from Vercel on 2026-04-25 (Task #41). Full context: `docs/HOSTING-DECISION-RECORD.md`, `docs/MIGRATION-FROM-VERCEL.md`. Local dev still works:
 
 ### Server (local development)
 

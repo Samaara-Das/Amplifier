@@ -40,6 +40,8 @@ python scripts/utils/metric_scraper.py     # scrape engagement metrics from post
 
 ## How Claude Works on This Project
 
+**Read `docs/STATUS.md` first** at every session start — it's the single source of truth for batches, every task's status, deferred reasons, the AC/UAT workflow, and what to work on next. Per-task specs live in `docs/specs/batch-*.md`.
+
 **Opus plans. Sonnet codes.** Delegate ALL coding (features, bugs, refactors) to the `amplifier-coder` sub-agent. Exception: changes under ~5 lines.
 
 **MemPalace is the memory system.** Use it actively, not just at session boundaries:
