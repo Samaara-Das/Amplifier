@@ -359,13 +359,18 @@ class ContentGenerator:
         Falls back transparently to generate() if no URLs are found or all scrapes fail.
         The existing generate() method is NOT modified.
         """
-        # Collect URLs to scrape
+        # Collect URLs to scrape. Some campaigns store assets as a JSON-encoded
+        # list of URLs rather than a dict — coerce to dict shape before .get().
         assets = campaign.get("assets") or {}
         if isinstance(assets, str):
             try:
                 assets = json.loads(assets)
             except (json.JSONDecodeError, TypeError):
                 assets = {}
+        if isinstance(assets, list):
+            assets = {"company_urls": [a for a in assets if isinstance(a, str)]}
+        elif not isinstance(assets, dict):
+            assets = {}
 
         company_urls: list[str] = []
 
@@ -381,6 +386,8 @@ class ContentGenerator:
                 scraped_data = json.loads(scraped_data)
             except (json.JSONDecodeError, TypeError):
                 scraped_data = {}
+        if not isinstance(scraped_data, dict):
+            scraped_data = {}
         extra_urls = scraped_data.get("urls") or []
         if isinstance(extra_urls, list):
             company_urls.extend(u for u in extra_urls if isinstance(u, str) and u.startswith("http"))

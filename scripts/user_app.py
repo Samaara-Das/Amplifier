@@ -8,6 +8,10 @@ import threading
 import webbrowser
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / "config" / ".env")
+
 from flask import (
     Flask,
     Response,
@@ -150,10 +154,15 @@ def dashboard():
             [c for c in campaigns if c.get("status") in ("assigned", "content_generated", "approved")]
         )
         all_posts = get_all_posts()
-        # Filter to current month for "Posts This Month" stat
+        # Filter to current month for "Posts This Month" stat. Exclude deleted/voided
+        # rows so the count reflects actually-posted content, not historical noise.
         from datetime import datetime
         current_month = datetime.now().strftime("%Y-%m")
-        posts_this_month = [p for p in all_posts if (p.get("posted_at") or "").startswith(current_month)]
+        posts_this_month = [
+            p for p in all_posts
+            if (p.get("posted_at") or "").startswith(current_month)
+            and p.get("status") == "posted"
+        ]
         # Try server API for earnings (source of truth), fall back to local
         try:
             from utils.server_client import get_earnings as _get_server_earnings
@@ -1097,6 +1106,7 @@ def _schedule_draft(draft: dict):
     """Schedule an approved draft into post_schedule for the background agent to execute."""
     from utils.local_db import add_scheduled_post, get_scheduled_posts
     from datetime import datetime, timedelta
+    import os
     import random
 
     campaign_id = draft.get("campaign_id")
@@ -1109,6 +1119,26 @@ def _schedule_draft(draft: dict):
     for e in existing:
         if e.get("draft_id") == draft_id:
             return  # Already scheduled
+
+    # UAT override: schedule for ~1 minute from now so AC17 doesn't have to
+    # wait for the production "earliest = now + 5min, jittered, +30min after
+    # the last scheduled post" cadence. Default behaviour preserved when unset.
+    if os.environ.get("AMPLIFIER_UAT_POST_NOW", "").strip().lower() in ("1", "true"):
+        scheduled_at = datetime.now() + timedelta(seconds=60)
+        logger.info(
+            "UAT override: AMPLIFIER_UAT_POST_NOW set — scheduling draft %d for %s",
+            draft_id, scheduled_at.isoformat(),
+        )
+        add_scheduled_post(
+            campaign_server_id=campaign_id,
+            platform=platform,
+            scheduled_at=scheduled_at.isoformat(),
+            content=content,
+            image_path=draft.get("image_path"),
+            draft_id=draft_id,
+        )
+        logger.info("Scheduled draft %d for %s at %s", draft_id, platform, scheduled_at.isoformat())
+        return
 
     # Calculate scheduled time: next available slot with 30-min spacing
     now = datetime.now()

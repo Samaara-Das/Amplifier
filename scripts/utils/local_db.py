@@ -135,16 +135,6 @@ def init_db() -> None:
             ON post_schedule(status, scheduled_at);
 
         -- Agent pipeline tables
-        CREATE TABLE IF NOT EXISTS agent_user_profile (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            platform TEXT UNIQUE,
-            bio TEXT,
-            recent_posts TEXT,
-            style_notes TEXT,
-            follower_count INTEGER DEFAULT 0,
-            extracted_at TEXT
-        );
-
         CREATE TABLE IF NOT EXISTS agent_research (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             campaign_id INTEGER,
@@ -935,22 +925,32 @@ def requeue_failed_posts() -> int:
 
 
 # ── Agent Pipeline: User Profiles ─────────────────────────────────
+# Reads from scraped_profile (the table the profile scraper writes to during
+# onboarding). The agent_user_profile table existed historically but had no
+# writer — the content agent's strategy refinement received empty profile data
+# until this read path was unified. See Task #55.
 
 
-def upsert_user_profile(platform: str, bio: str, recent_posts: str,
-                        style_notes: str, follower_count: int = 0) -> None:
-    conn = _get_db()
-    conn.execute("""
-        INSERT INTO agent_user_profile (platform, bio, recent_posts, style_notes,
-                                        follower_count, extracted_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
-        ON CONFLICT(platform) DO UPDATE SET
-            bio=excluded.bio, recent_posts=excluded.recent_posts,
-            style_notes=excluded.style_notes, follower_count=excluded.follower_count,
-            extracted_at=excluded.extracted_at
-    """, (platform, bio, recent_posts, style_notes, follower_count))
-    conn.commit()
-    conn.close()
+def _scraped_to_agent_profile(row: dict) -> dict:
+    """Adapt a scraped_profile row to the shape the content agent expects.
+
+    Keys consumed by content_agent._refine_strategy_with_ai: platform, bio,
+    style_notes, niches, follower_count, recent_posts. style_notes isn't
+    captured by the scraper today, so it's empty until that pipeline grows.
+    """
+    return {
+        "platform": row.get("platform"),
+        "bio": row.get("bio") or "",
+        "style_notes": "",
+        "niches": row.get("ai_niches") or "",
+        "follower_count": row.get("follower_count") or 0,
+        "following_count": row.get("following_count") or 0,
+        "recent_posts": row.get("recent_posts") or "",
+        "display_name": row.get("display_name") or "",
+        "engagement_rate": row.get("engagement_rate") or 0.0,
+        "posting_frequency": row.get("posting_frequency") or 0.0,
+        "profile_data": row.get("profile_data"),
+    }
 
 
 def get_user_profiles(platforms: list[str] = None) -> list[dict]:
@@ -958,22 +958,22 @@ def get_user_profiles(platforms: list[str] = None) -> list[dict]:
     if platforms:
         placeholders = ",".join("?" for _ in platforms)
         rows = conn.execute(
-            f"SELECT * FROM agent_user_profile WHERE platform IN ({placeholders})",
+            f"SELECT * FROM scraped_profile WHERE platform IN ({placeholders})",
             platforms,
         ).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM agent_user_profile").fetchall()
+        rows = conn.execute("SELECT * FROM scraped_profile ORDER BY platform").fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    return [_scraped_to_agent_profile(dict(r)) for r in rows]
 
 
 def get_user_profile(platform: str) -> dict | None:
     conn = _get_db()
     row = conn.execute(
-        "SELECT * FROM agent_user_profile WHERE platform = ?", (platform,)
+        "SELECT * FROM scraped_profile WHERE platform = ?", (platform,)
     ).fetchone()
     conn.close()
-    return dict(row) if row else None
+    return _scraped_to_agent_profile(dict(row)) if row else None
 
 
 # ── Agent Pipeline: Research ──────────────────────────────────────

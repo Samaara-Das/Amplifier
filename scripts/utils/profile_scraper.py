@@ -2429,6 +2429,43 @@ async def scrape_facebook_profile(playwright) -> dict:
                             ai_result["username"] = f"fb_{id_match.group(1)}"
                             logger.info("Facebook: username from URL (id): %s", ai_result["username"])
 
+                # Supplement friends count when AI missed it. Bug #53 (2026-04-26):
+                # AI Tier 1 returns early with follower_count=0 when key fields are
+                # present but friends count was missed; the CSS fallback regex never
+                # runs. Supplement here, but anchor to the display_name — the
+                # user's friend count appears right under their name in the profile
+                # header. A naive global regex would catch aggregate "X friends"
+                # text from suggestions / Friends tab and produce a wrong count
+                # (e.g. 2300 when the user has 6).
+                if not ai_result.get("follower_count"):
+                    try:
+                        # Use page.inner_text('body') from the current /me page —
+                        # collected_text has multi-tab content polluted with
+                        # aggregate stats; the live profile page does not.
+                        live_text = await page.inner_text("body")
+                        anchor = ai_result.get("display_name") or result.get("display_name")
+                        count = 0
+                        if anchor:
+                            # Find display_name → next "<n> friends" line
+                            m = re.search(
+                                re.escape(anchor) + r'[\s\xa0]*\n([\d,]+(?:\.\d+)?[KkMm]?)\s+friends?\b',
+                                live_text,
+                            )
+                            if m:
+                                count = _parse_number(m.group(1))
+                        if count == 0:
+                            # Fall back to the raw regex against live (not collected) text.
+                            m = re.search(r'([\d,]+(?:\.\d+)?[KkMm]?)\s+friends?\b', live_text)
+                            if m:
+                                count = _parse_number(m.group(1))
+                        if count > 0:
+                            ai_result["follower_count"] = count
+                            if not ai_result.get("following_count"):
+                                ai_result["following_count"] = count  # FB friends are mutual
+                            logger.info("Facebook: supplemented follower_count=%d (anchor=%r)", count, anchor)
+                    except Exception as _fc_err:
+                        logger.debug("Facebook: follower_count supplement failed: %s", _fc_err)
+
                 # Supplement with Facebook extras (contact, reels, likes, checkins, events, reviews)
                 try:
                     _fb_extras_url = page.url

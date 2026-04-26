@@ -54,6 +54,8 @@ python scripts/utils/metric_scraper.py     # scrape engagement metrics from post
 
 **Task Master:** Edit `.taskmaster/tasks/tasks.json` directly (faster than CLI, no API key needed). Match existing schema; bump highest `id` for new tasks. Overrides global "never edit manually" rule.
 
+**UAT for any task:** Before the first `/uat-task <id>` run, the task's `## Verification Procedure` block in `docs/specs/batch-*.md` must walk the feature's full lifecycle and cover every platform variant, recurring stability, and real side-effects (real posts, etc.). The spec's stated ACs are the floor, not the ceiling. Applies to ALL remaining tasks.
+
 ## Architecture
 
 ### Amplifier Engine

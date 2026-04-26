@@ -15,8 +15,11 @@ Intervals:
 import asyncio
 import json
 import logging
+import os
+import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,11 @@ async def _download_campaign_product_images(campaign_data: dict) -> list[str]:
             assets = json.loads(assets)
         except (json.JSONDecodeError, TypeError):
             return []
+    if isinstance(assets, list):
+        # Bare list of URLs — no image_urls key, so nothing to download
+        return []
+    if not isinstance(assets, dict):
+        return []
 
     image_urls = assets.get("image_urls") or assets.get("images") or []
     if isinstance(image_urls, str):
@@ -152,12 +160,16 @@ async def poll_campaigns() -> dict:
         return {"success": False, "error": str(e), "total": 0, "new": 0}
 
 
-async def generate_daily_content() -> dict:
+async def generate_daily_content(campaign_id_filter: int | None = None) -> dict:
     """Generate today's content for all active campaigns that don't have today's drafts yet.
 
     Runs daily: checks each active campaign, generates per-platform drafts into the
     agent_draft table, and auto-approves in full_auto mode. Replaces the old one-time
     generate_pending_content().
+
+    Args:
+        campaign_id_filter: If set, restrict generation to this campaign ID only
+                            (used by --campaign-id CLI flag for UAT runs).
     """
     from utils.local_db import (
         get_campaigns, update_campaign_status, get_setting,
@@ -172,6 +184,10 @@ async def generate_daily_content() -> dict:
         # Only generate content for campaigns the user has ACCEPTED (not pending_invitation)
         accepted_statuses = ('assigned', 'accepted', 'content_generated', 'approved', 'posted', 'active')
         active = [c for c in all_campaigns if c.get('status') in accepted_statuses]
+
+        # UAT: filter to a single campaign when --campaign-id is provided
+        if campaign_id_filter is not None:
+            active = [c for c in active if c.get("server_id") == campaign_id_filter]
 
         if not active:
             return {"success": True, "generated": 0}
@@ -291,6 +307,16 @@ async def generate_daily_content() -> dict:
             # Calculate day number from unique dates in draft history
             unique_dates = set(d.get('created_at', '')[:10] for d in previous if d.get('created_at'))
             day_number = len(unique_dates) + 1
+            # UAT override: force a specific day number to test hook diversity
+            _force_day = os.environ.get("AMPLIFIER_UAT_FORCE_DAY", "").strip()
+            if _force_day:
+                try:
+                    _fd = int(_force_day)
+                    if _fd > 0:
+                        logger.info("UAT override: day_number=%d (AMPLIFIER_UAT_FORCE_DAY=%s)", _fd, _force_day)
+                        day_number = _fd
+                except ValueError:
+                    pass
 
             # Generate content via 4-phase ContentAgent pipeline
             campaign_data = {
@@ -438,6 +464,7 @@ async def generate_daily_content() -> dict:
 
             except Exception as e:
                 logger.error("Daily content gen failed for campaign %s: %s", campaign_id, e)
+                logger.exception("Daily content gen traceback")
                 from utils.local_db import add_notification
                 add_notification("error", "Content Generation Failed", f"Failed for \"{campaign.get('title', 'campaign')}\": {str(e)[:100]}")
 
@@ -800,6 +827,18 @@ class BackgroundAgent:
         self.last_metric_scrape = 0.0
         self._task: asyncio.Task | None = None
         self._iteration_count = 0
+        # UAT: allow overriding the content-gen check interval (default 120s)
+        _raw = os.environ.get("AMPLIFIER_UAT_INTERVAL_SEC", "").strip()
+        try:
+            _secs = int(_raw) if _raw else 0
+            self._content_gen_interval = _secs if _secs > 0 else CONTENT_GEN_INTERVAL
+        except ValueError:
+            self._content_gen_interval = CONTENT_GEN_INTERVAL
+        if self._content_gen_interval != CONTENT_GEN_INTERVAL:
+            logger.info(
+                "UAT override: content_gen_interval=%ds (AMPLIFIER_UAT_INTERVAL_SEC=%s)",
+                self._content_gen_interval, _raw,
+            )
 
     async def run(self):
         """Main loop -- runs forever, checks what's due each iteration."""
@@ -838,7 +877,7 @@ class BackgroundAgent:
                     self.last_poll = now
 
                 # Every 2min: generate daily content for active campaigns
-                if now - self.last_content_gen >= CONTENT_GEN_INTERVAL:
+                if now - self.last_content_gen >= self._content_gen_interval:
                     try:
                         results["content_gen"] = await generate_daily_content()
                     except Exception as e:
@@ -962,3 +1001,65 @@ async def stop_background_agent() -> None:
                 pass
     _agent = None
     logger.info("Background agent stopped and cleaned up")
+
+
+# ── CLI entrypoint (UAT + manual runs) ──────────────────────────────
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Amplifier background agent — automated campaign tasks."
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Run one full content-gen + poll cycle, then exit (UAT / manual trigger).",
+    )
+    parser.add_argument(
+        "--task",
+        choices=["generate_content", "poll_campaigns", "scrape_metrics", "check_sessions"],
+        help="Run a single named task, then exit.",
+    )
+    parser.add_argument(
+        "--campaign-id",
+        type=int,
+        default=None,
+        help="Restrict content generation to a single campaign ID.",
+    )
+    parser.add_argument(
+        "--day-number",
+        type=int,
+        default=None,
+        help="Override day_number for content generation (skips automatic calculation).",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+        stream=sys.stdout,
+    )
+
+    # Honour --day-number by injecting AMPLIFIER_UAT_FORCE_DAY (works with existing override)
+    if args.day_number is not None:
+        os.environ.setdefault("AMPLIFIER_UAT_FORCE_DAY", str(args.day_number))
+
+    async def _run_once():
+        """Execute one cycle and exit."""
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+        if args.task == "generate_content" or args.once:
+            result = await generate_daily_content(campaign_id_filter=args.campaign_id)
+            logger.info("generate_daily_content result: %s", result)
+        if args.task == "poll_campaigns" or args.once:
+            result = await poll_campaigns()
+            logger.info("poll_campaigns result: %s", result)
+        if args.task == "scrape_metrics":
+            result = await run_metric_scraping()
+            logger.info("run_metric_scraping result: %s", result)
+        if args.task == "check_sessions":
+            result = await check_sessions()
+            logger.info("check_sessions result: %s", result)
+
+    asyncio.run(_run_once())

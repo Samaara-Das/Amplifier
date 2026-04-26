@@ -21,9 +21,35 @@ import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+# Re-export for UAT imports (canonical definition lives in content_quality.py)
+from utils.content_quality import BANNED_PHRASES  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _cache_ttl() -> timedelta:
+    """Return research/strategy cache TTL.
+
+    Production default: 7 days.
+    UAT override: set AMPLIFIER_UAT_INTERVAL_SEC to a positive int to use that
+    many seconds instead (e.g. 30 for fast cache-hit/miss testing).
+    """
+    raw = os.environ.get("AMPLIFIER_UAT_INTERVAL_SEC", "").strip()
+    if raw:
+        try:
+            secs = int(raw)
+            if secs > 0:
+                logger.info(
+                    "UAT override: research_cache_ttl=%ds (AMPLIFIER_UAT_INTERVAL_SEC=%s)",
+                    secs, raw,
+                )
+                return timedelta(seconds=secs)
+        except ValueError:
+            pass
+    return timedelta(days=7)
+
 
 # ── Goal → Strategy mapping ─────────────────────────────────────
 
@@ -163,7 +189,7 @@ async def _run_research(campaign: dict, manager) -> dict:
             # SQLite datetime('now') is UTC-naive; normalize to UTC-aware if missing tz
             if created_dt.tzinfo is None:
                 created_dt = created_dt.replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) - created_dt < timedelta(days=7):
+            if datetime.now(timezone.utc) - created_dt < _cache_ttl():
                 logger.info("Using cached research for campaign %s (age: %s)", campaign_id, created)
                 try:
                     return json.loads(latest["content"])
@@ -172,13 +198,19 @@ async def _run_research(campaign: dict, manager) -> dict:
         except (ValueError, TypeError):
             pass
 
-    # Scrape company URLs
+    # Scrape company URLs. Some campaigns store assets as a JSON-encoded list
+    # of URLs rather than a dict — coerce to a dict shape before .get().
     assets = campaign.get("assets") or {}
     if isinstance(assets, str):
         try:
             assets = json.loads(assets)
         except (json.JSONDecodeError, TypeError):
             assets = {}
+    if isinstance(assets, list):
+        # Bare list of URLs/strings — fold into the expected dict shape.
+        assets = {"company_urls": [a for a in assets if isinstance(a, str)]}
+    elif not isinstance(assets, dict):
+        assets = {}
 
     urls = []
     for key in ("company_urls", "urls", "links"):
@@ -192,6 +224,8 @@ async def _run_research(campaign: dict, manager) -> dict:
             scraped_data = json.loads(scraped_data)
         except (json.JSONDecodeError, TypeError):
             scraped_data = {}
+    if not isinstance(scraped_data, dict):
+        scraped_data = {}
     extra = scraped_data.get("urls") or []
     if isinstance(extra, list):
         urls.extend(u for u in extra if isinstance(u, str) and u.startswith("http"))
@@ -444,7 +478,7 @@ async def _refine_strategy_with_ai(
             # SQLite datetime('now') is UTC-naive; normalize to UTC-aware if missing tz
             if created_dt.tzinfo is None:
                 created_dt = created_dt.replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) - created_dt < timedelta(days=7):
+            if datetime.now(timezone.utc) - created_dt < _cache_ttl():
                 logger.info("Using cached strategy for campaign %s", campaign_id)
                 try:
                     cached = json.loads(latest["content"])
@@ -513,6 +547,14 @@ Return ONLY valid JSON (no markdown fences). Preserve all existing fields."""
         refined = json.loads(raw)
         if not isinstance(refined, dict) or "platforms" not in refined:
             raise ValueError("Refined strategy missing 'platforms' key")
+        # Downstream creation phase calls strategy["platforms"].get(plat, {}); the
+        # AI occasionally returns this field as a list of objects keyed by name
+        # rather than a dict. Reject and fall back to base_strategy when shape
+        # drifts — safer than trying to repair a malformed structure.
+        if not isinstance(refined["platforms"], dict):
+            raise ValueError(
+                f"Refined strategy 'platforms' is {type(refined['platforms']).__name__}, expected dict"
+            )
         # Cache the refined strategy
         add_research(campaign_id, "strategy", json.dumps(refined))
         logger.info("Strategy refined with AI for campaign %s", campaign_id)
@@ -858,9 +900,19 @@ class ContentAgent:
             raise RuntimeError("No AI providers available. Set GEMINI_API_KEY in config/.env")
 
         try:
+            # UAT: force fallback path to test ContentGenerator.generate() is reachable
+            _bypass = os.environ.get("AMPLIFIER_UAT_BYPASS_AI", "").strip().lower()
+            if _bypass in ("1", "true"):
+                logger.info("UAT override: AMPLIFIER_UAT_BYPASS_AI set — forcing fallback path")
+                raise RuntimeError("UAT bypass: forcing fallback path")
+
             # Phase 1: Research (cached weekly)
             research = await _run_research(campaign, self._manager)
-            logger.info("Phase 1 (Research) complete: %d angles", len(research.get("content_angles", [])))
+            logger.info(
+                "Phase 1 (Research) complete: %d angles, %d features",
+                len(research.get("content_angles", [])),
+                len(research.get("key_features", [])),
+            )
 
             # Phase 2: Strategy (base) + AI refinement (cached weekly)
             from utils.local_db import get_content_insights
@@ -922,6 +974,7 @@ class ContentAgent:
 
         except Exception as e:
             logger.warning("ContentAgent pipeline failed: %s. Falling back to basic generator.", e)
+            logger.exception("ContentAgent pipeline traceback")
             # Fallback to single-prompt ContentGenerator
             from utils.content_generator import ContentGenerator
             gen = ContentGenerator()

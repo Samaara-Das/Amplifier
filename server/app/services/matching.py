@@ -530,7 +530,7 @@ async def get_matched_campaigns(
     # If at max active campaigns for tier, skip new matching — only return existing
     if active_campaign_count >= max_active:
         logger.info("User %d (%s tier) has %d active campaigns (max %d), skipping matching",
-                     user.id, user_tier, active_campaign_count, max_active)
+                     user.id, user.tier, active_campaign_count, max_active)
         return await _get_existing_assignments(user, db, set())
 
     # Get all active campaigns (eagerly load company for company_name)

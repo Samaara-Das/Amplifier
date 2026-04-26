@@ -610,6 +610,293 @@ If any phase fails, fall back to the existing single-prompt `ContentGenerator.ge
 
 ---
 
+## Verification Procedure — Task #14
+
+> Format: `docs/uat/AC-FORMAT.md`. Executed by the `uat-task` skill. X is disabled — UAT covers LinkedIn, Facebook, Reddit only.
+
+### Preconditions
+
+- `curl https://api.pointcapitalis.com/health` → `{"status":"ok"}`
+- Repo on branch `flask-user-app`, working tree clean
+- `config/.env` contains a working `GEMINI_API_KEY`
+- `scripts/utils/local_db.py`'s SQLite at `data/local.sqlite` is accessible
+- LinkedIn, Facebook, Reddit profiles connected — verify with:
+  ```bash
+  python -c "from scripts.utils.local_db import get_user_profiles; ps=get_user_profiles(['linkedin','facebook','reddit']); assert len(ps)>=3 and all(p.get('follower_count') is not None for p in ps), ps"
+  ```
+- `data/uat/` directory exists and is writable
+- Background agent and user app are NOT running at start of UAT (skill checks port 5222 is free)
+
+### Test data setup
+
+1. **Seed UAT campaign on server** (creates campaign + force-accepts invitation as the test user):
+   ```bash
+   python scripts/uat/seed_campaign.py \
+     --title "UAT Trading Indicator $(date +%s)" \
+     --goal brand_awareness \
+     --tone casual \
+     --brief "A TradingView indicator that shows institutional order flow on SPY and QQQ. Built for day traders who want to see what smart money is doing before the move happens. Free for the first 100 users." \
+     --guidance "Mention you've been testing it for a week. Be casual, not salesy." \
+     --company-urls "https://www.tradingview.com/script/" \
+     --product-images "data/uat/fixtures/product1.jpg,data/uat/fixtures/product2.jpg" \
+     --output-id-to data/uat/last_campaign_id.txt
+   ```
+2. **Reset local cache for cold-path testing**:
+   ```bash
+   python scripts/uat/reset_local_cache.py --campaign-id $(cat data/uat/last_campaign_id.txt)
+   ```
+   Truncates `agent_research`, `agent_draft`, `post_schedule` rows for this campaign.
+
+### Test-mode flags
+
+| Flag | Effect | Used by AC |
+|------|--------|-----------|
+| `AMPLIFIER_UAT_INTERVAL_SEC=120` | Background agent loops every 2 min instead of 60s; research-cache TTL drops from 7d to 30s for testing cache hit/miss | AC10, AC11, AC14 |
+| `AMPLIFIER_UAT_BYPASS_AI=1` | Forces all `manager.generate()` calls to raise `RuntimeError`, exercising fallback to `ContentGenerator.generate()` | AC9 |
+| `AMPLIFIER_UAT_FORCE_DAY=<n>` | Overrides `day_number` calculation in `generate_daily_content()` to test day-1-vs-day-5 diversity in one run | AC8 |
+
+All flags are env vars read at the top of the relevant module. Defaults preserve production behavior.
+
+---
+
+### AC1 — Phase 1 (Research) cold path: scrapes URL, synthesizes JSON
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test data setup completed. `agent_research` empty for this campaign. |
+| **Action** | `python scripts/background_agent.py --once --campaign-id $(cat data/uat/last_campaign_id.txt) 2>&1 \| tee data/uat/agent.log` |
+| **Expected** | Within 90s: `data/uat/agent.log` contains `Phase 1 (Research) complete: N angles, M features` with N>=3 and M>=3. `agent_research` has exactly 1 row with `research_type='full_research'` whose `content` is valid JSON containing all keys: `product_summary`, `key_features`, `target_audience`, `competitive_angle`, `content_angles`, `emotional_hooks`. `product_summary` is non-empty and >20 chars. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac1_research_cold_path` |
+| **Evidence** | grep result of "Phase 1" in agent.log; SQL dump of the agent_research row |
+| **Cleanup** | none — keep cache for AC2/AC3 |
+
+### AC2 — Phase 1: recent niche news fetched via Gemini grounded search
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1 passed. agent_research row exists. |
+| **Action** | `python scripts/uat/dump_research.py --campaign-id $(cat data/uat/last_campaign_id.txt) --field recent_niche_news` |
+| **Expected** | Output is a JSON array with 3-5 string elements. Each element is non-empty, longer than 15 chars, does not start with "```", does not contain literal "json". User reviews output and confirms headlines look plausibly niche-related (trading/markets/finance — not random topics or AI hallucinations). |
+| **Automated** | partial (shape auto, plausibility manual) |
+| **Automation** | auto: `pytest scripts/uat/uat_task14.py::test_ac2_news_shape`. Manual: skill prints the 3-5 headlines and asks user `Plausible niche headlines? (y/n)`. |
+| **Evidence** | data/uat/ac2_news.json; user's y/n response captured in report |
+| **Cleanup** | none |
+
+### AC3 — Phase 1: product image vision analysis runs when images are present
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1 passed. `data/product_images/<campaign_id>/` contains at least 1 image (seeded via `seed_campaign.py --product-images`). |
+| **Action** | `python scripts/uat/dump_research.py --campaign-id $(cat data/uat/last_campaign_id.txt) --field image_analysis` |
+| **Expected** | Non-empty string >50 chars describing the image (mentions visual elements: colors, composition, subject). agent.log contains `Research: product image analysis complete (N chars)` with N matching the dumped string length. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac3_vision_analysis` |
+| **Evidence** | data/uat/ac3_vision.txt; log line excerpt |
+| **Cleanup** | none |
+
+### AC4 — Phase 2 (Strategy): goal→content mapping correct (spec ACs 1, 2, 6)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None — pure dict lookup; runs offline. |
+| **Action** | `python -c "from scripts.utils.content_agent import GOAL_STRATEGY; import json; print(json.dumps({g: {p: GOAL_STRATEGY[g][p]['hooks'] for p in GOAL_STRATEGY[g]} for g in GOAL_STRATEGY}, indent=2))"` |
+| **Expected** | `virality.x.hooks` contains at least one of `contrarian`, `surprising_result`, `curiosity` (spec AC1). `leads` strategies have `cta` set to a value containing `link` or `comment_link` for non-Reddit platforms (spec AC2). `brand_awareness.x.posts_per_day == 1` AND `brand_awareness.reddit.posts_per_day < 1` (spec AC6). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac4_goal_strategy_mapping` |
+| **Evidence** | dumped JSON saved to data/uat/ac4_strategy.json |
+| **Cleanup** | none |
+
+### AC5 — Phase 2 (Strategy AI refinement): refined strategy carries `creator_voice_notes`
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1 passed. agent_research has row with `research_type='strategy'` (created during the AC1 run). |
+| **Action** | `python scripts/uat/dump_research.py --campaign-id $(cat data/uat/last_campaign_id.txt) --field strategy_voice_notes` |
+| **Expected** | Output is a dict mapping each connected platform to a non-empty string. Each string is 1-2 sentences (>20 chars, <300 chars). At least one mentions tone or audience or style. agent.log contains `Strategy refined with AI for campaign <id>` (no fallback). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac5_creator_voice_notes` |
+| **Evidence** | data/uat/ac5_voice.json; agent.log excerpt |
+| **Cleanup** | none |
+
+### AC6 — Phase 3 (Creation): generates content for all 3 active platforms
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1+AC5 passed. agent_draft empty for this campaign. |
+| **Action** | `python scripts/background_agent.py --task=generate_content --campaign-id $(cat data/uat/last_campaign_id.txt) --day-number 1 2>&1 \| tee -a data/uat/agent.log` |
+| **Expected** | agent_draft has exactly 3 new rows (linkedin, facebook, reddit). Every row has non-empty `draft_text`. agent.log contains `Phase 3 (Creation) complete: 3 platform(s)`. No `ERROR` lines in agent.log during this run. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac6_creation_three_platforms` |
+| **Evidence** | SQL dump of new agent_draft rows; agent.log error grep (must be empty) |
+| **Cleanup** | none |
+
+### AC7 — Phase 3: Reddit draft has caveat (spec AC4) AND title/body shape
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC6 passed. agent_draft has reddit row. |
+| **Action** | `python scripts/uat/dump_drafts.py --campaign-id $(cat data/uat/last_campaign_id.txt) --platform reddit --day 1` |
+| **Expected** | draft_text parses as JSON to `{"title": str, "body": str}`. `60 <= len(title) <= 120`. `500 <= len(body) <= 2500` (note: spec says 1500 but UAT 2026-04-18 relaxed to 2500 — see content_quality.py:25). body matches caveat regex `(?i)(didn't love\|wasn't a fan\|one (downside\|drawback\|thing)\|to be fair\|not perfect\|the only\|that said\|but \|however)`. body does NOT match purely-positive sentiment (heuristic: contains at least one negative-leaning word from a small list). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac7_reddit_caveat_shape` |
+| **Evidence** | data/uat/ac7_reddit.txt with full draft printed; regex match results |
+| **Cleanup** | none |
+
+### AC8 — Phase 3 day-1 vs day-5 diversity (spec AC3)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC6 passed. Run a second creation cycle with `AMPLIFIER_UAT_FORCE_DAY=5` after deleting the day-1 draft IDs from a tracking table. |
+| **Action** | `AMPLIFIER_UAT_FORCE_DAY=5 python scripts/background_agent.py --task=generate_content --campaign-id $(cat data/uat/last_campaign_id.txt) 2>&1 \| tee -a data/uat/agent.log` |
+| **Expected** | New agent_draft rows for day 5. For each platform present on both days, cosine similarity (via Gemini embeddings) between day-1 and day-5 `draft_text` is `< 0.85`. SequenceMatcher fallback ratio also `< 0.90` if embeddings unavailable. (Threshold slightly relaxed from validator's 0.80/0.85 because campaigns share product context — full divergence isn't realistic.) |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac8_diversity` |
+| **Evidence** | per-platform similarity scores logged to data/uat/ac8_diversity.json |
+| **Cleanup** | none |
+
+### AC9 — Fallback path triggers when AI fails (spec AC7)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Truncate agent_draft for the campaign. AC1 cache present (so fallback isn't gated by missing research). |
+| **Action** | `AMPLIFIER_UAT_BYPASS_AI=1 python scripts/background_agent.py --task=generate_content --campaign-id $(cat data/uat/last_campaign_id.txt) --day-number 2 2>&1 \| tee -a data/uat/agent.log` |
+| **Expected** | agent.log contains `ContentAgent pipeline failed:` followed by `Falling back to basic generator.`. agent_draft has new rows for the 3 platforms (fallback still produced content). No uncaught exception in agent.log. Process exit code 0. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac9_fallback` |
+| **Evidence** | agent.log fallback line; new draft rows |
+| **Cleanup** | unset env var; truncate agent_draft for next ACs |
+
+### AC10 — Research cache hit on second run (no duplicate scrape)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1 ran successfully — agent_research row created. Capture `created_at` of that row. |
+| **Action** | Re-run AC1's command. |
+| **Expected** | agent_research has STILL exactly 1 `full_research` row (no new row). `created_at` unchanged. agent.log contains `Using cached research for campaign <id>`. No new web-scrape lines, no new vision call line. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac10_research_cache_hit` |
+| **Evidence** | row count + timestamp from SQL; agent.log "Using cached" line |
+| **Cleanup** | none |
+
+### AC11 — Strategy cache hit on second run
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1 + AC5 ran. agent_research has 1 strategy row with known created_at. |
+| **Action** | Re-run AC6's command (creation, which calls strategy refinement). |
+| **Expected** | agent_research strategy row count and created_at unchanged. agent.log contains `Using cached strategy for campaign <id>`. No `Strategy refined with AI` line on this run. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac11_strategy_cache_hit` |
+| **Evidence** | row count + timestamp; log lines |
+| **Cleanup** | none |
+
+### AC12 — Quality validator catches banned phrase + retries successfully
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Reset agent_draft for campaign. Inject a fixture: monkey-patch `_run_creation` to return banned-phrase content on first call, clean content on second call. (This test runs in pytest with monkey-patching — it's the one AC where mocking is acceptable because we're testing the validator's reaction, not Gemini.) |
+| **Action** | `pytest scripts/uat/uat_task14.py::test_ac12_validator_retry -v` |
+| **Expected** | First creation result contains banned phrase, validator returns `(False, [...])`. Second creation called with `retry_feedback`. Final stored draft contains zero banned phrases. agent.log shows: `Quality check failed: ...` then `Phase 3 (Creation) complete` then validator passes. |
+| **Automated** | yes (the only AC with controlled mocking) |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac12_validator_retry` |
+| **Evidence** | pytest output; log excerpt |
+| **Cleanup** | none |
+
+### AC13 — X content length safety (spec AC5) — pass-through check on disabled platform
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None — code-level check that the X length validator and the X disable-guard both still exist and would fire correctly if X were re-enabled. |
+| **Action** | `pytest scripts/uat/uat_task14.py::test_ac13_x_length_guard` |
+| **Expected** | `validate_content({"x": "a"*500})` returns `(False, [reason containing "exceeds 280"])`. `filter_disabled(["x"])` returns `[]`. (X is regression-protected, not actively tested for posting.) |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac13_x_length_guard` |
+| **Evidence** | pytest output |
+| **Cleanup** | none |
+
+### AC14 — Full E2E from user app dashboard (Chrome DevTools MCP)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | All prior ACs passed. Truncate agent_draft for campaign. Start user app: `python scripts/user_app.py &` (skill backgrounds it). Start agent with UAT interval: `AMPLIFIER_UAT_INTERVAL_SEC=120 python scripts/background_agent.py &`. |
+| **Action** | Skill executes via Chrome DevTools MCP: `new_page("http://localhost:5222/")` → `take_snapshot` → if not authenticated, fill login form via `fill_form` with test creds → navigate to `/campaigns` → `take_snapshot` to find UAT campaign by title regex → `click(uid)` → wait up to 5 min calling `take_snapshot` every 30s until "Drafts" section text appears → `take_screenshot(filePath="data/uat/screenshots/task14_ac14.png")` → `list_console_messages` → `list_network_requests` → `close_page`. |
+| **Expected** | Within 5 min wall clock: page renders 3 draft cards (linkedin, facebook, reddit). Each card has non-empty content visible in DOM. Reddit card shows separated title and body fields. Zero console messages with `level=error`. Zero network requests with status >=500 against `/api/`. Screenshot embedded in UAT report. |
+| **Automated** | yes (skill drives DevTools directly) |
+| **Automation** | `chrome-devtools-mcp` (no script file) |
+| **Evidence** | data/uat/screenshots/task14_ac14.png; data/uat/ac14_console.json; data/uat/ac14_network.json |
+| **Cleanup** | `close_page`; kill background agent (record PID at start, `kill -INT $PID`); kill user app; `python scripts/uat/cleanup_campaign.py --id $(cat data/uat/last_campaign_id.txt)` (sets campaign to completed on server, deletes local drafts). |
+
+---
+
+### AC15 — Per-platform daily coverage: every enabled platform eventually gets a draft
+
+| Field | Value |
+|-------|-------|
+| **Setup** | UAT campaign accepted (assignment status=accepted). agent_draft empty for this campaign + today's date. Background agent running with `AMPLIFIER_UAT_INTERVAL_SEC=60`. |
+| **Action** | Let the background agent run for 6 minutes (5-6 cycles). Capture timestamps of "Daily content generated" log lines. Tail agent.log for "Phase 3 (Creation) complete" entries — should see one per cycle. |
+| **Expected** | Within 6 minutes wall clock, `SELECT DISTINCT platform FROM agent_draft WHERE campaign_id=? AND date(created_at)=date('now')` returns exactly 3 rows: `linkedin`, `facebook`, `reddit` (order doesn't matter). Each draft has non-empty draft_text. None have `approved=1` yet (semi_auto mode). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac15_per_platform_coverage --campaign-id $(cat data/uat/last_campaign_id.txt)` |
+| **Evidence** | SQL dump of distinct platforms; agent.log Phase-3 log line count must be ≥3 |
+| **Cleanup** | none — keeps drafts for AC17 |
+
+### AC16 — Recurring loop survives a 10-minute soak
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Same campaign as AC15. Capture starting RAM usage of background agent process (`Get-Process python` → WorkingSet). Capture starting agent.log size. |
+| **Action** | Background agent runs for 10 minutes wall clock with `AMPLIFIER_UAT_INTERVAL_SEC=120`. Don't restart, don't intervene. Just observe. |
+| **Expected** | After 10 min: ≥4 successful "Daily content generated" log lines OR ≥4 "Using cached" log lines (cache means the agent SHORT-CIRCUITED gen because today's coverage is complete — that's a valid healthy state). Zero unhandled exceptions in agent.log. RAM growth <50% from start. agent.log size grows linearly (not exponentially). Process is still alive at end. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac16_recurring_soak --campaign-id $(cat data/uat/last_campaign_id.txt)` |
+| **Evidence** | Start/end RAM snapshot; start/end log size; per-cycle timestamps; final process-alive check |
+| **Cleanup** | none |
+
+### AC17 — End-to-end: approve drafts, watch them post to ALL real platforms
+
+> **THIS AC POSTS REAL CONTENT TO LINKEDIN, FACEBOOK, AND REDDIT** under the test user's account. The UAT-marked campaign + #ad disclaimer make this acceptable. Cleanup deletes all posts after verification. Testing only one platform would defeat the point — the product posts to multiple platforms, so the verifier MUST too.
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC15 passed (drafts exist for linkedin, facebook, reddit). User app running with `AMPLIFIER_UAT_POST_NOW=1`. Local Playwright sessions for ALL three platforms valid (login_setup.py done for each). |
+| **Action** | For EACH of the 3 platforms (linkedin, facebook, reddit): (1) Approve the platform's draft via Chrome DevTools MCP click on the Approve button. (2) Confirm `agent_draft.approved=1` and a `post_schedule` row was created. (3) Wait up to 5 min for posting loop to fire (Playwright launches, types content, submits, captures URL). (4) Verify `post_schedule.status='posted'` or `'posted_no_url'`. (5) Verify a `local_post` row was created with the captured URL. (6) For platforms that capture a URL: Chrome DevTools MCP `new_page(captured_url)` → `take_screenshot` → confirm content is live. For platforms that fall back to profile URL (Facebook may): screenshot the profile feed showing the post is the most-recent entry. (7) Server-side: confirm `POST /api/posts/report` was called by checking `/api/users/me/posts`. |
+| **Expected** | Within 15 min wall clock total: 3 successful posts on 3 platforms. Each platform has a live post viewable in browser. agent.log contains "posted" log line per platform with URL. No fatal errors. If a single platform fails (anti-bot, session expired) the AC FAILS and the report names which platform — do not silently pass on partial coverage. |
+| **Automated** | yes — fully driven by Chrome DevTools MCP for approve + screenshot, by SQL/log inspection for verification |
+| **Automation** | skill drives DevTools sequence per platform; `pytest scripts/uat/uat_task14.py::test_ac17_three_platform_posts` for the data-flow checks |
+| **Evidence** | 3 post_schedule rows reaching terminal posted status, 3 local_post rows with URLs, 3 live-post screenshots saved to `data/uat/screenshots/task14_ac17_live_<platform>.png`, 3 server-side verifications via /api/users/me/posts |
+| **Cleanup** | Delete all 3 published posts via Chrome DevTools MCP autonomously per the skill's "Deleting UAT-published posts" sub-section. Verify deletion via re-fetching each URL → 404 / "deleted" / not visible. Capture deletion screenshots to `data/uat/screenshots/task14_ac17_deleted_<platform>.png`. |
+
+### AC18 — Day-2 cycle generates DIFFERENT content from Day-1 in real conditions
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC15 passed (Day 1 drafts exist for all 3 platforms). |
+| **Action** | Stop background agent. Set `AMPLIFIER_UAT_FORCE_DAY=2`. Restart agent. Wait for one full cycle (~6 min for 3 platforms). |
+| **Expected** | New agent_draft rows exist with `iteration=2` (or equivalent day_number tracking). For each platform: cosine similarity between Day-1 and Day-2 draft_text is < 0.85 (or SequenceMatcher ratio < 0.90 if embeddings unavailable). The hook style for at least one platform differs from Day-1's hook (different opening sentence pattern). Recent niche news from research is referenced in at least one Day-2 post (verify by checking content for any of the 3-5 cached headlines as substring). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task14.py::test_ac18_day2_diversity_real --campaign-id $(cat data/uat/last_campaign_id.txt)` |
+| **Evidence** | Per-platform similarity scores; substring match results for niche news |
+| **Cleanup** | unset `AMPLIFIER_UAT_FORCE_DAY` |
+
+---
+
+### Aggregated PASS rule for Task #14
+
+Task #14 is marked done in task-master ONLY when:
+1. AC1–AC18 all PASS (AC2's + AC17's manual portion = user 'y')
+2. `data/uat/agent.log` grep `(?i)error|exception|traceback` returns zero lines (warnings are OK)
+3. Server `audit_log` query for the UAT window returns zero rows with `severity='error'`
+4. agent_research has exactly 2 rows for the test campaign (full_research + strategy) at end of run
+5. agent_draft has at least 6 rows for the test campaign across both day numbers (3 platforms × 2 days minimum)
+6. At least one real post is visible on LinkedIn at the captured URL (AC17)
+7. All cleanup steps ran successfully — port 5222 is free, no orphaned processes, AC17's posted LinkedIn content is deleted from the user's feed
+8. UAT report file `docs/uat/reports/task-14-<yyyy-mm-dd>-<hhmm>.md` written with all evidence embedded, including the live-post screenshot
+
+If any of the above fails, the skill writes a partial report and refuses to mark the task done. The user reviews the report, decides whether failures are real bugs (fix code) or AC bugs (fix the verification), and re-runs.
+
+---
+
 ## Task #15 — AI Campaign Quality Gate (Detailed Spec)
 
 ### What It Does
