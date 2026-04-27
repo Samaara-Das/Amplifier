@@ -1,5 +1,8 @@
 # Amplifier
 
+**🌐 Live demo:** https://api.pointcapitalis.com
+
+
 Two systems in one repo: a **personal social media automation engine** that generates content via Claude CLI and posts to 6 platforms using Playwright, and a **two-sided marketplace server** where companies create campaigns and users earn money by posting campaign content.
 
 > **Start here for current state**: [`docs/STATUS.md`](docs/STATUS.md) — batches, every task's status, deferred reasons, AC/UAT workflow, server state. Read this **before** opening any spec file. Per-task specs live in [`docs/specs/`](docs/specs/).
