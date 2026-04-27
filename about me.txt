@@ -1,0 +1,64 @@
+About your day-to-day:
+1. What does a typical working day actually look like? (hours, tools, what you spend most time on — coding? markets? content? meetings?)
+I work on Stock Buddy - an AI powered financial market education and trading platform for retail investors. I Work on it 5-6 days a week. I work almost the entire day on it. After my working hours (if I get time), I work on amplifier. I worked on amplifier until today when i decided to revamp my linkedin. i started working on amplifier a little over 1 month ago. Before that, I was building my personal social media bot (which i;m back to again now), discussing app ideas to build with my father and building Stock Buddy full-time. Before working on Stock Buddy, I worked in a job (FCMB/Rova) as a frontend dev and worked on Stock Buddy in my free time after working hours. I quite my Rova job on 31st Jan 2026. This job started on Dec 2nd 2024.
+
+2. Is anyone paying you money today for anything? (freelance, indicator sales, other — even small amounts count)
+In my Rova job, I was getting paid. Right now, my employer, Mr. Rahul is paying me to work on Stock Buddy. These are the only 2 streams of income I've ever had. Before I worked on Stock buddy or rova, I worked for my father full time mostly in the financial market domain.
+
+About your skills & past:
+3. List everything you can build or have built. Not just Amplifier/Stock Buddy — side projects, anything you've shipped to a real user. Rough is fine.
+I built 110+ indicators in total on TradingView, MT5 and MT4 trading platforms. I built probably 75+ automated financial market strategies on all 3 platforms as well. I first started my "career" at 12/ late 11 years old. I learnt programming in Flutter and React. I can vibe code web and mobile apps. I have also built web scrapers and automation which can run for hours/days and can scrape content from any site online. I created an AI bot which scraped all the content of a skool course I took so that I wouldn't have to pay for the next month. I vibe coded a program which scraped learning modules and videos from a paid trading course (We Trade Waves) which I then uploaded to google drive. Tradingview To Everywhere (TTE) is an example of browser automation and scraping. TTE is the backend of the Stock Buddy app. It uses browser automation and proprietary financial market strategies to send thousands of setups each day for 677 symbols, maintain the alerts that send these setups and take visual snapshots of each setup. I am planning to scale these no. of symbols to 14k. 
+
+I also built a Pine Script scraper project - Scrapes and extracts upto 20 historical code versions (version numbers and code) of TradingView indicators and strategies that I made. These are for proof of work.
+
+I also built a computer automation before AI existed - it was for my father's company. The computer automation is capable of running back tests of hundreds of strategies on the MT5 platform - something which till today could only be done manually. 
+
+Also, While I worked for Rova, I built the following modules of the CIB app - the entire Bill Payments module, Outgoing payments module, Settings, Recipients and helped my colleagues with their modules. I also build custom components for my entire team of 12-13 members to speed up productivity. I and with my team fixed and closed out all the bugs/fixes reported by the QA and UAT teams. A rough estimate of how many issues I personally helped fixed were 40+.
+
+I built Auto Poster - The goal of this app is to drive more views to the user's X (Twitter) account by 1) following other accounts 2) replying to all the posts of the other accounts that they're following. This way, when the app replies to their posts it will lead to other visitors to their accounts that are seeing those original posts to also the app's reply. This leads to increasing the user's profile views. This is not fully complete though
+
+The app's features: 
+- Like and reply to people that the user is following and has added.
+- Message box for the user to write a reply which the app will use
+- Allows user to choose which accounts to reply to and which not to
+- Delete the replies and likes that the app made
+- Retrieves the latest accounts that the user is following 
+- Enables the user to add accounts to reply to
+- Follows other accounts
+
+GitHub repo - https://github.com/Samaara-Das/Auto-Poster
+
+In February, I built an ecommerce site to demo to Bharat (Mr. Rahul's brother in law): "C:\Users\dassa\Work\Ecom Site for Bharat" and built a big slide deck for it to explain to Bharat. I researched about how to build it/the right tech stack and took his idea from concept to MVP in 2 days of duration.
+
+Also read "C:\Users\dassa\Personal\My Resume.txt". This is old. The info about the Backtest Automater and TTE project mentioned in this .txt file are outdated.
+
+4. What are you genuinely good at that most people aren't? (could be code, markets, systems design, shipping speed, AI integration — your honest answer, no false modesty)
+- Browser/computer automation with AI
+- Vibe coding complex apps
+- Experimenting and tinkering with new AI tools. I have used Claude Code, Factory AI, Chatgpt, Cursor. I keep on learning about best practices about building apps/workflows with these tools. I create sub agents, Agent skills, specialized .md files of guidelines/best practices/mistakes and workflows to help me automate my work (have done this for my work in Rova, the projects I do, TTE, Stock Buddy and Amplifier). I run multiple claude code sessions to complete lots of tasks in parallel. I use anything new I find like the ralph loop to build something from start to finish end to end. I also use mempalace and built a corpus of rich memory that Claude Code uses. I also experimented with openclaw and created bots - one for giving me daily AI insights, an engineer, a CEO which manages all other bots and a bot for creating content and videos for me. I have stopped using them because i dont need them now and they stopped working on the VPS where I set them up.
+- Making my AI workflow better. I go to X everyday, learn about new things and implement them
+
+
+5. Any trading-adjacent achievements I should know about? (backtests that worked, indicators that got traction, a win you want to reference)
+- I got 2 jobs with high paying salaries
+- I created and published education articles on Tradingview. My 2nd article went viral and the MODS on Tradingview gave me 100$.
+- I have built strategies that have performed well when I backtested them
+- Look at the financial market experience in the screenshots I gave
+
+About your LinkedIn today:
+6. Roughly who are the 9.5K dormant connections? (random adds? school-era? tech people? India-based? — ballpark is fine). They were IIM and IIT college students when I connected to them. A minor part of my connections are American people/people outside of India.
+
+7. When did you last post? What was the rough topic? What got any traction?
+50% of my posts got upto 14k views and the reactions were in the double digits. My last post was about the Elliott wave theory and in 2024. Funny and emotional posts got traction the most.
+
+8. What does your current headline say RIGHT NOW? (copy-paste)
+Financial Market Algorithm Developer | Happy to share my free algos
+
+9. Your current About section — paste it if you can, or "it's empty / it's generic."
+I specialize in developing trading strategies for the Financial Markets. I am good at finding profitable trade setups using Technical Analysis.
+
+I will be happy to share my programs with anyone who connects with me and is willing to discuss more on developing profitable financial market strategies.
+
+I develop trading algorithms on the MT5 & MT4 platforms as well as the TradingView platform. 
+
+I'm interested in learning different things from everyone here on LinkedIn! I look forward to connecting with you!
