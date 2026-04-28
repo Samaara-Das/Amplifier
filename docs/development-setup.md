@@ -62,22 +62,20 @@ Browser profiles saved to `profiles/{platform}-profile/`.
 
 Platform posting is driven by JSON scripts in `config/scripts/` (e.g., `x_post.json`, `linkedin_post.json`, `facebook_post.json`, `reddit_post.json`) via the declarative posting engine in `scripts/engine/`.
 
-## Server Deployment (Vercel)
+## Server Deployment (Hostinger KVM VPS)
+
+Production server is **LIVE at `https://api.pointcapitalis.com`** (Hostinger KVM 1, Mumbai, since 2026-04-25). See `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md` for full runbooks.
 
 ```bash
-# Deploy
-vercel deploy --yes --prod --cwd server
+# SSH into VPS
+ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162
 
-# Set env vars
-printf "value" | vercel env add VAR_NAME production --cwd server
+# Deploy: pull latest + restart systemd service
+git pull && sudo systemctl restart amplifier-web.service
 
-# Current env vars on Vercel:
-# DATABASE_URL - Supabase PostgreSQL connection string
-# JWT_SECRET_KEY - JWT signing secret
-# ADMIN_PASSWORD - Admin dashboard password
-# GEMINI_API_KEY - Google Gemini API key
-# SUPABASE_URL - https://ozkntsmomkrsnjziamkr.supabase.co
-# SUPABASE_SERVICE_KEY - Supabase service role key
+# Check status
+sudo systemctl status amplifier-web.service
+journalctl -u amplifier-web.service -n 50
 ```
 
 ## Supabase
@@ -128,12 +126,25 @@ task-master next
 task-master set-status --id=19 --status=done
 ```
 
+## UAT Testing
+
+The `/uat-task <id>` skill runs end-to-end acceptance tests against real product flows. UAT helpers live in `scripts/uat/`. See `docs/uat/AC-FORMAT.md` for the AC table format and verification procedure block spec.
+
+**UAT test-mode env flags** (real production code, gated by env vars — default behaviour preserved when unset):
+
+| Variable | Where Read | Effect |
+|----------|-----------|--------|
+| `AMPLIFIER_UAT_INTERVAL_SEC` | `content_agent.py`, `background_agent.py` | Shortens content-gen loop interval and research/strategy cache TTL (e.g. set to `30` for fast cache-hit/miss testing) |
+| `AMPLIFIER_UAT_BYPASS_AI` | `content_agent.py` | Forces ContentAgent to raise immediately, exercising the ContentGenerator fallback path (`1` or `true` to enable) |
+| `AMPLIFIER_UAT_FORCE_DAY` | `background_agent.py` | Overrides `day_number` in `generate_daily_content()` — use to test hook diversity across days |
+| `AMPLIFIER_UAT_POST_NOW` | `user_app.py` | Schedules approved drafts ~1 min out instead of the next peak-window slot |
+
 ## Key URLs
 
 | Environment | URL |
 |-------------|-----|
-| Company Dashboard (prod) | **Offline** — previous Vercel deployment taken down. See `docs/MIGRATION-FROM-VERCEL.md`. |
-| Admin Dashboard (prod) | **Offline** — see above |
-| Swagger Docs (prod) | **Offline** — see above |
+| Company Dashboard (prod) | https://api.pointcapitalis.com/company/login |
+| Admin Dashboard (prod) | https://api.pointcapitalis.com/admin/login |
+| Swagger Docs (prod) | https://api.pointcapitalis.com/docs |
 | User App (local) | http://localhost:5222 |
 | Server (local) | http://localhost:8000 |

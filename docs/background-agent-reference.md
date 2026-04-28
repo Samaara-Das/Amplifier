@@ -245,3 +245,18 @@ CONTENT_GEN_INTERVAL = 120    # Content generation check (seconds)
 HEALTH_CHECK_INTERVAL = 1800  # Session health check (seconds)
 PROFILE_REFRESH_INTERVAL = 604800  # Profile refresh (seconds, = 7 days)
 ```
+
+---
+
+## UAT Mode
+
+The agent supports test-mode env vars that override production defaults. Default behaviour is preserved when these are unset.
+
+| Variable | Effect |
+|----------|--------|
+| `AMPLIFIER_UAT_INTERVAL_SEC` | Overrides `CONTENT_GEN_INTERVAL` and also shortens the research/strategy cache TTL inside `content_agent.py` (reads the same var). Set to e.g. `30` to run content generation every 30 seconds during UAT. |
+| `AMPLIFIER_UAT_FORCE_DAY` | Overrides `day_number` passed to `generate_daily_content()`. Use to test day-N hook diversity without waiting N days. Can also be set via `--day-number` CLI arg when starting the agent. |
+
+These flags are read directly from `os.environ` inside the agent loop — no restart required if you `export` them in the same shell before starting the process.
+
+See `docs/development-setup.md` for the full UAT flag table including `AMPLIFIER_UAT_BYPASS_AI` (content_agent.py) and `AMPLIFIER_UAT_POST_NOW` (user_app.py).

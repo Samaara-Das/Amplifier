@@ -1,6 +1,6 @@
 # Amplifier -- API Reference
 
-Base URL: `http://localhost:8000` (local dev) — production server is currently offline. The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) has been taken down; see `docs/MIGRATION-FROM-VERCEL.md` for the VPS migration plan.
+Base URL: `http://localhost:8000` (local dev) — **production server is LIVE at `https://api.pointcapitalis.com`** (Hostinger KVM VPS, Mumbai, since 2026-04-25). See `docs/HOSTING-DECISION-RECORD.md` for infrastructure details.
 
 ## Authentication
 
