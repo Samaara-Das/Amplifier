@@ -256,10 +256,14 @@ curl -H "Authorization: Bearer <token>" http://localhost:8000/api/users/me
 | | |
 |---|---|
 | **Problem** | `server_client.py` logs "Server unreachable" with exponential backoff retries. |
-| **Cause** | Server not running, wrong URL in `CAMPAIGN_SERVER_URL`, or network issue. The production server is currently offline — ensure you're running locally. |
-| **Fix** | The client retries 3 times with exponential backoff (5s, 10s, 20s). If all retries fail, the error propagates. Start the server locally (`cd server && uvicorn app.main:app`) and check health: |
+| **Cause** | Server not running, wrong URL in `CAMPAIGN_SERVER_URL`, or network issue. Production server is at `https://api.pointcapitalis.com`. |
+| **Fix** | The client retries 3 times with exponential backoff (5s, 10s, 20s). If all retries fail, the error propagates. Check health: |
 
 ```bash
+# Production
+curl https://api.pointcapitalis.com/health
+
+# Local dev
 curl http://localhost:8000/health
 ```
 
@@ -305,7 +309,7 @@ LIMIT 10;
 | `GEMINI_API_KEY` | Gemini API key (primary content gen) | (none) |
 | `MISTRAL_API_KEY` | Mistral API key (fallback) | (none) |
 | `GROQ_API_KEY` | Groq API key (fallback) | (none) |
-| `CAMPAIGN_SERVER_URL` | Override server URL | `http://localhost:8000` (production offline — see `docs/MIGRATION-FROM-VERCEL.md`) |
+| `CAMPAIGN_SERVER_URL` | Override server URL | `http://localhost:8000` (set to `https://api.pointcapitalis.com` for prod) |
 
 ### Platform Not Posting
 
