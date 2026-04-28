@@ -269,7 +269,7 @@ Amplifier is not a pitch deck. It's a working product.
 
 ### Server Status
 
-**Production server is currently offline.** The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) has been taken down due to billing incompatibility with serverless. Migration to a Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md`. Run locally at `http://localhost:8000`.
+**Production server is LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM 1 VPS (Mumbai), Caddy + uvicorn + Supabase PostgreSQL. Migrated from Vercel on 2026-04-25 (Task #41). See `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md` for context. Local dev still runs at `http://localhost:8000`.
 
 ---
 

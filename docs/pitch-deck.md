@@ -174,7 +174,7 @@ Company pays $1.00 for engagement
 | **Payments** | Working | Stripe Checkout (company top-ups) + Connect (user payouts, test mode) |
 
 ### Note on Deployment
-Server code is deployed; live URL currently offline due to a Vercel billing issue. Runs fully on local FastAPI + Supabase.
+Server is LIVE at `https://api.pointcapitalis.com` (Hostinger KVM, Caddy + uvicorn + Supabase) since 2026-04-25.
 
 ### Local Demo URLs
 - Company Dashboard: `localhost:8000/company/login`
