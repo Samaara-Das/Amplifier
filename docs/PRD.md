@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: April 2, 2026
-**Status**: V1 Built — 15/43 tasks done. Server currently offline (Vercel taken down, migrating to Hostinger KVM VPS — Task #41). 4-phase content agent live (Task #14).
+**Status**: V1 Built — 26/65 tasks done (see `docs/STATUS.md` for batches/phases). Server LIVE at `https://api.pointcapitalis.com` (Hostinger KVM, since 2026-04-25 — Task #41 done). 4-phase content agent live and verified end-to-end via `/uat-task 14` (2026-04-26).
 
 ---
 
@@ -1060,7 +1060,7 @@ Score clamped to 0-100. Score below 10 flags for admin ban review (not auto-ban)
 | **Reputation Tiers** | Done | Seedling/Grower/Amplifier tiers with auto-promotion in billing cycle |
 | **Trust/Fraud** | Done | Trust events, deletion detection, anomaly detection |
 | **Payments** | Done | Stripe Checkout (company top-ups) + Connect (user payouts, test mode). `process_pending_payouts()` auto-processing. |
-| **Deployment** | Done | FastAPI + Supabase (US East). Vercel deployment currently offline (billing issue) — runs locally. |
+| **Deployment** | Done | FastAPI + Supabase (US East). LIVE at `https://api.pointcapitalis.com` on Hostinger KVM 1 (Mumbai) since 2026-04-25 — Task #41 done. |
 
 ### Batch 2: AI Brain — In Progress
 
@@ -1228,7 +1228,7 @@ Complete verification of all built features (tasks #27-#50). Fix bugs found duri
 
 ## Appendix C: Deployed URLs
 
-> **Note:** The previous Vercel deployment (`server-five-omega-23.vercel.app`) has been taken down. Production server is currently offline. Migration to Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41). Run locally in the meantime.
+> **Note:** Production server is LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Migrated from Vercel on 2026-04-25 (Task #41 done). See `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md` for context. Local dev still works at `http://localhost:8000`.
 
 | Resource | URL |
 |---|---|

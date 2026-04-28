@@ -2,7 +2,7 @@
 
 **Date**: April 4, 2026 (last full rewrite) — **status updated April 25, 2026**
 **Status**: 15 of 43 tasks done. 14 pending, 14 deferred.
-**Current state**: Money loop verified E2E. 4-phase content agent (Task #14) live. X platform hardcoded-disabled (Task #40). Server offline — migrating from Vercel to Hostinger KVM VPS (Task #41). Next task: #15 (AI quality gate) or #41 (hosting migration).
+**Current state**: Money loop verified E2E. 4-phase content agent (Task #14) live. X platform hardcoded-disabled (Task #40). Server **LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM VPS (Task #41 done, 2026-04-25). Next task: #15 (AI quality gate).
 
 ---
 

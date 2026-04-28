@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: April 3, 2026
-**Status**: Three implementations exist (v1 server offline — migrating from Vercel to Hostinger VPS; v2 shelved; v3 Phase 1 complete). See `docs/MIGRATION-FROM-VERCEL.md`.
+**Status**: Three implementations exist (v1 server **LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM VPS since 2026-04-25; v2 shelved; v3 Phase 1 complete). See `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md`.
 
 ---
 
@@ -72,7 +72,7 @@ AmpliFire has three major components: a cloud server (marketplace), a creator ap
 ```
 Internet
     │
-    ├── Vercel (serverless) ──── FastAPI / NestJS server
+    ├── Hostinger KVM VPS ─────── FastAPI server (api.pointcapitalis.com)
     │       │
     │       └── Supabase PostgreSQL (aws-1-us-east-1)
     │               Connection: transaction pooler (port 6543)
@@ -127,7 +127,7 @@ The server is the central marketplace that connects companies with creators, han
 | Auth | JWT (python-jose, bcrypt) | JWT (passport-jwt, bcrypt), Google OAuth |
 | Payments | Stripe Connect (stub) | PayPal Payouts API (working), Stripe |
 | AI | Google Generative AI (Gemini) | N/A (AI is on-device) |
-| Deployment | Vercel serverless | Docker (not deployed) |
+| Deployment | Hostinger KVM VPS (systemd + Caddy) | Docker (not deployed) |
 
 ### 3.2 Data Models
 
@@ -731,7 +731,7 @@ Hourly cron job syncs metrics. Earning promotion from PENDING to AVAILABLE after
 
 | Aspect | v1 (Ours — Deployed) | v2 (Dan — Shelved) | v3 (Dan — Phase 1 Done) |
 |---|---|---|---|
-| **Server** | FastAPI + Supabase, ~90 routes, 11 models, Vercel **LIVE** | NestJS + Prisma, 24 modules, 53 models, Docker, NOT deployed | None (Phase 3 planned) |
+| **Server** | FastAPI + Supabase, ~90 routes, 11 models, Hostinger KVM VPS **LIVE** | NestJS + Prisma, 24 modules, 53 models, Docker, NOT deployed | None (Phase 3 planned) |
 | **Company Dashboard** | 10 pages, Jinja2 **LIVE** | Brand portal (6+ NestJS modules) | Not built (Phase 4) |
 | **Admin Dashboard** | 14 pages, Jinja2 **LIVE** | JWT + role-based access (5 admin roles) | Not built (Phase 3) |
 | **Creator App** | Flask web (desktop), 32+ routes | Kotlin Android, 14 Gradle modules, ~85-95% done | Kotlin Android, single module, Phase 1 complete |
@@ -762,9 +762,9 @@ The three implementations are naturally complementary:
 
 ## 9. Deployment & Infrastructure
 
-### 9.1 Server (v1 — Currently Offline)
+### 9.1 Server (v1 — LIVE)
 
-- **Host:** Hostinger KVM VPS (migration in progress — see `docs/MIGRATION-FROM-VERCEL.md`, Task #41). Previous Vercel deployment (`server-five-omega-23.vercel.app`) taken down due to billing incompatibility.
+- **Host:** Hostinger KVM 1 VPS (Mumbai, `31.97.207.162`) at `https://api.pointcapitalis.com` — live since 2026-04-25. See `docs/HOSTING-DECISION-RECORD.md`. Previous Vercel deployment (`server-five-omega-23.vercel.app`) taken down.
 - **Database:** Supabase PostgreSQL (aws-1-us-east-1, transaction pooler port 6543)
 - **Connection:** NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)
 - **Environment:** DATABASE_URL, JWT_SECRET_KEY, ADMIN_PASSWORD, GEMINI_API_KEY

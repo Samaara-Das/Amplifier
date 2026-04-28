@@ -15,7 +15,7 @@ Loaded by the engine scripts. Controls API keys, posting behavior, browsing emul
 | `AUTO_POSTER_ROOT` | (project path) | Absolute path to the project root directory |
 | `LOG_LEVEL` | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `GENERATE_COUNT` | `6` | Number of content drafts to generate per run |
-| `CAMPAIGN_SERVER_URL` | `http://localhost:8000` | Amplifier server URL. Production server is currently offline (see `docs/MIGRATION-FROM-VERCEL.md`) — defaults to localhost until VPS migration completes. |
+| `CAMPAIGN_SERVER_URL` | `https://api.pointcapitalis.com` | Amplifier server URL. Production is LIVE on Hostinger KVM since 2026-04-25 (Task #41). Use `http://localhost:8000` for local dev. |
 
 ### Content Generation API Keys
 

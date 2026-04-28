@@ -1,8 +1,8 @@
 # Deployment Guide
 
-> **Status (2026-04-25):** Production server is **offline**. The previous Vercel deployment (`https://server-five-omega-23.vercel.app`) was taken down due to serverless billing incompatibility. Migration to a Hostinger KVM VPS is planned — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41). The Vercel instructions below remain useful as reference for the VPS setup.
+> **Status (2026-04-25):** Production server is **LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM 1 VPS (Mumbai, Ubuntu 24.04), Caddy reverse proxy, systemd `amplifier-web.service`. See `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md` for full details. The Vercel instructions below are preserved as historical reference for the connection/pgbouncer settings, which carry over.
 
-How to run the Amplifier Server locally and (previously) deploy to Vercel with Supabase PostgreSQL.
+How to run the Amplifier Server locally and deploy to the Hostinger VPS.
 
 ## Local Development
 
@@ -37,18 +37,21 @@ The SQLite file is created in the `server/` directory. On Vercel, if SQLite is u
 
 ---
 
-## Production Deployment (Vercel + Supabase)
+## Production Deployment (Hostinger KVM VPS + Supabase)
+
+> **Current production host** — see `docs/HOSTING-DECISION-RECORD.md` for the full decision record and `docs/MIGRATION-FROM-VERCEL.md` for the migration runbook.
 
 ### Architecture
 
 | Component | Technology |
 |-----------|------------|
-| Server runtime | Vercel Python serverless functions (`@vercel/python`) |
+| Server runtime | uvicorn (1 worker, `127.0.0.1:8000`) managed by systemd `amplifier-web.service` |
+| Reverse proxy | Caddy with auto-TLS via Let's Encrypt |
 | Database | Supabase PostgreSQL (transaction pooler on port 6543) |
 | Connection pooling | pgbouncer via Supabase transaction pooler |
-| SQLAlchemy pool | `NullPool` (no persistent connections -- required for serverless) |
+| SQLAlchemy pool | `NullPool` (no persistent connections — required for pgbouncer) |
 | SSL | Auto-configured with `ssl.CERT_NONE` (Supabase requires SSL) |
-| Max lambda size | 50mb (set in `vercel.json`) |
+| SSH access | `ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162` (key-only). NOPASSWD sudo for `sammy`. |
 
 ### Step 1: Supabase PostgreSQL Setup
 
@@ -62,20 +65,14 @@ postgresql+asyncpg://postgres.[project-ref]:[password]@aws-0-[region].pooler.sup
 
 **Important**: Use the **transaction pooler** endpoint (port 6543), not the direct connection (port 5432). The codebase sets `prepared_statement_cache_size=0` and `statement_cache_size=0` in `server/app/core/database.py` for pgbouncer compatibility.
 
-### Step 2: Set Vercel Environment Variables
+### Step 2: Set Environment Variables on VPS
 
-Use `printf` (not `echo`) to avoid trailing newline corruption:
+SSH into the VPS and set env vars in `/etc/systemd/system/amplifier-web.service` under `[Service]` → `Environment=`:
 
 ```bash
-printf "postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres" | vercel env add DATABASE_URL production --cwd server
-
-printf "your-random-secret-key" | vercel env add JWT_SECRET_KEY production --cwd server
-
-printf "your-admin-password" | vercel env add ADMIN_PASSWORD production --cwd server
-
-printf "your-gemini-api-key" | vercel env add GEMINI_API_KEY production --cwd server
-
-printf "your-encryption-key" | vercel env add ENCRYPTION_KEY production --cwd server
+ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162
+sudo systemctl edit amplifier-web.service  # or edit unit file directly
+sudo systemctl daemon-reload && sudo systemctl restart amplifier-web.service
 ```
 
 #### Required Environment Variables
@@ -102,28 +99,28 @@ printf "your-encryption-key" | vercel env add ENCRYPTION_KEY production --cwd se
 | `PORT` | Server bind port | `8000` |
 | `DEBUG` | Enable SQLAlchemy echo logging | `true` |
 
-### Step 3: Deploy
+### Step 3: Deploy (VPS)
 
 ```bash
-vercel deploy --yes --prod --cwd "C:/Users/dassa/Work/Auto-Posting-System/server"
+# Push changes to server then pull on VPS
+git push origin main
+ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162 "cd ~/amplifier && git pull && sudo systemctl restart amplifier-web.service"
 ```
 
 ### Step 4: Verify
 
 ```bash
 # Health check (should return {"status": "ok"})
-curl https://your-domain.vercel.app/health
+curl https://api.pointcapitalis.com/health
 
-# Version check (should return {"version": "0.1.0", ...})
-curl https://your-domain.vercel.app/api/version
+# Version check
+curl https://api.pointcapitalis.com/api/version
 ```
 
 Then verify dashboards:
-- Swagger docs: `https://your-domain.vercel.app/docs`
-- Admin dashboard: `https://your-domain.vercel.app/admin/login`
-- Company dashboard: `https://your-domain.vercel.app/company/login`
-
-**Previous production deployment** (`https://server-five-omega-23.vercel.app`) is **offline**. Migration to Hostinger KVM VPS is in progress — see `docs/MIGRATION-FROM-VERCEL.md` (Task #41). The Vercel-specific sections below document how the server was deployed and remain useful reference for the VPS migration.
+- Swagger docs: `https://api.pointcapitalis.com/docs`
+- Admin dashboard: `https://api.pointcapitalis.com/admin/login`
+- Company dashboard: `https://api.pointcapitalis.com/company/login`
 
 ---
 
@@ -165,7 +162,7 @@ Located at `server/vercel.json`:
 | pgbouncer settings | N/A | `statement_cache_size=0`, `prepared_statement_cache_size=0` |
 | Table creation | `init_tables()` on startup | `init_tables()` on startup (idempotent, logs warning if tables exist) |
 | Debug logging | `echo=True` (default) | Set `DEBUG=false` to disable |
-| Writable paths | Any directory | Only `/tmp/` on Vercel |
+| Writable paths | Any directory | VPS home dir (no restriction) |
 | CORS | `allow_origins=["*"]` | Same (restrict in production by editing `app/main.py`) |
 
 The database backend is auto-detected from `DATABASE_URL` prefix in `server/app/core/database.py`:
@@ -190,7 +187,9 @@ The database backend is auto-detected from `DATABASE_URL` prefix in `server/app/
 
 **Fix**: The codebase creates an SSL context with `check_hostname=False` and `verify_mode=ssl.CERT_NONE`. Ensure `DATABASE_URL` uses the transaction pooler endpoint (port 6543).
 
-### 3. Lambda Size Exceeded
+### 3. (Vercel historical) Lambda Size Exceeded
+
+> This issue only applies if deploying to Vercel. The production server is now on Hostinger KVM VPS — this error will not occur there.
 
 **Symptom**: Vercel build fails with "Lambda exceeds maximum size."
 
@@ -223,11 +222,11 @@ printf "your-value" | vercel env add VAR_NAME production --cwd server
 
 ### 7. SQLite Used Accidentally in Production
 
-**Symptom**: Data disappears between requests on Vercel.
+**Symptom**: Server starts but data is missing — it's writing to a local SQLite file instead of Supabase PostgreSQL.
 
-**Cause**: `DATABASE_URL` not set or still pointing to SQLite. On Vercel, SQLite uses `/tmp/` which is ephemeral (data lost on cold start).
+**Cause**: `DATABASE_URL` env var not set or not exported in the systemd unit file, so the server falls back to SQLite.
 
-**Fix**: Verify `DATABASE_URL` is set in Vercel environment variables and starts with `postgresql+asyncpg://`.
+**Fix**: Verify `DATABASE_URL` is set in the systemd unit's environment and starts with `postgresql+asyncpg://`. Restart the service after adding it.
 
 ### 8. bcrypt / passlib Version Conflict
 

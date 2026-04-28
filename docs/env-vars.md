@@ -44,7 +44,7 @@ Loaded via Pydantic `BaseSettings` in `server/app/core/config.py` with `.env` su
 
 | Variable | Default | File | Purpose |
 |---|---|---|---|
-| `VERCEL` | (not set) | database.py, main.py | Auto-set by Vercel. When set: SQLite uses `/tmp/`, skips table init on startup. |
+| `VERCEL` | (not set) | database.py, main.py | **Legacy** — auto-set by Vercel serverless. When set: SQLite uses `/tmp/`, skips table init on startup. Not relevant for the current Hostinger KVM VPS deployment; code retained for compat. |
 
 ---
 
@@ -119,7 +119,7 @@ Loaded via `dotenv.load_dotenv("config/.env")` in most scripts.
 | `AUTO_POSTER_ROOT` | (project path) | post.py | Absolute path to project root. |
 | `LOG_LEVEL` | `INFO` | post.py | Python logging level. |
 | `GENERATE_COUNT` | `6` | generate.ps1 | Drafts to generate per run (personal brand engine). |
-| `CAMPAIGN_SERVER_URL` | `http://localhost:8000` | server_client.py | Amplifier server URL. Production server offline — defaults to localhost. See `docs/MIGRATION-FROM-VERCEL.md`. |
+| `CAMPAIGN_SERVER_URL` | `http://localhost:8000` | server_client.py | Amplifier server URL. Production server is `https://api.pointcapitalis.com` — set this in `config/.env` to point at prod. Defaults to localhost for local dev. |
 | `FIRST_POST_DATE` | (empty = today) | generate.ps1 | First post date for CTA rotation. Month 1 = 100% value, Month 2+ = 80/15/5 mix. |
 
 ---
@@ -137,9 +137,9 @@ Loaded via `dotenv.load_dotenv("config/.env")` in most scripts.
 
 ---
 
-## Production Deployment (Vercel)
+## Production Deployment (Hostinger KVM VPS — `https://api.pointcapitalis.com`)
 
-Set via `printf "value" | vercel env add VAR_NAME production --cwd server`:
+Set via systemd unit environment or `/etc/environment` on the VPS (`ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162`):
 
 | Variable | Status |
 |---|---|
@@ -150,3 +150,14 @@ Set via `printf "value" | vercel env add VAR_NAME production --cwd server`:
 | `ENCRYPTION_KEY` | Set — AES-256-GCM key |
 | `SUPABASE_URL` | Set — `https://ozkntsmomkrsnjziamkr.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | Set — service role key |
+
+## UAT Test-Mode Flags (User App / Scripts)
+
+Real production code, gated by env vars. Default behaviour preserved when unset. Set in `config/.env` before running the agent.
+
+| Variable | Where Read | Effect |
+|---|---|---|
+| `AMPLIFIER_UAT_INTERVAL_SEC` | `content_agent.py`, `background_agent.py` | Shortens content-gen check interval and research/strategy cache TTL (e.g. `30` for fast cache testing) |
+| `AMPLIFIER_UAT_BYPASS_AI` | `content_agent.py` | Forces ContentAgent to fail immediately → exercises `ContentGenerator` fallback path (`1` or `true`) |
+| `AMPLIFIER_UAT_FORCE_DAY` | `background_agent.py` | Overrides `day_number` in `generate_daily_content()` — tests hook diversity across days |
+| `AMPLIFIER_UAT_POST_NOW` | `user_app.py` | Schedules approved drafts ~1 min out instead of next peak-window slot |

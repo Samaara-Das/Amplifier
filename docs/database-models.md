@@ -164,6 +164,8 @@
 
 ## Local Database (User App -- SQLite at `data/local.db`)
 
+> **Note (2026-04-26):** The `agent_user_profile` table was **dropped** (Bug #55). It had no active writer; `get_user_profiles()` always returned empty, causing content-agent strategy refinement to silently no-op. Profile reads now go through `scraped_profile` (the table the profile scraper actually writes to during onboarding). Fresh DB inits no longer create `agent_user_profile`.
+
 | Table | Purpose | Key Fields |
 |-------|---------|-----------|
 | local_campaign | Tracked campaigns | server_id, assignment_id, title, brief, assets, content_guidance, payout_rules, payout_multiplier, status, invitation_status, invited_at, expires_at, responded_at |
@@ -174,7 +176,6 @@
 | scraped_profile | Platform profiles | platform (UNIQUE), follower_count, following_count, display_name, profile_pic_url, bio, recent_posts (JSON), engagement_rate, posting_frequency, ai_niches (JSON), profile_data (JSON) |
 | post_schedule | Post queue | campaign_server_id, platform, scheduled_at, content, image_path, status, error_code, execution_log, max_retries |
 | agent_draft | Generated drafts | campaign_id, platform, draft_text, image_path, approved, posted |
-| agent_user_profile | Per-platform user style data | platform (UNIQUE), bio, recent_posts, style_notes, follower_count |
 | agent_research | Campaign research | campaign_id, research_type, content, source_url |
 | agent_content_insights | Content performance tracking | platform, pillar_type, hook_type, avg_engagement_rate, sample_count, best_performing_text |
 | local_notification | Event feed | type, title, message, data (JSON), read |

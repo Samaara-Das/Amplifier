@@ -9,7 +9,7 @@ Amplifier is a two-sided marketplace: companies create campaigns, users (amplifi
 ```mermaid
 graph TB
     subgraph Internet
-        V["FastAPI Server<br/>(VPS — migration pending)"]
+        V["FastAPI Server<br/>(Hostinger KVM VPS — api.pointcapitalis.com)"]
         DB["Supabase PostgreSQL<br/>aws-1-us-east-1"]
         V --- DB
     end
@@ -27,7 +27,7 @@ graph TB
         BA["Background Agent<br/>6 async tasks"]
         PW["Playwright<br/>Persistent Profiles"]
         AI["AI Layer<br/>AiManager + ImageManager"]
-        LDB["Local SQLite<br/>13 tables, encrypted keys"]
+        LDB["Local SQLite<br/>12 tables, encrypted keys"]
 
         UI --- BA
         BA --- AI
@@ -52,7 +52,7 @@ graph TB
 
 ## 1. Amplifier Server (`server/`)
 
-FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **Currently offline** — previous Vercel deployment taken down; migration to Hostinger KVM VPS in progress (Task #41, see `docs/MIGRATION-FROM-VERCEL.md`).
+FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM 1 VPS (Mumbai, Ubuntu 24.04, systemd + Caddy, since 2026-04-25). See `docs/HOSTING-DECISION-RECORD.md`.
 
 ### Routes
 
@@ -344,7 +344,7 @@ stateDiagram-v2
 - AUTH_EXPIRED skips retry (user must re-login)
 - Execution log (JSON) stored for debugging
 
-### Local Database (13 SQLite tables)
+### Local Database (12 SQLite tables)
 
 | Table | Key Fields | Purpose |
 |---|---|---|
@@ -358,7 +358,7 @@ stateDiagram-v2
 | `settings` | key, value | Key-value config. API keys auto-encrypted via `_SENSITIVE_KEYS` |
 | `local_notification` | type, title, message, read | Desktop notification queue |
 | `agent_research` | campaign_id, research_type, content, source_url | Campaign research findings |
-| `agent_user_profile` | platform (UNIQUE), bio, style_notes, follower_count | User style analysis |
+| `campaign_posts` | campaign_server_id, platform, content, image_url, post_order | Pre-authored content for repost campaigns (deferred feature) |
 | `agent_content_insights` | platform, pillar_type, avg_engagement_rate, best_performing_text | Content analytics |
 
 ---
@@ -397,7 +397,7 @@ stateDiagram-v2
 
 | Component | Service | Details |
 |---|---|---|
-| API + Dashboards | Vercel serverless | FastAPI as ASGI app. `vercel.json` routes all to `app/main.py`. |
+| API + Dashboards | Hostinger KVM 1 VPS (Mumbai) | uvicorn (1 worker, 127.0.0.1:8000) + Caddy reverse proxy + Let's Encrypt TLS. systemd `amplifier-web.service`. |
 | Database | Supabase PostgreSQL | US East (aws-1-us-east-1). Transaction pooler port 6543. NullPool + `prepared_statement_cache_size=0` for pgbouncer. |
 | File Storage | Supabase Storage | Campaign assets, screenshots. Local fallback for dev. |
 | Payments | Stripe | Checkout for company top-ups. Connect Express for user payouts. Test mode unless keys set. |

@@ -160,6 +160,24 @@ Queue of posts scheduled for future execution by the background agent. Created w
 
 ---
 
+## Table: `campaign_posts`
+
+Stores pre-authored post content for repost-type campaigns (deferred feature — `campaign_type="repost"`). Created by the server when a company supplies fixed post text/images per platform; downloaded by the user app during campaign polling.
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | INTEGER | **PK, AUTOINCREMENT** | Row ID |
+| `campaign_server_id` | INTEGER | NOT NULL | FK to `local_campaign.server_id` |
+| `platform` | TEXT | NOT NULL | Target platform |
+| `content` | TEXT | NULL | Pre-authored post text |
+| `image_url` | TEXT | NULL | Pre-supplied image URL |
+| `post_order` | INTEGER | `0` | Ordering hint for multi-post campaigns |
+| `scheduled_offset_hours` | INTEGER | `0` | Hours offset from campaign start for scheduling |
+
+**Foreign keys**: `campaign_server_id` references `local_campaign(server_id)`.
+
+---
+
 ## Table: `agent_user_profile` (DROPPED 2026-04-26)
 
 > **Removed.** This table existed historically but had no active writer; `get_user_profiles()` always returned an empty list, causing the content agent's strategy refinement to silently no-op on real users. Bug #55 fix consolidated profile reads onto `scraped_profile` (the table the profile scraper actually writes to during onboarding). Kept here only for historical context — fresh DB inits no longer create this table.

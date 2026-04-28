@@ -127,6 +127,10 @@ After posting, navigates to profile to find the new post URL:
 - Weekly refresh (background agent)
 - Manual refresh (user clicks in Settings)
 
+## UAT Testing
+
+To run end-to-end acceptance tests against the user app, use the `/uat-task <id>` skill. UAT helper scripts are in `scripts/uat/`. See `docs/uat/AC-FORMAT.md` for the verification procedure format and `docs/development-setup.md` for the UAT test-mode env flags (`AMPLIFIER_UAT_*`).
+
 ## Post Scheduling
 
 ### Timezone Mapping
