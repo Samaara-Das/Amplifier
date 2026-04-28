@@ -1,127 +1,155 @@
-# Amplifier — Project Status
+# Amplifier — Status, Batches, Phases, Tasks
 
-> **Snapshot date: 2026-04-26.** This is a derived view. The canonical source is `.taskmaster/tasks/tasks.json`. If this doc is more than a few days old, re-derive from `tasks.json` and update.
+> **Snapshot date: 2026-04-28.** This is a derived view. The canonical source is `.taskmaster/tasks/tasks.json`. If this doc is more than a few days old, re-derive from `tasks.json`.
+
+> **Important — two orthogonal concepts.** A **batch** is a *feature bucket* (what a set of tasks delivers — e.g. "the AI brain"). A **phase** is an *execution stage* (when a task runs in time). They are not the same thing. The 4 batches and 5 phases overlap but are not identical.
+
+---
 
 ## How to read this repo
 
 A fresh agent should read in this order:
 
-1. **`docs/STATUS.md`** (this file) — what's done, what's next, what's deferred
-2. **`docs/specs/batch-*.md`** — per-task specs and `## Verification Procedure` blocks
-3. **`CLAUDE.md`** — developer reference: commands, architecture, gotchas, slash commands
-4. **`docs/uat/AC-FORMAT.md`** — canonical Acceptance Criteria + UAT format
+1. **`docs/STATUS.md`** (this file) — what's done, what's next, what's deferred, the canonical batches and phases
+2. **`docs/specs/batch-*.md`** + **`docs/specs/user-app-tech-stack.md`** — per-task specs
+3. **`docs/uat/AC-FORMAT.md`** — Acceptance Criteria + UAT format every spec must follow before `/uat-task <id>` can run it
+4. **`CLAUDE.md`** — developer reference: commands, architecture, gotchas, slash commands, decision-making framework
+5. **`.taskmaster/tasks/tasks.json`** — canonical task list (65 tasks)
 
-The work is organized into **5 orthogonal batches** plus a **UAT-infra batch**. Within each batch, execute tasks in numeric order. Ignore the task-master recommender — it doesn't respect batch ordering.
-
----
-
-## Batches at a glance
-
-| Batch | Spec file | Tasks | Status |
-|-------|-----------|-------|--------|
-| **1 — Money Loop** | `docs/specs/batch-1-money-loop.md` | #1, #6, #9, #10, #11, #38 | ✅ **DONE** (2026-04-08) — full post → metrics → billing → earnings pipeline live |
-| **2 — AI Brain** | `docs/specs/batch-2-ai-brain.md` | #12, #13, #14, #15 | 🔄 **IN PROGRESS** — #12, #13, #14 done; **#15 next** (pending AC block) |
-| **3 — Product Features** | `docs/specs/batch-3-product-features.md` | #5, #7, #8, #16 | ⚠️ **MIXED** — #5, #8 done; #7, #16 deferred (post-launch) |
-| **4 — Business Launch** | `docs/specs/batch-4-business-launch.md` | #17, #19, #22 | 📋 **PENDING** — all need AC blocks (Task #51 owns this) + Stripe setup blocks #17, #19 |
-| **5 — Polish / Infra** | (no dedicated spec — see `tasks.json`) | #18, #20, #21, #23–28, #44, #45 | 📋 **PENDING** — automated tests, packaging, polish items |
-| **UAT Infra** | `docs/uat/AC-FORMAT.md` + `docs/uat/skills/uat-task/LEARNINGS.md` | #46–52 | 🔄 **IN PROGRESS** — #46–49 done; **#50, #51, #52** pending (AC backfill) |
-| **User App Tech Stack** | `docs/specs/user-app-tech-stack.md` | #54 | ⏸ **DEFERRED** — Tauri vs Electron vs status-quo Flask reconsideration |
-
-**Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
+**Execution rule (from feedback 2026-04-18):** Run **phases in order**: A → C → D → E (B is deferred). Within a phase, run tasks in **numeric order**. **Ignore** task-master's "recommended next" — it reorders by dependency/priority, the user wants predictable forward progress.
 
 ---
 
-## Currently in flight
+## Status counts
 
-- **Next implementation task**: **#15 — AI campaign quality gate** (Batch 2 finisher). Spec exists at `docs/specs/batch-2-ai-brain.md`; **AC block needs to be backfilled first** under Task #50.
+- **26 done** · **24 pending** · **15 deferred** · 0 in-progress · **65 total**
+- **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
-- **Active blockers (need user)**: Tasks #17 and #19 require user to set up Stripe Connect + bank onboarding.
-- **Recent UAT win** (2026-04-26): `/uat-task 14` first all-green run. 18/18 ACs PASS. Real posts on LinkedIn/FB/Reddit then auto-deleted. 7 production bugs surfaced and fixed (#55, #56, #58, #61, #62, plus Bug #53 follower count, plus a server `NameError` patched live via SSH).
+- **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
+- **Most recent UAT win** (2026-04-26): `/uat-task 14` first all-green run — 18/18 ACs PASS, real posts on LinkedIn/FB/Reddit then auto-deleted, 7 production bugs surfaced and fixed.
 
 ---
 
-## Task status (full table — 65 tasks)
+## The 4 feature batches (what gets delivered)
 
-Status counts: **26 done · 24 pending · 15 deferred · 0 in-progress**
+Each batch is a `docs/specs/batch-*.md` file. The tasks listed are the ones the spec covers.
 
-### Batch 1 — Money Loop ✅
-| ID | Title | Status |
-|----|-------|--------|
-| #1 | Fix URL capture for LinkedIn, Facebook, Reddit | ✅ done |
-| #6 | Metrics accuracy — anomaly_flag, cross-validation | ✅ done |
-| #9 | Metric scraping — per-platform spec, E2E verify | ✅ done |
-| #10 | Billing — earnings calc spec, E2E verify | ✅ done |
-| #11 | Earnings display — server↔local sync, withdrawal | ✅ done |
-| #38 | E2E deleted post detection — full pipeline | ✅ done |
+### Batch 1 — Money Loop ✅ DONE
+**Spec**: `docs/specs/batch-1-money-loop.md`
+**What it delivers**: post goes live → URL captured → metrics scraped → billing calculates earnings → user sees money. The full pipeline that lets anyone get paid.
 
-### Batch 2 — AI Brain 🔄
-| ID | Title | Status | Notes |
-|----|-------|--------|-------|
-| #12 | AI matching — scoring logic, accuracy verify | ✅ done | |
-| #13 | AI profile scraping — Gemini Vision, per-platform | ✅ done | Re-verified via #53 (FB follower count fix) |
-| #14 | 4-phase content agent (research, strategy, creation, review) | ✅ done | First all-green `/uat-task` run 2026-04-26 |
-| **#15** | **AI campaign quality gate — detailed rubric spec** | 📋 **pending** | **NEXT TASK.** Needs AC block (Task #50). |
+| Task | Title | Status |
+|------|-------|--------|
+| #1 | Post URL capture (LinkedIn / Facebook / Reddit) | ✅ done |
+| #9 | Metric scraping (per-platform, deleted-post detection, rate-limit handling) | ✅ done |
+| #10 | Billing (cents-based formula, 7-day hold, tier multiplier, budget cap) | ✅ done |
+| #11 | Earnings display + withdrawal | ✅ done |
+| #6 | Metrics accuracy (deletion detection, rate-limit handling, dedup) | ✅ done — *also listed in Batch 4 spec* |
+| #38 | E2E deleted post detection — full pipeline verification | ✅ done |
 
-### Batch 3 — Product Features ⚠️
-| ID | Title | Status |
-|----|-------|--------|
-| #5 | Invitation UX — countdown, expired badge, decline reason | ✅ done |
-| #7 | Repost campaign — company create + frequency + display | ⏸ deferred (post-launch — see `Deferred — why` below) |
-| #8 | Admin payout void/approve actions | ✅ done |
-| #16 | Content formats — threads, polls, carousels | ⏸ deferred (post-launch) |
+### Batch 2 — AI Brain 🔄 IN PROGRESS
+**Spec**: `docs/specs/batch-2-ai-brain.md`
+**What it delivers**: profile scraping → matching → content agent → quality gate. Amplifier's intelligence layer.
 
-### Batch 4 — Business Launch 📋
-| ID | Title | Status | Blockers |
-|----|-------|--------|----------|
-| #17 | Free/Pro tiers — Stripe subscription billing | 📋 pending | User needs Stripe setup; needs AC block (#51) |
-| #19 | Stripe live integration — Checkout + Connect onboarding | 📋 pending | User needs Stripe setup; needs AC block (#51); deps `#2`, `#10` |
-| #22 | Landing page — public acquisition site | 📋 pending | dep `#20` (packaging); needs AC block (#51) |
+| Task | Title | Status |
+|------|-------|--------|
+| #13 | AI profile scraping (3-tier: text → CSS → Vision; per-platform extractors) | ✅ done |
+| #12 | AI matching (Gemini scoring + niche overlap fallback + caching) | ✅ done |
+| #14 | 4-phase content agent (Research → Strategy → Creation → Review) | ✅ done — first all-green `/uat-task` run 2026-04-26 |
+| **#15** | **AI campaign quality gate (rubric for whether a campaign is worth generating content for)** | 📋 **pending — NEXT TASK** (needs AC block via Task #50) |
 
-### Batch 5 — Polish / Infra 📋
-| ID | Title | Status | Notes |
-|----|-------|--------|-------|
-| #18 | Automated test suite (pytest) | 📋 pending | deps `#10`, `#11` |
-| #20 | PyInstaller packaging — Windows installer | 📋 pending | |
-| #21 | Mac support — cross-platform audit + packaging | 📋 pending | dep `#20` |
-| #23 | Periodic DB backup in background agent | 📋 pending (low) | |
-| #24 | Status label renaming in user app templates | 📋 pending (low) | |
-| #25 | Clipboard copy button for post URLs | 📋 pending (low) | |
-| #26 | Client-side form validation in user app | 📋 pending (low) | |
-| #27 | Server-side post URL dedup | 📋 pending | |
-| #28 | ToS + privacy policy acceptance in registration | 📋 pending | |
-| #44 | ARQ worker entrypoint | 📋 pending | Blocking #17 — needs scheduling |
-| #45 | Baseline Alembic migration + enforce going forward | 📋 pending | Blocking #15 |
+### Batch 3 — Product Features ⚠️ MIXED
+**Spec**: `docs/specs/batch-3-product-features.md`
+**What it delivers**: rich content formats, better invitation UX, repost campaigns, admin payout tools.
 
-### UAT Infra 🔄
-| ID | Title | Status |
-|----|-------|--------|
+| Task | Title | Status |
+|------|-------|--------|
+| #5 | Invitation UX — countdown timers, expired badge, decline reason | ✅ done |
+| #7 | Repost campaign — company creation, frequency, user display | ⏸ deferred (post-launch) |
+| #8 | Admin payout void / force-approve actions | ✅ done |
+| #16 | Content formats — LinkedIn polls, Facebook photo albums, Reddit link posts (X threads/polls deferred per Task #40) | ⏸ deferred 2026-04-18 (post-launch) |
+
+### Batch 4 — Business Launch 📋 PENDING
+**Spec**: `docs/specs/batch-4-business-launch.md`
+**What it delivers**: Free/Pro tiers, live Stripe (companies pay in, users get paid out), public landing page.
+
+| Task | Title | Status |
+|------|-------|--------|
+| #17 | Free/Pro user subscription tiers ($19.99/mo) — Stripe subscription | 📋 pending (blocked: Stripe setup; needs AC block via Task #51) |
+| #19 | Stripe live integration — company Checkout + user Connect Express | 📋 pending (blocked: Stripe setup; deps `#2`, `#10`; needs AC block via Task #51) |
+| #22 | Landing page — public-facing acquisition site | 📋 pending (dep `#20`; needs AC block via Task #51) |
+
+### Architecture spec (not a batch but referenced by tasks)
+**Spec**: `docs/specs/user-app-tech-stack.md` — Tauri vs Electron vs status-quo Flask analysis. Approved direction is web dashboard + headless Python agent. Drives Tasks #20 (PyInstaller), #21 (Mac), #54 (revisit decision). Currently implementation defers #54 — Flask-based status quo continues.
+
+---
+
+## The 5 execution phases (when tasks run, in order)
+
+Per feedback 2026-04-18. Run A → C → D → E. **B is deferred entirely.**
+
+### Phase A — AI Brain finish 🔄
+- ✅ #14 (4-phase content agent — done 2026-04-18, re-verified 2026-04-26)
+- 📋 **#15 (AI campaign quality gate)** ← *next task to start*
+
+### Phase B — Content formats ⏸ DEFERRED
+- ⏸ #16 deferred 2026-04-18 — text + image already work on all 3 active platforms; format expansion is post-launch quality-of-life.
+
+### Phase C — Product tail 📋
+Run in numeric order:
+- #18 Automated test suite (pytest) — deps `#10`, `#11`
+- #20 PyInstaller packaging — Windows installer
+- #21 Mac support — cross-platform audit + packaging — dep `#20`
+- #22 Landing page — dep `#20` *(also listed in Batch 4)*
+- #27 Server-side post URL dedup
+- #28 ToS + privacy policy acceptance in registration
+- Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation)
+
+### Phase D — Money 📋
+- #17 Free/Pro tiers — blocked on user setting up Stripe
+- #19 Stripe live integration — blocked on user setting up Stripe Connect
+
+### Phase E — Launch 📋
+Already covered by #22 in Phase C. No new tasks.
+
+---
+
+## Tasks NOT in any batch or phase
+
+These exist outside the 4-batch / 5-phase model. They're either (a) infrastructure that supports execution, (b) one-off security/migration work, or (c) bug tickets discovered during UAT.
+
+### UAT infrastructure (the `/uat-task` workflow)
+| Task | Title | Status |
+|------|-------|--------|
 | #46 | Build `/uat-task` skill — closed-loop UAT verifier | ✅ done |
-| #47 | Author `docs/uat/AC-FORMAT.md` + Task #14 AC block | ✅ done |
-| #48 | Build `scripts/uat/` helpers (seed_campaign, accept_invitation, etc.) | ✅ done |
+| #47 | Author `docs/uat/AC-FORMAT.md` + Task #14 Verification Procedure block | ✅ done |
+| #48 | Build `scripts/uat/` helper scripts (seed_campaign, accept_invitation, etc.) | ✅ done |
 | #49 | First real `/uat-task 14` run + capture learnings | ✅ done (2026-04-26) |
-| **#50** | Backfill Verification Procedure for #15, #44, #45 | 📋 pending — **DO BEFORE running `/uat-task 15`** |
+| **#50** | Backfill Verification Procedure for #15, #44, #45 | 📋 **pending — DO BEFORE `/uat-task 15`** |
 | #51 | Backfill Verification Procedure for Batch 4 (#17, #19, #22) | 📋 pending |
-| #52 | Backfill Verification Procedure for Batch 5 polish (#23–28) | 📋 pending |
+| #52 | Backfill Verification Procedure for polish tasks (#23–28) | 📋 pending |
 
-### Infrastructure / one-offs ✅
-| ID | Title | Status |
-|----|-------|--------|
+### Server / infra one-offs
+| Task | Title | Status |
+|------|-------|--------|
 | #2 | Stripe top-up verification + idempotency fix | ✅ done |
 | #3 | Verify CSRF tokens in all Flask forms | ✅ done |
-| #4 | Install slowapi + apply rate limiting to auth | ✅ done |
-| #40 | Fully disable X — hardcoded safety guard | ✅ done (3 X account suspensions; X stays off until API v2 or stealth browser) |
-| #41 | Vercel migration → Hostinger KVM | ✅ done (server LIVE at api.pointcapitalis.com 2026-04-25) |
+| #4 | Install slowapi + apply rate limiting to auth endpoints | ✅ done |
+| #40 | Fully disable X — hardcoded safety guard (3 X account suspensions) | ✅ done |
+| #41 | Vercel → Hostinger KVM migration | ✅ done (server LIVE since 2026-04-25) |
+| #44 | ARQ worker entrypoint | 📋 pending (blocking #17) |
+| #45 | Baseline Alembic migration + enforce going forward | 📋 pending (blocking #15) |
 
-### Bug tasks discovered 2026-04-26 (during /uat-task 14)
-| ID | Title | Status |
-|----|-------|--------|
-| #53 | Re-verify #13 — Facebook/Reddit follower counts | ✅ done |
+### Bugs discovered 2026-04-26 (during `/uat-task 14`)
+| Task | Title | Status |
+|------|-------|--------|
+| #53 | Re-verify #13 — Facebook/Reddit follower counts wrong | ✅ done |
 | #55 | `get_user_profiles()` reads empty `agent_user_profile` table | ✅ done (vestigial table dropped) |
-| #56 | `'list' object has no attribute 'get'` in content agent | ✅ done |
-| #57 | Quality gate: accept `niche_tags + required_platforms + empty target_regions` | 📋 pending (low) |
-| #58 | Matching algorithm doesn't invite eligible users | ✅ done |
-| #59 | Duplicate invitation rendered on `/campaigns` page | 📋 pending |
-| #60 | Dashboard shows X as Connected despite global disable | 📋 pending (low) |
+| #56 | `'list' object has no attribute 'get'` in content agent (3 sites) | ✅ done |
+| #57 | Quality gate: accept `niche_tags + required_platforms + empty target_regions` as valid | 📋 pending (low) |
+| #58 | Matching algorithm doesn't invite eligible users to active campaigns | ✅ done |
+| #59 | Duplicate invitation rendered on `/campaigns` page | 📋 pending (medium) |
+| #60 | Dashboard shows X (Twitter) as Connected despite global disable | 📋 pending (low) |
 | #61 | Server `matching.py` `NameError 'user_tier'` for seedling at max | ✅ done (deployed live via SSH) |
 | #62 | Dashboard "Posts This Month" counts deleted/voided posts | ✅ done |
 | #63 | `seed_campaign.py` wrong invitation accept endpoint (404) | 📋 pending (low — UAT infra) |
@@ -130,54 +158,58 @@ Status counts: **26 done · 24 pending · 15 deferred · 0 in-progress**
 
 ---
 
-## Deferred — why
+## Deferred tasks — why (15 total)
 
-| ID | Title | Why deferred |
-|----|-------|--------------|
-| #7 | Repost campaigns | Post-launch — text+image campaigns cover MVP. UI hidden, backend preserved. |
-| #16 | Content formats (threads, polls, carousels) | Post-launch — text+image already work on all 3 active platforms. Quality-of-life upgrade, not blocking launch. Revisit if engagement data shows formats outperform >2x. |
-| #29 | Political campaigns (geo-targeting, FEC) | Post-launch — heavy compliance scope, not in MVP. |
-| #30 | Self-learning content generation | Post-launch — needs production data to train on. |
-| #31 | Video generation | Post-launch — out of scope until image pipeline proves itself. |
-| #32 | Flux.1 image generation upgrade | Post-launch — current 5-provider chain (Gemini→Cloudflare→Together→Pollinations→PIL) works. |
-| #33 | GDPR export + account deletion | Post-launch — not blocking US-only launch. |
+| Task | Title | Why deferred |
+|------|-------|--------------|
+| #7 | Repost campaigns | Post-launch. Foundational code exists (CampaignPost model, creation form, agent branch) but feature not complete. UI hidden, backend preserved. |
+| #16 | Content formats (LinkedIn polls, Facebook photo albums, Reddit link posts) | Deferred 2026-04-18. Text + image already work on all 3 active platforms. Quality-of-life upgrade, not a launch blocker. Revisit if engagement data shows formats outperform text-only by >2x. |
+| #29 | Political campaigns (geo-targeting, FEC compliance) | Post-launch. Heavy compliance scope, not in MVP. |
+| #30 | Self-learning content generation | Post-launch. Needs production data to train on. |
+| #31 | Video generation | Post-launch. Out of scope until image pipeline proves itself. |
+| #32 | Flux.1 image generation upgrade | Post-launch. Current 5-provider chain (Gemini → Cloudflare → Together → Pollinations → PIL) works. |
+| #33 | GDPR export + account deletion | Post-launch. Not blocking US-only launch. |
 | #34 | ARIA accessibility audit | Post-launch. |
-| #35 | CSV export for earnings | Post-launch — nice-to-have. |
-| #36 | Mobile responsive dashboard | Post-launch — companies use desktop. |
-| #37 | Local lightweight LLM for user-side AI | Post-launch — Gemini free tier is enough. |
-| #39 | UGC-style content (authenticity for viral) | Post-launch — image post-processing pipeline already exists; deeper UGC tuning later. |
-| #42 | Re-enable TikTok / Instagram / X via cheap API | Blocked — X API v2 is expensive; stealth browser unproven. Re-enable only when a verified-safe automation method exists. |
-| #43 | Shared research pool across users | Post-launch — research cache per-user is fine for current scale. |
-| #54 | Reconsider user app tech stack (Tauri/Electron vs Flask) | Awaiting decision — current Flask works. Will re-evaluate if packaging issues block #20. |
+| #35 | CSV export for earnings | Post-launch. Nice-to-have. |
+| #36 | Mobile responsive dashboard | Post-launch. Companies use desktop. |
+| #37 | Local lightweight LLM for user-side AI | Post-launch. Gemini free tier is enough. |
+| #39 | UGC-style content (authenticity for viral) | Post-launch. Image post-processing pipeline already exists; deeper UGC tuning later. |
+| #42 | Re-enable TikTok / Instagram / X via cheap API | Blocked. X API v2 too expensive; stealth browser unproven. Re-enable only when verified-safe automation method exists. |
+| #43 | Shared research pool across users | Post-launch. Per-user research cache is fine for current scale. |
+| #54 | Reconsider user app tech stack (Tauri / Electron vs Flask) | Awaiting decision. Current Flask works. Will re-evaluate if packaging issues block #20. |
 
 ---
 
-## What's missing (gaps a fresh agent should know)
+## Currently in flight (immediate next steps)
 
-These tasks **cannot** run `/uat-task <id>` until their `## Verification Procedure` block is written, per CLAUDE.md UAT rule:
+1. **Task #50** — backfill `## Verification Procedure` block for #15, #44, #45 in `docs/specs/batch-2-ai-brain.md` and equivalent. Format per `docs/uat/AC-FORMAT.md`. Walk the full lifecycle, cover every platform variant, recurring stability, real side-effects.
+2. **Then `/uat-task 15`** — drives the real product to verify Task #15's ACs.
+3. **Marks Phase A complete** → move to Phase C (#18 first, automated tests).
 
-- **#15** (AI quality gate) — owner: Task **#50**
-- **#44** (ARQ worker) — owner: Task **#50**
-- **#45** (Alembic baseline) — owner: Task **#50**
-- **#17, #19, #22** (Batch 4) — owner: Task **#51**
-- **#23–#28** (polish) — owner: Task **#52**
-
-The AC block format is locked in `docs/uat/AC-FORMAT.md`. Task #14 in `docs/specs/batch-2-ai-brain.md` is the worked example to copy from.
-
-UAT learnings (apply automatically when writing new AC blocks): `docs/uat/skills/uat-task/LEARNINGS.md`.
+**Active blockers (need user)**: Tasks #17 and #19 require user to set up Stripe Connect + bank onboarding before they can be implemented.
 
 ---
 
-## AC + UAT workflow (one-paragraph version)
+## AC + UAT workflow (one-paragraph summary)
 
-Every task spec ends with a `## Verification Procedure — Task #<id>` block following the table format in `docs/uat/AC-FORMAT.md` (Preconditions → Test data setup → Test-mode flags → AC table per criterion → Aggregated PASS rule). Each AC has 7 fields: Setup, Action, Expected, Automated, Automation, Evidence, Cleanup. Run `/uat-task <id>` to drive the **real** product (real server `api.pointcapitalis.com`, real Supabase DB, real Playwright browsers, real Gemini calls) and verify each AC. The skill refuses to mark a task done unless every AC PASSes + zero errors in logs + cleanup completed. Tool boundaries: **Playwright** drives the product (posting, scraping); **Chrome DevTools MCP** drives the verifier (testing the product as a user). X is unconditionally refused (Task #40). UAT learnings compound in `docs/uat/skills/uat-task/LEARNINGS.md`.
+Every task spec ends with a `## Verification Procedure — Task #<id>` block following the table format in `docs/uat/AC-FORMAT.md` (Preconditions → Test data setup → Test-mode flags → AC table per criterion → Aggregated PASS rule). Each AC has 7 fields: Setup, Action, Expected, Automated, Automation, Evidence, Cleanup. Run **`/uat-task <id>`** to drive the **real** product (real server `api.pointcapitalis.com`, real Supabase DB, real Playwright browsers, real Gemini calls) and verify each AC. The skill **refuses** to mark a task done unless every AC PASSes + zero errors in logs + cleanup completed. Tool boundaries: **Playwright** drives the product (posting, scraping); **Chrome DevTools MCP** drives the verifier (testing the product as a user). X is unconditionally refused (Task #40). UAT learnings compound in `docs/uat/skills/uat-task/LEARNINGS.md`.
+
+**Tasks lacking AC blocks (cannot run `/uat-task` until backfilled):**
+- #15 (Quality gate) — owner: Task **#50**
+- #44 (ARQ worker) — owner: Task **#50**
+- #45 (Alembic baseline) — owner: Task **#50**
+- #17, #19, #22 (Batch 4) — owner: Task **#51**
+- #23–#28 (polish) — owner: Task **#52**
 
 ---
 
-## Server / infra state (one-liner)
+## Server / infra state
 
-LIVE at **`https://api.pointcapitalis.com`** since 2026-04-25 — Hostinger KVM 1 (Mumbai, Ubuntu 24.04, Caddy + uvicorn + Supabase PostgreSQL). systemd unit `amplifier-web.service`. Deploy = `/commit-push` (auto-pulls + restarts). Full context: `docs/HOSTING-DECISION-RECORD.md`, `docs/MIGRATION-FROM-VERCEL.md`.
+LIVE at **`https://api.pointcapitalis.com`** since 2026-04-25 — Hostinger KVM 1 (Mumbai, Ubuntu 24.04, Caddy + uvicorn + Supabase PostgreSQL via transaction pooler). systemd unit `amplifier-web.service`. Deploy = `/commit-push` (auto-pulls + restarts via SSH). Full context: `docs/HOSTING-DECISION-RECORD.md`, `docs/MIGRATION-FROM-VERCEL.md`.
 
 ---
 
-*Re-derive this file from `.taskmaster/tasks/tasks.json` whenever statuses change. Cmd: `python -c "import json,io,collections; d=json.load(io.open('.taskmaster/tasks/tasks.json',encoding='utf-8')); print(collections.Counter(t['status'] for t in d['master']['tasks']))"`*
+*Re-derive this file from `.taskmaster/tasks/tasks.json` whenever statuses change. Quick check command:*
+```bash
+python -c "import json,io,collections; d=json.load(io.open('.taskmaster/tasks/tasks.json',encoding='utf-8')); print(collections.Counter(t['status'] for t in d['master']['tasks']))"
+```
