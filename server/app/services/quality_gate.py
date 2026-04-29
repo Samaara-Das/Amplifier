@@ -31,12 +31,6 @@ _WEIGHTS = {
     "budget_sufficient": 10,
 }
 
-GEMINI_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-lite",
-]
-
 
 # ── Mechanical rubric ──────────────────────────────────────────────
 
@@ -131,9 +125,27 @@ def score_campaign(campaign) -> dict:
     niche_tags = targeting.get("niche_tags") or []
     required_platforms = targeting.get("required_platforms") or []
     has_niches = bool(niche_tags)
-    has_platforms = bool(required_platforms)
 
-    if has_niches and has_platforms:
+    # Check for disabled platforms — surface as feedback bullet and score 0 for those platforms
+    from app.utils.platform_guard import is_platform_disabled
+    disabled_in_targeting = [p for p in required_platforms if is_platform_disabled(p)]
+    if disabled_in_targeting:
+        disabled_str = ", ".join(p.upper() for p in disabled_in_targeting)
+        disabled_fb = (
+            f"Disabled platform listed in required_platforms: {disabled_str}. "
+            f"Remove it ({disabled_str} is not supported)."
+        )
+        feedback.append(disabled_fb)
+
+    # Score uses only valid (non-disabled) platforms
+    valid_platforms = [p for p in required_platforms if not is_platform_disabled(p)]
+    has_platforms = bool(valid_platforms)
+
+    if disabled_in_targeting:
+        # Any disabled platform in the list scores this criterion 0 and surfaces the feedback
+        pts = 0
+        fb = disabled_fb
+    elif has_niches and has_platforms:
         pts = max_pts
         fb = "Targeting is well-specified."
     elif has_niches or has_platforms:
@@ -260,12 +272,51 @@ def score_campaign(campaign) -> dict:
 # ── AI review ─────────────────────────────────────────────────────
 
 
-async def ai_review_campaign(campaign) -> dict:
+_FALLBACK_RESULT = {
+    "passed": None,
+    "brand_safety": None,
+    "concerns": [],
+    "niche_rate_assessment": None,
+    "error": "fallback",
+}
+
+_BYPASS_RESULT = {
+    "passed": None,
+    "brand_safety": None,
+    "concerns": [],
+    "niche_rate_assessment": None,
+    "error": "bypassed",
+}
+
+_AI_REVIEW_MAX_RETRIES = 3
+_AI_REVIEW_BACKOFF = [2, 4, 8]  # seconds between retries
+
+
+def _is_retryable_gemini_error(exc: Exception) -> bool:
+    """Return True if this Gemini exception is transient and worth retrying."""
+    from google.genai.errors import ServerError, ClientError
+    if isinstance(exc, ServerError):
+        return True
+    if isinstance(exc, ClientError):
+        err_str = str(exc)
+        return "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
+    return False
+
+
+async def ai_review_campaign(campaign, request_headers=None) -> dict:
     """Server-side Gemini AI review. Catches what rules can't.
 
     Test-mode env vars (read live, not at module load):
       AMPLIFIER_UAT_BYPASS_AI_REVIEW=1  → return bypassed marker
       AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT=<json> → return that JSON directly
+
+    Test-mode HTTP headers (per-request alternative, only honored for UAT company):
+      X-Amplifier-UAT-Bypass-AI-Review: 1
+      X-Amplifier-UAT-Force-AI-Review-Result: <json>
+
+    Args:
+        campaign: Campaign model instance.
+        request_headers: Optional mapping of HTTP request headers.
 
     Returns:
         {
@@ -276,48 +327,122 @@ async def ai_review_campaign(campaign) -> dict:
             "error": str (only on fallback/bypass)
         }
     """
-    # UAT bypass flag — forces fallback branch so AI review is skipped entirely
-    if os.environ.get("AMPLIFIER_UAT_BYPASS_AI_REVIEW", "").strip() == "1":
-        logger.info("AI review bypassed (UAT flag) — mechanical-only")
-        return {
-            "passed": None,
-            "brand_safety": None,
-            "concerns": [],
-            "niche_rate_assessment": None,
-            "error": "bypassed",
-        }
+    uat_company_email = os.environ.get("UAT_TEST_COMPANY_EMAIL", "").strip()
 
-    # UAT force-result flag — pin a specific outcome without calling Gemini
+    # ── Per-request HTTP header test-mode (only for UAT company) ──────
+    if request_headers and uat_company_email:
+        company_email = getattr(campaign, "_uat_requester_email", "")
+        if company_email and company_email == uat_company_email:
+            bypass_header = request_headers.get("X-Amplifier-UAT-Bypass-AI-Review", "").strip()
+            if bypass_header == "1":
+                logger.info("AI review bypassed (UAT header) — mechanical-only")
+                return dict(_BYPASS_RESULT)
+
+            force_header = request_headers.get("X-Amplifier-UAT-Force-AI-Review-Result", "").strip()
+            if force_header:
+                try:
+                    result = json.loads(force_header)
+                    logger.info("AI review forced via UAT header: brand_safety=%s", result.get("brand_safety"))
+                    return result
+                except json.JSONDecodeError:
+                    logger.warning("X-Amplifier-UAT-Force-AI-Review-Result header is not valid JSON — ignoring")
+
+    # ── Env-var test-mode (backwards compat) ──────────────────────────
+    if os.environ.get("AMPLIFIER_UAT_BYPASS_AI_REVIEW", "").strip() == "1":
+        logger.info("AI review bypassed (UAT env var) — mechanical-only")
+        return dict(_BYPASS_RESULT)
+
     force_result = os.environ.get("AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT", "").strip()
     if force_result:
         try:
             result = json.loads(force_result)
-            logger.info("AI review forced via UAT flag: brand_safety=%s", result.get("brand_safety"))
+            logger.info("AI review forced via UAT env var: brand_safety=%s", result.get("brand_safety"))
             return result
         except json.JSONDecodeError:
             logger.warning("AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT is not valid JSON — ignoring")
 
-    # Real Gemini call
-    try:
-        result = await _run_gemini_review(campaign)
-        return result
-    except Exception as exc:
-        logger.error("AI review failed, falling back to mechanical-only: %s", exc, exc_info=True)
-        return {
-            "passed": None,
-            "brand_safety": None,
-            "concerns": [],
-            "niche_rate_assessment": None,
-            "error": "fallback",
-        }
+    # ── Provider fallback chain ─────────────────────────────────────────
+    # 1. Gemini primary: gemini-2.0-flash  (3 retries: 2s/4s/8s on transient errors)
+    # 2. Gemini fallback: gemini-1.5-flash (1 retry on transient)
+    # 3. Mistral: mistral-large-latest      (1 attempt, no retry — different provider)
+    # 4. Groq: llama-3.3-70b-versatile     (1 attempt, final fallback)
+    # 5. All fail → return {error: 'fallback'} (rubric-only activation)
+
+    prompt = _build_review_prompt(campaign)
+
+    # ── Gemini ─────────────────────────────────────────────────────────
+    gemini_models = [("gemini-2.0-flash", _AI_REVIEW_MAX_RETRIES), ("gemini-1.5-flash", 1)]
+
+    for model, max_attempts in gemini_models:
+        for attempt in range(1, max_attempts + 1):
+            logger.info("AI review: trying gemini/%s (attempt %d)", model, attempt)
+            try:
+                result = await _run_gemini_review(campaign, prompt=prompt, model=model)
+                return result
+            except Exception as exc:
+                if _is_retryable_gemini_error(exc):
+                    if attempt < max_attempts:
+                        sleep_s = _AI_REVIEW_BACKOFF[attempt - 1]
+                        logger.warning(
+                            "AI review retry %d/%d after %ds (gemini/%s): %s",
+                            attempt, max_attempts, sleep_s, model, exc,
+                        )
+                        await asyncio.sleep(sleep_s)
+                    else:
+                        logger.warning("AI review gemini/%s exhausted %d retries: %s", model, max_attempts, exc)
+                else:
+                    logger.warning("AI review non-retryable error on gemini/%s: %s", model, exc)
+                    break
+
+    logger.info("AI review: gemini exhausted, falling through to mistral")
+
+    # ── Mistral ────────────────────────────────────────────────────────
+    from app.core.config import get_settings
+    settings = get_settings()
+
+    mistral_key = settings.mistral_api_key.strip()
+    if mistral_key:
+        logger.info("AI review: trying mistral/mistral-large-latest (attempt 1)")
+        try:
+            result = await _run_openai_compat_review(
+                prompt=prompt,
+                api_key=mistral_key,
+                base_url="https://api.mistral.ai/v1",
+                model="mistral-large-latest",
+                provider="mistral",
+            )
+            return result
+        except Exception as exc:
+            logger.warning("AI review mistral failed: %s", exc)
+    else:
+        logger.info("AI review: mistral skipped (no MISTRAL_API_KEY)")
+
+    logger.info("AI review: mistral exhausted, falling through to groq")
+
+    # ── Groq ───────────────────────────────────────────────────────────
+    groq_key = settings.groq_api_key.strip()
+    if groq_key:
+        logger.info("AI review: trying groq/llama-3.3-70b-versatile (attempt 1)")
+        try:
+            result = await _run_openai_compat_review(
+                prompt=prompt,
+                api_key=groq_key,
+                base_url="https://api.groq.com/openai/v1",
+                model="llama-3.3-70b-versatile",
+                provider="groq",
+            )
+            return result
+        except Exception as exc:
+            logger.warning("AI review groq failed: %s", exc)
+    else:
+        logger.info("AI review: groq skipped (no GROQ_API_KEY)")
+
+    logger.error("AI review failed after all providers (gemini, mistral, groq)")
+    return dict(_FALLBACK_RESULT)
 
 
-async def _run_gemini_review(campaign) -> dict:
-    """Call Gemini to review the campaign. Returns parsed dict."""
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY not set on server")
-
+def _build_review_prompt(campaign) -> str:
+    """Build the shared AI review prompt for all providers."""
     title = campaign.title or ""
     brief = campaign.brief or ""
     guidance = campaign.content_guidance or ""
@@ -325,7 +450,7 @@ async def _run_gemini_review(campaign) -> dict:
     targeting = campaign.targeting or {}
     niche_tags = targeting.get("niche_tags") or []
 
-    prompt = f"""You are a campaign quality reviewer for a social media marketplace. Review this advertising campaign and assess brand safety.
+    return f"""You are a campaign quality reviewer for a social media marketplace. Review this advertising campaign and assess brand safety.
 
 Campaign Title: {title}
 Campaign Brief: {brief}
@@ -355,41 +480,80 @@ Rules:
 - concerns must mention specific issues found (e.g. "competitor", "false claims", "defamation", "harmful content", "niche mismatch", "targeting mismatch")
 - If no concerns, return an empty concerns list"""
 
+
+def _normalize_ai_result(result: dict) -> dict:
+    """Normalize and validate a parsed AI review dict."""
+    if result.get("brand_safety") not in ("safe", "caution", "reject"):
+        result["brand_safety"] = "safe"
+    if not isinstance(result.get("concerns"), list):
+        result["concerns"] = []
+    if "passed" not in result:
+        result["passed"] = result.get("brand_safety") != "reject"
+    if "niche_rate_assessment" not in result:
+        result["niche_rate_assessment"] = None
+    return result
+
+
+async def _run_gemini_review(campaign, prompt: str, model: str = "gemini-2.0-flash") -> dict:
+    """Call Gemini to review the campaign. Returns parsed dict.
+
+    Raises on any error — caller handles retry and fallback logic.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY not set on server")
+
     from google import genai
 
     client = genai.Client(api_key=api_key)
-    last_error = None
 
-    for model in GEMINI_MODELS:
-        try:
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model=model,
-                contents=prompt,
-            )
-            text = response.text.strip()
-            result = _parse_json_response(text)
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model=model,
+        contents=prompt,
+    )
+    text = response.text.strip()
+    result = _parse_json_response(text)
+    return _normalize_ai_result(result)
 
-            # Validate and normalize
-            if result.get("brand_safety") not in ("safe", "caution", "reject"):
-                result["brand_safety"] = "safe"
-            if not isinstance(result.get("concerns"), list):
-                result["concerns"] = []
-            if "passed" not in result:
-                result["passed"] = result.get("brand_safety") != "reject"
-            if "niche_rate_assessment" not in result:
-                result["niche_rate_assessment"] = None
 
-            return result
-        except Exception as e:
-            last_error = e
-            error_str = str(e)
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                logger.warning("Gemini model %s rate limited during AI review, trying next...", model)
-                continue
-            raise
+async def _run_openai_compat_review(
+    prompt: str,
+    api_key: str,
+    base_url: str,
+    model: str,
+    provider: str,
+) -> dict:
+    """Call an OpenAI-compatible chat completions endpoint (Mistral/Groq).
 
-    raise last_error
+    Raises on HTTP error or JSON parse failure — caller handles fallback.
+    """
+    import httpx as _httpx
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.1,
+        "max_tokens": 512,
+    }
+
+    async with _httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"{provider} API returned {resp.status_code}: {resp.text[:200]}")
+
+    data = resp.json()
+    text = data["choices"][0]["message"]["content"].strip()
+    result = _parse_json_response(text)
+    return _normalize_ai_result(result)
 
 
 def _parse_json_response(text: str) -> dict:

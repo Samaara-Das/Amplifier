@@ -38,6 +38,8 @@ class Settings(BaseSettings):
 
     # AI providers (also read directly via os.environ in services)
     gemini_api_key: str = ""
+    mistral_api_key: str = ""
+    groq_api_key: str = ""
 
     # Encryption (also read directly via os.environ in app/utils/crypto.py)
     encryption_key: str = ""
