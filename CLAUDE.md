@@ -92,6 +92,7 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON AP
 - `payments.py` — Stripe Connect integration. `process_pending_payouts()` auto-sends via Stripe Connect.
 - `campaign_wizard.py` — AI campaign generation (URL scraping + Gemini brief generation + content screening)
 - `storage.py` — File upload management (Supabase Storage + local fallback)
+- `quality_gate.py` — Campaign quality gate: `score_campaign()` (8-criterion deterministic rubric, 0-100) + `ai_review_campaign()` (server Gemini call for brand-safety, caution/reject/safe). Gates activation at score >= 85.
 
 **Server utilities:**
 - `server/app/utils/crypto.py` — AES-256-GCM server-side encryption

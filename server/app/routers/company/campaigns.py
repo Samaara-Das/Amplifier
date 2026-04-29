@@ -642,10 +642,15 @@ async def campaign_detail_page(
     total_impressions = int(t.impressions)
     total_engagement = int(t.engagement)
 
+    # Quality Score pre-flight (mechanical rubric only — no AI, no cost)
+    from app.services.quality_gate import score_campaign
+    quality_score = score_campaign(campaign)
+
     return _render(
         "company/campaign_detail.html",
         company=company,
         campaign=campaign,
+        quality_score=quality_score,
         spent=spent,
         post_count=t.post_count,
         user_count=t.user_count,
@@ -747,7 +752,110 @@ async def campaign_status_change(
                 url=f"/company/campaigns/{campaign_id}?error=Insufficient+balance+to+activate.+Add+funds+first.",
                 status_code=302,
             )
+
+        # Quality gate — run rubric + AI review before activating
+        from app.services.quality_gate import score_campaign, ai_review_campaign
+        from app.models.audit_log import AuditLog
+        from app.models.admin_review_queue import AdminReviewQueue
+        import json as _json
+
+        rubric = score_campaign(campaign)
+        if not rubric["passed"]:
+            db.add(AuditLog(
+                action="campaign_quality_gate_blocked",
+                target_type="campaign",
+                target_id=campaign_id,
+                details={
+                    "campaign_id": campaign_id,
+                    "score": rubric["score"],
+                    "passed": False,
+                    "ai_review_outcome": None,
+                },
+            ))
+            await db.flush()
+            feedback_str = " | ".join(rubric["feedback"][:3])
+            return RedirectResponse(
+                url=f"/company/campaigns/{campaign_id}?error=Quality+score+{rubric['score']}%2F100+%28needs+85%2B%29.+{feedback_str.replace(' ', '+')}",
+                status_code=302,
+            )
+
+        ai_review = await ai_review_campaign(campaign)
+        brand_safety = ai_review.get("brand_safety")
+        ai_error = ai_review.get("error")
+
+        if brand_safety == "reject":
+            db.add(AuditLog(
+                action="campaign_quality_gate_blocked",
+                target_type="campaign",
+                target_id=campaign_id,
+                details={
+                    "campaign_id": campaign_id,
+                    "score": rubric["score"],
+                    "passed": False,
+                    "ai_review_outcome": "reject",
+                },
+            ))
+            await db.flush()
+            concerns = " | ".join((ai_review.get("concerns") or [])[:2])
+            return RedirectResponse(
+                url=f"/company/campaigns/{campaign_id}?error=Campaign+blocked+by+brand+safety+review.+{concerns.replace(' ', '+')}",
+                status_code=302,
+            )
+
         company.balance = float(company.balance) - float(campaign.budget_total)
+
+        # Determine ai_review_outcome marker
+        if ai_error == "bypassed":
+            ai_review_outcome = "bypassed"
+        elif ai_error == "fallback":
+            ai_review_outcome = "fallback"
+        elif brand_safety == "caution":
+            ai_review_outcome = "caution"
+        else:
+            ai_review_outcome = "safe"
+
+        db.add(AuditLog(
+            action="campaign_quality_gate_passed",
+            target_type="campaign",
+            target_id=campaign_id,
+            details={
+                "campaign_id": campaign_id,
+                "score": rubric["score"],
+                "passed": True,
+                "ai_review_outcome": ai_review_outcome,
+            },
+        ))
+
+        if brand_safety == "caution":
+            db.add(AuditLog(
+                action="campaign_flagged_caution",
+                target_type="campaign",
+                target_id=campaign_id,
+                details={
+                    "campaign_id": campaign_id,
+                    "score": rubric["score"],
+                    "passed": True,
+                    "ai_review_outcome": "caution",
+                    "concerns": ai_review.get("concerns") or [],
+                },
+            ))
+            db.add(AdminReviewQueue(
+                campaign_id=campaign_id,
+                concerns_json=_json.dumps(ai_review.get("concerns") or []),
+            ))
+            campaign.screening_status = "flagged"
+
+        db.add(AuditLog(
+            action="campaign_activated",
+            target_type="campaign",
+            target_id=campaign_id,
+            details={
+                "campaign_id": campaign_id,
+                "score": rubric["score"],
+                "passed": True,
+                "ai_review_outcome": ai_review_outcome,
+            },
+        ))
 
     # Refund on cancellation
     if new_status == "cancelled" and campaign.status != "draft":

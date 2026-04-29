@@ -22,6 +22,7 @@ from app.schemas.campaign import (
     CampaignPostCreate, CampaignPostResponse,
 )
 from app.models.campaign_post import CampaignPost
+from app.models.admin_review_queue import AdminReviewQueue as _AdminReviewQueue  # ensure table registered
 from app.services.matching import get_matched_campaigns
 from app.utils.platform_guard import contains_disabled, is_platform_disabled
 
@@ -749,6 +750,207 @@ async def export_campaign_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+# ── Quality Gate endpoints ────────────────────────────────────────
+
+
+@router.post("/companies/me/campaigns/{campaign_id}/score")
+async def preflight_score_campaign(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Run the mechanical rubric on a campaign without activating it.
+
+    Deterministic — two calls on the same campaign return identical bodies.
+    Used by the dashboard quality widget and AC11 idempotence test.
+    """
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    from app.services.quality_gate import score_campaign
+    return score_campaign(campaign)
+
+
+@router.post("/companies/me/campaigns/{campaign_id}/activate")
+async def activate_campaign(
+    campaign_id: int,
+    company: Company = Depends(get_current_company),
+    db: AsyncSession = Depends(get_db),
+):
+    """Activate a campaign through the quality gate.
+
+    Layer 1 (mechanical rubric): score >= 85 required.
+    Layer 2 (AI review): brand_safety=reject blocks; caution flags for admin.
+
+    Returns 422 if blocked, 200 with status=active on success.
+    Writes audit_log events for every outcome.
+    """
+    result = await db.execute(
+        select(Campaign).where(
+            and_(Campaign.id == campaign_id, Campaign.company_id == company.id)
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status != "draft":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only draft campaigns can be activated via this endpoint (current status: {campaign.status})",
+        )
+
+    from app.services.quality_gate import score_campaign, ai_review_campaign
+    from app.models.audit_log import AuditLog
+    from app.models.admin_review_queue import AdminReviewQueue
+    import json as _json
+
+    # ── Layer 1: mechanical rubric ──────────────────────────────────
+    rubric = score_campaign(campaign)
+    score = rubric["score"]
+    passed_rubric = rubric["passed"]
+
+    if not passed_rubric:
+        # Blocked by rubric — write audit and return 422
+        db.add(AuditLog(
+            action="campaign_quality_gate_blocked",
+            target_type="campaign",
+            target_id=campaign_id,
+            details={
+                "campaign_id": campaign_id,
+                "score": score,
+                "passed": False,
+                "ai_review_outcome": None,
+            },
+        ))
+        await db.flush()
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=422,
+            content={
+                "passed": False,
+                "score": score,
+                "criteria": rubric["criteria"],
+                "feedback": rubric["feedback"],
+            },
+        )
+
+    # ── Layer 2: AI review ──────────────────────────────────────────
+    ai_review = await ai_review_campaign(campaign)
+    brand_safety = ai_review.get("brand_safety")
+    ai_error = ai_review.get("error")
+
+    if brand_safety == "reject":
+        # Blocked by AI — write audit and return 422
+        all_feedback = rubric["feedback"] + (ai_review.get("concerns") or [])
+        db.add(AuditLog(
+            action="campaign_quality_gate_blocked",
+            target_type="campaign",
+            target_id=campaign_id,
+            details={
+                "campaign_id": campaign_id,
+                "score": score,
+                "passed": False,
+                "ai_review_outcome": "reject",
+            },
+        ))
+        await db.flush()
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=422,
+            content={
+                "passed": False,
+                "score": score,
+                "criteria": rubric["criteria"],
+                "ai_review": ai_review,
+                "feedback": all_feedback,
+            },
+        )
+
+    # ── Activate campaign ───────────────────────────────────────────
+    # Check balance before deducting
+    if float(company.balance) < float(campaign.budget_total):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient balance (${float(company.balance):.2f}) to activate campaign (${float(campaign.budget_total):.2f} required). Add funds first.",
+        )
+
+    company.balance = float(company.balance) - float(campaign.budget_total)
+    campaign.status = "active"
+
+    # Determine ai_review_outcome marker for audit
+    if ai_error == "bypassed":
+        ai_review_outcome = "bypassed"
+    elif ai_error == "fallback":
+        ai_review_outcome = "fallback"
+    elif brand_safety == "caution":
+        ai_review_outcome = "caution"
+    else:
+        ai_review_outcome = "safe"
+
+    # Write gate-passed audit event
+    db.add(AuditLog(
+        action="campaign_quality_gate_passed",
+        target_type="campaign",
+        target_id=campaign_id,
+        details={
+            "campaign_id": campaign_id,
+            "score": score,
+            "passed": True,
+            "ai_review_outcome": ai_review_outcome,
+        },
+    ))
+
+    # If caution: flag for admin review
+    if brand_safety == "caution":
+        db.add(AuditLog(
+            action="campaign_flagged_caution",
+            target_type="campaign",
+            target_id=campaign_id,
+            details={
+                "campaign_id": campaign_id,
+                "score": score,
+                "passed": True,
+                "ai_review_outcome": "caution",
+                "concerns": ai_review.get("concerns") or [],
+            },
+        ))
+        db.add(AdminReviewQueue(
+            campaign_id=campaign_id,
+            concerns_json=_json.dumps(ai_review.get("concerns") or []),
+        ))
+        campaign.screening_status = "flagged"
+
+    # Write activation audit event
+    db.add(AuditLog(
+        action="campaign_activated",
+        target_type="campaign",
+        target_id=campaign_id,
+        details={
+            "campaign_id": campaign_id,
+            "score": score,
+            "passed": True,
+            "ai_review_outcome": ai_review_outcome,
+        },
+    ))
+
+    await db.flush()
+
+    return {
+        "passed": True,
+        "score": score,
+        "criteria": rubric["criteria"],
+        "ai_review": ai_review,
+        "status": "active",
+    }
 
 
 # ── User endpoints ─────────────────────────────────────────────────

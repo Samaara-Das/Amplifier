@@ -11,6 +11,7 @@ from app.models.content_screening import ContentScreeningLog
 from app.models.audit_log import AuditLog
 from app.models.campaign_post import CampaignPost
 from app.models.company_transaction import CompanyTransaction
+from app.models.admin_review_queue import AdminReviewQueue
 
 __all__ = [
     "Company",
@@ -26,4 +27,5 @@ __all__ = [
     "AuditLog",
     "CampaignPost",
     "CompanyTransaction",
+    "AdminReviewQueue",
 ]
