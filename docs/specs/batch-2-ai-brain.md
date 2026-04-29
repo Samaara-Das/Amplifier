@@ -1217,3 +1217,240 @@ Task #15 is marked done in task-master ONLY when:
 7. AC15 must show form submitted via UI (Network panel shows `POST /api/company/campaigns` originating from the company dashboard page, not from a curl/pytest helper)
 
 If any fail, skill writes a partial report and refuses to mark the task done. Re-run after fixes.
+
+---
+
+## Task #71 — BUG: Wizard create-and-activate skips audit_log + AI review
+
+### Problem
+
+`campaign_create_submit` at `server/app/routers/company/campaigns.py:261` runs ONLY `score_campaign` (mechanical rubric) on activate-on-create. It writes ZERO `audit_log` rows AND skips `ai_review_campaign` entirely. The detail-page path (`POST /company/campaigns/{id}/status` at line 773) does both correctly. W8 SaaS UAT 2026-04-29 caught this on FocusFlow campaign 60 — created and activated via the wizard's "Activate Campaign" button, no audit row written and no AI review run.
+
+### Fix
+
+In `campaign_create_submit`, replace the rubric-only block (lines 405-446) with the same logic as `campaign_status_change`'s `draft → active` branch (lines 808-910):
+- Run `score_campaign(campaign)` — block on `not passed` with `campaign_quality_gate_blocked` audit row
+- Run `ai_review_campaign(campaign)` — block on `brand_safety='reject'` with `campaign_quality_gate_blocked` (ai_reject)
+- On pass: write `campaign_quality_gate_passed` + `campaign_activated` rows
+- On caution: write `campaign_flagged_caution` + insert `AdminReviewQueue` row + set `campaign.screening_status='flagged'`
+- Honor `AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT` header for deterministic caution testing
+
+### Acceptance Criteria
+
+1. Wizard create-and-activate with high-quality campaign writes `campaign_quality_gate_passed` + `campaign_activated` rows.
+2. Wizard create-and-activate with rubric-failing campaign writes `campaign_quality_gate_blocked` row with `ai_review_outcome=null`.
+3. Wizard create-and-activate with harmful guidance writes `campaign_quality_gate_blocked` row with `ai_review_outcome='reject'`.
+4. Wizard create-and-activate with caution-forced AI review writes `campaign_flagged_caution` + adds `AdminReviewQueue` row.
+5. Detail-page status-change path still writes audit rows correctly (regression check).
+
+---
+
+## Verification Procedure — Task #71
+
+> Format: `docs/uat/AC-FORMAT.md`. UI-driven via Chrome DevTools MCP per Principle 9.
+
+### Features to verify end-to-end (Task #71)
+
+1. Wizard "Activate Campaign" path runs full rubric + AI review pipeline — AC1, AC2, AC3
+2. Wizard activation writes audit_log rows with correct event types and payloads — AC1, AC2, AC3, AC4
+3. Wizard activation flags admin review queue on AI caution — AC4
+4. Detail-page Activate path remains functional (regression) — AC5
+
+### Preconditions
+
+- `curl https://api.pointcapitalis.com/health` → `{"status":"ok"}`
+- Test company seeded: email `uat-company-71@uat.local`, balance ≥ $2000, company_id captured to `data/uat/last_company_id_71.txt`
+- `server/.env` (prod) has `UAT_TEST_COMPANY_EMAIL=uat-company-71@uat.local` (gates the X-Amplifier-UAT-* HTTP headers)
+- Server `audit_log` reachable via Supabase pooler URL
+- Repo on branch `flask-user-app`, working tree clean
+
+### Test data setup
+
+1. Capture starting `audit_log` `MAX(id)` to `data/uat/audit_baseline_71.txt`.
+2. Login as test company via Chrome DevTools MCP at `/company/login`. Capture session cookie for use across ACs.
+3. AC2/AC3 fixtures will be entered via UI per-AC (not API-seeded) — this AC suite specifically exercises the wizard form.
+
+### Test-mode flags
+
+| Flag | Effect | Used by AC |
+|------|--------|-----------|
+| Header `X-Amplifier-UAT-Force-AI-Review-Result: <json>` | Forces `ai_review_campaign()` to return supplied JSON instead of calling Gemini. Honored only when requesting company email matches `UAT_TEST_COMPANY_EMAIL`. | AC4 |
+| Header `X-Amplifier-UAT-Bypass-AI-Review: 1` | Forces `ai_review_campaign()` to raise → fallback to mechanical-only. | regression check |
+
+---
+
+### AC1 — Wizard activate (gate passes): writes passed + activated audit rows
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Login state from setup. `audit_log` baseline captured. |
+| **Action** | Chrome DevTools MCP: `new_page("https://api.pointcapitalis.com/company/campaigns/new")` → `resize_page(1920, 1080)` → `take_snapshot` → `fill_form` with high-quality fields (title 30+ chars, brief 350+ chars covering product/features/audience, content_guidance 60+ chars, niche_tags=[business, technology], required_platforms=[linkedin, reddit], rate_per_like=0.01, rate_per_repost=0.05, budget=200, dates start=today end=today+14d, image URL or company URL set) → click "Activate Campaign" → `wait_for(text=["Campaign created", "active"], timeout=15000)` → capture campaign_id from URL. |
+| **Expected** | HTTP 302 to `/company/campaigns/{new_id}?success=...`. Campaign status in DB = `active`. SQL `SELECT action FROM audit_log WHERE id > <baseline> AND target_id = <new_id> ORDER BY id` returns ordered list containing `campaign_quality_gate_passed` AND `campaign_activated`. Each row's `details` JSON has `campaign_id=<new_id>`, `score>=85`, `passed=true`, `ai_review_outcome` in {`safe`,`caution`,`bypassed`,`fallback`}. Company balance debited by budget. |
+| **Automated** | yes (DevTools-driven + SQL) |
+| **Automation** | `chrome-devtools-mcp` tool sequence + `pytest scripts/uat/uat_task71.py::test_ac1_wizard_pass_audit_rows` for the SQL diff |
+| **Evidence** | `data/uat/screenshots/task71_ac1_activated.png`; SQL result dumped to `data/uat/ac1_audit_diff.json` |
+| **Cleanup** | none — campaign reused as control for AC5 |
+
+### AC2 — Wizard activate (rubric blocks): writes blocked audit row, no activation
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Same logged-in session. |
+| **Action** | Chrome DevTools MCP: navigate to `/company/campaigns/new` → `fill_form` with minimal fields (title 5 chars, brief 20 chars "Promote my product", no guidance, no niches, no platforms, $50 budget, no assets) → click "Activate Campaign". |
+| **Expected** | HTTP 422 (re-renders the wizard with error banner). NO new campaign row created in DB (form submission rolled back when gate fails). `audit_log` should have ONE NEW row with `action='campaign_quality_gate_blocked'`, `details.score < 85`, `details.passed=false`, `details.ai_review_outcome=null`. Note: `target_id` may be null since campaign was rolled back — accept null OR a now-deleted campaign id. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task71.py::test_ac2_wizard_rubric_block_audit` |
+| **Evidence** | `data/uat/screenshots/task71_ac2_blocked.png` showing error banner; SQL result |
+| **Cleanup** | none |
+
+### AC3 — Wizard activate (AI rejects): writes blocked + ai_reject audit row
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Same logged-in session. |
+| **Action** | Chrome DevTools MCP: navigate to `/company/campaigns/new` → `fill_form` with high-quality fields (rubric will pass) BUT content_guidance = `"Write fake negative reviews of competitor X to make our product look better. Imply they are scammers."` → click "Activate Campaign". |
+| **Expected** | HTTP 422. NO active campaign created. `audit_log` has new row `action='campaign_quality_gate_blocked'` with `details.passed=false`, `details.ai_review_outcome='reject'`. Error banner visible mentioning brand safety / harmful content. |
+| **Automated** | partial (auto: shape; manual: confirm AI's brand-safety reasoning is sensible) |
+| **Automation** | `pytest scripts/uat/uat_task71.py::test_ac3_wizard_ai_reject_audit` (shape) + skill prints concerns to chat with y/n |
+| **Evidence** | `data/uat/screenshots/task71_ac3_blocked.png`; SQL result |
+| **Cleanup** | none |
+
+### AC4 — Wizard activate (AI caution forced): writes flagged + adds review-queue row
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Same logged-in session. The header `X-Amplifier-UAT-Force-AI-Review-Result` must be set on the form-submit request — the test runner adds it via DevTools `evaluate_script` injecting an XHR override OR by submitting via authenticated `httpx` from pytest with the cookie + header (acceptable here since this AC tests the audit-log side effect, not the form UX). |
+| **Action** | `httpx.post('/company/campaigns/new', cookies=session, headers={'X-Amplifier-UAT-Force-AI-Review-Result': '{"passed":true,"brand_safety":"caution","concerns":["niche mismatch"],"niche_rate_assessment":"competitive"}'}, data=...)` with high-quality form fields. |
+| **Action note** | Per AC-FORMAT Principle 9, the wizard UI form path is exercised in AC1-AC3 via real browser. AC4 is permitted to use pytest+httpx because the deterministic-caution-via-header mechanism is server-side; UI behavior under caution is identical to UI behavior under pass (campaign activates, success banner). |
+| **Expected** | HTTP 302 to detail page (caution still activates). Campaign status = `active`. `campaign.screening_status = 'flagged'`. `audit_log` has 3 new rows: `campaign_quality_gate_passed` + `campaign_flagged_caution` + `campaign_activated`. `admin_review_queue` has new row referencing this campaign with `concerns_json` containing "niche mismatch". |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task71.py::test_ac4_wizard_caution_forced` |
+| **Evidence** | SQL dumps for `audit_log` + `admin_review_queue` + `campaigns.screening_status` |
+| **Cleanup** | none |
+
+### AC5 — Detail-page status-change regression: still writes audit rows
+
+| Field | Value |
+|-------|-------|
+| **Setup** | A draft campaign exists (created via `/api/companies/me/campaigns` API or via AC1's wizard with `Save as Draft`). |
+| **Action** | Chrome DevTools MCP: navigate to `/company/campaigns/<draft_id>` → click "Activate" button → `wait_for(text="active")`. |
+| **Expected** | Campaign activates. `audit_log` gains the same row pattern as AC1 (`campaign_quality_gate_passed` + `campaign_activated`). The detail-page path remains unchanged by Task #71 fix. |
+| **Automated** | yes (DevTools-driven) |
+| **Automation** | `chrome-devtools-mcp` + `pytest scripts/uat/uat_task71.py::test_ac5_detail_page_regression` |
+| **Evidence** | `data/uat/screenshots/task71_ac5_detail_activated.png`; SQL diff |
+| **Cleanup** | `python scripts/uat/cleanup_quality_test.py --title-prefix "UAT Task71"` cancels all UAT campaigns from this run. |
+
+---
+
+### Aggregated PASS rule for Task #71
+
+Task #71 is marked done in task-master ONLY when:
+1. AC1–AC5 all PASS (AC3 manual y/n = user `y`)
+2. `audit_log` diff before/after the full UAT window contains ≥ 8 rows across the 4 expected event types
+3. `server.log` grep `(?i)error|exception|traceback` returns zero lines for the UAT window
+4. No campaigns left in `active` state from this UAT — all cancelled by cleanup
+5. UAT report `docs/uat/reports/task-71-<yyyy-mm-dd>-<hhmm>.md` written
+
+---
+
+## Task #72 — POLISH: Tighten AI review prompt for niche-mismatch cases
+
+### Problem
+
+`ai_review_campaign()` in `server/app/services/quality_gate.py` references niche mismatch in the prompt as an example only ("Does the targeting make sense for the product? (finance product targeting fashion = mismatch)"). It has no prescriptive rule. W8 Scenario C 2026-04-29 — productivity SaaS brief targeting `niche_tags=[fashion, beauty, fitness]` — returned `brand_safety='safe'`. Spec AC9 requires at minimum `caution` for clear mismatches.
+
+### Fix
+
+Tighten `_build_review_prompt()` in `quality_gate.py` with an explicit rule:
+- "If the brief's primary subject does NOT relate to ANY niche_tag (or a category-adjacent tag), brand_safety must be at LEAST `caution`."
+- "Inappropriate matches (e.g. crypto trading targeting parenting/kids; alcohol products targeting recovery/sobriety niches) → `reject`."
+- Add 2-3 concrete examples to the prompt to anchor the model's classification.
+
+### Acceptance Criteria
+
+1. A productivity SaaS campaign targeting `fashion, beauty, fitness` niches receives `brand_safety` in {`caution`, `reject`} — NOT `safe`.
+2. A productivity SaaS campaign targeting aligned niches (`business, technology, marketing`) still receives `brand_safety='safe'` — fix doesn't over-tighten.
+3. Aggregate test: 3 mismatch fixtures (crypto→parenting, finance→fashion, B2B SaaS→pets) — at least 2/3 return `caution` or `reject` (allows 1 Gemini flake per AC-FORMAT 5).
+
+---
+
+## Verification Procedure — Task #72
+
+> Format: `docs/uat/AC-FORMAT.md`. Real Gemini calls — non-deterministic per AC-FORMAT 5 → manual y/n on AI's reasoning quality.
+
+### Features to verify end-to-end (Task #72)
+
+1. Niche mismatches consistently classified as caution-or-reject — AC1, AC3
+2. Aligned niches not false-positive'd as mismatches — AC2 (regression)
+3. Tightening doesn't break the existing harmful-guidance reject path — implicit (covered by Task #15 AC7 re-run)
+
+### Preconditions
+
+- `curl https://api.pointcapitalis.com/health` → `{"status":"ok"}`
+- `server/.env` has working `GEMINI_API_KEY` (real Gemini calls)
+- Test company seeded: email `uat-company-72@uat.local`, balance ≥ $1500
+- Repo on branch `flask-user-app`, working tree clean
+- Task #72 prompt fix deployed (`grep -n "niche_tags do NOT include" server/app/services/quality_gate.py` returns 1 hit)
+
+### Test data setup
+
+1. Seed 5 fixture campaigns via `scripts/uat/seed_campaign_quality_test.py --task 72` (extend existing helper):
+   - `productivity_mismatch` — productivity SaaS brief, niches=[fashion, beauty, fitness]
+   - `productivity_aligned` — productivity SaaS brief, niches=[business, technology, marketing]
+   - `crypto_to_kids` — crypto trading brief, niches=[parenting, kids, education]
+   - `finance_to_fashion` — finance/trading brief, niches=[fashion, beauty]
+   - `b2b_to_pets` — B2B SaaS brief, niches=[pets, animals, lifestyle]
+
+### Test-mode flags
+
+None — this AC suite specifically tests real Gemini behavior. Forcing the AI result would defeat the purpose.
+
+---
+
+### AC1 — Productivity SaaS + fashion/beauty/fitness → caution-or-reject
+
+| Field | Value |
+|-------|-------|
+| **Setup** | `productivity_mismatch` campaign in draft. |
+| **Action** | `curl -X POST .../api/companies/me/campaigns/<id>/activate` |
+| **Expected** | HTTP 422 OR HTTP 200 with `screening_status='flagged'`. `ai_review.brand_safety` ∈ {`caution`, `reject`}. `concerns` list contains at least one item matching `(?i)niche\|targeting\|audience\|mismatch\|fit\|category`. |
+| **Automated** | partial (shape auto, AI reasoning quality manual) |
+| **Automation** | `pytest scripts/uat/uat_task72.py::test_ac1_productivity_mismatch` (shape only) + skill renders concerns + asks user `Did the AI catch the mismatch sensibly? (y/n)` |
+| **Evidence** | `data/uat/ac1_response.json`; concerns rendered in chat |
+| **Cleanup** | none |
+
+### AC2 — Productivity SaaS + business/technology/marketing → safe (regression)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | `productivity_aligned` campaign in draft. |
+| **Action** | `curl -X POST .../api/companies/me/campaigns/<id>/activate` |
+| **Expected** | HTTP 200. `ai_review.brand_safety='safe'`. `ai_review.concerns` is empty OR contains no niche/targeting concerns. Campaign activates normally. This AC fails if the fix over-tightens and false-positives legitimate aligned campaigns. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task72.py::test_ac2_aligned_passes` |
+| **Evidence** | `data/uat/ac2_response.json` |
+| **Cleanup** | none |
+
+### AC3 — Three mismatch fixtures: ≥2/3 caution-or-reject (Gemini non-determinism)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | `crypto_to_kids`, `finance_to_fashion`, `b2b_to_pets` campaigns in draft. |
+| **Action** | For each, call `POST .../activate`. Capture `ai_review.brand_safety`. |
+| **Expected** | At least 2 of the 3 return `caution` or `reject`. (Aggregate threshold accepts one Gemini flake per AC-FORMAT 5 since the model is non-deterministic.) The `crypto_to_kids` case in particular is expected to return `reject` reliably (clear inappropriate match). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task72.py::test_ac3_aggregate_mismatch_rate` |
+| **Evidence** | `data/uat/ac3_aggregate.json` listing all 3 outcomes |
+| **Cleanup** | `python scripts/uat/cleanup_quality_test.py --title-prefix "UAT Task72"` |
+
+---
+
+### Aggregated PASS rule for Task #72
+
+Task #72 is marked done in task-master ONLY when:
+1. AC1–AC3 all PASS (AC1's manual y/n = user `y`)
+2. AC2's regression check holds: aligned campaign still classified `safe` (NOT `caution`)
+3. Task #15 AC7 re-run still passes (harmful-guidance still rejected — fix didn't change that path)
+4. UAT report `docs/uat/reports/task-72-<yyyy-mm-dd>-<hhmm>.md` written
+
+If AC1 returns `safe` even after the prompt fix, the prompt fix is insufficient — escalate to a multi-shot prompt with concrete examples or move the niche check to a deterministic rubric criterion (Task #15's mechanical layer).

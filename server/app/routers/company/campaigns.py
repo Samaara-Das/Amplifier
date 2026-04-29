@@ -403,36 +403,54 @@ async def campaign_create_submit(
     # /api/companies/me/campaigns/{id}/activate was the only path that ran
     # it — UI users never went through that path).
     if campaign_status == "active":
-        from app.services.quality_gate import score_campaign
+        from app.services.quality_gate import score_campaign, ai_review_campaign
+        from app.models.audit_log import AuditLog
+        from app.models.admin_review_queue import AdminReviewQueue
+        import json as _json
+
+        cap_id_for_audit = campaign.id
+
+        submitted = {
+            "title": title,
+            "brief": brief,
+            "content_guidance": content_guidance or "",
+            "budget": budget,
+            "rate_per_1k_impressions": rate_per_1k_impressions,
+            "rate_per_like": rate_per_like,
+            "rate_per_repost": rate_per_repost,
+            "rate_per_click": rate_per_click,
+            "start_date": start_date,
+            "end_date": end_date,
+            "budget_exhaustion_action": budget_exhaustion_action,
+            "max_users": max_users,
+            "min_engagement": min_engagement,
+            "niche_tags": niche_tags,
+            "target_regions": target_regions,
+            "required_platforms": required_platforms,
+            "image_urls_json": image_urls_json,
+            "company_urls_json": company_urls_json,
+            "file_urls_json": file_urls_json,
+            "scraped_knowledge_json": scraped_knowledge_json,
+            "campaign_type": campaign_type,
+        }
+
         rubric = score_campaign(campaign)
         if not rubric["passed"]:
-            # Roll back the create — we don't want a stuck draft cluttering the dashboard
             await db.delete(campaign)
             await db.flush()
+            db.add(AuditLog(
+                action="campaign_quality_gate_blocked",
+                target_type="campaign",
+                target_id=cap_id_for_audit,
+                details={
+                    "campaign_id": cap_id_for_audit,
+                    "score": rubric["score"],
+                    "passed": False,
+                    "ai_review_outcome": None,
+                },
+            ))
+            await db.flush()
             feedback_str = " | ".join(rubric["feedback"][:3])
-            submitted = {
-                "title": title,
-                "brief": brief,
-                "content_guidance": content_guidance or "",
-                "budget": budget,
-                "rate_per_1k_impressions": rate_per_1k_impressions,
-                "rate_per_like": rate_per_like,
-                "rate_per_repost": rate_per_repost,
-                "rate_per_click": rate_per_click,
-                "start_date": start_date,
-                "end_date": end_date,
-                "budget_exhaustion_action": budget_exhaustion_action,
-                "max_users": max_users,
-                "min_engagement": min_engagement,
-                "niche_tags": niche_tags,
-                "target_regions": target_regions,
-                "required_platforms": required_platforms,
-                "image_urls_json": image_urls_json,
-                "company_urls_json": company_urls_json,
-                "file_urls_json": file_urls_json,
-                "scraped_knowledge_json": scraped_knowledge_json,
-                "campaign_type": campaign_type,
-            }
             return _render(
                 "company/campaign_wizard.html",
                 status_code=422,
@@ -441,8 +459,90 @@ async def campaign_create_submit(
                 error=f"Quality score {rubric['score']}/100 (needs 85+ with non-zero payouts/assets/targeting). {feedback_str}",
                 submitted=submitted,
             )
-        # Gate passed — debit the budget
+
+        ai_review = await ai_review_campaign(campaign, request_headers=request.headers)
+        brand_safety = ai_review.get("brand_safety")
+        ai_error = ai_review.get("error")
+
+        if brand_safety == "reject":
+            await db.delete(campaign)
+            await db.flush()
+            db.add(AuditLog(
+                action="campaign_quality_gate_blocked",
+                target_type="campaign",
+                target_id=cap_id_for_audit,
+                details={
+                    "campaign_id": cap_id_for_audit,
+                    "score": rubric["score"],
+                    "passed": False,
+                    "ai_review_outcome": "reject",
+                },
+            ))
+            await db.flush()
+            concerns_str = " | ".join((ai_review.get("concerns") or [])[:2])
+            return _render(
+                "company/campaign_wizard.html",
+                status_code=422,
+                company=company,
+                active_page="create",
+                error=f"Campaign blocked by brand safety review. {concerns_str}",
+                submitted=submitted,
+            )
+
         company.balance = float(company.balance) - budget
+
+        if ai_error == "bypassed":
+            ai_review_outcome = "bypassed"
+        elif ai_error == "fallback":
+            ai_review_outcome = "fallback"
+        elif brand_safety == "caution":
+            ai_review_outcome = "caution"
+        else:
+            ai_review_outcome = "safe"
+
+        db.add(AuditLog(
+            action="campaign_quality_gate_passed",
+            target_type="campaign",
+            target_id=cap_id_for_audit,
+            details={
+                "campaign_id": cap_id_for_audit,
+                "score": rubric["score"],
+                "passed": True,
+                "ai_review_outcome": ai_review_outcome,
+            },
+        ))
+
+        if brand_safety == "caution":
+            db.add(AuditLog(
+                action="campaign_flagged_caution",
+                target_type="campaign",
+                target_id=cap_id_for_audit,
+                details={
+                    "campaign_id": cap_id_for_audit,
+                    "score": rubric["score"],
+                    "passed": True,
+                    "ai_review_outcome": "caution",
+                    "concerns": ai_review.get("concerns") or [],
+                },
+            ))
+            db.add(AdminReviewQueue(
+                campaign_id=cap_id_for_audit,
+                concerns_json=_json.dumps(ai_review.get("concerns") or []),
+            ))
+            campaign.screening_status = "flagged"
+
+        db.add(AuditLog(
+            action="campaign_activated",
+            target_type="campaign",
+            target_id=cap_id_for_audit,
+            details={
+                "campaign_id": cap_id_for_audit,
+                "score": rubric["score"],
+                "passed": True,
+                "ai_review_outcome": ai_review_outcome,
+            },
+        ))
+
     await db.flush()
 
     # Create CampaignPost records for repost campaigns

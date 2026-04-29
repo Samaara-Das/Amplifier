@@ -477,6 +477,13 @@ Return ONLY valid JSON (no markdown, no commentary):
 Rules:
 - brand_safety = "reject" ONLY for content with harmful guidance (fake reviews, competitor attacks, defamation, scam/misleading claims)
 - brand_safety = "caution" for borderline cases (aggressive tone, vague suspicious claims)
+- NICHE MISMATCH RULE: If the brief's primary subject (the product/service category) does NOT relate to ANY of the listed Niche Tags or a category-adjacent tag, set brand_safety to "caution" at minimum. Examples:
+    - Productivity SaaS brief + niches=[fashion, beauty, fitness] → "caution" (creators' audiences won't care)
+    - Crypto trading brief + niches=[parenting, kids, education] → "reject" (inappropriate audience)
+    - Finance/trading brief + niches=[fashion] → "caution"
+    - Aligned: SaaS brief + niches=[business, technology, marketing] → "safe"
+- Empty niche_tags ("Not specified") = neutral; do NOT trigger this rule.
+- Use judgment for category-adjacency (productivity → business is adjacent; productivity → fitness is not).
 - brand_safety = "safe" for legitimate campaigns
 - concerns must mention specific issues found (e.g. "competitor", "false claims", "defamation", "harmful content", "niche mismatch", "targeting mismatch")
 - If no concerns, return an empty concerns list"""
