@@ -259,7 +259,13 @@ def score_campaign(campaign) -> dict:
     criteria["budget_sufficient"] = {"score": pts, "max": max_pts, "feedback": fb}
 
     total_score = sum(c["score"] for c in criteria.values())
-    passed = total_score >= ACTIVATION_THRESHOLD
+    # Hard-fail criteria — any one of these scoring 0 vetoes activation regardless of
+    # total. Without payouts, creators can't earn. Without assets, agents have nothing
+    # to generate from. Without targeting, the campaign won't match anyone.
+    hard_fail = any(
+        criteria[k]["score"] == 0 for k in ("payout_rates", "assets_provided", "targeting")
+    )
+    passed = (total_score >= ACTIVATION_THRESHOLD) and not hard_fail
 
     return {
         "score": total_score,
