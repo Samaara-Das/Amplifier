@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **29 done** · **22 pending** · **18 deferred** · 0 in-progress · **69 total**
+- **29 done** · **23 pending** · **18 deferred** · 0 in-progress · **70 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
@@ -152,6 +152,7 @@ Run in this order:
 | 2 | Creator app split | `docs/migrations/2026-04-28-migration-creator-app-split.md` |
 | 3 | Stealth + packaging | `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` |
 | Parallel | #19 Stripe live integration | `docs/specs/batch-4-business-launch.md` (touches FastAPI backend only — independent of UI migrations) |
+| Parallel | #70 BYOK — companies bring their own AI API keys | `C:\Users\dassa\.claude\plans\do-the-remaining-ux-atomic-biscuit.md` (W9) — new `company_api_keys` table, AES-encrypted, quality gate + wizard check company keys first |
 
 **Sequencing rationale:** Dashboards must come first because the creator-app-split's hosted creator pages (`/user/*`) depend on the new `base.html`. Creator-app-split must come before stealth-and-packaging because the strip-down to local FastAPI must happen before the Nuitka build (otherwise dead Flask templates and CSS bloat the binary).
 
@@ -238,7 +239,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 
 **Active blockers (need user)**: Task #19 requires user to set up Stripe Connect + bank onboarding before it can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
 
-**Tasks.json status (2026-04-29):** 28 done / 23 pending / 17 deferred / 68 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging) are in tasks.json. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
+**Tasks.json status (2026-04-29):** 29 done / 23 pending / 18 deferred / 70 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging), #69 (nvidia, deferred), #70 (BYOK) are in tasks.json. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
 
 ---
 

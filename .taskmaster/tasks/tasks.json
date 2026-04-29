@@ -988,6 +988,16 @@
         "description": "Evaluate adding Nvidia NIM API (build.nvidia.com, OpenAI-compatible at https://integrate.api.nvidia.com/v1) as a 4th provider in AiManager fallback chain (after Gemini, Mistral, Groq). Free-tier gives single key access to 80+ LLMs including MiniMax, GLM-5, DeepSeek, Kimi, Nemotron. Rate limit ~40 RPM, no daily/monthly cap.\n\nDEFERRED 2026-04-29 — current 3-provider chain (Gemini + Mistral + Groq) works in production after Task #15 verification. No known problem this would solve.\n\nCaveats per Grok analysis (full doc: docs/research/nvidia-free-tier-for-amplifier.md):\n- Trial terms restrict to prototyping/testing only, not production\n- Terms prohibit \"providing a service to others\" — even with BYOK, Amplifier proxying may violate spirit of terms\n- User onboarding adds Nvidia Developer Program signup + possible phone verification\n- No SLA, can be throttled or suspended under load\n\nRevisit triggers:\n1. Gemini+Mistral+Groq chain fails consistently over a 1-week production window\n2. Onboarding friction data shows users lack any of the existing 3 provider keys\n3. Nvidia changes terms to explicitly allow BYOK consumer-app proxying\n4. Nvidia-only model (Nemotron etc) becomes critical for a feature\n\nImplementation sketch: add nvidia_provider.py to scripts/ai/ following provider.py base class pattern. OpenAI-compatible HTTP calls. Read NVIDIA_API_KEY from settings (encrypted in user-side local.db settings table). Server-side: extend server/app/services/quality_gate.py provider chain.",
         "details": "See docs/research/nvidia-free-tier-for-amplifier.md for full Grok analysis.",
         "testStrategy": "Provider fallback chain integration tests + per-model smoke tests (1 prompt per Nvidia model variant exposed)"
+      },
+      {
+        "id": 70,
+        "title": "Companies bring their own AI API keys (BYOK)",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "description": "Companies optionally provide their own Gemini/Mistral/Groq keys via Settings page. Server stores AES-encrypted (reuse server/app/utils/crypto.py). quality_gate.ai_review_campaign() and campaign_wizard.generate_with_ai() check company keys first, fall back to server keys. New company_api_keys table. Settings UI: 3 input fields + Test-connection per provider.",
+        "details": "See docs/STATUS.md Phase D row + plan file C:\\Users\\dassa\\.claude\\plans\\do-the-remaining-ux-atomic-biscuit.md",
+        "testStrategy": "After build: company saves Gemini key in Settings, triggers campaign activation, server log shows AI review used company key not server key. Server fallback when company key invalid. Encryption verified by inspecting company_api_keys table -- key column not plaintext."
       }
     ],
     "metadata": {

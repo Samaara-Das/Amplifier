@@ -14,6 +14,7 @@
 6. **No X testing.** X is disabled (Task #40). UAT runs use LinkedIn, Facebook, Reddit only. The skill refuses any AC that touches `platform=x`.
 7. **Cleanup after every run.** UAT creates a test campaign, runs, then voids it. No accumulated test data in production.
 8. **Two browser tools, two jobs.** Chrome DevTools MCP drives the verifier (testing the product as a user). Playwright drives the product itself (posting, scraping, login). Never mix.
+9. **Drive the product as a real user/company would.** Every UI feature MUST have at least one AC that opens the actual app page, fills the form by clicking + typing, clicks the action button, and verifies the user-visible result. API-only ACs are scaffolding, never a replacement.
 
 ## Tool boundaries — what drives what
 
@@ -69,6 +70,25 @@ A task is marked done in task-master ONLY when:
 - No errors in `~/.amplifier/logs/agent.log` or `server/server.log` during the UAT window
 - No new rows in `audit_log` with `severity='error'` during the window
 - All cleanup steps executed
+```
+
+---
+
+## Per-task feature inventory — what to test
+
+Every spec's Verification Procedure block must include a `## Features to verify end-to-end (Task #<id>)` sub-section listing the specific user-facing capabilities that need exercising via UI. Each line maps to one or more ACs. If a feature has no AC, the spec author must add one before UAT can run.
+
+### Worked example — Task #14 (content generation)
+
+```markdown
+## Features to verify end-to-end (Task #14)
+1. Content is generated for each enabled platform (LinkedIn, Facebook, Reddit) — AC15 per-platform-coverage
+2. Content research workflow runs (Phase 1 scrapes URLs, fetches niche news, analyzes images) — AC1, AC2, AC3
+3. Content is relevant to the specific campaign + product + company — AC6, AC7 (manual draft review)
+4. Content is generated daily / every other day per the strategy frequency — AC15, AC18
+5. User sees content drafts on the user app — AC14
+6. Post actually gets posted to the platform once user approves the draft — AC17 (real posts on real accounts)
+7. Posted content is removed during cleanup — AC17 cleanup step
 ```
 
 ---
