@@ -1002,26 +1002,36 @@
       {
         "id": 71,
         "title": "BUG: Wizard create-and-activate skips audit_log + AI review",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [
           15
         ],
         "description": "campaign_create_submit (server/app/routers/company/campaigns.py:261) runs ONLY the rubric on activate-on-create (skips ai_review_campaign) AND writes ZERO audit_log rows. Detail-page status-change path runs both correctly. W8 SaaS UAT 2026-04-29 caught this on FocusFlow campaign 60. Fix: mirror the campaign_status_change handler \u2014 full rubric + AI review + 4-outcome audit_log writes (campaign_quality_gate_blocked / passed / flagged_caution / activated) + AdminReviewQueue insert on caution + screening_status update.",
-        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #71 section (added 2026-04-29). 5 ACs covering UI-driven wizard flow for: gate-pass + activate, rubric-block, AI-reject, caution-flag, regression on detail-page path.",
+        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #71 section (added 2026-04-29). 5 ACs covering UI-driven wizard flow for: gate-pass + activate, rubric-block, AI-reject, caution-flag, regression on detail-page path. [DONE 2026-04-29 23:01 \u2014 5/5 ACs PASS via scripts/uat/verify_task71_72.py. Report: docs/uat/reports/task-71-2026-04-29-2301.md]",
         "testStrategy": "/uat-task 71 \u2014 drives wizard via Chrome DevTools MCP; verifies audit_log diff before/after each AC; uses AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT header for AC4 (deterministic caution branch)."
       },
       {
         "id": 72,
         "title": "POLISH: Tighten AI review prompt for niche-mismatch cases",
-        "status": "pending",
+        "status": "done",
         "priority": "low",
         "dependencies": [
           15
         ],
         "description": "ai_review_campaign() in server/app/services/quality_gate.py mentions niche mismatch as an EXAMPLE in the prompt but has no prescriptive rule. W8 Scenario C (productivity SaaS targeting fashion/beauty/fitness niches) returned brand_safety='safe' instead of expected caution per AC9. Fix: add explicit rule in _build_review_prompt() \u2014 'If niche_tags do NOT include any category matching the brief subject, brand_safety must be at LEAST caution. Inappropriate matches (e.g. crypto trading targeting kids) = reject.'",
-        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #72 section (added 2026-04-29). 3 ACs: AC1 obvious mismatch \u2192 caution-or-reject (real Gemini), AC2 aligned regression \u2192 safe (don't false-positive), AC3 3-fixture aggregate \u22652/3 caution-or-reject (Gemini non-determinism tolerance).",
+        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #72 section (added 2026-04-29). 3 ACs: AC1 obvious mismatch \u2192 caution-or-reject (real Gemini), AC2 aligned regression \u2192 safe (don't false-positive), AC3 3-fixture aggregate \u22652/3 caution-or-reject (Gemini non-determinism tolerance). [DONE 2026-04-29 23:01 \u2014 3/3 ACs PASS. AC3 caught 3/3 mismatches (crypto\u2192kids=reject, finance\u2192fashion=caution, b2b\u2192pets=caution). Report: docs/uat/reports/task-72-2026-04-29-2301.md]",
         "testStrategy": "/uat-task 72 \u2014 real API calls to api.pointcapitalis.com; deterministic shape checks via pytest + manual y/n per AC-FORMAT principle 5 on Gemini's reasoning quality."
+      },
+      {
+        "id": 73,
+        "title": "BUG: gemini-1.5-flash returns 404 in AI review provider chain",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "description": "server/app/services/quality_gate.py _run_gemini_review chain retries gemini-2.0-flash \u2192 gemini-1.5-flash \u2192 Mistral \u2192 Groq. Gemini 1.5-flash now returns 404 NOT_FOUND for v1beta API ('models/gemini-1.5-flash is not found ... or is not supported for generateContent'). Retry step is dead. Replace with 'gemini-1.5-flash-latest' or 'gemini-1.5-flash-002' or remove from chain. Discovered 2026-04-29 22:35 IST in prod logs while deploying #71+#72 \u2014 server fell through correctly to Mistral.",
+        "details": "Quick fix: replace model id in the retry list. Tested in prod logs: error message 'models/gemini-1.5-flash is not found for API version v1beta'.",
+        "testStrategy": "After fix: trigger an activate, observe server log shows gemini-1.5-flash-latest succeeded OR was tried before falling to Mistral. No 404 NOT_FOUND lines."
       }
     ],
     "metadata": {

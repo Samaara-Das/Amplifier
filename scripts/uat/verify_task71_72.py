@@ -252,22 +252,32 @@ async def seed_via_api(api_client: httpx.Client, scenario: str, suffix: str) -> 
     end = (datetime.now(timezone.utc).date() + timedelta(days=14)).isoformat()
 
     productivity_brief = (
-        "FocusFlow is a productivity SaaS that combines Pomodoro timing with site-blocking "
-        "across macOS, Windows, and Linux. For remote workers and students who lose hours to "
-        "social media. $9/mo with 14-day trial. Cross-device sync, custom blocklists, focus reports."
+        "FocusFlow is a productivity SaaS combining Pomodoro timing with site-blocking across "
+        "macOS, Windows, and Linux. Built for remote workers and students who lose hours to "
+        "social media during focus sessions. Free 14-day trial then $9/mo. Cross-device sync, "
+        "customizable blocklists, weekly focus reports. Proven 40% increase in focused output "
+        "across 12,000 active users in 47 countries."
     )
     crypto_brief = (
-        "BlockBoost is a crypto trading platform with leveraged futures, copy-trading from top "
-        "performers, and AI-powered signal alerts. Up to 100x leverage on BTC/ETH. Withdraw to "
-        "any wallet. Sign-up bonus $50."
+        "BlockBoost is a crypto trading platform offering leveraged futures, copy-trading from "
+        "verified top performers, and AI-powered signal alerts on 200+ pairs. Up to 100x leverage "
+        "on BTC/ETH/SOL. Withdraw to any wallet within 30 minutes. $50 sign-up bonus and 0.05% "
+        "maker fees. Built for active traders who want institutional-grade tools at retail prices. "
+        "Mobile + desktop apps included."
     )
     finance_brief = (
         "AlphaPulse is a stock trading indicator that surfaces institutional order flow on SPY "
-        "and QQQ. Built for day traders. $30/mo. Free 7-day trial."
+        "and QQQ in real-time. Built for active day traders who want to see what smart money is "
+        "doing before the move happens. Backtest-verified across 5 years of options-flow data. "
+        "$30/mo with a free 7-day trial. Includes setup walkthrough, Discord community access, "
+        "and weekly market briefings from quant veterans."
     )
     b2b_brief = (
-        "PipelineForge is a B2B SaaS that automates sales pipeline reporting from Salesforce "
-        "and HubSpot. Real-time dashboards, AI insights, $99/seat/mo. For mid-market sales teams."
+        "PipelineForge is a B2B SaaS that automates sales pipeline reporting from Salesforce and "
+        "HubSpot. Real-time revenue dashboards, AI-driven deal-risk insights, and forecasting "
+        "models trained on 500+ enterprise sales orgs. $99/seat/mo with annual discounts. Built "
+        "for mid-market RevOps teams managing $5M-$50M in pipeline who need visibility without "
+        "hiring an analyst. Includes custom-report builder and Slack integration."
     )
 
     scenarios = {

@@ -27,11 +27,11 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **29 done** · **23 pending** · **18 deferred** · 0 in-progress · **70 total**
+- **31 done** · **24 pending** · **18 deferred** · 0 in-progress · **73 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
-- **Most recent UAT win** (2026-04-26): `/uat-task 14` first all-green run — 18/18 ACs PASS, real posts on LinkedIn/FB/Reddit then auto-deleted, 7 production bugs surfaced and fixed.
+- **Most recent UAT wins** (2026-04-29 23:01): Tasks #71 + #72 — both follow-ups from Task #15's W8 SaaS UAT shipped autonomously overnight. #71 (5/5 ACs PASS): wizard create-and-activate now runs full quality pipeline + writes audit_log rows. #72 (3/3 ACs PASS): AI review prompt tightened with explicit NICHE MISMATCH RULE — caught 3/3 mismatch fixtures (crypto→kids=reject, finance→fashion=caution, b2b→pets=caution) without false-positive on aligned niches. **#73 filed** (low priority): gemini-1.5-flash returns 404 in retry chain — provider chain falls through to Mistral correctly so non-blocking.
 
 ---
 
@@ -203,6 +203,14 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #64 | `seed_campaign.py` wrong image-upload endpoint (404) | 📋 pending (low — UAT infra) — Phase C |
 | #65 | `AMPLIFIER_UAT_FORCE_DAY` doesn't propagate to `agent_draft.iteration` | 📋 pending (low — UAT infra) — Phase C |
 
+### Bugs / polish from Task #15 UAT (2026-04-29)
+
+| Task | Title | Status |
+|------|-------|--------|
+| #71 | BUG: Wizard create-and-activate skips audit_log + AI review | ✅ done 2026-04-29 23:01 — 5/5 ACs PASS via `scripts/uat/verify_task71_72.py` |
+| #72 | POLISH: Tighten AI review prompt for niche-mismatch cases | ✅ done 2026-04-29 23:01 — 3/3 ACs PASS, 3/3 mismatch fixtures caught |
+| #73 | BUG: gemini-1.5-flash returns 404 in AI review provider chain | 📋 pending (low) — Phase C cleanup |
+
 ---
 
 ## Deferred / superseded tasks — why (17 total)
@@ -239,7 +247,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 
 **Active blockers (need user)**: Task #19 requires user to set up Stripe Connect + bank onboarding before it can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
 
-**Tasks.json status (2026-04-29):** 29 done / 23 pending / 18 deferred / 70 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging), #69 (nvidia, deferred), #70 (BYOK) are in tasks.json. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
+**Tasks.json status (2026-04-29 23:01):** 31 done / 24 pending / 18 deferred / 73 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging), #69 (nvidia, deferred), #70 (BYOK) are in tasks.json. #71 (wizard audit_log + AI review) and #72 (niche prompt tightening) shipped overnight 2026-04-29 — 5/5 + 3/3 ACs PASS. #73 (gemini-1.5-flash 404) filed pending. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
 
 ---
 
