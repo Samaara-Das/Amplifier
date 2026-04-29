@@ -402,6 +402,7 @@ def test_ac8_caution_flag(token, ids):
     """AC8: with AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT pinned to caution, campaign activates
     but admin_review_queue gains a row.
 
+    Uses the dedicated ac8_caution fixture (draft) so it is not consumed by AC3.
     This test hits the server — the env var must be set in the server process.
     Skip if not running against a local server with the flag set.
     """
@@ -414,19 +415,13 @@ def test_ac8_caution_flag(token, ids):
             "Run against localhost:8000 with that env var set."
         )
 
-    # Use wizard_good (if already active from AC3, skip — seed fresh)
-    campaign_id = ids.get("wizard_good")
-
+    campaign_id = ids["ac8_caution"]
     resp = _activate(token, campaign_id)
     body = resp.json()
 
-    # Activation should succeed (caution = warn, not block)
-    if resp.status_code != 200:
-        pytest.skip(
-            f"AC8 activation returned {resp.status_code} — campaign may already be active or flagged. "
-            "Re-seed or reset status to draft."
-        )
-
+    assert resp.status_code == 200, (
+        f"AC8 activation should succeed (caution = warn, not block), got {resp.status_code}: {resp.text}"
+    )
     assert body.get("passed") is True or body.get("status") == "active"
 
     # The test relies on the server having inserted admin_review_queue and audit rows.
@@ -469,6 +464,7 @@ def test_ac10_ai_review_fallback(token, ids):
     """AC10: with AMPLIFIER_UAT_BYPASS_AI_REVIEW=1, rubric-passing campaign activates.
     Response has ai_review.error='bypassed'.
 
+    Uses the dedicated ac10_bypass fixture (draft) so it is not consumed by AC3.
     Must run against localhost with AMPLIFIER_UAT_BYPASS_AI_REVIEW=1 in server env.
     """
     bypass = os.environ.get("AMPLIFIER_UAT_BYPASS_AI_REVIEW", "").strip()
@@ -480,13 +476,9 @@ def test_ac10_ai_review_fallback(token, ids):
             "Run against localhost:8000 with that env var set."
         )
 
-    # wizard_good may already be active — the skill will reset it to draft before this test
-    campaign_id = ids["wizard_good"]
+    campaign_id = ids["ac10_bypass"]
     resp = _activate(token, campaign_id)
     body = resp.json()
-
-    if resp.status_code == 400 and "Only draft" in resp.text:
-        pytest.skip("wizard_good is already active — reset it to draft before running AC10")
 
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
     assert body.get("passed") is True or body.get("status") == "active"

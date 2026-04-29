@@ -249,6 +249,22 @@ def _seed_all(client: httpx.Client, headers: dict, server: str) -> dict[str, int
     ids["idempotence_check"] = _create_campaign(client, headers, server, idempotent)
     print(f"  idempotence_check id={ids['idempotence_check']}")
 
+    # 9. ac8_caution — dedicated fixture for AC8 (caution branch via AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT)
+    #    Must stay in draft until AC8 runs. Separate from wizard_good so AC3 doesn't consume it.
+    ac8 = _good_base()
+    ac8["title"] = "UAT-15 AC8 Caution Branch Campaign"
+    print("Creating ac8_caution...")
+    ids["ac8_caution"] = _create_campaign(client, headers, server, ac8)
+    print(f"  ac8_caution id={ids['ac8_caution']}")
+
+    # 10. ac10_bypass — dedicated fixture for AC10 (AMPLIFIER_UAT_BYPASS_AI_REVIEW=1)
+    #     Must stay in draft until AC10 runs. Separate from wizard_good so AC3 doesn't consume it.
+    ac10 = _good_base()
+    ac10["title"] = "UAT-15 AC10 Bypass Branch Campaign"
+    print("Creating ac10_bypass...")
+    ids["ac10_bypass"] = _create_campaign(client, headers, server, ac10)
+    print(f"  ac10_bypass id={ids['ac10_bypass']}")
+
     return ids
 
 
