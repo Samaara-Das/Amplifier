@@ -203,7 +203,7 @@
         "id": 15,
         "title": "AI campaign quality gate â€” detailed rubric spec",
         "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [],
         "metadata": {

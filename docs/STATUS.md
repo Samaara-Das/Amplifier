@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **28 done** · **23 pending** · **17 deferred** · 0 in-progress · **68 total**
+- **29 done** · **22 pending** · **17 deferred** · 0 in-progress · **68 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
@@ -86,7 +86,7 @@ Each batch is a `docs/specs/batch-*.md` file. The tasks listed are the ones the 
 | #13 | AI profile scraping (3-tier: text → CSS → Vision; per-platform extractors) | ✅ done |
 | #12 | AI matching (Gemini scoring + niche overlap fallback + caching) | ✅ done |
 | #14 | 4-phase content agent (Research → Strategy → Creation → Review) | ✅ done — first all-green `/uat-task` run 2026-04-26 |
-| **#15** | **AI campaign quality gate (rubric for whether a campaign is worth generating content for)** | 📋 **pending — NEXT TASK** (needs AC block via Task #50) |
+| #15 | AI campaign quality gate (rubric + AI review on activation) | ✅ done 2026-04-29 — 14/14 ACs PASS via `/uat-task 15`. Provider fallback chain Gemini → Mistral → Groq, hard-fail criteria, HTTP-header test-mode flags |
 
 ### Batch 3 — Product Features ⚠️ MIXED
 **Spec**: `docs/specs/batch-3-product-features.md`
