@@ -5,7 +5,7 @@ description: "Run end-to-end User Acceptance Testing for an Amplifier task by ID
 
 # uat-task — Real-Product UAT Verifier
 
-Verify Amplifier task-master tasks against their `## Verification Procedure` block in `docs/specs/batch-*.md`. Drive the real product. Capture evidence. Write a report. Refuse to mark done unless every AC passes.
+Verify Amplifier task-master tasks against their `## Verification Procedure` block in `docs/specs/*.md` (search both `batch-*.md` for product tasks and `infra.md` for server-side infra tasks like #44/#45). Drive the real product. Capture evidence. Write a report. Refuse to mark done unless every AC passes.
 
 This skill is the single entry point for verifying any task. It compounds: every mistake the user catches becomes a learning in `LEARNINGS.md` that future runs read first.
 
@@ -17,7 +17,7 @@ Before doing anything else:
 
 1. `docs/uat/skills/uat-task/LEARNINGS.md` — past corrections from the user. Apply them. They override default behavior. If the file is empty, that's fine — it grows over time.
 2. `docs/uat/AC-FORMAT.md` — the format spec for `## Verification Procedure` blocks. The contract this skill executes against.
-3. `docs/specs/batch-*.md` — locate the requested task's `## Verification Procedure — Task #<id>` block. Use Grep with pattern `## Verification Procedure — Task #<id>`. If not found, abort: "No Verification Procedure block exists for Task #<id>. Backfill it in docs/specs/ first, then re-run."
+3. `docs/specs/*.md` (glob both `batch-*.md` and `infra.md`) — locate the requested task's `## Verification Procedure — Task #<id>` block. Use Grep with pattern `## Verification Procedure — Task #<id>` across the whole `docs/specs/` directory. If not found, abort: "No Verification Procedure block exists for Task #<id>. Backfill it in docs/specs/ first, then re-run."
 
 If the user says "learning: <something>" at any point during a run, immediately append a new entry to `LEARNINGS.md` in the format below, then continue. Do not wait until the end.
 
@@ -71,7 +71,7 @@ Walk through these phases in order. Communicate clearly at each phase boundary s
 
 - Parse the task ID from the user's invocation. Accept `14`, `#14`, `task 14`, `task #14`. Reject anything else with a usage message.
 - Parse optional flags: `--allow-prod`, `--skip-cleanup` (debugging only, warn loudly), `--ac <n>` (run a single AC for fast iteration).
-- Read LEARNINGS.md, AC-FORMAT.md, then locate the spec block via Grep: `## Verification Procedure — Task #<id>` in `docs/specs/batch-*.md`.
+- Read LEARNINGS.md, AC-FORMAT.md, then locate the spec block via Grep: `## Verification Procedure — Task #<id>` across `docs/specs/*.md` (covers `batch-*.md` for product tasks and `infra.md` for infra tasks).
 - Parse the block: extract Preconditions, Test data setup, Test-mode flags, every AC table, Aggregated PASS rule.
 - State plan in chat: "Found Task #<id> spec with N ACs. Preconditions: <count>. Test-mode flags: <list>. Proceeding with Phase 2 — Preconditions."
 
@@ -284,7 +284,7 @@ If FAIL or PARTIAL: do NOT propose marking done. Instead, summarize the most lik
 | User answers 'n' to a manual AC | Mark FAIL, save artifact, continue with remaining ACs. The aggregate rule will reflect the failure. |
 | Test campaign already exists on server (previous run didn't clean up) | Find it via name pattern `UAT *`, void it, log the orphan in the report's Notes. |
 | Cleanup script errors out | Continue cleanup of other items. Flag in report. Never let one cleanup failure block another. |
-| Spec block missing fields the format requires | Abort with: "Task #<id> Verification Procedure block missing required field: <field>. Update docs/specs/batch-*.md per docs/uat/AC-FORMAT.md, re-run." |
+| Spec block missing fields the format requires | Abort with: "Task #<id> Verification Procedure block missing required field: <field>. Update the relevant file under docs/specs/ (batch-*.md or infra.md) per docs/uat/AC-FORMAT.md, re-run." |
 
 ---
 

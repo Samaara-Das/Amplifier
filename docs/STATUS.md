@@ -13,11 +13,11 @@
 A fresh agent should read in this order:
 
 1. **`docs/STATUS.md`** (this file) — what's done, what's next, what's deferred, the canonical batches and phases
-2. **`docs/specs/batch-*.md`** — per-task specs
+2. **`docs/specs/batch-*.md`** — per-task specs (the 4 product batches). Plus **`docs/specs/infra.md`** — server-side infra task specs (#44 ARQ worker, #45 Alembic baseline) that live outside the batch system.
 3. **`docs/migrations/2026-04-28-*.md`** — the three migration docs (Phase D blueprint)
 4. **`docs/uat/AC-FORMAT.md`** — Acceptance Criteria + UAT format every spec must follow before `/uat-task <id>` can run it
 5. **`CLAUDE.md`** — developer reference: commands, architecture, gotchas, slash commands, decision-making framework
-6. **`.taskmaster/tasks/tasks.json`** — canonical task list (65 tasks)
+6. **`.taskmaster/tasks/tasks.json`** — canonical task list (68 tasks)
 
 > Note: `docs/specs/user-app-tech-stack.md` is **superseded** by the three migration docs in `docs/migrations/`. Kept for historical context only.
 
@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **26 done** · **23 pending** · **16 deferred** · 0 in-progress · **65 total**
+- **28 done** · **23 pending** · **17 deferred** · 0 in-progress · **68 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
@@ -171,7 +171,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #47 | Author `docs/uat/AC-FORMAT.md` + Task #14 Verification Procedure block | ✅ done |
 | #48 | Build `scripts/uat/` helper scripts (seed_campaign, accept_invitation, etc.) | ✅ done |
 | #49 | First real `/uat-task 14` run + capture learnings | ✅ done (2026-04-26) |
-| **#50** | Backfill Verification Procedure for #15, #44, #45 | 📋 **pending — DO BEFORE `/uat-task 15`** |
+| #50 | Backfill Verification Procedure for #15, #44, #45 | ✅ done 2026-04-29 — #15 ACs in batch-2-ai-brain.md (14 ACs); #44 + #45 ACs in new docs/specs/infra.md (10 + 7 ACs). |
 | #51 | Backfill Verification Procedure for Batch 4 (#19, #22) | 📋 pending |
 | #52 | Backfill Verification Procedure for polish tasks (#23–28) | 📋 pending |
 
@@ -204,7 +204,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 
 ---
 
-## Deferred / superseded tasks — why (16 total)
+## Deferred / superseded tasks — why (17 total)
 
 | Task | Title | Why deferred / superseded |
 |------|-------|--------------|
@@ -231,17 +231,13 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 
 ## Currently in flight (immediate next steps)
 
-1. **Task #50** — backfill `## Verification Procedure` block for #15, #44, #45 in `docs/specs/batch-2-ai-brain.md` and equivalent. Format per `docs/uat/AC-FORMAT.md`. Walk the full lifecycle, cover every platform variant, recurring stability, real side-effects.
-2. **Then `/uat-task 15`** — drives the real product to verify Task #15's ACs.
+1. ~~**Task #50**~~ ✅ done 2026-04-29. ACs backfilled: #15 in `docs/specs/batch-2-ai-brain.md` (14 ACs), #44 + #45 in new `docs/specs/infra.md` (10 + 7 ACs). New helpers expected during build: `scripts/uat/seed_campaign_quality_test.py`, `scripts/uat/cleanup_quality_test.py`, `scripts/uat/seed_worker_fixtures.py`, `scripts/uat/dump_models_ddl.py`, plus `scripts/uat/uat_task15.py`, `uat_task44.py`, `uat_task45.py`, and `scripts/uat/infra/compose.yml`.
+2. **Build Task #15 (quality gate)** — implement `services/quality_gate.py` to satisfy the 14 ACs. Then `/uat-task 15`.
 3. **Marks Phase A complete** → move to Phase C (#18 first, automated tests).
 
 **Active blockers (need user)**: Task #19 requires user to set up Stripe Connect + bank onboarding before it can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
 
-**Tasks.json sync needed:** This doc reflects the migration decisions (2026-04-28). The canonical `.taskmaster/tasks/tasks.json` should be updated to:
-- Mark #20 status: `superseded`, with note pointing to `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`
-- Mark #21 status: `superseded`, same note
-- Mark #54 status: `done`, with note `Decided: Patchright + Nuitka + slim local FastAPI + HTMX dashboards. See docs/migrations/2026-04-28-*.md`
-- Add new tasks for the three migrations: #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging)
+**Tasks.json status (2026-04-29):** 28 done / 23 pending / 17 deferred / 68 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging) are in tasks.json. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
 
 ---
 

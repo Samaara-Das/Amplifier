@@ -579,7 +579,7 @@
       {
         "id": 44,
         "title": "Implement ARQ worker entrypoint",
-        "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #19 (Stripe live + paying users) — without this, paying users' pending earnings never auto-promote to available.",
+        "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation, payout processing. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #19 (Stripe live + paying users) — without this, paying users' pending earnings never auto-promote to available. Spec + 10-AC Verification Procedure: docs/specs/infra.md (Task #44 section).",
         "details": "",
         "testStrategy": "",
         "status": "pending",
@@ -590,7 +590,7 @@
       {
         "id": 45,
         "title": "Generate baseline Alembic migration + enforce migrations going forward",
-        "description": "Discovered during Task #41 post-deploy UAT: server/alembic/ is configured but server/alembic/versions/ is EMPTY. No migrations have ever been generated. Models drifted silently from prod schema, causing 2 prod-blocking bugs (decline_reason missing, 14 json columns needed jsonb). Both manually fixed via psql; SQL captured at docs/migrations/2026-04-25-task41-schema-fixes.md. WORK: (1) Generate baseline alembic revision, (2) stamp prod, (3) document policy in CLAUDE.md that every model change needs migration in same PR. PRIORITY: Medium — not blocking deploy or current functionality, BLOCKING before Task #15 (AI quality gate may add columns).",
+        "description": "Discovered during Task #41 post-deploy UAT: server/alembic/ is configured but server/alembic/versions/ is EMPTY. No migrations have ever been generated. Models drifted silently from prod schema, causing 2 prod-blocking bugs (decline_reason missing, 14 json columns needed jsonb). Both manually fixed via psql; SQL captured at docs/migrations/2026-04-25-task41-schema-fixes.md. WORK: (1) Generate baseline alembic revision, (2) stamp prod, (3) document policy in CLAUDE.md that every model change needs migration in same PR. PRIORITY: Medium — not blocking deploy or current functionality, BLOCKING before Task #15 (AI quality gate may add columns). Spec + 7-AC Verification Procedure: docs/specs/infra.md (Task #45 section).",
         "details": "",
         "testStrategy": "",
         "status": "pending",
@@ -667,19 +667,20 @@
       {
         "id": 50,
         "title": "Backfill Verification Procedure blocks for Tasks #15, #44, #45",
-        "description": "Per docs/uat/AC-FORMAT.md, append a `## Verification Procedure - Task #<id>` block to each task's spec section. Task #15 (quality gate) lives in docs/specs/batch-2-ai-brain.md. Task #44 (ARQ worker) and #45 (Alembic baseline) are infrastructure tasks - create a docs/specs/infra-tasks.md file housing their specs + Verification Procedure blocks. Each block must follow AC-FORMAT.md exactly: Preconditions, Test data setup, Test-mode flags, ACs in 7-row table format, Aggregated PASS rule.",
-        "details": "Task #15: ~10 ACs covering 8-criterion mechanical rubric, AI review (brand_safety reject/caution/safe), repost-skip-guidance edge case, pre-flight UI display, wizard-output scoring. Task #44: ~6 ACs covering ARQ worker startup, queue connection, job processing, retry on failure, graceful shutdown. Task #45: ~7 ACs covering baseline migration generation, prod stamp, model-vs-DB drift detection (alembic check), forward migration applies cleanly. Apply learnings from Task #49 - if the skill needed a clarification for a Task #14 AC, future ACs preempt that issue.",
+        "description": "DONE 2026-04-29. Per docs/uat/AC-FORMAT.md, appended `## Verification Procedure - Task #<id>` blocks. Task #15 (quality gate, 14 ACs covering rubric+AI review+UI lifecycle) lives in docs/specs/batch-2-ai-brain.md. Task #44 (ARQ worker, 10 ACs covering boot, 4 jobs, soak, systemd, idempotence) and Task #45 (Alembic baseline, 7 ACs covering autogenerate, round-trip, prod stamp, policy doc) live in new file docs/specs/infra.md.",
+        "details": "Delivered: Task #15 has 14 ACs (vs 7 floor in spec) — added per-criterion breakdown verification, AI fallback path, idempotence check, audit log side effect, Chrome DevTools MCP UI lifecycle. Task #44 has 10 ACs covering import shape + arq health-check + clean boot + each of 4 jobs (earning promotion, payout processing, trust sweep, billing reconciliation) + soak + systemd auto-restart + admin-override idempotence. Task #45 has 7 ACs covering baseline file present + upgrade-from-empty matches models + prod stamp + alembic check clean + downgrade-then-upgrade round trip + autogenerate of synthetic column change + CLAUDE.md policy section. New test-mode flags introduced: AMPLIFIER_UAT_BYPASS_AI_REVIEW, AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT, AMPLIFIER_UAT_DRY_STRIPE, AMPLIFIER_UAT_PROD_DB.",
         "testStrategy": "Each backfilled task is then verifiable via /uat-task <id>.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           49
         ],
         "priority": "high",
         "subtasks": [],
         "metadata": {
-          "batch": "uat-infra"
+          "batch": "uat-infra",
+          "completed_on": "2026-04-29"
         },
-        "updatedAt": "2026-04-25T13:45:37.378929Z"
+        "updatedAt": "2026-04-29T14:25:00.000Z"
       },
       {
         "id": 51,

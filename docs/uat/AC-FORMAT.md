@@ -198,7 +198,8 @@ This is what a complete AC block looks like in practice. The full Task #14 spec 
 
 | File | Purpose |
 |------|---------|
-| `docs/specs/batch-N-*.md` | Per-task spec. Ends with `## Verification Procedure — Task #<id>` block. Source of truth. |
+| `docs/specs/batch-N-*.md` | Per-task spec for product batches (Money Loop, AI Brain, Product Features, Business Launch). Each task ends with `## Verification Procedure — Task #<id>` block. |
+| `docs/specs/infra.md` | Per-task spec for server-side infra tasks outside the 4 batches (e.g. #44 ARQ worker, #45 Alembic baseline). Same Verification-Procedure format. The skill should glob `docs/specs/*.md` (not just `batch-*.md`) when locating a task's spec. |
 | `docs/uat/AC-FORMAT.md` | This file. Rules for the AC block. |
 | `docs/uat/reports/task-<id>-<yyyy-mm-dd>.md` | Generated UAT report per run. Committed to git so we have a history. |
 | `scripts/uat/uat_task<id>.py` | pytest file with the automated AC checks. One per task. |
