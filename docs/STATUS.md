@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **26 done** · **24 pending** · **15 deferred** · 0 in-progress · **65 total**
+- **26 done** · **23 pending** · **16 deferred** · 0 in-progress · **65 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
@@ -101,11 +101,11 @@ Each batch is a `docs/specs/batch-*.md` file. The tasks listed are the ones the 
 
 ### Batch 4 — Business Launch 📋 PENDING
 **Spec**: `docs/specs/batch-4-business-launch.md`
-**What it delivers**: Free/Pro tiers, live Stripe (companies pay in, users get paid out), public landing page.
+**What it delivers**: live Stripe (companies pay in, users get paid out), public landing page.
 
 | Task | Title | Status |
 |------|-------|--------|
-| #17 | Free/Pro user subscription tiers ($19.99/mo) — Stripe subscription | 📋 pending (blocked: Stripe setup; needs AC block via Task #51) |
+| #17 | Free/Pro user subscription tiers ($19.99/mo) — Stripe subscription | ⏸ deferred 2026-04-29 (post-traction monetization, not MVP) |
 | #19 | Stripe live integration — company Checkout + user Connect Express | 📋 pending (blocked: Stripe setup; deps `#2`, `#10`; needs AC block via Task #51) |
 | #22 | Landing page — public-facing acquisition site | 📋 pending (links to new installer from migration; needs AC block via Task #51) |
 
@@ -152,7 +152,6 @@ Run in this order:
 | 2 | Creator app split | `docs/migrations/2026-04-28-migration-creator-app-split.md` |
 | 3 | Stealth + packaging | `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` |
 | Parallel | #19 Stripe live integration | `docs/specs/batch-4-business-launch.md` (touches FastAPI backend only — independent of UI migrations) |
-| Parallel | #17 Free/Pro tiers | Same — Stripe-blocked |
 
 **Sequencing rationale:** Dashboards must come first because the creator-app-split's hosted creator pages (`/user/*`) depend on the new `base.html`. Creator-app-split must come before stealth-and-packaging because the strip-down to local FastAPI must happen before the Nuitka build (otherwise dead Flask templates and CSS bloat the binary).
 
@@ -173,7 +172,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #48 | Build `scripts/uat/` helper scripts (seed_campaign, accept_invitation, etc.) | ✅ done |
 | #49 | First real `/uat-task 14` run + capture learnings | ✅ done (2026-04-26) |
 | **#50** | Backfill Verification Procedure for #15, #44, #45 | 📋 **pending — DO BEFORE `/uat-task 15`** |
-| #51 | Backfill Verification Procedure for Batch 4 (#17, #19, #22) | 📋 pending |
+| #51 | Backfill Verification Procedure for Batch 4 (#19, #22) | 📋 pending |
 | #52 | Backfill Verification Procedure for polish tasks (#23–28) | 📋 pending |
 
 ### Server / infra one-offs
@@ -184,7 +183,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #4 | Install slowapi + apply rate limiting to auth endpoints | ✅ done |
 | #40 | Fully disable X — hardcoded safety guard (3 X account suspensions) | ✅ done |
 | #41 | Vercel → Hostinger KVM migration | ✅ done (server LIVE since 2026-04-25) |
-| #44 | ARQ worker entrypoint | 📋 pending (Phase C — blocking #17) |
+| #44 | ARQ worker entrypoint | 📋 pending (Phase C — blocking #19) |
 | #45 | Baseline Alembic migration + enforce going forward | 📋 pending (Phase C — blocking #15 and Phase D) |
 
 ### Bugs discovered 2026-04-26 (during `/uat-task 14`)
@@ -205,11 +204,12 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 
 ---
 
-## Deferred / superseded tasks — why (15 total)
+## Deferred / superseded tasks — why (16 total)
 
 | Task | Title | Why deferred / superseded |
 |------|-------|--------------|
 | #7 | Repost campaigns | Post-launch. Foundational code exists (CampaignPost model, creation form, agent branch) but feature not complete. UI hidden, backend preserved. |
+| #17 | Free/Pro user subscription tiers ($19.99/mo) | **Deferred 2026-04-29.** Cold-start economics: amplifiers with no earnings track record can't rationally evaluate a $19.99/mo subscription. 20% platform cut is sufficient MVP monetization. Free 4 posts/day cap dropped alongside Pro (it only made sense as upgrade friction). Reputation tier still governs campaign count + earnings multiplier. Server scaffolding (`subscription_tier` column, `SUBSCRIPTION_TIERS` dict, `get_effective_max_campaigns`) left dormant — inert with default `free`. Revisit triggers: amplifier cohort earning $300+/month, OR campaign-supply scarcity, OR feature demand that genuinely costs money. |
 | #16 | Content formats (LinkedIn polls, Facebook photo albums, Reddit link posts) | Deferred 2026-04-18. Text + image already work on all 3 active platforms. Quality-of-life upgrade, not a launch blocker. Revisit if engagement data shows formats outperform text-only by >2x. |
 | #20 | PyInstaller packaging | **Superseded 2026-04-28** by `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` (uses Nuitka, not PyInstaller). |
 | #21 | Mac support | **Superseded 2026-04-28** by same migration doc (Nuitka cross-platform build matrix handles Mac). |
@@ -235,7 +235,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 2. **Then `/uat-task 15`** — drives the real product to verify Task #15's ACs.
 3. **Marks Phase A complete** → move to Phase C (#18 first, automated tests).
 
-**Active blockers (need user)**: Tasks #17 and #19 require user to set up Stripe Connect + bank onboarding before they can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
+**Active blockers (need user)**: Task #19 requires user to set up Stripe Connect + bank onboarding before it can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
 
 **Tasks.json sync needed:** This doc reflects the migration decisions (2026-04-28). The canonical `.taskmaster/tasks/tasks.json` should be updated to:
 - Mark #20 status: `superseded`, with note pointing to `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`

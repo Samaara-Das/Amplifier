@@ -230,13 +230,15 @@
       },
       {
         "id": 17,
-        "title": "Free/Pro tiers â€” wire Stripe subscription billing",
-        "description": "SUBSCRIPTION_TIERS config exists. Wire Stripe subscription checkout, webhook handler, enforce feature gates.",
-        "status": "pending",
+        "title": "[DEFERRED] Free/Pro tiers — wire Stripe subscription billing ($19.99/mo)",
+        "description": "DEFERRED 2026-04-29 (post-launch). Reasoning: amplifiers with no earnings track record cannot rationally evaluate a $19.99/mo subscription — Pro converts post-traction users, which MVP hasn't produced yet. The 20% platform cut is sufficient MVP monetization. Free 4 posts/day cap also dropped (only made sense as upgrade friction). Reputation tier (seedling/grower/amplifier) still governs campaign count + 2x earnings multiplier.\n\nRevisit triggers: (a) amplifier cohort consistently earning $300+/month, (b) campaign-supply scarcity making match-priority valuable, (c) feature demand that genuinely costs money to deliver (premium AI models, advanced analytics, faster scrape).\n\nORIGINAL SCOPE (preserved for revival):\nUsers (amplifiers) subscribe to a Pro plan ($19.99/month) that unlocks premium features. Separate from reputation tiers (seedling/grower/amplifier).\n\nTier comparison: Free → 4 posts/day, standard match priority. Pro → 20 posts/day, +20% match score boost, max(reputation_limit, 20) campaigns. Image generation enabled on both. Metric scrape frequency same (24h).\n\nFlow: Settings → 'Upgrade to Pro' → Stripe Checkout (subscription mode) → webhook checkout.session.completed sets subscription_tier=pro, subscription_status=active.\n\nWebhooks: checkout.session.completed (activate), invoice.payment_succeeded (extend), invoice.payment_failed (7-day grace then revert), customer.subscription.deleted (revert to free).\n\nFeature gates: post-count gate before scheduling, max_campaigns = max(reputation, pro_20), matching priority *= 1.2 if Pro.\n\nEdge cases: admin-suspended Pro user keeps active sub but locked out of platform; payment fail = 7-day grace; mid-period upgrade applies immediately; cancellation at period end.\n\nDORMANT SCAFFOLDING already in repo (left in place, inert with default 'free'):\n- server/app/models/user.py:53 — subscription_tier column, default 'free'\n- server/app/routers/users.py:53–56 — PATCH accepts subscription_tier (validates free|pro)\n- server/app/schemas/user.py:13,28 — subscription_tier field on update schema\n- server/app/services/billing.py:39–67 — SUBSCRIPTION_TIERS dict + get_effective_max_campaigns() (returns reputation limit while everyone is free)\n\nNOT YET BUILT (to do on revival): Stripe subscription checkout endpoint, webhook handler, post-limit enforcement, matching score multiplier, settings page upgrade UI.\n\n7 ACs in original spec — see git history for docs/specs/batch-4-business-launch.md before commit removing Task #17 section.",
+        "status": "deferred",
         "priority": "medium",
         "dependencies": [],
         "metadata": {
-          "tier": 3
+          "tier": 3,
+          "deferred_at": "2026-04-29",
+          "deferred_reason": "Cold-start economics: pre-traction amplifiers can't rationally evaluate $19.99/mo. 20% cut is sufficient MVP monetization."
         },
         "subtasks": []
       },
@@ -577,7 +579,7 @@
       {
         "id": 44,
         "title": "Implement ARQ worker entrypoint",
-        "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #17 (Stripe live + paying users) — without this, paying users' pending earnings never auto-promote to available.",
+        "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #19 (Stripe live + paying users) — without this, paying users' pending earnings never auto-promote to available.",
         "details": "",
         "testStrategy": "",
         "status": "pending",

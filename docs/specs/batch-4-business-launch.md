@@ -1,77 +1,12 @@
 # Batch 4: Business & Launch Specifications
 
-**Tasks:** #17 (Free/Pro tiers), #19 (Stripe live integration), #22 (landing page), #6 (metrics accuracy)
+**Tasks:** #19 (Stripe live integration), #22 (landing page), #6 (metrics accuracy). Task #17 (Free/Pro tiers) deferred — see stub below.
 
 ---
 
-## Task #17 — Free/Pro User Subscription Tiers
+## Task #17 — [DEFERRED] Free/Pro Tiers
 
-### Overview
-
-Users (amplifiers) can subscribe to a Pro plan ($19.99/month) that unlocks premium features. This is separate from reputation tiers (seedling/grower/amplifier) which are earned by posting history. A user can be a "seedling" reputation on the "pro" subscription, or an "amplifier" reputation on the "free" plan.
-
-### Tier Comparison
-
-| Feature | Free | Pro ($19.99/mo) |
-|---------|------|-----------------|
-| Max posts per day | 4 | 20 |
-| Max active campaigns | Based on reputation tier only | Reputation tier OR 20 (whichever is higher) |
-| AI image generation | Enabled | Enabled |
-| Priority in campaign matching | Standard | 20% score boost |
-| Metric scraping frequency | Every 24 hours | Every 24 hours (same) |
-
-### Subscription Flow
-
-1. User navigates to Settings page in the user app
-2. Sees current tier: "Free" with an "Upgrade to Pro" button
-3. Clicks "Upgrade to Pro"
-4. User app calls the server to create a Stripe Checkout session (subscription mode, $19.99/month)
-5. User is redirected to Stripe Checkout page
-6. After successful payment, Stripe sends a webhook to the server
-7. Server updates the user's subscription tier to "pro" and sets subscription status to "active"
-8. User is redirected back to Settings page showing "Pro" tier
-
-### Cancellation Flow
-
-1. User clicks "Cancel Subscription" in Settings
-2. Server calls Stripe to cancel at period end (user keeps Pro until current billing period ends)
-3. Subscription status changes to "canceled"
-4. After the current period expires, user reverts to Free tier limits
-5. User can re-subscribe at any time
-
-### Feature Gates
-
-When a feature is gated behind Pro:
-
-- **Image generation:** Available on both Free and Pro tiers. No restriction.
-- **Post limit:** Before scheduling a post, count today's posts. If free tier and already at 4, don't schedule more. Show: "Daily post limit reached. Upgrade to Pro for up to 20 posts/day."
-- **Campaign limit:** When checking max campaigns, use the higher of reputation tier limit and subscription tier limit (Pro = 20).
-- **Matching priority:** When scoring matches on the server, if user is Pro, multiply their score by 1.2 (20% boost). This means Pro users appear higher in campaign invitation lists.
-
-### Webhook Events to Handle
-
-| Stripe Event | Action |
-|-------------|--------|
-| checkout.session.completed (subscription) | Set user subscription_tier = "pro", subscription_status = "active" |
-| invoice.payment_succeeded | Extend subscription period |
-| invoice.payment_failed | Set subscription_status = "past_due". Features still work for a grace period (7 days). |
-| customer.subscription.deleted | Set subscription_tier = "free", subscription_status = "canceled" |
-
-### Edge Cases
-
-- User subscribes, then gets suspended by admin → subscription stays active but user can't access the platform
-- Payment fails → 7-day grace period with Pro features, then reverts to Free
-- User upgrades mid-campaign → Pro benefits (image gen, higher post limit) apply immediately to all active campaigns
-- Free user hits post limit → posts remain scheduled but won't execute until next day or until they upgrade
-
-### Acceptance Criteria
-
-1. New user registers. Default tier is "free". Max 4 posts/day, no image generation.
-2. User subscribes to Pro. After Stripe payment, tier shows "pro" in Settings. Max 20 posts/day, images generate.
-3. Free user generates content. Image generation works (same as Pro).
-4. Pro user appears higher in matching results than equivalent Free user for the same campaign.
-5. User cancels Pro. Features remain until billing period ends. After that, reverts to Free limits.
-6. Stripe payment fails. User gets 7-day grace period. After 7 days without payment, reverts to Free.
+**Status: Deferred to post-launch (2026-04-29).** Full spec preserved in the task-master task description (task #17). Reasoning: amplifiers with no earnings track record cannot rationally evaluate a $19.99/mo subscription; Pro converts post-traction users, which MVP hasn't produced yet. The 20% platform cut is sufficient monetization for MVP. The Free 4 posts/day cap is removed alongside Pro — it only made sense as upgrade friction. Reputation tier (seedling/grower/amplifier) still governs campaign count and earnings multiplier; no per-day post cap from a subscription axis remains. Revisit triggers: amplifier cohort earning $300+/month consistently, OR campaign-supply scarcity making match-priority valuable, OR feature demand that genuinely costs money to deliver.
 
 ---
 
