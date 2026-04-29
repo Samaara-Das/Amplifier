@@ -54,7 +54,12 @@ class CSRFMiddleware:
         # On form POST: validate CSRF token
         if method == "POST":
             ct = headers.get(b"content-type", b"").decode()
-            if "form" in ct:
+            # Only intercept urlencoded form bodies. multipart uploads contain
+            # binary file content that is NOT utf-8 decodable, so trying to
+            # parse_qs() the body crashes with UnicodeDecodeError. Multipart
+            # POST endpoints (e.g. /company/campaigns/upload-asset) handle
+            # CSRF separately via a header or cookie check inside the route.
+            if "application/x-www-form-urlencoded" in ct:
                 if not cookie_token:
                     await self._send_redirect(send, scope)
                     return
