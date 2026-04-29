@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **29 done** · **22 pending** · **17 deferred** · 0 in-progress · **68 total**
+- **29 done** · **22 pending** · **18 deferred** · 0 in-progress · **69 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
@@ -226,6 +226,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #42 | Re-enable TikTok / Instagram / X via cheap API | Blocked. X API v2 too expensive; stealth browser unproven. Re-enable only when verified-safe automation method exists. |
 | #43 | Shared research pool across users | Post-launch. Per-user research cache is fine for current scale. |
 | #54 | Reconsider user app tech stack (Tauri / Electron vs Flask) | **Decided 2026-04-28.** After three independent reviews, the answer is: stay Python for the daemon, replace the local Flask UI with a slim local FastAPI (5 routes only), host the rest on the FastAPI server. Migrate stealth to Patchright. Package with Nuitka. See `docs/migrations/2026-04-28-*.md`. |
+| #69 | Nvidia free-tier as 4th AI provider fallback | **Deferred 2026-04-29.** Current 3-provider chain (Gemini + Mistral + Groq) works in production after Task #15. Nvidia trial terms restrict to prototyping/testing — proxying via Amplifier likely violates spirit. Full analysis: `docs/research/nvidia-free-tier-for-amplifier.md`. Revisit if existing chain becomes unreliable or onboarding friction data shows users lack the 3 existing provider keys. |
 
 ---
 
