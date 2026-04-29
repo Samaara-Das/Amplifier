@@ -1187,16 +1187,33 @@ Both flags read at top of `quality_gate.py`. Defaults preserve production behavi
 | **Evidence** | `data/uat/screenshots/task15_ac14_blocked.png`, `task15_ac14_activated.png`; console + network dumps |
 | **Cleanup** | `close_page`; `python scripts/uat/cleanup_quality_test.py --ids data/uat/quality_campaign_ids.json` (sets all 7 fixture campaigns to `cancelled`, voids any reservations) |
 
+### AC15 — Create-campaign wizard end-to-end via UI: real user flow
+
+> **Why this AC exists**: ACs 1–14 verify the gate's behavior against API-seeded fixtures. They do NOT exercise the company dashboard's create-campaign form. A bug in the form (JS validation, field mapping, schema mismatch, payload assembly, submit handler) would let every other AC pass while real users hit a 422/500 the moment they click "Create Campaign". The UAT skill MUST drive the create flow as a user would, not bypass it via `httpx.post()`.
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test company logged in. No fixtures seeded via API for this AC — start from empty. Browser at `/company/campaigns/new`. Fresh viewport at 1920x1080 (per LEARNINGS). |
+| **Action** | Chrome DevTools MCP: (1) `new_page("https://api.pointcapitalis.com/company/campaigns/new")` → `resize_page(1920, 1080)` → `take_snapshot`. (2) Fill form fields one-by-one via `fill_form` — all fields needed to score >= 85: title (30+ chars), brief (300+ chars covering product/features/audience), content_guidance (50+ chars), niche tags, required platforms (linkedin + reddit), payout rates (rate_per_like ≥ $0.01 + ≥ 1 other rate), assets (at least 1 image URL or company URL), budget (≥ $100), dates (start today/future, end 7-90 days out). (3) `take_screenshot` of filled form. (4) Click "Submit" / "Create Campaign". (5) `wait_for(text=["Campaign created", "Quality Score", "Activate"], timeout=10000)`. (6) Take snapshot of detail page. (7) Verify Quality Score widget renders with score >= 85. (8) Click "Activate". (9) `wait_for(text=["Campaign active", "Pause"], timeout=15000)`. (10) Take final screenshot. (11) `list_console_messages(types=["error"])` — must be empty throughout. (12) `list_network_requests` — no 5xx against /api/. |
+| **Expected** | Campaign created via UI form (no direct API calls from this AC). Detail page renders Quality Score >= 85 and PASS badge. Activate button clickable. Status transitions draft → active. Success banner shown. No console errors. No 5xx network responses. Status badge "active" visible at end. |
+| **Automated** | yes (DevTools-driven) |
+| **Automation** | `chrome-devtools-mcp` tool sequence |
+| **Evidence** | `data/uat/screenshots/task15_ac15_form_filled.png`, `task15_ac15_detail_passed.png`, `task15_ac15_activated.png`; console + network dumps for the full session |
+| **Cleanup** | Cancel the created campaign via the same UI's "Cancel" button (also tests the cancel flow). `close_page`. |
+
+**This AC is non-negotiable.** Tests that bypass the UI via direct API calls do not count toward AC15. The skill MUST drive the actual form submission. If a UI element is missing from the snapshot (UID can't be found by visible label), the skill MUST inspect the DOM and surface the issue — never silently fall back to API calls to "make the AC pass."
+
 ---
 
 ### Aggregated PASS rule for Task #15
 
 Task #15 is marked done in task-master ONLY when:
-1. AC1–AC14 all PASS (AC7 + AC9 manual portions = user `y`)
+1. AC1–AC15 all PASS (AC7 + AC9 manual portions = user `y`)
 2. `server.log` grep `(?i)error|exception|traceback` returns zero lines for the UAT window (warnings OK)
 3. `audit_log` has ≥ 5 `campaign_quality_gate*` events for the UAT window
-4. All 7 fixture campaigns are cancelled or activated as expected at end of run; none stuck in `draft` from a half-completed test
+4. All fixture campaigns are cancelled or activated as expected at end of run; none stuck in `draft` from a half-completed test
 5. UAT report file `docs/uat/reports/task-15-<yyyy-mm-dd>-<hhmm>.md` written with all evidence embedded
 6. AI review was actually called (not just mocked) on at least 3 ACs — verify by counting Gemini API requests in `server.log` during the window
+7. AC15 must show form submitted via UI (Network panel shows `POST /api/company/campaigns` originating from the company dashboard page, not from a curl/pytest helper)
 
 If any fail, skill writes a partial report and refuses to mark the task done. Re-run after fixes.

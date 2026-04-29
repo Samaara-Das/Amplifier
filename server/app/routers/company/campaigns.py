@@ -388,8 +388,30 @@ async def campaign_create_submit(
         max_users=max_users,
     )
     db.add(campaign)
+    await db.flush()  # need ID for quality gate audit log
 
+    # Quality gate enforcement on activate-on-create (Task #15).
+    # Drafts can be saved at any quality; activation MUST clear the rubric.
+    # Without this check, the wizard's "Activate Campaign" button bypassed
+    # the gate entirely (the activation API endpoint at
+    # /api/companies/me/campaigns/{id}/activate was the only path that ran
+    # it — UI users never went through that path).
     if campaign_status == "active":
+        from app.services.quality_gate import score_campaign
+        rubric = score_campaign(campaign)
+        if not rubric["passed"]:
+            # Roll back the create — we don't want a stuck draft cluttering the dashboard
+            await db.delete(campaign)
+            await db.flush()
+            feedback_str = " | ".join(rubric["feedback"][:3])
+            return _render(
+                "company/campaign_wizard.html",
+                status_code=422,
+                company=company,
+                active_page="create",
+                error=f"Quality score {rubric['score']}/100 (needs 85+ with non-zero payouts/assets/targeting). {feedback_str}",
+            )
+        # Gate passed — debit the budget
         company.balance = float(company.balance) - budget
     await db.flush()
 

@@ -77,3 +77,24 @@ Format per entry:
 **Correction**: When an AC depends on a real Gemini call AND the server log shows `503 UNAVAILABLE` / `429 RESOURCE_EXHAUSTED`, retry the AC up to 3x with 30-60s gaps before marking FAIL. If still failing after 3x, mark INCONCLUSIVE (not FAIL — external infrastructure). Also: implementations should retry with exponential backoff inside the function before falling back to fallback path. Without function-level retry, transient blips become permanent fallbacks.
 
 **Trigger**: Any AC whose Expected field requires AI-review behavior (brand_safety reject/caution, niche-mismatch detection, AI-driven decisions). Check server logs for 503/429 first; retry the AC; only mark FAIL if reproducible.
+
+## 2026-04-29 — Drive the UI like a user. API shortcuts hide bugs you exist to catch.
+
+**Mistake (repeated 2-3 times now)**: When verifying a feature, used pytest + curl + httpx to hit the API directly because it's faster and "tests the same code." Skipped driving the create form, the wizard, the dashboard click flow. Result: bugs in the form layer (JS validation, field mapping, schema assembly, submit handler) would slip through every AC and only surface when a real user hits the feature.
+
+**Correction**: For ANY feature with a UI surface, the UAT MUST drive that UI via Chrome DevTools MCP — log in, navigate to the create/edit/action page, fill the form by clicking and typing into each field, click Submit, wait for the result, verify the rendered output. **Direct API calls (curl, httpx, pytest with `requests`) are scaffolding and a sanity check — they never replace driving the real user flow.**
+
+The user's literal words: *"you are supposed to test visually — like a user/company using the amplifier app. that's how i would test manually and find bugs to give to you. you are supposed to do my job of manual testing properly and better than i would do."*
+
+The whole point of the UAT skill is to be the human tester — to click through the app, find what breaks, and report it. Bypassing the UI defeats the skill's reason to exist.
+
+**Trigger**: Any task whose feature has a UI flow (any company/admin/user dashboard form, any wizard, any action button that triggers backend work). For every such feature, at least one AC must:
+1. Open the actual app page (Chrome DevTools MCP)
+2. Drive the form/click flow as a real user (no pre-seeded data via API; create state through the UI)
+3. Verify the user-visible result (rendered widget text, status badges, success banners, redirects)
+4. Capture screenshots at every state transition (before, after, error)
+5. Read console + network panels — flag errors and 5xx loudly
+
+When a task's spec ACs don't include such a flow, ADD ONE before running the UAT. Apply the LEARNING from 2026-04-26 ("ACs are the floor, not the ceiling") together with this rule: derive the missing UI flow AC, surface it to the user before running, then run it.
+
+**The check before declaring an AC PASS**: ask yourself "if there were a JS bug in the form that prevented the field from being submitted, would my AC have caught it?" If the answer is "no — I bypassed the form," your AC is incomplete. Add a UI-driven AC and run it.
