@@ -105,8 +105,14 @@ def _cleanup_campaign(
     headers: dict,
     server: str,
     campaign_id: int,
+    allowed_ids: set[int] | None = None,
 ) -> bool:
-    """Fetch, safety-check, and cancel one campaign. Returns True on success."""
+    """Fetch, safety-check, and cancel one campaign. Returns True on success.
+
+    Safety guard: a campaign is allowed if its title starts with UAT_PREFIX
+    OR its id is in allowed_ids (i.e. listed in the output JSON file).
+    Either signal is sufficient proof of UAT origin.
+    """
     campaign = _get_campaign(client, headers, server, campaign_id)
     if campaign is None:
         print(f"  Campaign {campaign_id}: not found or already deleted — skipping")
@@ -115,11 +121,12 @@ def _cleanup_campaign(
     title = campaign.get("title", "")
     status = campaign.get("status", "")
 
-    # Safety guard
-    if not title.startswith(UAT_PREFIX):
+    # Safety guard — allow if title starts with prefix OR id is in the known-UAT set
+    id_in_output = allowed_ids is not None and campaign_id in allowed_ids
+    if not title.startswith(UAT_PREFIX) and not id_in_output:
         print(
             f"SAFETY VIOLATION: Campaign {campaign_id} title '{title}' does not start with "
-            f"'{UAT_PREFIX}'. Refusing to cancel.",
+            f"'{UAT_PREFIX}' and is not in the output IDs file. Refusing to cancel.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -170,6 +177,7 @@ def main() -> None:
         sys.exit(2)
 
     # Resolve campaign IDs
+    allowed_ids: set[int] | None = None
     if args.explicit_ids:
         campaign_ids = args.explicit_ids
     else:
@@ -180,6 +188,7 @@ def main() -> None:
         with open(ids_file, encoding="utf-8") as f:
             ids_map = json.load(f)
         campaign_ids = list(ids_map.values())
+        allowed_ids = set(campaign_ids)
 
     print(f"Cancelling {len(campaign_ids)} campaign(s) on {server_url}...")
 
@@ -189,7 +198,7 @@ def main() -> None:
 
         success_count = 0
         for cid in campaign_ids:
-            ok = _cleanup_campaign(client, headers, server_url, cid)
+            ok = _cleanup_campaign(client, headers, server_url, cid, allowed_ids=allowed_ids)
             if ok:
                 success_count += 1
 
