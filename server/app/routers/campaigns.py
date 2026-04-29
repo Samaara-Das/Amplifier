@@ -40,11 +40,9 @@ async def create_campaign(
     company: Company = Depends(get_current_company),
     db: AsyncSession = Depends(get_db),
 ):
-    if data.budget_total < MINIMUM_CAMPAIGN_BUDGET:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Minimum campaign budget is ${MINIMUM_CAMPAIGN_BUDGET:.2f}",
-        )
+    # Budget minimum is enforced by the quality gate on activation (Task #15),
+    # not at creation. Drafts can be saved at any budget; activation will block
+    # if budget_sufficient criterion fails.
 
     # Reject campaigns targeting disabled platforms
     required_platforms = (data.targeting.required_platforms or []) if data.targeting else []
