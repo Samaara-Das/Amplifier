@@ -241,6 +241,7 @@ async def _call_gemini(prompt: str) -> str:
     """Call Gemini API with model fallback chain.
 
     Tries multiple models in order — if one hits rate limits, tries the next.
+    On full exhaustion raises RuntimeError so caller can fall through to Mistral/Groq.
     """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -253,6 +254,7 @@ async def _call_gemini(prompt: str) -> str:
 
     for model in GEMINI_MODELS:
         try:
+            logger.info("campaign wizard: trying gemini/%s", model)
             response = await asyncio.to_thread(
                 client.models.generate_content,
                 model=model,
@@ -263,11 +265,42 @@ async def _call_gemini(prompt: str) -> str:
             last_error = e
             error_str = str(e)
             if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                logger.warning("Gemini model %s rate limited, trying next...", model)
+                logger.warning("campaign wizard: gemini/%s rate limited, trying next...", model)
                 continue
+            logger.warning("campaign wizard: gemini/%s non-retryable error: %s", model, e)
             raise  # Non-rate-limit error, don't retry
 
-    raise last_error  # All models exhausted
+    logger.warning("campaign wizard: all gemini models exhausted")
+    raise RuntimeError(f"All Gemini models exhausted: {last_error}")
+
+
+async def _call_openai_compat(prompt: str, api_key: str, base_url: str, model: str, provider: str) -> str:
+    """Call an OpenAI-compatible chat completions endpoint (Mistral/Groq).
+
+    Returns the raw response text. Raises on HTTP error.
+    """
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 2048,
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"{provider} API returned {resp.status_code}: {resp.text[:200]}")
+
+    data = resp.json()
+    return data["choices"][0]["message"]["content"].strip()
 
 
 def _parse_json_response(text: str) -> dict:
@@ -422,14 +455,67 @@ Generate a JSON response with these fields:
 
 Return ONLY valid JSON, no markdown fences, no extra text."""
 
-    # Step 3: Call AI
+    # Step 3: Call AI — Gemini → Mistral → Groq → defaults
     ai_error = None
+    generated = None
+
+    # 3a. Gemini
     try:
         ai_response = await _call_gemini(prompt)
         generated = _parse_json_response(ai_response)
     except Exception as e:
         ai_error = str(e)
-        logger.error("AI generation failed: %s", e)
+        logger.warning("campaign wizard: gemini failed, falling through to mistral: %s", e)
+
+    # 3b. Mistral (if Gemini failed)
+    if generated is None:
+        from app.core.config import get_settings
+        settings = get_settings()
+        mistral_key = settings.mistral_api_key.strip()
+        if mistral_key:
+            try:
+                logger.info("campaign wizard: trying mistral/mistral-large-latest")
+                ai_response = await _call_openai_compat(
+                    prompt=prompt,
+                    api_key=mistral_key,
+                    base_url="https://api.mistral.ai/v1",
+                    model="mistral-large-latest",
+                    provider="mistral",
+                )
+                generated = _parse_json_response(ai_response)
+                logger.info("campaign wizard: mistral succeeded")
+            except Exception as e:
+                ai_error = str(e)
+                logger.warning("campaign wizard: mistral failed, falling through to groq: %s", e)
+        else:
+            logger.info("campaign wizard: mistral skipped (no MISTRAL_API_KEY)")
+
+    # 3c. Groq (if Gemini + Mistral failed)
+    if generated is None:
+        from app.core.config import get_settings
+        settings = get_settings()
+        groq_key = settings.groq_api_key.strip()
+        if groq_key:
+            try:
+                logger.info("campaign wizard: trying groq/llama-3.3-70b-versatile")
+                ai_response = await _call_openai_compat(
+                    prompt=prompt,
+                    api_key=groq_key,
+                    base_url="https://api.groq.com/openai/v1",
+                    model="llama-3.3-70b-versatile",
+                    provider="groq",
+                )
+                generated = _parse_json_response(ai_response)
+                logger.info("campaign wizard: groq succeeded")
+            except Exception as e:
+                ai_error = str(e)
+                logger.warning("campaign wizard: groq failed: %s", e)
+        else:
+            logger.info("campaign wizard: groq skipped (no GROQ_API_KEY)")
+
+    # 3d. All providers failed — use hand-written defaults
+    if generated is None:
+        logger.error("campaign wizard: all providers failed, using defaults. Last error: %s", ai_error)
         generated = _generate_defaults(product_name, product_description, product_features, target_niches)
 
     # Step 4: Estimate reach

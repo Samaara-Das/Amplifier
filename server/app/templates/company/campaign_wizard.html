@@ -11,6 +11,12 @@
     <h1>Create Campaign</h1>
 </div>
 
+{% if error %}
+<div class="alert-banner alert-danger" role="alert" style="background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:12px 16px;border-radius:8px;margin-bottom:24px;font-size:14px;">
+  <strong>Activation blocked:</strong> {{ error }}
+</div>
+{% endif %}
+
 <!-- Step indicator -->
 <div class="wizard-steps" id="wizardSteps">
     <div class="wizard-step active" data-step="1">
@@ -109,13 +115,13 @@
         </div>
         <div class="form-group">
             <label>Product images <span style="color:#64748b; font-weight:400;">(optional)</span></label>
-            <div class="form-help" style="margin-bottom:8px;">Upload product images. Creators will use these in their posts.</div>
-            <div class="upload-zone" id="imageUploadZone" onclick="document.getElementById('imageFileInput').click()">
+            <div class="form-help" style="margin-bottom:8px;">Add at least one of: a product image, a document, or a public product URL.</div>
+            <div class="upload-zone" id="imageUploadZone" role="button" tabindex="0" aria-label="Upload product images" data-testid="image-upload-zone" onclick="document.getElementById('imageFileInput').click()" onkeydown="if(event.key==='Enter'||event.key===' '){document.getElementById('imageFileInput').click();}">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"/></svg>
                 <span>Click to upload images (JPEG, PNG, WebP, GIF)</span>
                 <small>Max 4MB per image</small>
             </div>
-            <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display:none" onchange="handleImageUpload(this.files)">
+            <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display:none" data-testid="image-file-input" onchange="handleImageUpload(this.files)">
             <div id="imagePreviewGrid" class="image-preview-grid"></div>
         </div>
         <div class="form-group">
@@ -322,6 +328,8 @@
             <input type="hidden" name="file_urls_json" id="hiddenFileUrls" value="[]">
             <input type="hidden" name="file_contents_json" id="hiddenFileContents" value="[]">
             <input type="hidden" name="scraped_knowledge_json" id="hiddenScrapedKnowledge" value="">
+            <input type="hidden" name="company_urls_json" id="hiddenCompanyUrls" value="[]">
+            <input type="hidden" name="rate_per_click" id="genRateClick" value="0.10">
 
             <div class="wizard-actions">
                 <button type="button" class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
@@ -717,6 +725,10 @@
 
 {% block scripts %}
 <script>
+    window.AMPLIFIER_INIT_STEP = {% if error %}4{% else %}1{% endif %};
+    window.AMPLIFIER_SUBMITTED = {{ submitted | tojson if submitted else '{}' }};
+</script>
+<script>
 (function() {
     "use strict";
 
@@ -1076,6 +1088,72 @@
         };
     }
 
+    // ── AI generation fetch (shared) ────────────────────────────
+    var _genCtrl = null;
+
+    function _clearGenTimers(slowTimer, cancelTimer) {
+        clearTimeout(slowTimer);
+        clearTimeout(cancelTimer);
+    }
+
+    function _runAiGenerate(data, onSuccess, onError) {
+        // Abort any in-flight request
+        if (_genCtrl) { try { _genCtrl.abort(); } catch(e) {} }
+        _genCtrl = new AbortController();
+
+        var spinner = $('#generatingSpinner');
+
+        // 60s: update spinner text
+        var slowTimer = setTimeout(function() {
+            var h = spinner ? spinner.querySelector('h3') : null;
+            if (h) h.textContent = 'Still generating, falling through providers…';
+        }, 60000);
+
+        // 120s: show cancel link
+        var cancelTimer = setTimeout(function() {
+            if (!spinner) return;
+            var cancelLink = document.createElement('a');
+            cancelLink.href = '#';
+            cancelLink.textContent = 'Cancel and edit manually';
+            cancelLink.style.cssText = 'color:#dc2626;font-size:14px;display:block;margin-top:12px;';
+            cancelLink.onclick = function(e) {
+                e.preventDefault();
+                if (_genCtrl) { try { _genCtrl.abort(); } catch(ex) {} _genCtrl = null; }
+                _clearGenTimers(slowTimer, cancelTimer);
+                hide(spinner);
+                show($('#generatedResults'));
+                populateStep4Defaults(data);
+                goToStep(4);
+            };
+            spinner.appendChild(cancelLink);
+        }, 120000);
+
+        fetch('/company/campaigns/ai-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            signal: _genCtrl.signal,
+            body: JSON.stringify(data)
+        })
+        .then(function(resp) {
+            _clearGenTimers(slowTimer, cancelTimer);
+            if (!resp.ok) {
+                return resp.json().then(function(err) {
+                    throw new Error(err.detail || 'AI generation failed');
+                });
+            }
+            return resp.json();
+        })
+        .then(function(result) {
+            _clearGenTimers(slowTimer, cancelTimer);
+            onSuccess(result);
+        })
+        .catch(function(err) {
+            _clearGenTimers(slowTimer, cancelTimer);
+            onError(err);
+        });
+    }
+
     // ── Generate campaign via AI ────────────────────────────────
     window.generateCampaign = function() {
         var error = validateStep(3);
@@ -1092,29 +1170,12 @@
 
         var data = collectWizardData();
 
-        fetch('/company/campaigns/ai-generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify(data)
-        })
-        .then(function(resp) {
-            if (!resp.ok) {
-                return resp.json().then(function(err) {
-                    throw new Error(err.detail || 'AI generation failed');
-                });
-            }
-            return resp.json();
-        })
-        .then(function(result) {
+        _runAiGenerate(data, function(result) {
             generatedData = result;
             populateStep4(result);
             hide($('#generatingSpinner'));
             show($('#generatedResults'));
-        })
-        .catch(function(err) {
+        }, function(err) {
             hide($('#generatingSpinner'));
             show($('#generatedResults'));
             showError('Generation failed: ' + err.message + '. Default values have been filled in -- you can edit them manually.');
@@ -1127,31 +1188,21 @@
         hide($('#generatedResults'));
         hideError();
 
+        var spinner = $('#generatingSpinner');
+        var h = spinner ? spinner.querySelector('h3') : null;
+        if (h) h.textContent = 'Generating your campaign...';
+        // Remove any leftover cancel link from a prior timeout
+        var oldCancel = spinner ? spinner.querySelector('a') : null;
+        if (oldCancel) oldCancel.remove();
+
         var data = collectWizardData();
 
-        fetch('/company/campaigns/ai-generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify(data)
-        })
-        .then(function(resp) {
-            if (!resp.ok) {
-                return resp.json().then(function(err) {
-                    throw new Error(err.detail || 'AI generation failed');
-                });
-            }
-            return resp.json();
-        })
-        .then(function(result) {
+        _runAiGenerate(data, function(result) {
             generatedData = result;
             populateStep4(result);
             hide($('#generatingSpinner'));
             show($('#generatedResults'));
-        })
-        .catch(function(err) {
+        }, function(err) {
             hide($('#generatingSpinner'));
             show($('#generatedResults'));
             showError('Regeneration failed: ' + err.message);
@@ -1241,6 +1292,9 @@
         if (result.scraped_data) {
             $('#hiddenScrapedKnowledge').value = JSON.stringify(result.scraped_data);
         }
+
+        // Company URLs (from step 1) → assets.links on form submit
+        $('#hiddenCompanyUrls').value = JSON.stringify(wizardData.company_urls || []);
     }
 
     function populateStep4Defaults(data) {
@@ -1280,6 +1334,7 @@
         var fileUrls = (data.file_contents || []).map(function(f) { return f.url; });
         $('#hiddenFileUrls').value = JSON.stringify(fileUrls);
         $('#hiddenFileContents').value = JSON.stringify(data.file_contents || []);
+        $('#hiddenCompanyUrls').value = JSON.stringify(data.company_urls || []);
 
         // Show default reach text
         $('#reachMatchCount').textContent = '--';
@@ -1379,10 +1434,45 @@
                 return;
             }
 
+            // Sync company URLs from step 1 into hidden field before submit
+            var stepOneUrls = [];
+            $$('.url-input').forEach(function(inp) {
+                var v = inp.value.trim();
+                if (v) stepOneUrls.push(v);
+            });
+            $('#hiddenCompanyUrls').value = JSON.stringify(stepOneUrls);
+
             // The form submits naturally to POST /company/campaigns/new
             // which handles creation on the server side
         });
     }
+    // ── W4: restore step 4 on server rejection ──────────────────
+    if (window.AMPLIFIER_INIT_STEP === 4) {
+        var s = window.AMPLIFIER_SUBMITTED || {};
+        goToStep(4);
+        hide($('#generatingSpinner'));
+        show($('#generatedResults'));
+        if (s.title) $('#genTitle').value = s.title;
+        if (s.brief) $('#genBrief').value = s.brief;
+        if (s.content_guidance) $('#genGuidance').value = s.content_guidance;
+        if (s.budget) $('#genBudget').value = s.budget;
+        if (s.rate_per_1k_impressions) $('#genRateCpm').value = s.rate_per_1k_impressions;
+        if (s.rate_per_like) $('#genRateLike').value = s.rate_per_like;
+        if (s.start_date) $('#genStartDate').value = s.start_date;
+        if (s.end_date) $('#genEndDate').value = s.end_date;
+        if (s.budget_exhaustion_action) {
+            var exh = $('#genExhaustionAction');
+            if (exh) exh.value = s.budget_exhaustion_action;
+        }
+        if (s.scraped_knowledge_json) $('#hiddenScrapedKnowledge').value = s.scraped_knowledge_json;
+        if (s.image_urls_json) $('#hiddenImageUrls').value = s.image_urls_json;
+        if (s.file_urls_json) $('#hiddenFileUrls').value = s.file_urls_json;
+        if (s.file_contents_json) $('#hiddenFileContents').value = s.file_contents_json;
+        if (s.company_urls_json) $('#hiddenCompanyUrls').value = s.company_urls_json;
+        if (s.max_users) $('#hiddenMaxUsers').value = s.max_users;
+        if (s.min_engagement != null) $('#hiddenMinEngagement').value = s.min_engagement;
+    }
+
 })();
 
 // Repost campaign functions — deferred to post-launch (Task #7)
