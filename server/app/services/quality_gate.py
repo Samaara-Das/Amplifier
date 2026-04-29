@@ -245,16 +245,16 @@ def score_campaign(campaign) -> dict:
     # 8. Budget sufficient (10 pts)
     max_pts = _WEIGHTS["budget_sufficient"]
     budget = float(campaign.budget_total or 0)
-    if budget >= 100:
+    if budget >= 50:
         pts = max_pts
         fb = "Budget is sufficient."
-    elif budget >= 50:
+    elif budget >= 10:
         pts = max_pts // 2  # 5
-        fb = "Budget below recommended minimum. Campaigns under $100 reach fewer creators."
+        fb = "Budget below recommended minimum. Campaigns under $50 reach fewer creators."
         feedback.append(fb)
     else:
         pts = 0
-        fb = "Budget below minimum. Add funds to reach at least $100 for meaningful creator reach."
+        fb = "Budget below minimum. Add funds to reach at least $50 for meaningful creator reach."
         feedback.append(fb)
     criteria["budget_sufficient"] = {"score": pts, "max": max_pts, "feedback": fb}
 
@@ -282,7 +282,6 @@ _FALLBACK_RESULT = {
     "passed": None,
     "brand_safety": None,
     "concerns": [],
-    "niche_rate_assessment": None,
     "error": "fallback",
 }
 
@@ -290,7 +289,6 @@ _BYPASS_RESULT = {
     "passed": None,
     "brand_safety": None,
     "concerns": [],
-    "niche_rate_assessment": None,
     "error": "bypassed",
 }
 
@@ -329,7 +327,6 @@ async def ai_review_campaign(campaign, request_headers=None) -> dict:
             "passed": bool | None,
             "brand_safety": "safe" | "caution" | "reject" | None,
             "concerns": list[str],
-            "niche_rate_assessment": str | None,
             "error": str (only on fallback/bypass)
         }
     """
@@ -464,19 +461,17 @@ Content Guidance for creators: {guidance}
 Niche Tags / Target Audience: {", ".join(niche_tags) if niche_tags else "Not specified"}
 Payout Rates: {json.dumps(rules)}
 
-Review for these 5 concerns:
+Review for these 4 concerns:
 1. Is the brief coherent and specific, or vague filler text?
-2. Are the payout rates competitive for this niche? (finance campaigns need higher rates than lifestyle)
-3. Does the content guidance contain anything harmful? (attacking competitors, misleading claims, fake reviews, defamation)
-4. Does the targeting make sense for the product? (finance product targeting fashion = mismatch)
-5. Is this a legitimate product, or does it look like a scam or spam?
+2. Does the content guidance contain anything harmful? (attacking competitors, misleading claims, fake reviews, defamation)
+3. Does the targeting make sense for the product? (finance product targeting fashion = mismatch)
+4. Is this a legitimate product, or does it look like a scam or spam?
 
 Return ONLY valid JSON (no markdown, no commentary):
 {{
   "passed": true or false,
   "brand_safety": "safe" or "caution" or "reject",
-  "concerns": ["concern 1", "concern 2"],
-  "niche_rate_assessment": "competitive" or "below average" or "too low"
+  "concerns": ["concern 1", "concern 2"]
 }}
 
 Rules:
@@ -495,8 +490,6 @@ def _normalize_ai_result(result: dict) -> dict:
         result["concerns"] = []
     if "passed" not in result:
         result["passed"] = result.get("brand_safety") != "reject"
-    if "niche_rate_assessment" not in result:
-        result["niche_rate_assessment"] = None
     return result
 
 

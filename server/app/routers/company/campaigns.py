@@ -283,6 +283,7 @@ async def campaign_create_submit(
     file_urls_json: str = Form("[]"),
     file_contents_json: str = Form("[]"),
     scraped_knowledge_json: str = Form(""),
+    company_urls_json: str = Form("[]"),
     campaign_type: str = Form("ai_generated"),
     repost_x: str = Form(""),
     repost_x_image: str = Form(""),
@@ -340,11 +341,16 @@ async def campaign_create_submit(
         file_contents = json.loads(file_contents_json) if file_contents_json.strip() else []
     except json.JSONDecodeError:
         file_contents = []
+    try:
+        company_urls = json.loads(company_urls_json) if company_urls_json.strip() else []
+    except json.JSONDecodeError:
+        company_urls = []
 
     assets = {
         "image_urls": image_urls,
         "file_urls": file_urls,
         "file_contents": file_contents,
+        "links": company_urls,
         "hashtags": [],
         "brand_guidelines": "",
     }
@@ -404,12 +410,36 @@ async def campaign_create_submit(
             await db.delete(campaign)
             await db.flush()
             feedback_str = " | ".join(rubric["feedback"][:3])
+            submitted = {
+                "title": title,
+                "brief": brief,
+                "content_guidance": content_guidance or "",
+                "budget": budget,
+                "rate_per_1k_impressions": rate_per_1k_impressions,
+                "rate_per_like": rate_per_like,
+                "rate_per_repost": rate_per_repost,
+                "rate_per_click": rate_per_click,
+                "start_date": start_date,
+                "end_date": end_date,
+                "budget_exhaustion_action": budget_exhaustion_action,
+                "max_users": max_users,
+                "min_engagement": min_engagement,
+                "niche_tags": niche_tags,
+                "target_regions": target_regions,
+                "required_platforms": required_platforms,
+                "image_urls_json": image_urls_json,
+                "company_urls_json": company_urls_json,
+                "file_urls_json": file_urls_json,
+                "scraped_knowledge_json": scraped_knowledge_json,
+                "campaign_type": campaign_type,
+            }
             return _render(
                 "company/campaign_wizard.html",
                 status_code=422,
                 company=company,
                 active_page="create",
                 error=f"Quality score {rubric['score']}/100 (needs 85+ with non-zero payouts/assets/targeting). {feedback_str}",
+                submitted=submitted,
             )
         # Gate passed — debit the budget
         company.balance = float(company.balance) - budget
