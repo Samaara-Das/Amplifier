@@ -2,7 +2,7 @@ import csv
 import io
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -347,6 +347,34 @@ async def update_campaign(
     if data.content_guidance is not None:
         campaign.content_guidance = data.content_guidance
         content_changed = True
+
+    # Nested JSON fields
+    if data.payout_rules is not None:
+        campaign.payout_rules = data.payout_rules
+        content_changed = True
+    if data.targeting is not None:
+        campaign.targeting = data.targeting
+        content_changed = True
+    if data.preferred_formats is not None:
+        campaign.preferred_formats = data.preferred_formats
+        content_changed = True
+
+    # Date fields
+    if data.start_date is not None:
+        campaign.start_date = data.start_date
+    if data.end_date is not None:
+        campaign.end_date = data.end_date
+
+    # Budget: update total and proportionally adjust remaining if unspent
+    if data.budget_total is not None:
+        old_total = float(campaign.budget_total or 0)
+        old_remaining = float(campaign.budget_remaining or 0)
+        new_total = data.budget_total
+        campaign.budget_total = new_total
+        # If campaign hasn't started spending, sync remaining to total
+        if old_remaining >= old_total:
+            campaign.budget_remaining = new_total
+        # else: spending has started — leave budget_remaining alone
 
     # Increment version on content edits so user app detects changes
     if content_changed:
@@ -780,6 +808,7 @@ async def preflight_score_campaign(
 @router.post("/companies/me/campaigns/{campaign_id}/activate")
 async def activate_campaign(
     campaign_id: int,
+    request: Request,
     company: Company = Depends(get_current_company),
     db: AsyncSession = Depends(get_db),
 ):
@@ -842,7 +871,9 @@ async def activate_campaign(
         )
 
     # ── Layer 2: AI review ──────────────────────────────────────────
-    ai_review = await ai_review_campaign(campaign)
+    # Attach requester email so ai_review_campaign can gate UAT headers
+    campaign._uat_requester_email = company.email
+    ai_review = await ai_review_campaign(campaign, request_headers=request.headers)
     brand_safety = ai_review.get("brand_safety")
     ai_error = ai_review.get("error")
 

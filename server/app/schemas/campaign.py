@@ -43,6 +43,13 @@ class CampaignUpdate(BaseModel):
     assets: dict | None = None
     content_guidance: str | None = None
     status: str | None = None  # pause or cancel
+    # Nested JSON fields — supported on PATCH for draft campaigns
+    payout_rules: dict | None = None
+    targeting: dict | None = None
+    preferred_formats: dict | None = None
+    budget_total: float | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
 
 
 class CampaignResponse(BaseModel):
