@@ -61,3 +61,19 @@ Format per entry:
 **Correction**: Immediately after `new_page(...)`, call `mcp__chrome-devtools__resize_page` with at least `width=1920, height=1080` (full HD). Do this BEFORE any `take_snapshot` or `take_screenshot` so all subsequent captures reflect the full-screen layout.
 
 **Trigger**: Every AC that uses Chrome DevTools MCP for UI verification (in any task, not just Task #14). The first action after opening a new page is always `resize_page` to 1920x1080.
+
+## 2026-04-29 — Run UI ACs via Chrome DevTools MCP unconditionally; never skip them as "deferred"
+
+**Mistake**: During /uat-task 15, started with pytest-only ACs (1, 2, 3, 4, 5, 6, 7, 9, 11) and treated AC12 + AC14 (Chrome DevTools MCP UI ACs) as a follow-on phase to skip when time was tight. The user had to remind me explicitly that the skill mandates browser testing for UI ACs.
+
+**Correction**: The skill's rule #0 ("Screenshots are proof. Take them everywhere.") and the AC's own `Automated: yes (DevTools-driven)` field together mean UI ACs are NOT optional. Run them in the same loop as the pytest ACs — open the company/admin/user app, drive it like a real user, capture screenshots, embed in the report. Even if pytest ACs fail, UI ACs may pass and provide independent evidence the feature works.
+
+**Trigger**: Any AC whose Action field describes a Chrome DevTools MCP sequence (new_page → snapshot → click → wait_for → screenshot) OR whose Automation says `chrome-devtools-mcp`. Run them every time. Order: typically last (so prior ACs set up state to verify visually), but never skip.
+
+## 2026-04-29 — Retry transient Gemini API errors before declaring AI-review FAIL
+
+**Mistake**: AC7 + AC9 of Task #15 failed because Gemini returned 503 UNAVAILABLE due to high demand during the UAT window. The implementation fell back to mechanical-only (per spec) — but the spec ACs assume the AI review actually ran. Skill marked them FAIL on first attempt.
+
+**Correction**: When an AC depends on a real Gemini call AND the server log shows `503 UNAVAILABLE` / `429 RESOURCE_EXHAUSTED`, retry the AC up to 3x with 30-60s gaps before marking FAIL. If still failing after 3x, mark INCONCLUSIVE (not FAIL — external infrastructure). Also: implementations should retry with exponential backoff inside the function before falling back to fallback path. Without function-level retry, transient blips become permanent fallbacks.
+
+**Trigger**: Any AC whose Expected field requires AI-review behavior (brand_safety reject/caution, niche-mismatch detection, AI-driven decisions). Check server logs for 503/429 first; retry the AC; only mark FAIL if reproducible.
