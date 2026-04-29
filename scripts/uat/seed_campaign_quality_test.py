@@ -222,6 +222,8 @@ def _seed_all(client: httpx.Client, headers: dict, server: str) -> dict[str, int
     print(f"  harmful_guidance id={ids['harmful_guidance']}")
 
     # 7. targeting_mismatch — good finance brief but fashion/beauty niches
+    #    required_platforms included so rubric targeting criterion passes (partial at least)
+    #    Only the AI-review should flag the niche/content mismatch, not the rubric.
     mismatch = _good_base()
     mismatch["title"] = "UAT-15 Targeting Mismatch Campaign"
     mismatch["targeting"] = {
@@ -231,6 +233,8 @@ def _seed_all(client: httpx.Client, headers: dict, server: str) -> dict[str, int
         "required_platforms": ["linkedin", "reddit"],
         "target_regions": [],
     }
+    # Ensure payout_rules are competitive so payout_rates criterion passes
+    mismatch["payout_rules"] = _good_base()["payout_rules"]
     print("Creating targeting_mismatch...")
     ids["targeting_mismatch"] = _create_campaign(client, headers, server, mismatch)
     print(f"  targeting_mismatch id={ids['targeting_mismatch']}")
