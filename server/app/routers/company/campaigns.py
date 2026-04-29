@@ -460,6 +460,7 @@ async def campaign_create_submit(
                 submitted=submitted,
             )
 
+        campaign._uat_requester_email = company.email
         ai_review = await ai_review_campaign(campaign, request_headers=request.headers)
         brand_safety = ai_review.get("brand_safety")
         ai_error = ai_review.get("error")
