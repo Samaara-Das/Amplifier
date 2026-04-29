@@ -274,21 +274,22 @@
       {
         "id": 20,
         "title": "PyInstaller packaging â€” Windows installer",
-        "description": "Update amplifier.spec for current codebase. Bundle all modules + Playwright + templates. Build Inno Setup installer.",
-        "status": "pending",
+        "description": "[SUPERSEDED 2026-04-28] Replaced by docs/migrations/2026-04-28-migration-stealth-and-packaging.md (uses Nuitka, not PyInstaller). Do not implement.",
+        "status": "deferred",
         "priority": "high",
         "dependencies": [],
         "metadata": {
           "tier": 4,
           "launch": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-29T07:11:08.933333Z"
       },
       {
         "id": 21,
         "title": "Mac support â€” cross-platform audit + packaging",
-        "description": "Audit Windows-specific code (fonts, paths, crypto). Fix for Mac. Build Mac package. Test full pipeline.",
-        "status": "pending",
+        "description": "[SUPERSEDED 2026-04-28] Replaced by docs/migrations/2026-04-28-migration-stealth-and-packaging.md (Nuitka cross-platform build matrix handles Mac). Do not implement.",
+        "status": "deferred",
         "priority": "medium",
         "dependencies": [
           "20"
@@ -297,7 +298,8 @@
           "tier": 4,
           "launch": true
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-29T07:11:08.933333Z"
       },
       {
         "id": 22,
@@ -729,11 +731,11 @@
       },
       {
         "id": 54,
-        "title": "[DEFERRED] Reconsider user app tech stack - Tauri vs Electron vs status quo Flask",
-        "description": "Per docs/specs/user-app-tech-stack.md: the user app currently uses Flask + Jinja2 SSR + vanilla JS for the dashboard plus a Python asyncio background agent in the same process. Doc evaluated 5 options and recommended Option 4 (web dashboard on Vercel + headless Python agent with system tray) as a Phase 2 migration after 10-20 paying users. Tasks #20 (PyInstaller installer), #21 (Mac support), #22 (landing page) all depend on the chosen tech stack. Reconsider before sinking 2+ weeks into PyInstaller packaging that may be obsolete if we switch to Tauri/Electron/Option 4. The migration plan in section 10 of the spec doc estimates ~2 weeks of focused work for the split.",
+        "title": "Reconsider user app tech stack — DECIDED",
+        "description": "[DONE 2026-04-28] Decision made after 3 independent reviews: Patchright (stealth) + Nuitka + Inno Setup/pkgbuild (packaging) + slim local FastAPI 5-routes + HTMX dashboards. See docs/migrations/2026-04-28-*.md. Rejected: Tauri, Electron, Next.js, PyInstaller.",
         "details": "Decision points: (1) Has the user count grown enough to justify the migration? (2) Are PyInstaller pain points (200-400MB installers, AV false positives, slow cold starts) blocking onboarding? (3) Does the web-dashboard-plus-agent split simplify or complicate the campaign-acceptance flow? Source doc: docs/specs/user-app-tech-stack.md (currently 736 lines). Don't unblock Task #20 (PyInstaller) until this decision is revisited.",
         "testStrategy": "",
-        "status": "deferred",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": [],
@@ -741,7 +743,7 @@
           "batch": "post-launch",
           "source_doc": "docs/specs/user-app-tech-stack.md"
         },
-        "updatedAt": "2026-04-25T18:44:43.312046Z"
+        "updatedAt": "2026-04-29T07:11:08.933333Z"
       },
       {
         "id": 55,
@@ -924,6 +926,55 @@
           "discovered_during": "uat-task-14-2026-04-26"
         },
         "updatedAt": "2026-04-26T09:09:49.871285+00:00"
+      },
+      {
+        "id": 66,
+        "title": "Migration: Dashboards HTMX upgrade",
+        "description": "Add HTMX+Alpine+Tailwind CDN+Chart.js to existing company/admin Jinja2 templates. New /user/* creator pages on same FastAPI server. 10 ACs. Depends on Task #18 (pytest). See docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "18",
+          "44",
+          "45"
+        ],
+        "metadata": {
+          "phase": "D",
+          "migration": true
+        },
+        "subtasks": []
+      },
+      {
+        "id": 67,
+        "title": "Migration: Creator app split (hosted dashboard + local daemon)",
+        "description": "Split Flask user app into hosted /user/* pages on FastAPI server + slim local FastAPI (5 routes, ~400-600 LOC) + daemon additions (~150 LOC). Strips 9 templates + 3451 LOC CSS. 12 ACs. Depends on #66. See docs/migrations/2026-04-28-migration-creator-app-split.md.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "66",
+          "18"
+        ],
+        "metadata": {
+          "phase": "D",
+          "migration": true
+        },
+        "subtasks": []
+      },
+      {
+        "id": 68,
+        "title": "Migration: Stealth + packaging (Patchright + Nuitka + installers)",
+        "description": "Replace Playwright with Patchright. Build Nuitka native binary. Inno Setup (Windows) + pkgbuild (Mac) installers. GitHub Releases + auto-update. No code signing v1. 12 ACs. Depends on #67. See docs/migrations/2026-04-28-migration-stealth-and-packaging.md.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "67",
+          "18"
+        ],
+        "metadata": {
+          "phase": "D",
+          "migration": true
+        },
+        "subtasks": []
       }
     ],
     "metadata": {

@@ -99,7 +99,9 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON AP
 **Models** (12 tables): Company (`balance_cents` added), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count` added), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog
 
 ### Amplifier User App
-Local Flask dashboard + campaign runner that connects to the server.
+**Phase D migration planned (2026-04-28):** The local Flask UI (`scripts/user_app.py`) is being replaced by a slim local FastAPI (5 routes, ~400-600 LOC) + hosted creator dashboard (`/user/*` on the FastAPI server). The daemon's 6,500 LOC of automation code is preserved verbatim. See `docs/migrations/2026-04-28-migration-creator-app-split.md`. **Do not add features to `scripts/user_app.py` or `scripts/templates/user/` — they are dead code post-migration.**
+
+Current state (pre-migration):
 
 - `scripts/user_app.py` — Main Flask app on port 5222 (32+ routes). 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding. Handles auth, campaign lifecycle, draft review, scheduling, background agent control.
 - `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
@@ -202,5 +204,7 @@ Claude operates as cofounder and CTO of Amplifier — not an assistant, not a ye
 - Per-platform proxy support in `_launch_context()` for geo-restricted platforms (configured in `platforms.json`)
 - Active platforms: LinkedIn, Facebook, Reddit. **X DISABLED 2026-04-14** after 2 account blocks by anti-bot detection — do not re-enable without a safe automation method (X API v2, stealth browser like camoufox, or equivalent). TikTok and Instagram also disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped
 - Reddit posts to 1 random subreddit per run from the configured list
-- No test suite exists — verify changes by running against real platforms
-- Server uses SQLite for local dev, Supabase PostgreSQL in production. Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility). Production hosting migrating from Vercel to Hostinger KVM VPS (Task #41).
+- No test suite exists yet — Task #18 (pytest suite) is Phase C item 1, non-negotiable prerequisite for Phase D migrations
+- **Phase D stealth migration (Task #68):** Playwright → Patchright (drop-in, same API). All import swaps: `from patchright.async_api import ...`. Remove `--disable-blink-features=AutomationControlled` flag (redundant with Patchright). Do NOT migrate yet — wait for Phase D.
+- **Phase D packaging (Task #68):** Nuitka (not PyInstaller) + Inno Setup (Windows) + pkgbuild (Mac). See `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`.
+- Server uses SQLite for local dev, Supabase PostgreSQL in production. Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility). Server LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai) since 2026-04-25.

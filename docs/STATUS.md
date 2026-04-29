@@ -1,6 +1,8 @@
 # Amplifier — Status, Batches, Phases, Tasks
 
-> **Snapshot date: 2026-04-28.** This is a derived view. The canonical source is `.taskmaster/tasks/tasks.json`. If this doc is more than a few days old, re-derive from `tasks.json`.
+> **Snapshot date: 2026-04-29.** This is a derived view. The canonical source is `.taskmaster/tasks/tasks.json`. If this doc is more than a few days old, re-derive from `tasks.json`.
+
+> **Tech stack migration decided (2026-04-28).** After three independent architecture reviews (Claude Desktop, Grok, synthesis), the launch-blocking UI migration is now spec'd in `docs/migrations/`. Three docs: dashboards-htmx-upgrade, creator-app-split, stealth-and-packaging. These supersede Tasks #20, #21, and #54. See "Migration docs" section below.
 
 > **Important — two orthogonal concepts.** A **batch** is a *feature bucket* (what a set of tasks delivers — e.g. "the AI brain"). A **phase** is an *execution stage* (when a task runs in time). They are not the same thing. The 4 batches and 5 phases overlap but are not identical.
 
@@ -11,12 +13,15 @@
 A fresh agent should read in this order:
 
 1. **`docs/STATUS.md`** (this file) — what's done, what's next, what's deferred, the canonical batches and phases
-2. **`docs/specs/batch-*.md`** + **`docs/specs/user-app-tech-stack.md`** — per-task specs
-3. **`docs/uat/AC-FORMAT.md`** — Acceptance Criteria + UAT format every spec must follow before `/uat-task <id>` can run it
-4. **`CLAUDE.md`** — developer reference: commands, architecture, gotchas, slash commands, decision-making framework
-5. **`.taskmaster/tasks/tasks.json`** — canonical task list (65 tasks)
+2. **`docs/specs/batch-*.md`** — per-task specs
+3. **`docs/migrations/2026-04-28-*.md`** — the three migration docs (Phase D blueprint)
+4. **`docs/uat/AC-FORMAT.md`** — Acceptance Criteria + UAT format every spec must follow before `/uat-task <id>` can run it
+5. **`CLAUDE.md`** — developer reference: commands, architecture, gotchas, slash commands, decision-making framework
+6. **`.taskmaster/tasks/tasks.json`** — canonical task list (65 tasks)
 
-**Execution rule (from feedback 2026-04-18):** Run **phases in order**: A → C → D → E (B is deferred). Within a phase, run tasks in **numeric order**. **Ignore** task-master's "recommended next" — it reorders by dependency/priority, the user wants predictable forward progress.
+> Note: `docs/specs/user-app-tech-stack.md` is **superseded** by the three migration docs in `docs/migrations/`. Kept for historical context only.
+
+**Execution rule (from feedback 2026-04-18):** Run **phases in order**: A → C → D → E (B is deferred). Within a phase, run tasks in **numeric order** (with one exception in Phase C — see below). **Ignore** task-master's "recommended next" — it reorders by dependency/priority, the user wants predictable forward progress.
 
 ---
 
@@ -27,6 +32,31 @@ A fresh agent should read in this order:
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
 - **Most recent UAT win** (2026-04-26): `/uat-task 14` first all-green run — 18/18 ACs PASS, real posts on LinkedIn/FB/Reddit then auto-deleted, 7 production bugs surfaced and fixed.
+
+---
+
+## Migration docs (Phase D blueprint)
+
+Three docs in `docs/migrations/` define the launch-blocking UI/packaging migration. **Do not execute until Phase A and Phase C are complete.** The migrations replace Tasks #20, #21, #54.
+
+| Doc | Scope | Effort |
+|---|---|---|
+| `2026-04-28-migration-dashboards-htmx-upgrade.md` | Add HTMX + Alpine + Tailwind CDN + Chart.js to existing company/admin Jinja2 templates. New creator dashboard pages (`/user/*`) on the same FastAPI server. **Rejected**: Next.js, React, shadcn/ui. | 5–7 days |
+| `2026-04-28-migration-creator-app-split.md` | Split current Flask user app into (a) hosted creator dashboard at `/user/*`, (b) slim local FastAPI on `localhost:5222` for draft review + platform connect + API keys (~400-600 LOC), (c) daemon adds command polling + draft upload. Strips 9 templates and 3,451 LOC of CSS. Daemon's 6,500 LOC of automation code is preserved. **Rejected**: Tauri, Electron, native UI frameworks. | 8–10 days |
+| `2026-04-28-migration-stealth-and-packaging.md` | Patchright (drop-in Playwright replacement) for stealth. Nuitka native binary. Inno Setup (Windows) + pkgbuild (Mac) installers. GitHub Releases for distribution + auto-update. **No code signing in v1** — accept SmartScreen/Gatekeeper warnings. **Rejected**: Tauri bundler, PyInstaller, Camoufox (deferred), Electron, Linux installer (deferred). | 5–7 days |
+
+**Total Phase D effort:** 18–24 days.
+
+**Architecture decisions (final, do not re-litigate):**
+- Server: FastAPI + SQLAlchemy + Postgres on Hostinger VPS (unchanged)
+- Company + Admin UI: Jinja2 + HTMX + Alpine.js + Tailwind CDN
+- Creator hosted dashboard: same stack, new `/user/*` routes on same server
+- Creator local UI: FastAPI + Jinja2 + HTMX (~400-600 LOC, 5 routes only: auth_callback, connect, keys, drafts, drafts/{campaign_id})
+- Creator daemon: Python (existing code preserved verbatim, ~150 LOC additions for command polling + draft upload)
+- Stealth: Patchright (Chromium drop-in for Playwright)
+- Packaging: Nuitka + Inno Setup (Windows) + pkgbuild (Mac)
+- Distribution: GitHub Releases + HTTP version-check auto-update
+- Code signing: deferred to post-launch (~$400/yr cost when revenue justifies)
 
 ---
 
@@ -77,10 +107,11 @@ Each batch is a `docs/specs/batch-*.md` file. The tasks listed are the ones the 
 |------|-------|--------|
 | #17 | Free/Pro user subscription tiers ($19.99/mo) — Stripe subscription | 📋 pending (blocked: Stripe setup; needs AC block via Task #51) |
 | #19 | Stripe live integration — company Checkout + user Connect Express | 📋 pending (blocked: Stripe setup; deps `#2`, `#10`; needs AC block via Task #51) |
-| #22 | Landing page — public-facing acquisition site | 📋 pending (dep `#20`; needs AC block via Task #51) |
+| #22 | Landing page — public-facing acquisition site | 📋 pending (links to new installer from migration; needs AC block via Task #51) |
 
-### Architecture spec (not a batch but referenced by tasks)
-**Spec**: `docs/specs/user-app-tech-stack.md` — Tauri vs Electron vs status-quo Flask analysis. Approved direction is web dashboard + headless Python agent. Drives Tasks #20 (PyInstaller), #21 (Mac), #54 (revisit decision). Currently implementation defers #54 — Flask-based status quo continues.
+### ~~Architecture spec~~ → Superseded by migration docs
+Previous: `docs/specs/user-app-tech-stack.md` (Tauri vs Electron vs status-quo Flask analysis).
+**Replaced by** the three migration docs above. Tasks #20 (PyInstaller), #21 (Mac), #54 (revisit decision) are **superseded** — see Phase D below.
 
 ---
 
@@ -90,27 +121,43 @@ Per feedback 2026-04-18. Run A → C → D → E. **B is deferred entirely.**
 
 ### Phase A — AI Brain finish 🔄
 - ✅ #14 (4-phase content agent — done 2026-04-18, re-verified 2026-04-26)
-- 📋 **#15 (AI campaign quality gate)** ← *next task to start*
+- 📋 **#15 (AI campaign quality gate)** ← *next task to start* (needs AC block via #50 first)
 
 ### Phase B — Content formats ⏸ DEFERRED
 - ⏸ #16 deferred 2026-04-18 — text + image already work on all 3 active platforms; format expansion is post-launch quality-of-life.
 
 ### Phase C — Product tail 📋
-Run in numeric order:
-- #18 Automated test suite (pytest) — deps `#10`, `#11`
-- #20 PyInstaller packaging — Windows installer
-- #21 Mac support — cross-platform audit + packaging — dep `#20`
-- #22 Landing page — dep `#20` *(also listed in Batch 4)*
-- #27 Server-side post URL dedup
-- #28 ToS + privacy policy acceptance in registration
-- Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation)
+**Modified order (2026-04-28): pull #18 first.** Without test coverage, the Phase D migration breaks things invisibly. Bug #53 (Facebook follower count regression) and the disappearing Next-button fix are exactly the kind of regressions a pytest suite catches.
 
-### Phase D — Money 📋
-- #17 Free/Pro tiers — blocked on user setting up Stripe
-- #19 Stripe live integration — blocked on user setting up Stripe Connect
+Run in this order:
+1. **#18 Automated test suite (pytest)** — deps `#10`, `#11`. **Non-negotiable, must come first.**
+2. #44 ARQ worker entrypoint — required before paying users
+3. #45 Alembic baseline migration — locks the schema before Phase D ports it
+4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65
+5. #27 Server-side post URL dedup
+6. #28 ToS + privacy policy acceptance in registration
+7. Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation)
+
+**Skipped from Phase C** (replaced by Phase D migration docs):
+- ~~#20 PyInstaller packaging~~ → superseded by `2026-04-28-migration-stealth-and-packaging.md` (Nuitka, not PyInstaller)
+- ~~#21 Mac support~~ → superseded by same migration doc (cross-platform handled in Nuitka build matrix)
+- ~~#22 Landing page~~ → moved to Phase E (links to the new installer, must come after migration)
+
+### Phase D — Tech Stack Migration + Money 📋
+**This phase is launch-blocking.** Execute the three migration docs in order, in parallel with Stripe setup.
+
+| Order | Item | Source |
+|---|---|---|
+| 1 | Dashboards HTMX upgrade | `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` |
+| 2 | Creator app split | `docs/migrations/2026-04-28-migration-creator-app-split.md` |
+| 3 | Stealth + packaging | `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` |
+| Parallel | #19 Stripe live integration | `docs/specs/batch-4-business-launch.md` (touches FastAPI backend only — independent of UI migrations) |
+| Parallel | #17 Free/Pro tiers | Same — Stripe-blocked |
+
+**Sequencing rationale:** Dashboards must come first because the creator-app-split's hosted creator pages (`/user/*`) depend on the new `base.html`. Creator-app-split must come before stealth-and-packaging because the strip-down to local FastAPI must happen before the Nuitka build (otherwise dead Flask templates and CSS bloat the binary).
 
 ### Phase E — Launch 📋
-Already covered by #22 in Phase C. No new tasks.
+- #22 Landing page — last, links to new installer from Phase D
 
 ---
 
@@ -137,8 +184,8 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #4 | Install slowapi + apply rate limiting to auth endpoints | ✅ done |
 | #40 | Fully disable X — hardcoded safety guard (3 X account suspensions) | ✅ done |
 | #41 | Vercel → Hostinger KVM migration | ✅ done (server LIVE since 2026-04-25) |
-| #44 | ARQ worker entrypoint | 📋 pending (blocking #17) |
-| #45 | Baseline Alembic migration + enforce going forward | 📋 pending (blocking #15) |
+| #44 | ARQ worker entrypoint | 📋 pending (Phase C — blocking #17) |
+| #45 | Baseline Alembic migration + enforce going forward | 📋 pending (Phase C — blocking #15 and Phase D) |
 
 ### Bugs discovered 2026-04-26 (during `/uat-task 14`)
 | Task | Title | Status |
@@ -146,24 +193,26 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #53 | Re-verify #13 — Facebook/Reddit follower counts wrong | ✅ done |
 | #55 | `get_user_profiles()` reads empty `agent_user_profile` table | ✅ done (vestigial table dropped) |
 | #56 | `'list' object has no attribute 'get'` in content agent (3 sites) | ✅ done |
-| #57 | Quality gate: accept `niche_tags + required_platforms + empty target_regions` as valid | 📋 pending (low) |
+| #57 | Quality gate: accept `niche_tags + required_platforms + empty target_regions` as valid | 📋 pending (low) — Phase C |
 | #58 | Matching algorithm doesn't invite eligible users to active campaigns | ✅ done |
-| #59 | Duplicate invitation rendered on `/campaigns` page | 📋 pending (medium) |
-| #60 | Dashboard shows X (Twitter) as Connected despite global disable | 📋 pending (low) |
+| #59 | Duplicate invitation rendered on `/campaigns` page | 📋 pending (medium) — Phase C |
+| #60 | Dashboard shows X (Twitter) as Connected despite global disable | 📋 pending (low) — Phase C |
 | #61 | Server `matching.py` `NameError 'user_tier'` for seedling at max | ✅ done (deployed live via SSH) |
 | #62 | Dashboard "Posts This Month" counts deleted/voided posts | ✅ done |
-| #63 | `seed_campaign.py` wrong invitation accept endpoint (404) | 📋 pending (low — UAT infra) |
-| #64 | `seed_campaign.py` wrong image-upload endpoint (404) | 📋 pending (low — UAT infra) |
-| #65 | `AMPLIFIER_UAT_FORCE_DAY` doesn't propagate to `agent_draft.iteration` | 📋 pending (low — UAT infra) |
+| #63 | `seed_campaign.py` wrong invitation accept endpoint (404) | 📋 pending (low — UAT infra) — Phase C |
+| #64 | `seed_campaign.py` wrong image-upload endpoint (404) | 📋 pending (low — UAT infra) — Phase C |
+| #65 | `AMPLIFIER_UAT_FORCE_DAY` doesn't propagate to `agent_draft.iteration` | 📋 pending (low — UAT infra) — Phase C |
 
 ---
 
-## Deferred tasks — why (15 total)
+## Deferred / superseded tasks — why (15 total)
 
-| Task | Title | Why deferred |
+| Task | Title | Why deferred / superseded |
 |------|-------|--------------|
 | #7 | Repost campaigns | Post-launch. Foundational code exists (CampaignPost model, creation form, agent branch) but feature not complete. UI hidden, backend preserved. |
 | #16 | Content formats (LinkedIn polls, Facebook photo albums, Reddit link posts) | Deferred 2026-04-18. Text + image already work on all 3 active platforms. Quality-of-life upgrade, not a launch blocker. Revisit if engagement data shows formats outperform text-only by >2x. |
+| #20 | PyInstaller packaging | **Superseded 2026-04-28** by `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` (uses Nuitka, not PyInstaller). |
+| #21 | Mac support | **Superseded 2026-04-28** by same migration doc (Nuitka cross-platform build matrix handles Mac). |
 | #29 | Political campaigns (geo-targeting, FEC compliance) | Post-launch. Heavy compliance scope, not in MVP. |
 | #30 | Self-learning content generation | Post-launch. Needs production data to train on. |
 | #31 | Video generation | Post-launch. Out of scope until image pipeline proves itself. |
@@ -176,7 +225,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #39 | UGC-style content (authenticity for viral) | Post-launch. Image post-processing pipeline already exists; deeper UGC tuning later. |
 | #42 | Re-enable TikTok / Instagram / X via cheap API | Blocked. X API v2 too expensive; stealth browser unproven. Re-enable only when verified-safe automation method exists. |
 | #43 | Shared research pool across users | Post-launch. Per-user research cache is fine for current scale. |
-| #54 | Reconsider user app tech stack (Tauri / Electron vs Flask) | Awaiting decision. Current Flask works. Will re-evaluate if packaging issues block #20. |
+| #54 | Reconsider user app tech stack (Tauri / Electron vs Flask) | **Decided 2026-04-28.** After three independent reviews, the answer is: stay Python for the daemon, replace the local Flask UI with a slim local FastAPI (5 routes only), host the rest on the FastAPI server. Migrate stealth to Patchright. Package with Nuitka. See `docs/migrations/2026-04-28-*.md`. |
 
 ---
 
@@ -186,7 +235,13 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 2. **Then `/uat-task 15`** — drives the real product to verify Task #15's ACs.
 3. **Marks Phase A complete** → move to Phase C (#18 first, automated tests).
 
-**Active blockers (need user)**: Tasks #17 and #19 require user to set up Stripe Connect + bank onboarding before they can be implemented.
+**Active blockers (need user)**: Tasks #17 and #19 require user to set up Stripe Connect + bank onboarding before they can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
+
+**Tasks.json sync needed:** This doc reflects the migration decisions (2026-04-28). The canonical `.taskmaster/tasks/tasks.json` should be updated to:
+- Mark #20 status: `superseded`, with note pointing to `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`
+- Mark #21 status: `superseded`, same note
+- Mark #54 status: `done`, with note `Decided: Patchright + Nuitka + slim local FastAPI + HTMX dashboards. See docs/migrations/2026-04-28-*.md`
+- Add new tasks for the three migrations: #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging)
 
 ---
 
@@ -200,6 +255,7 @@ Every task spec ends with a `## Verification Procedure — Task #<id>` block fol
 - #45 (Alembic baseline) — owner: Task **#50**
 - #17, #19, #22 (Batch 4) — owner: Task **#51**
 - #23–#28 (polish) — owner: Task **#52**
+- New migration tasks #66, #67, #68 already have inline ACs in their migration docs (each migration doc has an Acceptance Criteria section that follows the same shape).
 
 ---
 
