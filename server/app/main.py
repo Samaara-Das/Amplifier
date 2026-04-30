@@ -16,6 +16,8 @@ from app.routers.admin import router as admin_pages_router
 from app.routers.company import router as company_pages_router
 from app.routers.user import router as user_pages_router
 from app.routers.sse import router as sse_router
+from app.routers.drafts import router as drafts_router
+from app.routers.agent import router as agent_router
 
 settings = get_settings()
 
@@ -67,10 +69,17 @@ app.include_router(user_pages_router, prefix="/user", tags=["user-pages"])
 app.include_router(invitations.router, prefix="/api/campaigns", tags=["invitations"])
 app.include_router(public_router.router, tags=["public"])
 app.include_router(sse_router)
+app.include_router(drafts_router, tags=["drafts"])
+app.include_router(agent_router, tags=["agent"])
 
 # Static files (JS helpers, etc.)
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
+# Draft images uploaded by daemon
+_draft_images_dir = os.path.join(os.path.dirname(__file__), "..", "data", "draft_images")
+os.makedirs(_draft_images_dir, exist_ok=True)
+app.mount("/draft-images", StaticFiles(directory=_draft_images_dir), name="draft-images")
 
 
 APP_VERSION = "0.1.0"

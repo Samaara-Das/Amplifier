@@ -13,7 +13,7 @@ database_url = os.getenv(
     "postgresql+asyncpg://postgres:password@localhost:5432/amplifier",
 )
 # Alembic needs sync driver for migrations
-sync_url = database_url.replace("+asyncpg", "+psycopg2").replace("postgresql://", "postgresql+psycopg2://")
+sync_url = database_url.replace("+asyncpg", "+psycopg2").replace("postgresql://", "postgresql+psycopg2://").replace("+aiosqlite", "")
 if "+psycopg2+psycopg2" in sync_url:
     sync_url = sync_url.replace("+psycopg2+psycopg2", "+psycopg2")
 config.set_main_option("sqlalchemy.url", sync_url)
