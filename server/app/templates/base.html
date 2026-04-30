@@ -138,15 +138,16 @@
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
     <!-- HTMX defaults (auth header injection, toast, loading indicator) -->
     <script src="/static/js/htmx-defaults.js"></script>
+    <!-- Alpine helpers (copyButton, autosave, commandPalette) — MUST load BEFORE alpinejs -->
+    <!-- so the alpine:init listener is registered before Alpine fires the event -->
+    <script defer src="/static/js/alpine-helpers.js"></script>
     <!-- Alpine.js 3 -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- Alpine helpers (copyButton, autosave, commandPalette) -->
-    <script src="/static/js/alpine-helpers.js" defer></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 </head>
 <body>
-    <div class="layout">
+    <div class="layout" x-data>
         <nav class="sidebar">
             <div class="sidebar-brand">
                 <h2>{% block brand %}Amplifier{% endblock %}</h2>

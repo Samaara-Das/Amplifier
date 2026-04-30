@@ -183,23 +183,22 @@ async def sse_campaign_metrics(
 @router.get("/user/agent-status")
 async def sse_user_agent_status(
     request: Request,
+    user_token: str | None = Cookie(None),
     db: AsyncSession = Depends(get_db),
-    # User JWT is sent via Authorization: Bearer header by htmx-defaults.js.
-    # We accept it here via the standard security dependency.
 ):
-    """Stream user daemon-status events. Requires user JWT (Bearer token)."""
-    from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+    """Stream user daemon-status events. Requires user_token cookie.
+
+    EventSource cannot send custom Authorization headers, so this endpoint
+    auths via httponly cookie (same pattern as admin + company SSE endpoints).
+    """
     from app.core.security import decode_token
     from app.models.user import User
     from sqlalchemy import select
 
-    # Manually extract Bearer token so we can return SSE errors gracefully
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    if not user_token:
         raise HTTPException(status_code=401, detail="User authentication required")
-    token_str = auth_header[len("Bearer "):]
     try:
-        payload = decode_token(token_str)
+        payload = decode_token(user_token)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     if payload.get("type") != "user":
