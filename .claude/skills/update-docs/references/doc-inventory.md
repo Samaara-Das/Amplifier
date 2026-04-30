@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: 2026-04-26
+Last updated: 2026-04-30
 
 ---
 
@@ -23,15 +23,17 @@ Last updated: 2026-04-26
 | `docs/pitch-deck.md` | Investor/co-founder pitch deck (Slide 9: What's Built is traction-sensitive) | Co-founders, investors | After major milestones |
 | `docs/specs/batch-1-money-loop.md` | Per-task specs (Tasks #1, #9, #10, #11) + Verification Procedure blocks | Developers | When task scope changes |
 | `docs/specs/batch-2-ai-brain.md` | Per-task specs (Tasks #12, #13, #14, #15) + Verification Procedure blocks (Task #14 has 18 ACs) | Developers | When task scope changes |
-| `docs/specs/batch-3-product-features.md` | Per-task specs (Tasks #5, #7, #8, #16) | Developers | When task scope changes |
-| `docs/specs/batch-4-business-launch.md` | Per-task specs (Tasks #6, #17, #19, #22) | Developers | When task scope changes |
-| `docs/specs/infra.md` | Per-task specs for non-batch infra: Task #18 (pytest suite), #44 (ARQ worker), #45 (Alembic baseline) — all with full Verification Procedure blocks | Developers | When infra task scope changes |
+| `docs/specs/batch-3-product-features.md` | Per-task specs (Tasks #5, #7, #8, #16) + Verification Procedure blocks for cleanup bugs #57, #59, #60 (added 2026-04-30) | Developers | When task scope changes |
+| `docs/specs/batch-4-business-launch.md` | Per-task specs (Tasks #6, #17, #19, #22). Task #19 has 13 ACs (Stripe MCP autonomous setup + test-mode → live smoke); Task #22 has 8 ACs (perf, dual-audience, OG tags, mobile, FAQ). Backfilled 2026-04-30 via Task #51. | Developers | When task scope changes |
+| `docs/specs/infra.md` | Per-task specs for non-batch infra: Task #18 (pytest suite), #44 (ARQ worker), #45 (Alembic baseline), #73 (gemini model id fix) — all with full Verification Procedure blocks | Developers | When infra task scope changes |
+| `docs/specs/uat-infra.md` | Per-task specs for UAT-harness bugs (Tasks #63, #64, #65) — added 2026-04-30 alongside Phase C bug cleanup batch | Developers | When UAT helper scripts evolve |
 | `docs/specs/user-app-tech-stack.md` | ⚠️ SUPERSEDED 2026-04-28 by `docs/migrations/2026-04-28-*.md`. Kept for historical context only. | -- | Do not edit |
 | `docs/migrations/2026-04-25-task41-schema-fixes.md` | Vercel→Hostinger schema-fix runbook (Task #41 deployment) | DevOps | One-shot historical record |
 | `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` | Phase D blueprint: dashboards HTMX upgrade (#66) | Developers | When migration plan evolves |
 | `docs/migrations/2026-04-28-migration-creator-app-split.md` | Phase D blueprint: creator app split (#67) | Developers | When migration plan evolves |
 | `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` | Phase D blueprint: Patchright + Nuitka + installers (#68) | Developers | When migration plan evolves |
 | `docs/migrations/2026-04-30-task18-stripe-account-id.md` | Schema migration: ALTER TABLE adding `users.stripe_account_id` (pre-Alembic-baseline pattern) | DevOps | One-shot historical record |
+| `docs/sessions/` | Per-session fallback notes when MemPalace MCP is unavailable. `mempalace mine docs/sessions/` ingests them. Files like `2026-04-30-phase-c-bug-batch-and-task51.md`. | Claude / next session | One file per session as needed |
 | `docs/uat/AC-FORMAT.md` | Format spec for `## Verification Procedure` blocks; rules for `/uat-task` skill | Developers, Claude | When AC format evolves |
 
 ## Tier 3: Reference Docs (audit when relevant subsystems change)

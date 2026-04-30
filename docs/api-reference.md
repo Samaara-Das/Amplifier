@@ -63,6 +63,7 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | GET | `/api/company/campaigns/{id}/reach-estimate` | Reach estimate for existing campaign |
 | POST | `/api/company/campaigns/ai-wizard` | AI generates full campaign draft from wizard answers |
 | POST | `/api/company/campaigns/reach-estimate` | Estimate reach for targeting criteria |
+| POST | `/api/company/campaigns/assets` | Bearer-auth multipart upload for campaign images. Returns `{url, filename, content_type}`. Used by `scripts/uat/seed_campaign.py` (cookie-auth `/company/campaigns/upload-asset` is the HTML-form equivalent — both wrap `services.storage.upload_file()`). |
 
 ---
 
