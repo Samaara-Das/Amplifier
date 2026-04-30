@@ -55,7 +55,7 @@
       },
       {
         "id": 5,
-        "title": "Invitation UX \u00e2\u20ac\u201d countdown timers, expired badge, decline reason",
+        "title": "Invitation UX â€” countdown timers, expired badge, decline reason",
         "description": "No countdown timers on invitations, no visual expired state, no decline reason capture.",
         "status": "done",
         "priority": "medium",
@@ -68,7 +68,7 @@
       },
       {
         "id": 6,
-        "title": "Metrics accuracy \u00e2\u20ac\u201d populate anomaly_flag, cross-validation",
+        "title": "Metrics accuracy â€” populate anomaly_flag, cross-validation",
         "description": "anomaly_flag column exists but never populated. No cross-validation between Playwright and API metrics.",
         "status": "done",
         "priority": "high",
@@ -83,7 +83,7 @@
       },
       {
         "id": 7,
-        "title": "[DEFERRED] Repost campaign \u00e2\u20ac\u201d company creation, frequency, user display",
+        "title": "[DEFERRED] Repost campaign â€” company creation, frequency, user display",
         "description": "Full repost campaign feature: companies provide exact pre-written post content per platform instead of AI generation. Formats: text only, image only, text+image. Posting frequency: once, daily, every X days, weekly (stored as repost_frequency on Campaign model). Company dashboard: create form with per-platform text + image URL fields, campaign detail shows repost content card with edit support (POST /campaigns/{id}/repost-content), frequency selector. User dashboard: repost drafts shown as read-only with banner, no edit/regenerate, approve/reject only. Background agent: skips 4-phase AI pipeline for reposts, uses CampaignPost records directly, respects frequency setting, converts Reddit title+body format. Bugs already fixed: field name mismatch (campaign_posts vs repost_content) in local_db.py and background_agent.py, Reddit format conversion. Quality gate: image-only posts valid, content_guidance not required. Content rotation (multiple posts per platform) is a future sub-feature.",
         "status": "deferred",
         "priority": "medium",
@@ -109,7 +109,7 @@
       },
       {
         "id": 9,
-        "title": "Metric scraping \u00e2\u20ac\u201d detailed spec per platform, verify E2E",
+        "title": "Metric scraping â€” detailed spec per platform, verify E2E",
         "description": "Write detailed spec for what each platform scraper extracts. Reddit views ARE available (visible on post pages) -- Playwright preferred over PRAW for Reddit since PRAW cannot get views. Per-platform: views on X + Reddit, likes all 4, comments all 4, reposts not Reddit. Verify against real posts.",
         "status": "done",
         "priority": "high",
@@ -125,7 +125,7 @@
       },
       {
         "id": 10,
-        "title": "Billing \u00e2\u20ac\u201d detailed spec for earnings calc, verify E2E",
+        "title": "Billing â€” detailed spec for earnings calc, verify E2E",
         "description": "Spec for billing pipeline: rate_per_1k_views applies to X AND Reddit (not X-only). CPM multiplier, budget cap, hold period, platform cut, tier promotion. Campaign wizard should note views are billable on Reddit. Verify with real metrics.",
         "status": "done",
         "priority": "high",
@@ -141,7 +141,7 @@
       },
       {
         "id": 11,
-        "title": "Earnings display \u00e2\u20ac\u201d server-to-local sync, withdrawal, verify E2E",
+        "title": "Earnings display â€” server-to-local sync, withdrawal, verify E2E",
         "description": "No sync from server Payout records to local_earning. User app shows $0. Spec sync mechanism, breakdown, withdrawal flow.",
         "status": "done",
         "priority": "high",
@@ -157,7 +157,7 @@
       },
       {
         "id": 12,
-        "title": "AI matching \u00e2\u20ac\u201d detailed spec for scoring logic, verify accuracy",
+        "title": "AI matching â€” detailed spec for scoring logic, verify accuracy",
         "description": "Spec for matching prompt, scoring criteria, brand safety, audience overlap. Verify with real campaigns and profiles.",
         "status": "done",
         "priority": "high",
@@ -171,7 +171,7 @@
       },
       {
         "id": 13,
-        "title": "AI profile scraping \u00e2\u20ac\u201d Gemini Vision, per-platform detailed spec",
+        "title": "AI profile scraping â€” Gemini Vision, per-platform detailed spec",
         "description": "Per-platform spec (X, LinkedIn, Facebook, Reddit) for all data to extract. Current implementation is single-screenshot, unverified.",
         "status": "done",
         "priority": "high",
@@ -185,7 +185,7 @@
       },
       {
         "id": 14,
-        "title": "4-phase content agent \u00e2\u20ac\u201d research, strategy, creation, review",
+        "title": "4-phase content agent â€” research, strategy, creation, review",
         "description": "Current strategy is static dict. Needs deeper spec for goal-driven strategy, creator voice matching, trending topics, platform-native content.",
         "status": "done",
         "priority": "high",
@@ -201,7 +201,7 @@
       },
       {
         "id": 15,
-        "title": "AI campaign quality gate \u00e2\u20ac\u201d detailed rubric spec",
+        "title": "AI campaign quality gate â€” detailed rubric spec",
         "description": "Current rubric is static 8-rule scoring. Needs niche-specific thresholds, inter-field validation, actionable feedback.",
         "status": "done",
         "priority": "medium",
@@ -214,7 +214,7 @@
       },
       {
         "id": 16,
-        "title": "Content formats \u00e2\u20ac\u201d threads, polls, carousels across platforms",
+        "title": "Content formats â€” threads, polls, carousels across platforms",
         "description": "Research most-used formats per platform by engagement data. Build JSON posting scripts for top formats. Re-enable Instagram/TikTok.",
         "status": "deferred",
         "priority": "high",
@@ -230,8 +230,8 @@
       },
       {
         "id": 17,
-        "title": "[DEFERRED] Free/Pro tiers \u2014 wire Stripe subscription billing ($19.99/mo)",
-        "description": "DEFERRED 2026-04-29 (post-launch). Reasoning: amplifiers with no earnings track record cannot rationally evaluate a $19.99/mo subscription \u2014 Pro converts post-traction users, which MVP hasn't produced yet. The 20% platform cut is sufficient MVP monetization. Free 4 posts/day cap also dropped (only made sense as upgrade friction). Reputation tier (seedling/grower/amplifier) still governs campaign count + 2x earnings multiplier.\n\nRevisit triggers: (a) amplifier cohort consistently earning $300+/month, (b) campaign-supply scarcity making match-priority valuable, (c) feature demand that genuinely costs money to deliver (premium AI models, advanced analytics, faster scrape).\n\nORIGINAL SCOPE (preserved for revival):\nUsers (amplifiers) subscribe to a Pro plan ($19.99/month) that unlocks premium features. Separate from reputation tiers (seedling/grower/amplifier).\n\nTier comparison: Free \u2192 4 posts/day, standard match priority. Pro \u2192 20 posts/day, +20% match score boost, max(reputation_limit, 20) campaigns. Image generation enabled on both. Metric scrape frequency same (24h).\n\nFlow: Settings \u2192 'Upgrade to Pro' \u2192 Stripe Checkout (subscription mode) \u2192 webhook checkout.session.completed sets subscription_tier=pro, subscription_status=active.\n\nWebhooks: checkout.session.completed (activate), invoice.payment_succeeded (extend), invoice.payment_failed (7-day grace then revert), customer.subscription.deleted (revert to free).\n\nFeature gates: post-count gate before scheduling, max_campaigns = max(reputation, pro_20), matching priority *= 1.2 if Pro.\n\nEdge cases: admin-suspended Pro user keeps active sub but locked out of platform; payment fail = 7-day grace; mid-period upgrade applies immediately; cancellation at period end.\n\nDORMANT SCAFFOLDING already in repo (left in place, inert with default 'free'):\n- server/app/models/user.py:53 \u2014 subscription_tier column, default 'free'\n- server/app/routers/users.py:53\u201356 \u2014 PATCH accepts subscription_tier (validates free|pro)\n- server/app/schemas/user.py:13,28 \u2014 subscription_tier field on update schema\n- server/app/services/billing.py:39\u201367 \u2014 SUBSCRIPTION_TIERS dict + get_effective_max_campaigns() (returns reputation limit while everyone is free)\n\nNOT YET BUILT (to do on revival): Stripe subscription checkout endpoint, webhook handler, post-limit enforcement, matching score multiplier, settings page upgrade UI.\n\n7 ACs in original spec \u2014 see git history for docs/specs/batch-4-business-launch.md before commit removing Task #17 section.",
+        "title": "[DEFERRED] Free/Pro tiers — wire Stripe subscription billing ($19.99/mo)",
+        "description": "DEFERRED 2026-04-29 (post-launch). Reasoning: amplifiers with no earnings track record cannot rationally evaluate a $19.99/mo subscription — Pro converts post-traction users, which MVP hasn't produced yet. The 20% platform cut is sufficient MVP monetization. Free 4 posts/day cap also dropped (only made sense as upgrade friction). Reputation tier (seedling/grower/amplifier) still governs campaign count + 2x earnings multiplier.\n\nRevisit triggers: (a) amplifier cohort consistently earning $300+/month, (b) campaign-supply scarcity making match-priority valuable, (c) feature demand that genuinely costs money to deliver (premium AI models, advanced analytics, faster scrape).\n\nORIGINAL SCOPE (preserved for revival):\nUsers (amplifiers) subscribe to a Pro plan ($19.99/month) that unlocks premium features. Separate from reputation tiers (seedling/grower/amplifier).\n\nTier comparison: Free → 4 posts/day, standard match priority. Pro → 20 posts/day, +20% match score boost, max(reputation_limit, 20) campaigns. Image generation enabled on both. Metric scrape frequency same (24h).\n\nFlow: Settings → 'Upgrade to Pro' → Stripe Checkout (subscription mode) → webhook checkout.session.completed sets subscription_tier=pro, subscription_status=active.\n\nWebhooks: checkout.session.completed (activate), invoice.payment_succeeded (extend), invoice.payment_failed (7-day grace then revert), customer.subscription.deleted (revert to free).\n\nFeature gates: post-count gate before scheduling, max_campaigns = max(reputation, pro_20), matching priority *= 1.2 if Pro.\n\nEdge cases: admin-suspended Pro user keeps active sub but locked out of platform; payment fail = 7-day grace; mid-period upgrade applies immediately; cancellation at period end.\n\nDORMANT SCAFFOLDING already in repo (left in place, inert with default 'free'):\n- server/app/models/user.py:53 — subscription_tier column, default 'free'\n- server/app/routers/users.py:53–56 — PATCH accepts subscription_tier (validates free|pro)\n- server/app/schemas/user.py:13,28 — subscription_tier field on update schema\n- server/app/services/billing.py:39–67 — SUBSCRIPTION_TIERS dict + get_effective_max_campaigns() (returns reputation limit while everyone is free)\n\nNOT YET BUILT (to do on revival): Stripe subscription checkout endpoint, webhook handler, post-limit enforcement, matching score multiplier, settings page upgrade UI.\n\n7 ACs in original spec — see git history for docs/specs/batch-4-business-launch.md before commit removing Task #17 section.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [],
@@ -245,7 +245,7 @@
       {
         "id": 18,
         "title": "Write automated test suite (pytest)",
-        "description": "Pytest unit suite covering money loop (billing, earnings) + quality gate rubric + trust events + matching cache. 75+ tests total across tests/server/. Existing infra (tests/conftest.py, pyproject.toml, requirements-test.txt) reused. New files: tests/server/test_quality_gate.py (12 tests \u2014 all 8 rubric criteria + 3 hard-fail veto tests), tests/server/test_trust.py (4 tests \u2014 event deltas, clamping, unknown event), tests/server/test_matching_cache.py (4 tests \u2014 TTL hit/miss, campaign/user invalidation). Verification Procedure in docs/specs/infra.md ## Task #18.",
+        "description": "Pytest unit suite covering money loop (billing, earnings) + quality gate rubric + trust events + matching cache. 75+ tests total across tests/server/. Existing infra (tests/conftest.py, pyproject.toml, requirements-test.txt) reused. New files: tests/server/test_quality_gate.py (12 tests — all 8 rubric criteria + 3 hard-fail veto tests), tests/server/test_trust.py (4 tests — event deltas, clamping, unknown event), tests/server/test_matching_cache.py (4 tests — TTL hit/miss, campaign/user invalidation). Verification Procedure in docs/specs/infra.md ## Task #18.",
         "status": "done",
         "priority": "high",
         "dependencies": [
@@ -303,8 +303,8 @@
       },
       {
         "id": 19,
-        "title": "Stripe live integration \u00e2\u20ac\u201d company Checkout + user Connect onboarding",
-        "description": "Live Stripe keys on Vercel. Webhook endpoint for payment confirmation. User Stripe Connect Express onboarding for real payouts.",
+        "title": "Stripe live integration â€” company Checkout + user Connect onboarding",
+        "description": "Live Stripe integration in both directions: companies pay IN via Checkout (already built, needs live keys + webhook), users get paid OUT via Connect Express (not built). Use the Stripe MCP server (https://docs.stripe.com/mcp?mcp-client=claudecode) to do all setup work autonomously — create the Connect platform configuration, configure webhook endpoints (checkout.session.completed, transfer.paid, transfer.failed, account.updated), provision live API keys onto the VPS env, and validate the integration end-to-end. Do NOT block on the user except for the one-time live-mode activation that requires their Stripe dashboard login (and 2FA if prompted). Note: father's company has an existing live Stripe account that will be used — credentials available via `mempalace_search 'stripe account'` in wing auto_posting_system. Server cut: 20%. Minimum withdrawal: $10. Hold period: 7 days (already implemented in services/billing.py).",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -319,7 +319,7 @@
       },
       {
         "id": 20,
-        "title": "PyInstaller packaging \u00e2\u20ac\u201d Windows installer",
+        "title": "PyInstaller packaging â€” Windows installer",
         "description": "[SUPERSEDED 2026-04-28] Replaced by docs/migrations/2026-04-28-migration-stealth-and-packaging.md (uses Nuitka, not PyInstaller). Do not implement.",
         "status": "deferred",
         "priority": "high",
@@ -333,7 +333,7 @@
       },
       {
         "id": 21,
-        "title": "Mac support \u00e2\u20ac\u201d cross-platform audit + packaging",
+        "title": "Mac support â€” cross-platform audit + packaging",
         "description": "[SUPERSEDED 2026-04-28] Replaced by docs/migrations/2026-04-28-migration-stealth-and-packaging.md (Nuitka cross-platform build matrix handles Mac). Do not implement.",
         "status": "deferred",
         "priority": "medium",
@@ -349,7 +349,7 @@
       },
       {
         "id": 22,
-        "title": "Landing page \u00e2\u20ac\u201d public-facing site for acquisition",
+        "title": "Landing page â€” public-facing site for acquisition",
         "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
         "status": "pending",
         "priority": "medium",
@@ -436,7 +436,7 @@
       },
       {
         "id": 29,
-        "title": "[DEFERRED] Political campaigns \u00e2\u20ac\u201d geo-targeting, FEC compliance",
+        "title": "[DEFERRED] Political campaigns â€” geo-targeting, FEC compliance",
         "description": "Post-launch. Requires US legal entity. Geo micro-targeting, political content mode, FEC disclaimers, rapid deployment.",
         "status": "deferred",
         "priority": "high",
@@ -544,7 +544,7 @@
       },
       {
         "id": 38,
-        "title": "E2E deleted post detection \u00e2\u20ac\u201d full pipeline verification",
+        "title": "E2E deleted post detection â€” full pipeline verification",
         "description": "Verify the full deleted post pipeline on ALL 4 platforms (X, LinkedIn, Facebook, Reddit): scraper visits deleted URL, detects deletion, marks post deleted locally, notifies server via PATCH /api/posts/{id}/status, server voids pending earnings, funds return to campaign budget. Must test each platform individually. Scraper detection was tested in Task #6 but the full server notification + earning voiding E2E flow was not.",
         "status": "done",
         "priority": "high",
@@ -559,8 +559,8 @@
       },
       {
         "id": 39,
-        "title": "[DEFERRED] UGC-style content \u00e2\u20ac\u201d make AI content look authentic and drive viral views",
-        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates \u00e2\u20ac\u201d this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
+        "title": "[DEFERRED] UGC-style content â€” make AI content look authentic and drive viral views",
+        "description": "Make AI-generated content look like authentic user-generated content that drives viral views. Content should not look AI-written or corporate. Posts must reference the company's actual product/service using latest trends, news, and product updates â€” this makes posts accurate and feel like real UGC from someone who actually uses the product. Includes: platform-native writing styles (casual X threads, story-format LinkedIn, community-tone Reddit), anti-AI detection (no AI buzzwords, varied sentence structure, imperfect human touches), engagement-optimized hooks (contrarian takes, curiosity gaps, emotional triggers tied to current events and product features), visual UGC aesthetic for images (phone-quality look, natural lighting, handwritten annotations vs polished graphics). Goal: content that gets shared because it feels real, not because it looks like an ad.",
         "status": "deferred",
         "priority": "medium",
         "dependencies": [
@@ -572,8 +572,8 @@
       },
       {
         "id": 40,
-        "title": "Fully disable X across Amplifier \u2014 hardcoded safety guard",
-        "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard \u2014 not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding \u2014 a suspended user is a product-killer.",
+        "title": "Fully disable X across Amplifier — hardcoded safety guard",
+        "description": "X's anti-bot detection has suspended the user's accounts 3 times total (original X account permanently locked predating Amplifier; 2026-03-24 replacement account first block during E2E testing; 2026-04-14 replacement account suspended during test posting from Amplifier). config/platforms.json already has enabled=false but code paths still reference X. This task: (1) audit every X/twitter reference across scripts/, config/, server/, docs/, (2) ensure posting engine, profile scraping, metric scraping, content generation, matching, login_setup, and background agent ALL skip X unconditionally via a HARDCODED guard — not just the config flag, (3) surface the block in user-app UI with tooltip explaining the risk, (4) preserve code (don't delete) so we can re-enable later with a safe method (X API v2, stealth browser like camoufox, or equivalent). Acceptance: setting X enabled=true in config must NOT re-enable posting/scraping; safety guard in code must refuse. All X UI in settings shows disabled state with tooltip. Priority: trust-critical before user onboarding — a suspended user is a product-killer.",
         "status": "done",
         "priority": "high",
         "dependencies": [],
@@ -587,8 +587,8 @@
       {
         "id": 41,
         "title": "Plan + execute Vercel migration (target host undecided)",
-        "description": "Server offline after Vercel billed ~$47/cycle (serverless model incompatible with Amplifier's high poll volume from user apps). Project deleted, billing disputed. Migration path NOT YET DECIDED \u2014 still in planning. Full planning doc with analysis, options, and step-by-step plan: docs/MIGRATION-FROM-VERCEL.md. Leading candidate is shared Hostinger KVM VPS (owned by Nili+Daniel, co-hosts TTE+Stock Buddy) but not confirmed. Fallback options include Render flat-fee and Railway.",
-        "details": "READ FIRST: docs/MIGRATION-FROM-VERCEL.md \u2014 12 sections covering options analysis, server requirements, step-by-step setup, env vars, client cutover, Vercel cleanup (~62 files), cutover sequence, rollback, cost comparison, follow-ups, and open questions. Before executing: (1) decide target host (Hostinger VPS vs Render vs Railway vs other), (2) confirm with Nili/Daniel if going Hostinger route \u2014 KVM tier, SSH access, existing Caddy/Redis/UFW, subdomain, (3) audit ENCRYPTION_KEY usage before rotating, (4) verify ARQ WorkerSettings entrypoint exists. Clients still pointing to dead Vercel URL via config/.env:7 and scripts/utils/server_client.py:22. Server is OFFLINE right now \u2014 users can't access anything until this ships.\n\n=== HOSTING DECISION (added 2026-04-25 after father review) ===\nThree viable options compared. Recommended: Option B (existing shared Hostinger VPS).\n\nOption A \u2014 New free Vercel account: REJECTED. Same trap. Serverless billing scales with traffic;\n  Amplifier's 10-min poll loop from every user app instance will burn the free tier quickly and\n  generate the same surprise charge that killed the original project ($47/cycle).\n\nOption B \u2014 Existing Hostinger KVM VPS (shared with TTE + Stock Buddy, owned by Daniel + Nili):\n  RECOMMENDED. Flat fee already paid (sunk cost). Has Caddy + Redis + UFW configured. Supports\n  systemd + ARQ workers cleanly. Requires SSH access handoff from Nili. Risk: shared resource\n  contention with TTE (1300+ symbols scaling to 14k) and Stock Buddy. If contention becomes an\n  issue, fall back to Option C.\n\nOption C \u2014 Second Hostinger account (separate VPS dedicated to Amplifier): FALLBACK. Pros: no\n  shared-resource concern, full control. Cons: extra ongoing cost, extra ops surface. Use only if\n  Amplifier outgrows shared resources or Daniel/Nili want isolation.\n\nDECISION ORDER:\n  1. Start with Option B. Get SSH access from Nili. Deploy via the migration steps already in\n     docs/MIGRATION-FROM-VERCEL.md. ~2-3 hours of work.\n  2. Monitor resource usage for first 4 weeks. If stable, stay on B.\n  3. If contention shows up (CPU steal, DB slowdowns from neighbors), migrate to Option C.\n\nOption A (new free Vercel) is OFF the table \u2014 same failure mode.",
+        "description": "Server offline after Vercel billed ~$47/cycle (serverless model incompatible with Amplifier's high poll volume from user apps). Project deleted, billing disputed. Migration path NOT YET DECIDED — still in planning. Full planning doc with analysis, options, and step-by-step plan: docs/MIGRATION-FROM-VERCEL.md. Leading candidate is shared Hostinger KVM VPS (owned by Nili+Daniel, co-hosts TTE+Stock Buddy) but not confirmed. Fallback options include Render flat-fee and Railway.",
+        "details": "READ FIRST: docs/MIGRATION-FROM-VERCEL.md — 12 sections covering options analysis, server requirements, step-by-step setup, env vars, client cutover, Vercel cleanup (~62 files), cutover sequence, rollback, cost comparison, follow-ups, and open questions. Before executing: (1) decide target host (Hostinger VPS vs Render vs Railway vs other), (2) confirm with Nili/Daniel if going Hostinger route — KVM tier, SSH access, existing Caddy/Redis/UFW, subdomain, (3) audit ENCRYPTION_KEY usage before rotating, (4) verify ARQ WorkerSettings entrypoint exists. Clients still pointing to dead Vercel URL via config/.env:7 and scripts/utils/server_client.py:22. Server is OFFLINE right now — users can't access anything until this ships.\n\n=== HOSTING DECISION (added 2026-04-25 after father review) ===\nThree viable options compared. Recommended: Option B (existing shared Hostinger VPS).\n\nOption A — New free Vercel account: REJECTED. Same trap. Serverless billing scales with traffic;\n  Amplifier's 10-min poll loop from every user app instance will burn the free tier quickly and\n  generate the same surprise charge that killed the original project ($47/cycle).\n\nOption B — Existing Hostinger KVM VPS (shared with TTE + Stock Buddy, owned by Daniel + Nili):\n  RECOMMENDED. Flat fee already paid (sunk cost). Has Caddy + Redis + UFW configured. Supports\n  systemd + ARQ workers cleanly. Requires SSH access handoff from Nili. Risk: shared resource\n  contention with TTE (1300+ symbols scaling to 14k) and Stock Buddy. If contention becomes an\n  issue, fall back to Option C.\n\nOption C — Second Hostinger account (separate VPS dedicated to Amplifier): FALLBACK. Pros: no\n  shared-resource concern, full control. Cons: extra ongoing cost, extra ops surface. Use only if\n  Amplifier outgrows shared resources or Daniel/Nili want isolation.\n\nDECISION ORDER:\n  1. Start with Option B. Get SSH access from Nili. Deploy via the migration steps already in\n     docs/MIGRATION-FROM-VERCEL.md. ~2-3 hours of work.\n  2. Monitor resource usage for first 4 weeks. If stable, stay on B.\n  3. If contention shows up (CPU steal, DB slowdowns from neighbors), migrate to Option C.\n\nOption A (new free Vercel) is OFF the table — same failure mode.",
         "testStrategy": "",
         "status": "done",
         "dependencies": [],
@@ -599,8 +599,8 @@
       {
         "id": 42,
         "title": "[DEFERRED] Re-enable TikTok, Instagram, and X (cheap API path)",
-        "description": "Re-enable the three currently-disabled platforms so creators have full 6-platform reach. TikTok and Instagram use static test videos/images (no AI video generation in this task). X re-enables only via the official paid API v2 \u2014 never resume browser automation on X.",
-        "details": "CONTEXT \u2014 current state:\n- X: hardcoded-disabled via scripts/utils/guard.py (Task #40 done) after 3 X account suspensions\n  caused by anti-bot detection. The user's father has indicated the X API is now cheaper than\n  before; verify the actual pricing of X API v2 'Basic' tier before committing budget.\n- TikTok: enabled=false in config/platforms.json. Code paths in scripts/post.py + config/scripts/\n  exist but are not actively maintained. TikTok requires VPN to non-India server (Surfshark or\n  equivalent) because it is geo-blocked from India. Document VPN setup in onboarding.\n- Instagram: enabled=false in config/platforms.json. Multi-step posting flow (Create \u2192 Post \u2192\n  Upload \u2192 Next \u2192 Next \u2192 Caption \u2192 Share) preserved but not exercised in months. All clicks need\n  force=True due to overlay intercepts.\n\nSCOPE \u2014 three sub-tasks, each independently testable:\n\n1. X API integration (re-enable via official API only):\n   - Research X API v2 pricing as of implementation date. 'Basic' tier ($100/mo) allows up to\n     10K writes/month \u2014 enough for many users. 'Free' tier is read-only.\n   - If pricing acceptable: integrate via tweepy or direct httpx calls. Token stored encrypted\n     locally per-user (each user provides their own X API key in onboarding).\n   - Remove the hardcoded guard in scripts/utils/guard.py and server/app/utils/platform_guard.py.\n     Replace with a soft 'X API not configured' fallback so users without an X key just skip X.\n   - DO NOT re-enable browser automation on X under any circumstance \u2014 only the API path.\n   - Test on a fresh disposable X developer account before rolling out to existing users.\n\n2. TikTok (with test videos):\n   - Restore the existing posting flow in config/scripts/ (TikTok posting script).\n   - Onboarding addition: detect if user is in a geo-blocked region (e.g., India) and prompt\n     them to configure a VPN before connecting TikTok.\n   - For this task ONLY use static test videos from a local folder. NO AI video generation;\n     that is Task #31 (deferred separately).\n   - Verify TikTok still detects the Draft.js editor reliably (Ctrl+A \u2192 Backspace clear before typing).\n\n3. Instagram (images + test videos):\n   - Restore the multi-step dialog flow. Test images first; videos require Instagram's separate\n     Reel flow which is fragile.\n   - All buttons need force=True due to overlay intercepts \u2014 preserve this.\n   - Image upload via 'Photo/video' button + hidden file input.\n\nINTEGRATION POINTS:\n- All three platforms must show in the user app's Connect Platforms wizard\n- Matching engine must include them as eligible target platforms\n- Billing must support per-platform payout rates for all three\n- Profile scraping must work on all three (TikTok/IG already have stubs)",
+        "description": "Re-enable the three currently-disabled platforms so creators have full 6-platform reach. TikTok and Instagram use static test videos/images (no AI video generation in this task). X re-enables only via the official paid API v2 — never resume browser automation on X.",
+        "details": "CONTEXT — current state:\n- X: hardcoded-disabled via scripts/utils/guard.py (Task #40 done) after 3 X account suspensions\n  caused by anti-bot detection. The user's father has indicated the X API is now cheaper than\n  before; verify the actual pricing of X API v2 'Basic' tier before committing budget.\n- TikTok: enabled=false in config/platforms.json. Code paths in scripts/post.py + config/scripts/\n  exist but are not actively maintained. TikTok requires VPN to non-India server (Surfshark or\n  equivalent) because it is geo-blocked from India. Document VPN setup in onboarding.\n- Instagram: enabled=false in config/platforms.json. Multi-step posting flow (Create → Post →\n  Upload → Next → Next → Caption → Share) preserved but not exercised in months. All clicks need\n  force=True due to overlay intercepts.\n\nSCOPE — three sub-tasks, each independently testable:\n\n1. X API integration (re-enable via official API only):\n   - Research X API v2 pricing as of implementation date. 'Basic' tier ($100/mo) allows up to\n     10K writes/month — enough for many users. 'Free' tier is read-only.\n   - If pricing acceptable: integrate via tweepy or direct httpx calls. Token stored encrypted\n     locally per-user (each user provides their own X API key in onboarding).\n   - Remove the hardcoded guard in scripts/utils/guard.py and server/app/utils/platform_guard.py.\n     Replace with a soft 'X API not configured' fallback so users without an X key just skip X.\n   - DO NOT re-enable browser automation on X under any circumstance — only the API path.\n   - Test on a fresh disposable X developer account before rolling out to existing users.\n\n2. TikTok (with test videos):\n   - Restore the existing posting flow in config/scripts/ (TikTok posting script).\n   - Onboarding addition: detect if user is in a geo-blocked region (e.g., India) and prompt\n     them to configure a VPN before connecting TikTok.\n   - For this task ONLY use static test videos from a local folder. NO AI video generation;\n     that is Task #31 (deferred separately).\n   - Verify TikTok still detects the Draft.js editor reliably (Ctrl+A → Backspace clear before typing).\n\n3. Instagram (images + test videos):\n   - Restore the multi-step dialog flow. Test images first; videos require Instagram's separate\n     Reel flow which is fragile.\n   - All buttons need force=True due to overlay intercepts — preserve this.\n   - Image upload via 'Photo/video' button + hidden file input.\n\nINTEGRATION POINTS:\n- All three platforms must show in the user app's Connect Platforms wizard\n- Matching engine must include them as eligible target platforms\n- Billing must support per-platform payout rates for all three\n- Profile scraping must work on all three (TikTok/IG already have stubs)",
         "testStrategy": "Per-platform smoke test:\n1. TikTok: connect on a VPN-enabled machine, post a 5-second test video, capture URL, scrape metrics 24h later. Verify metrics arrive.\n2. Instagram: connect, upload a test image with caption, capture URL, scrape metrics. Verify the permalink resolves to the actual post.\n3. X (API path): with a developer key configured, post a tweet via the API, capture URL, scrape metrics via the same API. Verify the user's X account is NOT suspended (key signal of API-vs-automation success).\nAcceptance: all three platforms post a test piece of content and metrics flow back to the server. X re-enable can be split into a separate sub-task if API cost remains prohibitive.",
         "status": "deferred",
         "dependencies": [],
@@ -609,10 +609,10 @@
       },
       {
         "id": 43,
-        "title": "[DEFERRED] Shared research pool \u2014 campaigns share research across users",
+        "title": "[DEFERRED] Shared research pool — campaigns share research across users",
         "description": "When the 4-phase content agent does research for a campaign on one user's machine, push that research to the server so other users assigned to the same campaign can read it instead of re-doing the work. Forms a collective research pool per campaign that all assigned users contribute to and consume from.",
-        "details": "CONTEXT \u2014 current behaviour (Task #14, shipped):\n- The content agent's Phase 1 (Research) runs on the user's machine. It scrapes the company's URLs\n  (up to 3), reads campaign images via vision AI, searches the web for recent niche news, and\n  synthesizes a 'research context' (product summary, key features, content angles, emotional\n  hooks, recent news headlines, etc.).\n- This research is cached LOCALLY for 7 days (per scripts/utils/content_generator.py).\n- Every other user on the same campaign re-does the exact same work on their own machine.\n- Wasteful: identical Gemini calls, identical web scrapes, identical token cost.\n\nGOAL \u2014 turn it into a shared pool:\n1. After research finishes locally, agent uploads the research blob to the server keyed by\n   (campaign_id, research_version). Server stores it on a new CampaignResearch table.\n2. Before doing research locally, agent first asks server: 'do you have research for campaign X\n   that is < 7 days old?'. If yes, downloads and caches locally. If partial (e.g., URLs scraped\n   but no news search done yet), agent does only the missing parts and uploads the delta.\n3. Research is split into discrete sections (product_scrape, image_analysis, niche_news,\n   emotional_hooks, content_angles). Each section is independently versionable so partial\n   research is mergeable.\n4. Server merges contributions from multiple users \u2014 last-write-wins per section, but the union\n   of all sections forms the final cached pool.\n\nSCHEMA additions (new model):\n- CampaignResearch: id, campaign_id (FK), section ('product_scrape' | 'image_analysis' |\n  'niche_news' | 'emotional_hooks' | 'content_angles'), payload (JSON), contributed_by_user_id,\n  created_at, expires_at\n- Index: (campaign_id, section, created_at desc) for fast 'latest fresh research' lookup\n\nAPI additions (new endpoints):\n- GET  /api/campaigns/{id}/research \u2192 returns latest non-expired sections, merged\n- POST /api/campaigns/{id}/research \u2192 upload a section payload\n\nAGENT changes (scripts/utils/content_generator.py):\n- Before each research section: GET from server, use if fresh\n- After each research section: POST to server with payload + section name\n- Local 7-day cache becomes a fallback if server is unreachable\n\nBENEFITS:\n- Token cost per campaign drops from O(users \u00d7 research) to O(research)\n- Faster onboarding for late-joiners \u2014 research already cached\n- Companies could optionally see the research pool (could become a 'transparency' feature later)\n\nEDGE CASES:\n- Race conditions: two users research the same section at the same time \u2192 last-write-wins is fine\n- Stale research: 7-day TTL expires \u2192 next user redoes it; subsequent users benefit again\n- Privacy: nothing user-identifying in research payloads (just product/market info), safe to share\n- Trust: a malicious user could inject bad research. Mitigation: server-side AI can validate or\n  flag obviously-junk research before caching it (post-MVP refinement)",
-        "testStrategy": "1. Two users (User A, User B) accept the same campaign within minutes of each other.\n2. User A's agent runs research first \u2192 uploads 5 sections to server.\n3. User B's agent starts research second \u2192 expect server returns existing sections, B does NO\n   Gemini calls, downloads research, generates content using A's research.\n4. User C joins same campaign 5 days later \u2192 same behaviour as B.\n5. User D joins 8 days later \u2192 research is expired, D redoes research and re-uploads.\n6. Subsequent users in the same 7-day window after D benefit from D's fresh research.\nVerify: token spend dropped on B/C/D's machines. Server logs show GET hit + POST contributions.",
+        "details": "CONTEXT — current behaviour (Task #14, shipped):\n- The content agent's Phase 1 (Research) runs on the user's machine. It scrapes the company's URLs\n  (up to 3), reads campaign images via vision AI, searches the web for recent niche news, and\n  synthesizes a 'research context' (product summary, key features, content angles, emotional\n  hooks, recent news headlines, etc.).\n- This research is cached LOCALLY for 7 days (per scripts/utils/content_generator.py).\n- Every other user on the same campaign re-does the exact same work on their own machine.\n- Wasteful: identical Gemini calls, identical web scrapes, identical token cost.\n\nGOAL — turn it into a shared pool:\n1. After research finishes locally, agent uploads the research blob to the server keyed by\n   (campaign_id, research_version). Server stores it on a new CampaignResearch table.\n2. Before doing research locally, agent first asks server: 'do you have research for campaign X\n   that is < 7 days old?'. If yes, downloads and caches locally. If partial (e.g., URLs scraped\n   but no news search done yet), agent does only the missing parts and uploads the delta.\n3. Research is split into discrete sections (product_scrape, image_analysis, niche_news,\n   emotional_hooks, content_angles). Each section is independently versionable so partial\n   research is mergeable.\n4. Server merges contributions from multiple users — last-write-wins per section, but the union\n   of all sections forms the final cached pool.\n\nSCHEMA additions (new model):\n- CampaignResearch: id, campaign_id (FK), section ('product_scrape' | 'image_analysis' |\n  'niche_news' | 'emotional_hooks' | 'content_angles'), payload (JSON), contributed_by_user_id,\n  created_at, expires_at\n- Index: (campaign_id, section, created_at desc) for fast 'latest fresh research' lookup\n\nAPI additions (new endpoints):\n- GET  /api/campaigns/{id}/research → returns latest non-expired sections, merged\n- POST /api/campaigns/{id}/research → upload a section payload\n\nAGENT changes (scripts/utils/content_generator.py):\n- Before each research section: GET from server, use if fresh\n- After each research section: POST to server with payload + section name\n- Local 7-day cache becomes a fallback if server is unreachable\n\nBENEFITS:\n- Token cost per campaign drops from O(users × research) to O(research)\n- Faster onboarding for late-joiners — research already cached\n- Companies could optionally see the research pool (could become a 'transparency' feature later)\n\nEDGE CASES:\n- Race conditions: two users research the same section at the same time → last-write-wins is fine\n- Stale research: 7-day TTL expires → next user redoes it; subsequent users benefit again\n- Privacy: nothing user-identifying in research payloads (just product/market info), safe to share\n- Trust: a malicious user could inject bad research. Mitigation: server-side AI can validate or\n  flag obviously-junk research before caching it (post-MVP refinement)",
+        "testStrategy": "1. Two users (User A, User B) accept the same campaign within minutes of each other.\n2. User A's agent runs research first → uploads 5 sections to server.\n3. User B's agent starts research second → expect server returns existing sections, B does NO\n   Gemini calls, downloads research, generates content using A's research.\n4. User C joins same campaign 5 days later → same behaviour as B.\n5. User D joins 8 days later → research is expired, D redoes research and re-uploads.\n6. Subsequent users in the same 7-day window after D benefit from D's fresh research.\nVerify: token spend dropped on B/C/D's machines. Server logs show GET hit + POST contributions.",
         "status": "deferred",
         "dependencies": [
           "14"
@@ -623,7 +623,7 @@
       {
         "id": 44,
         "title": "Implement ARQ worker entrypoint",
-        "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation, payout processing. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #19 (Stripe live + paying users) \u2014 without this, paying users' pending earnings never auto-promote to available. Spec + 10-AC Verification Procedure: docs/specs/infra.md (Task #44 section).",
+        "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation, payout processing. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #19 (Stripe live + paying users) — without this, paying users' pending earnings never auto-promote to available. Spec + 10-AC Verification Procedure: docs/specs/infra.md (Task #44 section).",
         "details": "[DONE 2026-04-30 11:17 - 9/10 ACs PASS (AC8 10-min soak deferred to continuous prod observation, AC9 verified via VPS kill -9 test). Worker live as amplifier-worker.service since 06:17 UTC.]",
         "testStrategy": "",
         "status": "done",
@@ -634,7 +634,7 @@
       {
         "id": 45,
         "title": "Generate baseline Alembic migration + enforce migrations going forward",
-        "description": "Discovered during Task #41 post-deploy UAT: server/alembic/ is configured but server/alembic/versions/ is EMPTY. No migrations have ever been generated. Models drifted silently from prod schema, causing 2 prod-blocking bugs (decline_reason missing, 14 json columns needed jsonb). Both manually fixed via psql; SQL captured at docs/migrations/2026-04-25-task41-schema-fixes.md. WORK: (1) Generate baseline alembic revision, (2) stamp prod, (3) document policy in CLAUDE.md that every model change needs migration in same PR. PRIORITY: Medium \u2014 not blocking deploy or current functionality, BLOCKING before Task #15 (AI quality gate may add columns). Spec + 7-AC Verification Procedure: docs/specs/infra.md (Task #45 section).",
+        "description": "Discovered during Task #41 post-deploy UAT: server/alembic/ is configured but server/alembic/versions/ is EMPTY. No migrations have ever been generated. Models drifted silently from prod schema, causing 2 prod-blocking bugs (decline_reason missing, 14 json columns needed jsonb). Both manually fixed via psql; SQL captured at docs/migrations/2026-04-25-task41-schema-fixes.md. WORK: (1) Generate baseline alembic revision, (2) stamp prod, (3) document policy in CLAUDE.md that every model change needs migration in same PR. PRIORITY: Medium — not blocking deploy or current functionality, BLOCKING before Task #15 (AI quality gate may add columns). Spec + 7-AC Verification Procedure: docs/specs/infra.md (Task #45 section).",
         "details": "[DONE 2026-04-30 11:42 - 7/7 ACs PASS. Baseline c5967048d886 covers 14 tables. Prod stamped via SSH. CLAUDE.md schema-migration-policy section live.]",
         "testStrategy": "",
         "status": "done",
@@ -712,7 +712,7 @@
         "id": 50,
         "title": "Backfill Verification Procedure blocks for Tasks #15, #44, #45",
         "description": "DONE 2026-04-29. Per docs/uat/AC-FORMAT.md, appended `## Verification Procedure - Task #<id>` blocks. Task #15 (quality gate, 14 ACs covering rubric+AI review+UI lifecycle) lives in docs/specs/batch-2-ai-brain.md. Task #44 (ARQ worker, 10 ACs covering boot, 4 jobs, soak, systemd, idempotence) and Task #45 (Alembic baseline, 7 ACs covering autogenerate, round-trip, prod stamp, policy doc) live in new file docs/specs/infra.md.",
-        "details": "Delivered: Task #15 has 14 ACs (vs 7 floor in spec) \u2014 added per-criterion breakdown verification, AI fallback path, idempotence check, audit log side effect, Chrome DevTools MCP UI lifecycle. Task #44 has 10 ACs covering import shape + arq health-check + clean boot + each of 4 jobs (earning promotion, payout processing, trust sweep, billing reconciliation) + soak + systemd auto-restart + admin-override idempotence. Task #45 has 7 ACs covering baseline file present + upgrade-from-empty matches models + prod stamp + alembic check clean + downgrade-then-upgrade round trip + autogenerate of synthetic column change + CLAUDE.md policy section. New test-mode flags introduced: AMPLIFIER_UAT_BYPASS_AI_REVIEW, AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT, AMPLIFIER_UAT_DRY_STRIPE, AMPLIFIER_UAT_PROD_DB.",
+        "details": "Delivered: Task #15 has 14 ACs (vs 7 floor in spec) — added per-criterion breakdown verification, AI fallback path, idempotence check, audit log side effect, Chrome DevTools MCP UI lifecycle. Task #44 has 10 ACs covering import shape + arq health-check + clean boot + each of 4 jobs (earning promotion, payout processing, trust sweep, billing reconciliation) + soak + systemd auto-restart + admin-override idempotence. Task #45 has 7 ACs covering baseline file present + upgrade-from-empty matches models + prod stamp + alembic check clean + downgrade-then-upgrade round trip + autogenerate of synthetic column change + CLAUDE.md policy section. New test-mode flags introduced: AMPLIFIER_UAT_BYPASS_AI_REVIEW, AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT, AMPLIFIER_UAT_DRY_STRIPE, AMPLIFIER_UAT_PROD_DB.",
         "testStrategy": "Each backfilled task is then verifiable via /uat-task <id>.",
         "status": "done",
         "dependencies": [
@@ -765,7 +765,7 @@
         "title": "Re-verify Task #13 AI profile scraping - follower counts wrong on Reddit + Facebook",
         "description": "Bug discovered during Task #14 UAT prep on 2026-04-26: after onboarding the UAT user (dassamaara@gmail.com), the AI profile scraper produced incorrect follower_count values for Reddit and Facebook. LinkedIn was reportedly correct. Task #13 was marked done 2026-04-14 with all 11 audit findings addressed but this regression slipped through. Need to: (1) reproduce on the UAT user's connected profiles, (2) compare scraped follower_count against the actual count visible on each platform's profile page, (3) identify whether the bug is in the AI extraction prompt (ai_profile_scraper.py), the CSS selector fallback (profile_scraper.py), or the regex supplements (Reddit karma/age regex, Facebook About-page parsing), (4) fix, (5) add a Verification Procedure block per AC-FORMAT.md so /uat-task 13 catches this in the future.",
         "details": "Profile scraper has a 3-tier pipeline: (1) AI text extraction via ai_profile_scraper.py, (2) CSS selectors via profile_scraper.py, (3) Gemini Vision on screenshot. For Reddit: profile_scraper.py has karma/age/subreddits regex supplement that may be wrong. For Facebook: About sub-tabs + Reels + More dropdown via ?sk= query params - the follower/friends count source may be stale. Run python -c 'from scripts.utils.local_db import get_user_profiles; ps=get_user_profiles([\"reddit\",\"facebook\"]); [print(p) for p in ps]' to see what was actually stored. Then visit the platform manually, compare. Reference KG fact: task_13_status=fully complete per spec valid since 2026-04-14, NEEDS INVALIDATION.",
-        "testStrategy": "Verified 2026-04-26 via /onboarding/connect flow: scraped Facebook profile, follower_count=6 (matches actual). Reddit follower=0 confirmed real (followers!=karma). Fix: scripts/utils/profile_scraper.py adds anchored regex supplement at line 2432-2459 \u2014 uses display_name as anchor to disambiguate from aggregate \"X friends\" elsewhere on the page. Bug was in AI Tier 1 path (line 2441 returned early before CSS fallback could fire). FIXED 2026-04-26. Already marked done earlier. scripts/utils/profile_scraper.py:2432-2459 added follower_count supplement in AI Tier 1 path, anchored to display_name. Verified live: scrape returns follower_count=6 (matches actual). Reddit not patched \u2014 confirmed platform doesn't show follower count for this user.",
+        "testStrategy": "Verified 2026-04-26 via /onboarding/connect flow: scraped Facebook profile, follower_count=6 (matches actual). Reddit follower=0 confirmed real (followers!=karma). Fix: scripts/utils/profile_scraper.py adds anchored regex supplement at line 2432-2459 — uses display_name as anchor to disambiguate from aggregate \"X friends\" elsewhere on the page. Bug was in AI Tier 1 path (line 2441 returned early before CSS fallback could fire). FIXED 2026-04-26. Already marked done earlier. scripts/utils/profile_scraper.py:2432-2459 added follower_count supplement in AI Tier 1 path, anchored to display_name. Verified live: scrape returns follower_count=6 (matches actual). Reddit not patched — confirmed platform doesn't show follower count for this user.",
         "status": "done",
         "dependencies": [],
         "priority": "high",
@@ -778,7 +778,7 @@
       },
       {
         "id": 54,
-        "title": "Reconsider user app tech stack \u2014 DECIDED",
+        "title": "Reconsider user app tech stack — DECIDED",
         "description": "[DONE 2026-04-28] Decision made after 3 independent reviews: Patchright (stealth) + Nuitka + Inno Setup/pkgbuild (packaging) + slim local FastAPI 5-routes + HTMX dashboards. See docs/migrations/2026-04-28-*.md. Rejected: Tauri, Electron, Next.js, PyInstaller.",
         "details": "Decision points: (1) Has the user count grown enough to justify the migration? (2) Are PyInstaller pain points (200-400MB installers, AV false positives, slow cold starts) blocking onboarding? (3) Does the web-dashboard-plus-agent split simplify or complicate the campaign-acceptance flow? Source doc: docs/specs/user-app-tech-stack.md (currently 736 lines). Don't unblock Task #20 (PyInstaller) until this decision is revisited.",
         "testStrategy": "",
@@ -814,7 +814,7 @@
         "title": "BUG: 'list' object has no attribute 'get' persists in content_agent after platforms-validation fix",
         "description": "Discovered during /uat-task 14 on 2026-04-26. After fixing get_user_profiles (Task #55) and adding isinstance(refined['platforms'], dict) validation in _refine_strategy_with_ai (line 546 of content_agent.py), the user app dashboard STILL shows 'Content Generation Failed: list object has no attribute get' for every content gen cycle (visible in dashboard activity feed at timestamps 05:09:40, 05:00:50, 04:58:12 IST 2026-04-26 - all AFTER the fix and module reload). Root cause is in another code path. Repro: let the user app run for 2 minutes; the error fires every cycle.",
         "details": "Investigation hints: search for all '.get(' calls where the receiver could be a list. Likely candidates: (a) recent_posts JSON parsing, (b) ai_niches JSON, (c) some other field from scraped_profile that's now reaching strategy refinement, (d) the response format from manager.generate when search/vision is involved. Add a try/except around _refine_strategy_with_ai with full traceback logging before re-running.",
-        "testStrategy": "After fix: run user app for 5 minutes, grep agent.log for 'list object', expect zero hits. FIXED 2026-04-26. Bug appeared in 3 sites \u2014 added dict/list coercion guard to all: scripts/utils/content_agent.py:209, scripts/utils/content_generator.py:363+383, scripts/background_agent.py:54. Verified via live agent run \u2014 Phase 1-3 all complete cleanly.",
+        "testStrategy": "After fix: run user app for 5 minutes, grep agent.log for 'list object', expect zero hits. FIXED 2026-04-26. Bug appeared in 3 sites — added dict/list coercion guard to all: scripts/utils/content_agent.py:209, scripts/utils/content_generator.py:363+383, scripts/background_agent.py:54. Verified via live agent run — Phase 1-3 all complete cleanly.",
         "status": "done",
         "dependencies": [
           55
@@ -833,7 +833,7 @@
         "description": "Discovered during /uat-task 14 on 2026-04-26. The current quality gate (server/app/services/campaign_quality.py) flags any campaign with target_regions=[] as 'No targeting specified' even when niche_tags and required_platforms are set. Per user's design, an empty target_regions means 'match users in any region' which is valid targeting (the niche_tags + required_platforms still narrow the audience). The rubric should give partial or full credit if at least one of niche_tags OR required_platforms is set, regardless of target_regions.",
         "details": "Fix in server/app/services/campaign_quality.py around line 88-92 (the targeting criterion). Currently any() over (niche_tags, required_platforms, target_regions, min_followers) - that's already permissive in OR direction. Investigate why our test campaign with niche_tags=['trading','finance','investing'] still got flagged. Maybe the field isn't being saved correctly during seed_campaign.py creation, or the rubric reads from a different location.",
         "testStrategy": "Create campaign with niche_tags + required_platforms + empty target_regions; assert quality gate gives full points for targeting criterion.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "low",
         "subtasks": [],
@@ -848,7 +848,7 @@
         "title": "BUG: Matching algorithm doesn't invite eligible users to active campaigns",
         "description": "Discovered during /uat-task 14 on 2026-04-26. Test campaign 15 was activated successfully on the live server (UAT Trading Indicator 1034, niche_tags=['trading','finance','investing'], no region restriction, $150 budget, CPM $2). Test user has 9.4k LinkedIn followers, AI niches ['financial markets', 'algorithmic trading', 'software development'], region detected. The user's account on /api/campaigns/mine showed 0 invitations even after 30 seconds of polling. The matching algorithm did not invite this user despite all hard filters appearing satisfied. Critical money-loop bug - if matching fails, no campaigns reach users.",
         "details": "Investigation: (1) Inspect server logs for matching service errors during the 30s polling window. (2) Check whether matching runs synchronously on campaign activation or async via ARQ (Task #44 not done). If async and worker not running, invitations never get created. (3) Check min_followers filter against user's per-platform follower counts - Reddit/Facebook=0 due to Bug #53 may be triggering rejection. (4) Inspect CampaignAssignment table on server for any rows for campaign 15. (5) Re-run AI matching manually via admin endpoint if available.",
-        "testStrategy": "After fix: seed UAT campaign, accept-poll loop, expect invitation visible within 30s. FIXED 2026-04-26. Multi-cause: (1) user.scraped_profiles None on server \u2014 synced via PATCH /api/users/me, (2) user.niche_tags None \u2014 same fix, (3) server matching.py:533 NameError 'user_tier' undefined \u2014 fix deployed via SSH then committed locally as part of 471a403. Verified end-to-end: campaign 17 created, matched, accepted, posted to 3 platforms, deleted.",
+        "testStrategy": "After fix: seed UAT campaign, accept-poll loop, expect invitation visible within 30s. FIXED 2026-04-26. Multi-cause: (1) user.scraped_profiles None on server — synced via PATCH /api/users/me, (2) user.niche_tags None — same fix, (3) server matching.py:533 NameError 'user_tier' undefined — fix deployed via SSH then committed locally as part of 471a403. Verified end-to-end: campaign 17 created, matched, accepted, posted to 3 platforms, deleted.",
         "status": "done",
         "dependencies": [],
         "priority": "high",
@@ -866,7 +866,7 @@
         "description": "Discovered during /uat-task 14 on 2026-04-26. Visiting http://localhost:5222/campaigns showed 'UAT Test Campaign' (id=7) rendered TWICE with identical content - same brief, same payout rates, both linking to /campaigns/7. Either the server returns a duplicate row in /api/campaigns/mine, or the user app dedupes incorrectly when rendering. Screenshot: data/uat/screenshots/task14_campaigns_page.png.",
         "details": "Investigation: (1) Hit /api/campaigns/mine directly with the test user's JWT and inspect the response - if it has 2 entries with id=7, the server is duplicating (DB issue or query issue). (2) If the API returns 1 entry, the bug is in scripts/user_app.py rendering of the campaigns page (likely a loop combining invitations + active assignments without dedup). (3) Add a key-by-id deduplication in the template's loop as belt-and-suspenders.",
         "testStrategy": "After fix: visit /campaigns, no campaign should appear more than once.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": [],
@@ -882,7 +882,7 @@
         "description": "Discovered during /uat-task 14 on 2026-04-26. Dashboard's Platform Health card lists X with a 'Connected' badge. X is system-disabled per Task #40 (since 2026-04-14) - posting and scraping are blocked at the engine level. The UI doesn't reflect this. Should either (a) hide X entirely from the platform health card, or (b) show X with a 'Disabled' badge and an explanation tooltip. Screenshot: data/uat/screenshots/task14_ac14_landing.png.",
         "details": "Fix in scripts/user_app.py's dashboard route + corresponding template. Use the same filter_disabled() helper that the engine uses, applied to the platforms list before rendering. Bonus: add a /settings entry showing 'Why is X disabled?' with a link to docs/MIGRATION-FROM-VERCEL.md or wherever the X disable is documented.",
         "testStrategy": "After fix: dashboard does NOT show X card at all (or shows it greyed out). User app's filter_disabled is consistently applied.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "low",
         "subtasks": [],
@@ -895,9 +895,9 @@
       {
         "id": 61,
         "title": "BUG: server matching.py NameError 'user_tier' is not defined when seedling user hits max_active",
-        "description": "Discovered during /uat-task 14 re-run on 2026-04-26. server/app/services/matching.py:533 references undefined name 'user_tier' \u2014 should be 'user.tier'. Triggers 500 on /api/campaigns/mine for any seedling user with >=3 active assignments (max_active=3). Already fixed in local repo (1-char change). Needs deployment to api.pointcapitalis.com via /commit-push or SSH. CRITICAL: any seedling user who fills 3 campaigns currently gets 500 errors and can't poll for new campaigns.",
+        "description": "Discovered during /uat-task 14 re-run on 2026-04-26. server/app/services/matching.py:533 references undefined name 'user_tier' — should be 'user.tier'. Triggers 500 on /api/campaigns/mine for any seedling user with >=3 active assignments (max_active=3). Already fixed in local repo (1-char change). Needs deployment to api.pointcapitalis.com via /commit-push or SSH. CRITICAL: any seedling user who fills 3 campaigns currently gets 500 errors and can't poll for new campaigns.",
         "details": "Fix: line 533 'user_tier' -> 'user.tier'. Already applied locally. Deploy via /commit-push (auto-deploys to Hostinger VPS). Verify post-deploy: hit /api/campaigns/mine as a user with 3 active assignments, expect 200 not 500.",
-        "testStrategy": "After deploy: poll /api/campaigns/mine as the test user (currently 3 assignments). Expect 200 with returned existing assignments, not 500. FIXED 2026-04-26. server/app/services/matching.py:533 user_tier\u2192user.tier. Deployed live via SSH (sed -i + systemctl restart amplifier-web). Local repo synced via commit 471a403. Verified: /api/campaigns/mine returns 200 (was 500) for users at max_active.",
+        "testStrategy": "After deploy: poll /api/campaigns/mine as the test user (currently 3 assignments). Expect 200 with returned existing assignments, not 500. FIXED 2026-04-26. server/app/services/matching.py:533 user_tier→user.tier. Deployed live via SSH (sed -i + systemctl restart amplifier-web). Local repo synced via commit 471a403. Verified: /api/campaigns/mine returns 200 (was 500) for users at max_active.",
         "status": "done",
         "dependencies": [],
         "priority": "high",
@@ -915,7 +915,7 @@
         "title": "BUG: Dashboard 'Posts This Month' counts deleted/voided posts (FIXED 2026-04-26)",
         "description": "scripts/user_app.py:160 filtered local_post rows by month-start of posted_at but did NOT exclude status='deleted'/'voided'. Showed inflated count. Discovered during /uat-task 14: 6 shown when only 3 actually posted today (3 stale rows from prior testing including one with status=deleted).",
         "details": "FIXED 2026-04-26 in commit 471a403. Added 'and p.get(\"status\") == \"posted\"' filter at line 160. Bonus: scripts/uat/delete_post.py now has --update-local-db flag so AC17 cleanup keeps local_post.status='deleted' in sync with platform-side deletion.",
-        "testStrategy": "Verified: dashboard now correctly excludes deleted rows. Test user shows 0 posts this month after AC17 cleanup (correct \u2014 all 3 posts were deleted on platforms).",
+        "testStrategy": "Verified: dashboard now correctly excludes deleted rows. Test user shows 0 posts this month after AC17 cleanup (correct — all 3 posts were deleted on platforms).",
         "status": "done",
         "dependencies": [],
         "priority": "low",
@@ -932,7 +932,7 @@
         "description": "Discovered during /uat-task 14 on 2026-04-26: seed_campaign.py's invitation accept step returns 404. The correct endpoint is POST /api/campaigns/invitations/{assignment_id}/accept. Workaround: skill manually accepts via correct endpoint. seed_campaign.py needs fix to make UAT runs fully autonomous.",
         "details": "Find the accept call in seed_campaign.py and update the URL path. Test against the live server. Single-line fix.",
         "testStrategy": "After fix: re-run seed_campaign.py end-to-end, accept step returns 200 with status='accepted'.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "low",
         "subtasks": [],
@@ -948,7 +948,7 @@
         "description": "Discovered during /uat-task 14 on 2026-04-26: seed_campaign.py POSTs images to /api/storage/upload which returns 404. Correct endpoint is /company/campaigns/upload-asset (uses cookie auth, not Bearer). Workaround: skip image upload during UAT. Means AC3 (vision analysis on product images) cannot run end-to-end without manual setup.",
         "details": "Either: (a) add a cookie-auth flow to seed_campaign.py to use the company HTML form, or (b) expose a Bearer-auth API endpoint server-side and use that. (b) is cleaner long-term.",
         "testStrategy": "After fix: seed_campaign with --product-images uploads successfully; campaign.assets.image_urls populated with public URLs.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "low",
         "subtasks": [],
@@ -962,9 +962,9 @@
         "id": 65,
         "title": "BUG: AMPLIFIER_UAT_FORCE_DAY override doesn't propagate to agent_draft.iteration field",
         "description": "Discovered during /uat-task 14 AC18 verification on 2026-04-26: with AMPLIFIER_UAT_FORCE_DAY=2 set, the agent log correctly shows 'UAT override: day_number=2' but resulting agent_draft rows still have iteration=1. Day-2 drafts are saved but mislabeled. Diversity test still works (compared text content directly), but downstream queries that filter by iteration would miss these.",
-        "details": "Trace day_number flow in scripts/background_agent.py:generate_daily_content() \u2014 add_draft is called with iteration=day_number. The override happens at line 306 but day_number may be re-computed after, OR the override is happening on a different scope. Add a print statement just before add_draft() call to confirm.",
+        "details": "Trace day_number flow in scripts/background_agent.py:generate_daily_content() — add_draft is called with iteration=day_number. The override happens at line 306 but day_number may be re-computed after, OR the override is happening on a different scope. Add a print statement just before add_draft() call to confirm.",
         "testStrategy": "After fix: AMPLIFIER_UAT_FORCE_DAY=5 then run a content gen cycle; new drafts have iteration=5.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "low",
         "subtasks": [],
@@ -1029,7 +1029,7 @@
         "status": "deferred",
         "priority": "low",
         "dependencies": [],
-        "description": "Evaluate adding Nvidia NIM API (build.nvidia.com, OpenAI-compatible at https://integrate.api.nvidia.com/v1) as a 4th provider in AiManager fallback chain (after Gemini, Mistral, Groq). Free-tier gives single key access to 80+ LLMs including MiniMax, GLM-5, DeepSeek, Kimi, Nemotron. Rate limit ~40 RPM, no daily/monthly cap.\n\nDEFERRED 2026-04-29 \u2014 current 3-provider chain (Gemini + Mistral + Groq) works in production after Task #15 verification. No known problem this would solve.\n\nCaveats per Grok analysis (full doc: docs/research/nvidia-free-tier-for-amplifier.md):\n- Trial terms restrict to prototyping/testing only, not production\n- Terms prohibit \"providing a service to others\" \u2014 even with BYOK, Amplifier proxying may violate spirit of terms\n- User onboarding adds Nvidia Developer Program signup + possible phone verification\n- No SLA, can be throttled or suspended under load\n\nRevisit triggers:\n1. Gemini+Mistral+Groq chain fails consistently over a 1-week production window\n2. Onboarding friction data shows users lack any of the existing 3 provider keys\n3. Nvidia changes terms to explicitly allow BYOK consumer-app proxying\n4. Nvidia-only model (Nemotron etc) becomes critical for a feature\n\nImplementation sketch: add nvidia_provider.py to scripts/ai/ following provider.py base class pattern. OpenAI-compatible HTTP calls. Read NVIDIA_API_KEY from settings (encrypted in user-side local.db settings table). Server-side: extend server/app/services/quality_gate.py provider chain.",
+        "description": "Evaluate adding Nvidia NIM API (build.nvidia.com, OpenAI-compatible at https://integrate.api.nvidia.com/v1) as a 4th provider in AiManager fallback chain (after Gemini, Mistral, Groq). Free-tier gives single key access to 80+ LLMs including MiniMax, GLM-5, DeepSeek, Kimi, Nemotron. Rate limit ~40 RPM, no daily/monthly cap.\n\nDEFERRED 2026-04-29 — current 3-provider chain (Gemini + Mistral + Groq) works in production after Task #15 verification. No known problem this would solve.\n\nCaveats per Grok analysis (full doc: docs/research/nvidia-free-tier-for-amplifier.md):\n- Trial terms restrict to prototyping/testing only, not production\n- Terms prohibit \"providing a service to others\" — even with BYOK, Amplifier proxying may violate spirit of terms\n- User onboarding adds Nvidia Developer Program signup + possible phone verification\n- No SLA, can be throttled or suspended under load\n\nRevisit triggers:\n1. Gemini+Mistral+Groq chain fails consistently over a 1-week production window\n2. Onboarding friction data shows users lack any of the existing 3 provider keys\n3. Nvidia changes terms to explicitly allow BYOK consumer-app proxying\n4. Nvidia-only model (Nemotron etc) becomes critical for a feature\n\nImplementation sketch: add nvidia_provider.py to scripts/ai/ following provider.py base class pattern. OpenAI-compatible HTTP calls. Read NVIDIA_API_KEY from settings (encrypted in user-side local.db settings table). Server-side: extend server/app/services/quality_gate.py provider chain.",
         "details": "See docs/research/nvidia-free-tier-for-amplifier.md for full Grok analysis.",
         "testStrategy": "Provider fallback chain integration tests + per-model smoke tests (1 prompt per Nvidia model variant exposed)"
       },
@@ -1051,9 +1051,9 @@
         "dependencies": [
           15
         ],
-        "description": "campaign_create_submit (server/app/routers/company/campaigns.py:261) runs ONLY the rubric on activate-on-create (skips ai_review_campaign) AND writes ZERO audit_log rows. Detail-page status-change path runs both correctly. W8 SaaS UAT 2026-04-29 caught this on FocusFlow campaign 60. Fix: mirror the campaign_status_change handler \u2014 full rubric + AI review + 4-outcome audit_log writes (campaign_quality_gate_blocked / passed / flagged_caution / activated) + AdminReviewQueue insert on caution + screening_status update.",
-        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #71 section (added 2026-04-29). 5 ACs covering UI-driven wizard flow for: gate-pass + activate, rubric-block, AI-reject, caution-flag, regression on detail-page path. [DONE 2026-04-29 23:01 \u2014 5/5 ACs PASS via scripts/uat/verify_task71_72.py. Report: docs/uat/reports/task-71-2026-04-29-2301.md]",
-        "testStrategy": "/uat-task 71 \u2014 drives wizard via Chrome DevTools MCP; verifies audit_log diff before/after each AC; uses AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT header for AC4 (deterministic caution branch)."
+        "description": "campaign_create_submit (server/app/routers/company/campaigns.py:261) runs ONLY the rubric on activate-on-create (skips ai_review_campaign) AND writes ZERO audit_log rows. Detail-page status-change path runs both correctly. W8 SaaS UAT 2026-04-29 caught this on FocusFlow campaign 60. Fix: mirror the campaign_status_change handler — full rubric + AI review + 4-outcome audit_log writes (campaign_quality_gate_blocked / passed / flagged_caution / activated) + AdminReviewQueue insert on caution + screening_status update.",
+        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #71 section (added 2026-04-29). 5 ACs covering UI-driven wizard flow for: gate-pass + activate, rubric-block, AI-reject, caution-flag, regression on detail-page path. [DONE 2026-04-29 23:01 — 5/5 ACs PASS via scripts/uat/verify_task71_72.py. Report: docs/uat/reports/task-71-2026-04-29-2301.md]",
+        "testStrategy": "/uat-task 71 — drives wizard via Chrome DevTools MCP; verifies audit_log diff before/after each AC; uses AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT header for AC4 (deterministic caution branch)."
       },
       {
         "id": 72,
@@ -1063,17 +1063,17 @@
         "dependencies": [
           15
         ],
-        "description": "ai_review_campaign() in server/app/services/quality_gate.py mentions niche mismatch as an EXAMPLE in the prompt but has no prescriptive rule. W8 Scenario C (productivity SaaS targeting fashion/beauty/fitness niches) returned brand_safety='safe' instead of expected caution per AC9. Fix: add explicit rule in _build_review_prompt() \u2014 'If niche_tags do NOT include any category matching the brief subject, brand_safety must be at LEAST caution. Inappropriate matches (e.g. crypto trading targeting kids) = reject.' REVERTED 2026-04-30: AI must not review company-chosen targeting/audience/region/follower-count/etc. The targeting-mismatch check this task was tightening was itself removed entirely from quality_gate.py. See docs/uat/reports/task-72-2026-04-30-REVERTED.md.",
-        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #72 section (added 2026-04-29). 3 ACs: AC1 obvious mismatch \u2192 caution-or-reject (real Gemini), AC2 aligned regression \u2192 safe (don't false-positive), AC3 3-fixture aggregate \u22652/3 caution-or-reject (Gemini non-determinism tolerance). [DONE 2026-04-29 23:01 \u2014 3/3 ACs PASS. AC3 caught 3/3 mismatches (crypto\u2192kids=reject, finance\u2192fashion=caution, b2b\u2192pets=caution). Report: docs/uat/reports/task-72-2026-04-29-2301.md]",
-        "testStrategy": "/uat-task 72 \u2014 real API calls to api.pointcapitalis.com; deterministic shape checks via pytest + manual y/n per AC-FORMAT principle 5 on Gemini's reasoning quality."
+        "description": "ai_review_campaign() in server/app/services/quality_gate.py mentions niche mismatch as an EXAMPLE in the prompt but has no prescriptive rule. W8 Scenario C (productivity SaaS targeting fashion/beauty/fitness niches) returned brand_safety='safe' instead of expected caution per AC9. Fix: add explicit rule in _build_review_prompt() — 'If niche_tags do NOT include any category matching the brief subject, brand_safety must be at LEAST caution. Inappropriate matches (e.g. crypto trading targeting kids) = reject.' REVERTED 2026-04-30: AI must not review company-chosen targeting/audience/region/follower-count/etc. The targeting-mismatch check this task was tightening was itself removed entirely from quality_gate.py. See docs/uat/reports/task-72-2026-04-30-REVERTED.md.",
+        "details": "ACs in docs/specs/batch-2-ai-brain.md Task #72 section (added 2026-04-29). 3 ACs: AC1 obvious mismatch → caution-or-reject (real Gemini), AC2 aligned regression → safe (don't false-positive), AC3 3-fixture aggregate ≥2/3 caution-or-reject (Gemini non-determinism tolerance). [DONE 2026-04-29 23:01 — 3/3 ACs PASS. AC3 caught 3/3 mismatches (crypto→kids=reject, finance→fashion=caution, b2b→pets=caution). Report: docs/uat/reports/task-72-2026-04-29-2301.md]",
+        "testStrategy": "/uat-task 72 — real API calls to api.pointcapitalis.com; deterministic shape checks via pytest + manual y/n per AC-FORMAT principle 5 on Gemini's reasoning quality."
       },
       {
         "id": 73,
         "title": "BUG: gemini-1.5-flash returns 404 in AI review provider chain",
-        "status": "pending",
+        "status": "done",
         "priority": "low",
         "dependencies": [],
-        "description": "server/app/services/quality_gate.py _run_gemini_review chain retries gemini-2.0-flash \u2192 gemini-1.5-flash \u2192 Mistral \u2192 Groq. Gemini 1.5-flash now returns 404 NOT_FOUND for v1beta API ('models/gemini-1.5-flash is not found ... or is not supported for generateContent'). Retry step is dead. Replace with 'gemini-1.5-flash-latest' or 'gemini-1.5-flash-002' or remove from chain. Discovered 2026-04-29 22:35 IST in prod logs while deploying #71+#72 \u2014 server fell through correctly to Mistral.",
+        "description": "server/app/services/quality_gate.py _run_gemini_review chain retries gemini-2.0-flash → gemini-1.5-flash → Mistral → Groq. Gemini 1.5-flash now returns 404 NOT_FOUND for v1beta API ('models/gemini-1.5-flash is not found ... or is not supported for generateContent'). Retry step is dead. Replace with 'gemini-1.5-flash-latest' or 'gemini-1.5-flash-002' or remove from chain. Discovered 2026-04-29 22:35 IST in prod logs while deploying #71+#72 — server fell through correctly to Mistral.",
         "details": "Quick fix: replace model id in the retry list. Tested in prod logs: error message 'models/gemini-1.5-flash is not found for API version v1beta'.",
         "testStrategy": "After fix: trigger an activate, observe server log shows gemini-1.5-flash-latest succeeded OR was tried before falling to Mistral. No 404 NOT_FOUND lines."
       }

@@ -474,3 +474,48 @@ Task #18 is marked done in task-master ONLY when:
 2. Zero `FAILED` or `ERROR` lines in `pytest tests/ -v` output
 3. No skipped tests outside of explicit `@pytest.mark.skip` decorators
 4. Suite wall clock < 60s
+
+---
+
+## Task #73 — Fix Gemini model ID 404 in AI review
+
+### What It Does
+
+Replaces deprecated bare model ID `gemini-1.5-flash` (returns 404 from Google Gemini API) with the stable alias `gemini-1.5-flash-latest` in the AI review fallback chain in `server/app/services/quality_gate.py`.
+
+### Files Changed
+
+- `server/app/services/quality_gate.py` line ~377: `gemini_models` list updated.
+
+---
+
+## Verification Procedure — Task #73
+
+**Preconditions**:
+- Server codebase available locally
+- `grep` available
+
+**Test data setup**: None.
+
+**Test-mode flags**: none
+
+---
+
+### AC1: No bare `gemini-1.5-flash` references remain in server/app/services/
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | `grep -r "gemini-1.5-flash" server/app/services/` — expect zero matches for the bare name (only `gemini-1.5-flash-latest` or `gemini-2.0-flash` are allowed). |
+| **Expected** | Zero lines matching the bare string `gemini-1.5-flash` (without `-latest` or `-002` suffix). |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_quality_gate.py -v` (all pass = no import-time errors from the provider chain) |
+| **Evidence** | grep output showing zero matches; pytest stdout `185 passed` |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #73
+
+- AC1 PASS (grep returns empty for bare `gemini-1.5-flash`)
+- `pytest tests/server/test_quality_gate.py -v` → all tests PASS

@@ -360,3 +360,36 @@ class TestInvitationFlow:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 404
+
+
+class TestCampaignAssetUpload:
+    """Bug #64: POST /api/company/campaigns/assets — Bearer-auth image upload endpoint."""
+
+    async def _register_company(self, client, email="assetco@test.com") -> str:
+        resp = await client.post("/api/auth/company/register", json={
+            "name": "AssetCo",
+            "email": email,
+            "password": "pass123",
+        })
+        return resp.json()["access_token"]
+
+    async def test_upload_asset_rejects_unauthenticated(self, client):
+        """Asset upload without Bearer token returns 401/403."""
+        import io
+        resp = await client.post(
+            "/api/company/campaigns/assets",
+            files={"file": ("test.jpg", io.BytesIO(b"fake-jpeg"), "image/jpeg")},
+        )
+        assert resp.status_code in (401, 403)
+
+    async def test_upload_asset_rejects_unsupported_type(self, client):
+        """Asset upload with unsupported MIME type returns 400."""
+        import io
+        token = await self._register_company(client, email="assetco2@test.com")
+        resp = await client.post(
+            "/api/company/campaigns/assets",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("malware.exe", io.BytesIO(b"MZ\x90\x00"), "application/octet-stream")},
+        )
+        assert resp.status_code == 400
+        assert "Unsupported file type" in resp.json()["detail"]

@@ -120,10 +120,15 @@ def score_campaign(campaign) -> dict:
     criteria["payout_rates"] = {"score": pts, "max": max_pts, "feedback": fb}
 
     # 4. Targeting (10 pts)
+    # Full (10): 2+ of {niche_tags, required_platforms, min_followers, target_regions} set
+    # Partial (5): exactly 1 of those set (empty target_regions is valid — means "any region")
+    # Zero: none of those set, OR a disabled platform is in required_platforms
     max_pts = _WEIGHTS["targeting"]
     targeting = campaign.targeting or {}
     niche_tags = targeting.get("niche_tags") or []
     required_platforms = targeting.get("required_platforms") or []
+    min_followers = targeting.get("min_followers") or {}
+    target_regions = targeting.get("target_regions") or []
     has_niches = bool(niche_tags)
 
     # Check for disabled platforms — surface as feedback bullet and score 0 for those platforms
@@ -140,22 +145,27 @@ def score_campaign(campaign) -> dict:
     # Score uses only valid (non-disabled) platforms
     valid_platforms = [p for p in required_platforms if not is_platform_disabled(p)]
     has_platforms = bool(valid_platforms)
+    has_min_followers = bool(min_followers)
+    has_regions = bool(target_regions)
 
     if disabled_in_targeting:
         # Any disabled platform in the list scores this criterion 0 and surfaces the feedback
         pts = 0
         fb = disabled_fb
-    elif has_niches and has_platforms:
-        pts = max_pts
-        fb = "Targeting is well-specified."
-    elif has_niches or has_platforms:
-        pts = max_pts // 2  # 5
-        fb = "Partial targeting. Add both niche tags and required platforms for best creator matching."
-        feedback.append(fb)
     else:
-        pts = 0
-        fb = "No targeting specified. Add niche tags and required platforms for better creator matching."
-        feedback.append(fb)
+        # Count how many targeting dimensions are set
+        targeting_dimensions = sum([has_niches, has_platforms, has_min_followers, has_regions])
+        if targeting_dimensions >= 2:
+            pts = max_pts
+            fb = "Targeting is well-specified."
+        elif targeting_dimensions == 1:
+            pts = max_pts // 2  # 5
+            fb = "Partial targeting. Add niche tags and required platforms for best creator matching."
+            feedback.append(fb)
+        else:
+            pts = 0
+            fb = "No targeting specified. Add niche tags and required platforms for better creator matching."
+            feedback.append(fb)
     criteria["targeting"] = {"score": pts, "max": max_pts, "feedback": fb}
 
     # 5. Assets provided (10 pts)
@@ -365,16 +375,16 @@ async def ai_review_campaign(campaign, request_headers=None) -> dict:
             logger.warning("AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT is not valid JSON — ignoring")
 
     # ── Provider fallback chain ─────────────────────────────────────────
-    # 1. Gemini primary: gemini-2.0-flash  (3 retries: 2s/4s/8s on transient errors)
-    # 2. Gemini fallback: gemini-1.5-flash (1 retry on transient)
-    # 3. Mistral: mistral-large-latest      (1 attempt, no retry — different provider)
-    # 4. Groq: llama-3.3-70b-versatile     (1 attempt, final fallback)
+    # 1. Gemini primary: gemini-2.0-flash       (3 retries: 2s/4s/8s on transient errors)
+    # 2. Gemini fallback: gemini-1.5-flash-latest (1 retry on transient)
+    # 3. Mistral: mistral-large-latest            (1 attempt, no retry — different provider)
+    # 4. Groq: llama-3.3-70b-versatile           (1 attempt, final fallback)
     # 5. All fail → return {error: 'fallback'} (rubric-only activation)
 
     prompt = _build_review_prompt(campaign)
 
     # ── Gemini ─────────────────────────────────────────────────────────
-    gemini_models = [("gemini-2.0-flash", _AI_REVIEW_MAX_RETRIES), ("gemini-1.5-flash", 1)]
+    gemini_models = [("gemini-2.0-flash", _AI_REVIEW_MAX_RETRIES), ("gemini-1.5-flash-latest", 1)]
 
     for model, max_attempts in gemini_models:
         for attempt in range(1, max_attempts + 1):

@@ -218,3 +218,118 @@ When an admin clicks "Void", a prompt or modal appears requesting a reason befor
 3. A payout with status "paid" has no Void or Approve buttons visible (terminal state).
 4. A payout with status "available" is voided. The payout status becomes "voided", the user's earnings balance is decremented by the voided amount, and the campaign budget is restored.
 5. Both void and force-approve actions appear in the audit log with the admin's identity and a timestamp.
+
+---
+
+## Verification Procedure — Task #57
+
+**Preconditions**:
+- Server running locally or at https://api.pointcapitalis.com
+- `pytest tests/server/test_quality_gate.py` available
+
+**Test data setup**: None — unit tests are self-contained.
+
+**Test-mode flags**: none
+
+---
+
+### AC1: Quality gate gives full targeting score when niche_tags + required_platforms set but target_regions is empty
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None — unit test uses `SimpleNamespace` mock campaign. |
+| **Action** | Run `pytest tests/server/test_quality_gate.py::TestTargeting::test_targeting_empty_target_regions_still_scores_full -v` |
+| **Expected** | Test passes. Campaign with `niche_tags=['trading','finance']`, `required_platforms=['linkedin','reddit']`, `target_regions=[]` scores 10/10 on targeting criterion. |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_quality_gate.py::TestTargeting::test_targeting_empty_target_regions_still_scores_full` |
+| **Evidence** | pytest stdout shows `PASSED` |
+| **Cleanup** | none |
+
+### AC2: Quality gate counts min_followers as a targeting dimension
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | Run `pytest tests/server/test_quality_gate.py::TestTargeting::test_targeting_min_followers_counts_as_dimension -v` |
+| **Expected** | Test passes. `min_followers` alone → 5/10; `niche_tags` + `min_followers` → 10/10. |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_quality_gate.py::TestTargeting::test_targeting_min_followers_counts_as_dimension` |
+| **Evidence** | pytest stdout shows `PASSED` |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #57
+
+- AC1 and AC2 PASS
+- Full test class `TestTargeting` (5 tests) all PASS: `pytest tests/server/test_quality_gate.py::TestTargeting -v`
+
+---
+
+## Verification Procedure — Task #59
+
+**Preconditions**:
+- User app running at http://localhost:5222
+- Test user has one accepted campaign (local DB) AND one open invitation for the same campaign_id on the server
+
+**Test data setup**:
+```bash
+# Seed an accepted assignment in local DB (simulates existing active campaign)
+# Then poll /campaigns page and confirm the campaign appears exactly once
+```
+
+**Test-mode flags**: none
+
+---
+
+### AC1: Campaign with both open invitation and active assignment appears only once on /campaigns
+
+| Field | Value |
+|-------|-------|
+| **Setup** | User has an active local campaign with `server_id=X`. Server returns an open invitation for `campaign_id=X`. |
+| **Action** | Navigate to http://localhost:5222/campaigns |
+| **Expected** | Campaign X appears once in the Active section. It does NOT appear in the Invitations section. |
+| **Automated** | partial |
+| **Automation** | manual + screenshot — inspect page DOM for duplicate campaign titles |
+| **Evidence** | Screenshot of /campaigns page showing no duplicates. Code inspection of `_campaigns_impl()` dedup logic in `scripts/user_app.py`. |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #59
+
+- AC1 PASS (manual verification, no duplicate found)
+- Code review: `active_server_ids` set is built and used to filter `invitations` before rendering
+
+---
+
+## Verification Procedure — Task #60
+
+**Preconditions**:
+- User app running at http://localhost:5222
+- X is globally disabled (default — `DISABLED_PLATFORMS = frozenset({"x"})` in `scripts/utils/guard.py`)
+
+**Test data setup**: None — X disabled by default in code.
+
+**Test-mode flags**: none
+
+---
+
+### AC1: Dashboard Platform Health card does not show X
+
+| Field | Value |
+|-------|-------|
+| **Setup** | X profile directory may or may not exist at `profiles/x-profile/`. X is disabled in `scripts/utils/guard.py`. |
+| **Action** | Navigate to http://localhost:5222/dashboard. Inspect Platform Health section. |
+| **Expected** | X is NOT listed in the Platform Health card. Only linkedin, facebook, reddit appear. |
+| **Automated** | partial |
+| **Automation** | manual + screenshot |
+| **Evidence** | Screenshot of dashboard Platform Health section. Code inspection of dashboard route in `scripts/user_app.py` confirming `filter_disabled(["x", "linkedin", "facebook", "reddit"])` is applied before building `platforms` dict. |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #60
+
+- AC1 PASS (X not visible in Platform Health card)
+- Code review: `filter_disabled()` applied to platform list before `platforms` dict is built in `dashboard()` route

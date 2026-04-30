@@ -148,7 +148,7 @@ def _upload_product_images(
         try:
             with open(p, "rb") as f:
                 resp = client.post(
-                    f"{server}/api/storage/upload",
+                    f"{server}/api/company/campaigns/assets",
                     headers=headers,
                     files={"file": (p.name, f, "image/jpeg")},
                     timeout=30.0,
@@ -296,7 +296,7 @@ def main() -> None:
         # 7. Accept the invitation
         print(f"Accepting invitation {assignment_id}...")
         resp = client.post(
-            f"{server_url}/api/invitations/{assignment_id}/accept",
+            f"{server_url}/api/campaigns/invitations/{assignment_id}/accept",
             headers=user_headers,
         )
         if resp.status_code not in (200, 201):

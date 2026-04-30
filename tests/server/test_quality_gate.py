@@ -147,6 +147,34 @@ class TestTargeting:
         assert result["criteria"]["targeting"]["score"] == 0
         assert "Disabled platform" in result["criteria"]["targeting"]["feedback"]
 
+    def test_targeting_empty_target_regions_still_scores_full(self):
+        # Bug #57: empty target_regions means "any region" (intentional).
+        # niche_tags + required_platforms (2 dimensions) → must score 10, not 0.
+        result = score_campaign(make_campaign(targeting={
+            "niche_tags": ["trading", "finance"],
+            "required_platforms": ["linkedin", "reddit"],
+            "target_regions": [],
+        }))
+        assert result["criteria"]["targeting"]["score"] == 10
+
+    def test_targeting_min_followers_counts_as_dimension(self):
+        # min_followers alone → partial (5). min_followers + niche_tags → full (10).
+        result = score_campaign(make_campaign(targeting={
+            "niche_tags": [],
+            "required_platforms": [],
+            "min_followers": {"linkedin": 500},
+            "target_regions": [],
+        }))
+        assert result["criteria"]["targeting"]["score"] == 5
+
+        result = score_campaign(make_campaign(targeting={
+            "niche_tags": ["tech"],
+            "required_platforms": [],
+            "min_followers": {"linkedin": 500},
+            "target_regions": [],
+        }))
+        assert result["criteria"]["targeting"]["score"] == 10
+
 
 class TestAssetsProvided:
     def test_assets_provided_images_or_links_or_neither(self):

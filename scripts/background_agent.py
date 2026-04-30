@@ -201,8 +201,22 @@ async def generate_daily_content(campaign_id_filter: int | None = None) -> dict:
         for campaign in active:
             campaign_id = campaign.get("server_id")
 
-            # Get posting plan from strategy (decides posts/day per platform)
-            posting_plan = gen.get_posting_plan(campaign, platforms, day_number=1)
+            # UAT override: read AMPLIFIER_UAT_FORCE_DAY early so posting_plan
+            # and all downstream calls use the correct day_number from the start.
+            _force_day_early = os.environ.get("AMPLIFIER_UAT_FORCE_DAY", "").strip()
+            _early_day_override: int | None = None
+            if _force_day_early:
+                try:
+                    _fd_early = int(_force_day_early)
+                    if _fd_early > 0:
+                        _early_day_override = _fd_early
+                except ValueError:
+                    pass
+
+            # Get posting plan from strategy (decides posts/day per platform).
+            # Use the UAT day override when set so the plan matches the forced day.
+            _plan_day = _early_day_override if _early_day_override is not None else 1
+            posting_plan = gen.get_posting_plan(campaign, platforms, day_number=_plan_day)
 
             # Check which platforms need drafts today based on the plan
             platforms_needing_drafts = []
@@ -307,16 +321,12 @@ async def generate_daily_content(campaign_id_filter: int | None = None) -> dict:
             # Calculate day number from unique dates in draft history
             unique_dates = set(d.get('created_at', '')[:10] for d in previous if d.get('created_at'))
             day_number = len(unique_dates) + 1
-            # UAT override: force a specific day number to test hook diversity
-            _force_day = os.environ.get("AMPLIFIER_UAT_FORCE_DAY", "").strip()
-            if _force_day:
-                try:
-                    _fd = int(_force_day)
-                    if _fd > 0:
-                        logger.info("UAT override: day_number=%d (AMPLIFIER_UAT_FORCE_DAY=%s)", _fd, _force_day)
-                        day_number = _fd
-                except ValueError:
-                    pass
+            # UAT override: pin day_number to the forced value (already applied to
+            # posting_plan above via _early_day_override; re-apply here so that
+            # iteration=day_number in add_draft() and all logging use the same value.
+            if _early_day_override is not None:
+                logger.info("UAT override: day_number=%d (AMPLIFIER_UAT_FORCE_DAY=%s)", _early_day_override, _force_day_early)
+                day_number = _early_day_override
 
             # Generate content via 4-phase ContentAgent pipeline
             campaign_data = {

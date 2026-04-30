@@ -179,9 +179,9 @@ def dashboard():
         except Exception:
             inv_count = 0
 
-        # Platform health
+        # Platform health — only show enabled platforms (filter_disabled removes X)
         platforms = {}
-        for p in ["x", "linkedin", "facebook", "reddit"]:
+        for p in filter_disabled(["x", "linkedin", "facebook", "reddit"]):
             profile_dir = ROOT / "profiles" / f"{p}-profile"
             connected = profile_dir.exists() and any(profile_dir.iterdir()) if profile_dir.exists() else False
             platforms[p] = {
@@ -670,6 +670,11 @@ def _campaigns_impl():
     completed = [
         c for c in all_campaigns if c.get("status") in ("posted", "skipped")
     ]
+
+    # De-dup: if a campaign already has an active assignment in local DB,
+    # remove it from the invitations list (active assignment takes precedence).
+    active_server_ids = {c.get("server_id") for c in active if c.get("server_id")}
+    invitations = [inv for inv in invitations if inv.get("campaign_id") not in active_server_ids]
 
     # Add today's draft summary to each active campaign
     platforms = ["x", "linkedin", "facebook", "reddit"]

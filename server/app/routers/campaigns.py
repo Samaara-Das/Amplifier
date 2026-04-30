@@ -2,8 +2,8 @@ import csv
 import io
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,6 +86,52 @@ async def create_campaign(
     await db.flush()
 
     return campaign
+
+
+@router.post("/company/campaigns/assets")
+async def upload_campaign_asset_api(
+    file: UploadFile = File(...),
+    company: Company = Depends(get_current_company),
+):
+    """Upload a campaign asset (image or document) via Bearer-auth JWT.
+
+    Returns: {"url": "<public_url>", "filename": "...", "content_type": "..."}
+    """
+    ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    ALLOWED_FILE_TYPES = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"}
+    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+    MAX_FILE_SIZE = 20 * 1024 * 1024   # 20 MB
+
+    content_type = file.content_type or ""
+    filename = file.filename or "unknown"
+    is_image = content_type in ALLOWED_IMAGE_TYPES
+    is_file = content_type in ALLOWED_FILE_TYPES
+
+    if not is_image and not is_file:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {content_type}. Allowed: images (JPEG/PNG/WebP/GIF) and documents (PDF/DOCX/TXT).",
+        )
+
+    file_bytes = await file.read()
+    max_size = MAX_IMAGE_SIZE if is_image else MAX_FILE_SIZE
+    if len(file_bytes) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size: {max_size // (1024 * 1024)}MB.",
+        )
+
+    from app.services.storage import upload_file
+    folder = f"company-{company.id}/images" if is_image else f"company-{company.id}/files"
+    public_url = upload_file(file_bytes, filename, content_type, folder=folder)
+
+    if not public_url:
+        raise HTTPException(
+            status_code=500,
+            detail="Upload failed. Check that Supabase Storage is configured.",
+        )
+
+    return {"url": public_url, "filename": filename, "content_type": content_type}
 
 
 @router.post("/company/campaigns/ai-wizard")
