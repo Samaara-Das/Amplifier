@@ -600,7 +600,7 @@ Adds app-level deduplication to `POST /api/posts` (`register_posts` in `server/a
 | **Automated** | no |
 | **Automation** | manual |
 | **Evidence** | JSON output of both curl calls captured in terminal. |
-| **Cleanup** | Delete the UAT post row from prod DB: `ssh sammy@31.97.207.162 "psql \$DATABASE_URL -c \"DELETE FROM posts WHERE post_url='https://linkedin.com/posts/uat-task27-smoke';\""` |
+| **Cleanup** | Delete the UAT post row from prod DB. The web service runs as user `amplifier` and stores the venv inside the working directory; prefer venv python over psql for portability. Upload a small script via `tee` then run it: `ssh sammy@31.97.207.162 "sudo -u amplifier tee /tmp/uat27_cleanup.py >/dev/null <<'PY' ... PY ; sudo -u amplifier /home/amplifier/app/server/.venv/bin/python /tmp/uat27_cleanup.py"`. Script body uses asyncpg + dotenv to load `/home/amplifier/app/server/.env` and runs `DELETE FROM posts WHERE post_url LIKE 'https://linkedin.com/posts/uat-task27-smoke-%'`. |
 
 ---
 

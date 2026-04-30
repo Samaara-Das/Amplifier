@@ -414,13 +414,14 @@
         "id": 27,
         "title": "Server-side post URL dedup",
         "description": "Prevent same post URL registered twice via POST /api/posts. Return error on duplicate.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [],
         "metadata": {
           "tier": 5
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-30T12:52:26.422218+00:00"
       },
       {
         "id": 28,
