@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-from playwright.async_api import async_playwright, Page, TimeoutError as PWTimeout
+from patchright.async_api import async_playwright, Page, TimeoutError as PWTimeout
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PROFILES = ROOT / "profiles"

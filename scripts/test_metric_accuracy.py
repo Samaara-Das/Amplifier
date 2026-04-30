@@ -78,7 +78,7 @@ SCRAPER_MAP = {
 
 async def run_phase(posts: dict, phase_name: str):
     """Scrape each platform and report results."""
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
 
     results = {}
     print(f"\n{'='*60}")

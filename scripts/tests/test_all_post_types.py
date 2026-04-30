@@ -23,7 +23,7 @@ RESULTS = []
 
 async def test_post(platform: str, post_type: str, draft: dict):
     """Test a single post and record the result."""
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
 
     func_map = {
         "x": post_to_x,

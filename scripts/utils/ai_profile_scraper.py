@@ -28,7 +28,7 @@ import logging
 import re
 from typing import Optional
 
-from playwright.async_api import Page
+from patchright.async_api import Page
 
 logger = logging.getLogger(__name__)
 

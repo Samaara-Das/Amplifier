@@ -5,7 +5,7 @@ import asyncio
 import sys
 import os
 from pathlib import Path
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
@@ -24,7 +24,7 @@ async def main():
             user_data_dir=str(ROOT / "profiles" / "reddit-profile"),
             headless=False,  # Reddit blocks headless
             viewport={"width": 1280, "height": 800},
-            args=["--disable-blink-features=AutomationControlled"],
+            args=[],
         )
         page = ctx.pages[0] if ctx.pages else await ctx.new_page()
 

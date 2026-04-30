@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 
 # Import the actual scraper functions
 from utils.metric_scraper import (
@@ -57,7 +57,7 @@ async def test_platform(pw, platform: str, url: str) -> dict:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/137.0.0.0 Safari/537.36"
         ),
-        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        args=["--no-sandbox"],
     )
 
     try:

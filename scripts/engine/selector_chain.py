@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from engine.script_parser import Selector, SelectorTarget
 
 if TYPE_CHECKING:
-    from playwright.async_api import Locator, Page
+    from patchright.async_api import Locator, Page
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from engine.script_parser import ErrorRecoveryConfig, ScriptStep
 
 if TYPE_CHECKING:
-    from playwright.async_api import Page
+    from patchright.async_api import Page
 
 logger = logging.getLogger(__name__)
 

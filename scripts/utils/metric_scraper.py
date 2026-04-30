@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -108,7 +108,7 @@ async def _launch_context(pw, platform: str):
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/137.0.0.0 Safari/537.36"
         ),
-        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        args=["--no-sandbox"],
     )
     apply_full_screen(kwargs, headless=headless)
 

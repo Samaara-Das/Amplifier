@@ -34,7 +34,7 @@ TEST_CONTENT = {
 
 async def test_platform(platform: str):
     """Test posting to a single platform."""
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
 
     content = TEST_CONTENT.get(platform)
     if not content:
