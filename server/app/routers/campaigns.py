@@ -160,6 +160,7 @@ async def ai_wizard(
         budget_range=data.budget_range,
         start_date=data.start_date,
         end_date=data.end_date,
+        company_id=company.id,
     )
     return result
 
@@ -919,7 +920,7 @@ async def activate_campaign(
     # ── Layer 2: AI review ──────────────────────────────────────────
     # Attach requester email so ai_review_campaign can gate UAT headers
     campaign._uat_requester_email = company.email
-    ai_review = await ai_review_campaign(campaign, request_headers=request.headers)
+    ai_review = await ai_review_campaign(campaign, request_headers=request.headers, db=db)
     brand_safety = ai_review.get("brand_safety")
     ai_error = ai_review.get("error")
 

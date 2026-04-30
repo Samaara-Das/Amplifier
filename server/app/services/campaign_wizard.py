@@ -237,13 +237,14 @@ GEMINI_MODELS = [
 ]
 
 
-async def _call_gemini(prompt: str) -> str:
+async def _call_gemini(prompt: str, api_key: str | None = None) -> str:
     """Call Gemini API with model fallback chain.
 
     Tries multiple models in order — if one hits rate limits, tries the next.
     On full exhaustion raises RuntimeError so caller can fall through to Mistral/Groq.
     """
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if api_key is None:
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY not set")
 
@@ -340,6 +341,8 @@ async def run_campaign_wizard(
     # New: uploaded assets
     image_urls: list[str] | None = None,
     file_contents: list[dict] | None = None,
+    # BYOK: company_id for per-company key resolution
+    company_id: int | None = None,
     # Legacy (kept for backward compat, ignored)
     tone: str | None = None,
     **kwargs,
@@ -456,12 +459,18 @@ Generate a JSON response with these fields:
 Return ONLY valid JSON, no markdown fences, no extra text."""
 
     # Step 3: Call AI — Gemini → Mistral → Groq → defaults
+    # Resolve provider keys once (supports BYOK per company_id)
+    from app.services.api_keys import resolve_api_key as _resolve_api_key
+    _gemini_key = await _resolve_api_key("gemini", company_id, db)
+    _mistral_key = await _resolve_api_key("mistral", company_id, db)
+    _groq_key = await _resolve_api_key("groq", company_id, db)
+
     ai_error = None
     generated = None
 
     # 3a. Gemini
     try:
-        ai_response = await _call_gemini(prompt)
+        ai_response = await _call_gemini(prompt, api_key=_gemini_key)
         generated = _parse_json_response(ai_response)
     except Exception as e:
         ai_error = str(e)
@@ -469,15 +478,12 @@ Return ONLY valid JSON, no markdown fences, no extra text."""
 
     # 3b. Mistral (if Gemini failed)
     if generated is None:
-        from app.core.config import get_settings
-        settings = get_settings()
-        mistral_key = settings.mistral_api_key.strip()
-        if mistral_key:
+        if _mistral_key:
             try:
                 logger.info("campaign wizard: trying mistral/mistral-large-latest")
                 ai_response = await _call_openai_compat(
                     prompt=prompt,
-                    api_key=mistral_key,
+                    api_key=_mistral_key,
                     base_url="https://api.mistral.ai/v1",
                     model="mistral-large-latest",
                     provider="mistral",
@@ -492,15 +498,12 @@ Return ONLY valid JSON, no markdown fences, no extra text."""
 
     # 3c. Groq (if Gemini + Mistral failed)
     if generated is None:
-        from app.core.config import get_settings
-        settings = get_settings()
-        groq_key = settings.groq_api_key.strip()
-        if groq_key:
+        if _groq_key:
             try:
                 logger.info("campaign wizard: trying groq/llama-3.3-70b-versatile")
                 ai_response = await _call_openai_compat(
                     prompt=prompt,
-                    api_key=groq_key,
+                    api_key=_groq_key,
                     base_url="https://api.groq.com/openai/v1",
                     model="llama-3.3-70b-versatile",
                     provider="groq",

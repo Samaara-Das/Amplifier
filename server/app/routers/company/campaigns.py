@@ -259,6 +259,7 @@ async def ai_generate_campaign(
             must_avoid=body.get("must_avoid", ""),
             image_urls=body.get("image_urls", []),
             file_contents=body.get("file_contents", []),
+            company_id=company.id,
         )
         return JSONResponse(result)
     except Exception as e:
@@ -478,7 +479,7 @@ async def campaign_create_submit(
             )
 
         campaign._uat_requester_email = company.email
-        ai_review = await ai_review_campaign(campaign, request_headers=request.headers)
+        ai_review = await ai_review_campaign(campaign, request_headers=request.headers, db=db)
         brand_safety = ai_review.get("brand_safety")
         ai_error = ai_review.get("error")
 
@@ -949,7 +950,7 @@ async def campaign_status_change(
                 status_code=302,
             )
 
-        ai_review = await ai_review_campaign(campaign)
+        ai_review = await ai_review_campaign(campaign, db=db)
         brand_safety = ai_review.get("brand_safety")
         ai_error = ai_review.get("error")
 
