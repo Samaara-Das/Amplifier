@@ -249,5 +249,6 @@ Approved flags:
 - `AMPLIFIER_UAT_FORCE_DAY` — overrides `day_number` in content-gen so UAT can test diversity (Task #65)
 - `AMPLIFIER_UAT_POST_NOW` — schedules approved drafts ~1 min out instead of next slot
 - `AMPLIFIER_UAT_SSE_HEARTBEAT_MS` — forces SSE heartbeat interval (default 30000ms / 30s) to a smaller value so UAT can verify SSE-driven UI in <5s instead of >30s. Used by Task #66 AC11.
+- `AMPLIFIER_UAT_DRAFT_SYNC_NOW` — forces immediate draft upload to server, bypassing the daemon's 30s batch window. Used by Task #67 AC3.
 
 Adding a new flag requires updating this file.

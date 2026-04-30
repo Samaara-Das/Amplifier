@@ -263,3 +263,286 @@ This is the architectural shape that survived three independent reviews.
 
 - After v1 launch, consider WebSocket for the agent command channel if 60s polling latency causes user-visible issues.
 - Consider an "agent log viewer" page on the hosted dashboard that streams daemon logs via SSE for debugging.
+
+---
+
+## Verification Procedure — Task #67
+
+> Format: `docs/uat/AC-FORMAT.md`. Drives the **real local FastAPI** at `localhost:5222`, the **real daemon**, and the **real hosted server** at `https://api.pointcapitalis.com` (or `http://127.0.0.1:8000` in local UAT). Critical-path regression ACs ensure draft review, post execution, profile scraping, content generation still work after the user_app rewrite.
+
+### Preconditions
+
+- Server live with #67 code merged (`https://api.pointcapitalis.com` or local `127.0.0.1:8000`).
+- Local daemon installed on dev machine. `data/local.db` exists.
+- LinkedIn / Facebook / Reddit profiles connected (verify: `python -c "from scripts.utils.local_db import get_user_profiles; print(get_user_profiles(['linkedin','facebook','reddit']))"`).
+- A test user exists on the server (`uat-task67@example.com` / `smoketest123`) and is logged in to the local daemon (encrypted JWT in `data/local.db.settings`).
+- `data/local.db` has at least one accepted `agent_assignment` row + corresponding active campaign.
+- Local pytest baseline 238/238 green on `flask-user-app`.
+
+### Test data setup
+
+1. Apply Alembic migration adding `draft`, `agent_command`, `agent_status` tables:
+   ```bash
+   cd server && alembic upgrade head
+   ```
+2. Seed a test user + accepted campaign + 3 generated drafts in local SQLite via `scripts/uat/seed_creator_local.py` (NEW helper).
+3. Start daemon: `python scripts/background_agent.py 2>&1 | tee data/uat/task67_daemon.log` (background).
+4. Start local FastAPI: `python scripts/utils/local_server.py 2>&1 | tee data/uat/task67_local.log` (background, binds `127.0.0.1:5222`).
+5. Verify both alive: `curl -s http://127.0.0.1:5222/healthz` returns 200.
+
+### Test-mode flags
+
+| Flag | Effect | Used by AC |
+|------|--------|-----------|
+| `AMPLIFIER_UAT_INTERVAL_SEC=15` | Shortens daemon command-poll + status-push interval to 15s (default 60s) | AC2, AC11 |
+| `AMPLIFIER_UAT_DRAFT_SYNC_NOW` | Forces immediate draft upload (bypasses 30s batch window) | AC3 |
+
+(Document new flag `AMPLIFIER_UAT_DRAFT_SYNC_NOW` in `docs/uat/AC-FORMAT.md` Test-mode flags section when added.)
+
+---
+
+## Features to verify end-to-end (Task #67)
+
+**New functionality (the migration itself):**
+1. Server-side Draft + AgentCommand + AgentStatus tables created via Alembic — AC1
+2. `GET /api/agent/commands` returns pending list filtered by user — AC2
+3. Daemon polls + acks commands every ≤90s — AC2
+4. Daemon uploads drafts to server within 30s of generation — AC3
+5. Server `Draft` table mirrors local `agent_draft` post-sync — AC3
+6. Old Flask routes (`/dashboard`, `/campaigns`, `/posts`, `/earnings`, `/settings`, `/login`, `/onboarding`) all return 404 on `localhost:5222` — AC4
+7. Only the 5 new routes respond on `localhost:5222`: `/auth/callback`, `/connect`, `/keys`, `/drafts`, `/drafts/{campaign_id}` — AC4
+8. Hosted `/user/campaigns` shows "Open in Desktop App" link instead of inline drafts — AC5 (already verified in Task #66 AC8)
+9. Local draft review reads directly from local SQLite (works offline) — AC6
+10. Local Approve writes to local DB <200ms; server sync is fire-and-forget — AC7
+11. Auth handoff: web register → server redirect to localhost:5222/auth/callback → JWT stored encrypted → redirect to onboarding step 2 — AC8
+12. Tray menu has correct items pointing to correct URLs — AC9
+13. Hosted settings AI keys section is read-only — AC10
+14. Pause/resume command flows web→server→daemon end-to-end — AC11
+
+**Critical-path regression sweep:**
+15. Daemon still generates content (4-phase agent runs, agent_draft populated) — AC12
+16. Daemon still posts to LinkedIn/FB/Reddit on schedule — AC13
+17. Profile scraping still functional — AC14
+18. Metric scraping + billing pipeline unchanged — AC15
+19. Hosted /user/* dashboard surfaces (5 pages) all 200, no console errors — AC16
+20. Server pytest suite 238/238 still green + new tests for drafts/commands/status (~15 new) — AC17
+
+---
+
+### AC1 — Alembic migration creates 3 new tables, 7/7 schema verified
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Repo at HEAD with `0002_add_drafts_commands_status.py` (or equivalent) migration file present. Empty test DB. |
+| **Action** | `cd server && DATABASE_URL=postgresql://postgres:postgres@localhost:5432/amplifier_test alembic upgrade head; psql ... -c "\dt"` |
+| **Expected** | `\dt` lists 17 tables (existing 14 + new 3: `draft`, `agent_command`, `agent_status`). Each new table has expected columns: `draft.{id, user_id, campaign_id, platform, text, image_url, image_local_path, quality_score, status, created_at}`; `agent_command.{id, user_id, type, payload, status, created_at, processed_at}`; `agent_status.{user_id PK, running, paused, last_seen, platform_health JSONB, ai_keys_configured, version}`. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac1_schema` |
+| **Evidence** | `\dt` output; per-table `\d <name>` dumps |
+| **Cleanup** | drop test DB |
+
+### AC2 — Daemon polls + processes + acks commands within 90s
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Daemon running with `AMPLIFIER_UAT_INTERVAL_SEC=15`. Test user JWT loaded. Server clean of pending commands. |
+| **Action** | Insert command via SQL: `INSERT INTO agent_command (user_id, type, payload, status) VALUES (1, 'force_poll', '{}', 'pending') RETURNING id;`. Capture id. Watch daemon log + DB. |
+| **Expected** | Within 30s: daemon log contains `Received command #<id> type=force_poll`. Within 60s: command status = `processing` then `done`, `processed_at` populated. Daemon's `_force_poll_campaigns()` ran (visible in log). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac2_command_lifecycle` |
+| **Evidence** | daemon log lines; SQL row before/after |
+| **Cleanup** | reset agent_command rows |
+
+### AC3 — Daemon uploads drafts to server within 30s of generation
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Daemon running. Server `Draft` table empty for test user. Local `agent_draft` empty for test campaign. |
+| **Action** | Trigger generation: insert command type `generate_content` for the test campaign. Wait up to 5 min. |
+| **Expected** | Within 5 min: local `agent_draft` has 3 rows (LI/FB/Reddit). Within 30s after: server `Draft` table has 3 matching rows with same `text`, `platform`, `campaign_id`. Each local row's new `synced` column = 1. Image_url on server points to a valid storage URL or matches the local path. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac3_draft_upload` |
+| **Evidence** | local + server SQL row dumps; HTTP request log |
+| **Cleanup** | delete drafts on both sides |
+
+### AC4 — Old Flask routes return 404, only 5 new routes respond on localhost:5222
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Local FastAPI running on `127.0.0.1:5222`. |
+| **Action** | `for p in /dashboard /campaigns /posts /earnings /settings /login /onboarding /auth/callback /connect /keys /drafts /drafts/1 /healthz; do echo $p $(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5222$p); done` |
+| **Expected** | First 7 paths return 404. Last 5 paths return 200 (or 302 if auth required). `/healthz` returns 200. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac4_route_inventory` |
+| **Evidence** | curl status code list |
+| **Cleanup** | none |
+
+### AC5 — Hosted /user/campaigns links out to localhost:5222/drafts/{id}
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test user logged in at `https://api.pointcapitalis.com/user/login`. Active campaign exists. |
+| **Action** | DevTools MCP: navigate `/user/campaigns/<id>` → grep snapshot for `localhost:5222/drafts/`. |
+| **Expected** | Page contains an "Open in Desktop App" button with `href="http://localhost:5222/drafts/<id>"`. NO inline draft editor on the hosted page. (Already verified in Task #66 AC8 — re-verify here for regression.) |
+| **Automated** | yes |
+| **Automation** | DevTools MCP + `pytest scripts/uat/uat_task67.py::test_ac5_no_inline_drafts` |
+| **Evidence** | snapshot text; href value |
+| **Cleanup** | none |
+
+### AC6 — Local draft review works offline
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Local FastAPI running. Local `agent_draft` has ≥3 unposted rows. **Server unreachable** — block via firewall: `sudo iptables -A OUTPUT -d api.pointcapitalis.com -j REJECT` (or kill local uvicorn if testing against 127.0.0.1:8000). |
+| **Action** | DevTools MCP: navigate `http://localhost:5222/drafts` → take_snapshot. |
+| **Expected** | Page renders within 3s with all 3 drafts visible. Image carousel, text content, approve/reject buttons. No spinner stuck on "Loading…". Console may show network errors for the unreachable server (acceptable). |
+| **Automated** | partial — manual confirmation that drafts render |
+| **Automation** | `scripts/uat/uat_task67.py::test_ac6_offline_drafts` (DevTools MCP automation) |
+| **Evidence** | snapshot; screenshot |
+| **Cleanup** | restore network: `sudo iptables -D OUTPUT -d api.pointcapitalis.com -j REJECT` |
+
+### AC7 — Local Approve writes to local DB <200ms
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Server reachable. Local FastAPI on `localhost:5222`. Test draft id=42 with `approved=0`. |
+| **Action** | DevTools MCP: navigate `http://localhost:5222/drafts` → click Approve on draft 42 → measure time from click to UI badge change. Inspect local DB: `SELECT approved FROM agent_draft WHERE id=42`. |
+| **Expected** | UI updates "Approved" badge within 200ms. Local row `approved=1` within 200ms. Server sync request fires in background within 5s (not blocking). If server sync fails (kill server first), local state remains `approved=1`. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac7_local_first_approve` |
+| **Evidence** | timing screenshots; local SQL row; server log of background sync |
+| **Cleanup** | reset draft approved=0 |
+
+### AC8 — Auth handoff: register → localhost callback → encrypted JWT → onboarding step 2
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Local daemon running. Local DB has no JWT in settings. |
+| **Action** | DevTools MCP: navigate `https://api.pointcapitalis.com/register?agent=true` → fill new email → submit → wait for redirect chain. Inspect local DB: `SELECT value FROM settings WHERE key='jwt'`. |
+| **Expected** | After submit: 302 to `localhost:5222/auth/callback?token=...`. Within 2s: 302 to `https://api.pointcapitalis.com/onboarding/step2`. Local DB has encrypted JWT (length > 100, NOT plaintext base64). |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac8_auth_handoff` |
+| **Evidence** | redirect chain dump; SQL row showing encrypted blob |
+| **Cleanup** | delete throwaway user from server; clear local jwt |
+
+### AC9 — Tray menu has 6 items, each opens correct URL
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Daemon running with tray icon visible. |
+| **Action** | Right-click tray → take screenshot of menu → manually click each item. |
+| **Expected** | Menu has 6 items: "Open Dashboard", "Review Drafts", "Connect Platforms", "Settings", "Pause/Resume", "Quit". Each opens the correct URL: dashboard → `https://api.pointcapitalis.com/user/`; drafts → `localhost:5222/drafts`; connect → `localhost:5222/connect`; settings → `localhost:5222/keys`; pause/resume toggles; quit terminates. |
+| **Automated** | partial — manual y/n on screenshot of menu items |
+| **Automation** | `scripts/uat/uat_task67.py::test_ac9_tray_menu` (verifies items in tray.py source) + manual screenshot review |
+| **Evidence** | tray screenshot; per-action behavior log |
+| **Cleanup** | none |
+
+### AC10 — Hosted settings AI keys section is read-only
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test user with both Gemini + Mistral keys configured locally. |
+| **Action** | DevTools MCP: navigate `https://api.pointcapitalis.com/user/settings` → grep snapshot for `<input` elements in the AI keys section. |
+| **Expected** | NO `<input>` elements within the AI keys card. Status badges show "Gemini: configured", "Mistral: configured", "Groq: not configured". A button "Manage Keys (Desktop App)" present, links to `localhost:5222/keys`. |
+| **Automated** | yes |
+| **Automation** | DevTools MCP + `pytest scripts/uat/uat_task67.py::test_ac10_settings_readonly` |
+| **Evidence** | snapshot HTML excerpt of AI keys card |
+| **Cleanup** | none |
+
+### AC11 — Pause/resume command flows web→server→daemon
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Daemon running with `AMPLIFIER_UAT_INTERVAL_SEC=15`. Test user logged in to hosted dashboard. Capture initial daemon `paused=False` from `agent_status`. |
+| **Action** | DevTools MCP: navigate `https://api.pointcapitalis.com/user/settings` → click "Pause Agent" → wait up to 90s → poll `agent_status` SQL. |
+| **Expected** | Within 30s: server has new `agent_command` row type=`pause_agent` status=`pending`. Within 90s: command status=`done`, daemon log contains `Pausing agent`. `agent_status.paused = True`. Hosted dashboard updates via SSE: "Status: Paused". Click "Resume Agent" → reverse flow within 90s. |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac11_pause_resume_e2e` |
+| **Evidence** | per-stage SQL rows; daemon log timeline; SSE event |
+| **Cleanup** | resume agent |
+
+### AC12 — REGRESSION: 4-phase content agent still works
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test campaign + accepted assignment. `agent_research` + `agent_draft` empty for this campaign. |
+| **Action** | `python scripts/background_agent.py --once --campaign-id <id> 2>&1 \| tee data/uat/task67_ac12.log` |
+| **Expected** | Within 5 min: log has 4 Phase complete lines. agent_draft has 3 rows. (Mirrors Task #66 AC24 — verifies daemon-side migration didn't break content agent.) |
+| **Automated** | yes |
+| **Automation** | `pytest scripts/uat/uat_task67.py::test_ac12_content_agent_regression` |
+| **Evidence** | log excerpt; SQL rows |
+| **Cleanup** | none |
+
+### AC13 — REGRESSION: Real LinkedIn post via JSON engine
+
+| Field | Value |
+|-------|-------|
+| **Setup** | LinkedIn session valid. Approved draft from AC12. `AMPLIFIER_UAT_POST_NOW=1`. |
+| **Action** | `python scripts/post.py --slot 1`. Wait up to 3 min. |
+| **Expected** | Post appears on LinkedIn. Local `agent_draft.status=posted`, `post_url` populated. Server `posts` table has the row + `Draft.status=posted` synced. (Mirrors Task #66 AC25 — verifies posting still works through the new draft sync layer.) |
+| **Automated** | partial |
+| **Automation** | `scripts/uat/uat_task67.py::test_ac13_post_regression` (DB checks) + manual y/n |
+| **Evidence** | LinkedIn URL; SQL rows on both sides |
+| **Cleanup** | DELETE LinkedIn post via `python scripts/uat/delete_post.py --url <url>` |
+
+### AC14 — REGRESSION: Profile scraping still functional
+
+| Field | Value |
+|-------|-------|
+| **Setup** | LinkedIn / FB / Reddit profiles connected. Disconnect Reddit by deleting `profiles/reddit-profile/` so re-scrape is forced. |
+| **Action** | Reconnect Reddit via local `localhost:5222/connect` → click "Connect Reddit" → log in. |
+| **Expected** | Playwright opens visible browser. Login completes. Profile scraper runs (3-tier pipeline visible in daemon log). `scraped_profile` row inserted with `follower_count`, `bio`, `niches`, `recent_posts` populated. (Verifies the new local FastAPI didn't break profile scraping integration.) |
+| **Automated** | partial — manual login |
+| **Automation** | `scripts/uat/uat_task67.py::test_ac14_profile_scrape_regression` |
+| **Evidence** | scraped_profile SQL row; daemon log |
+| **Cleanup** | none |
+
+### AC15 — REGRESSION: Metric scrape → billing → payout pending
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Posted LI post from AC13. |
+| **Action** | `python scripts/utils/metric_scraper.py --post-url <url>` (one-shot). Then `curl -s https://api.pointcapitalis.com/api/users/me/earnings -H "Authorization: Bearer $TOKEN"`. |
+| **Expected** | metric row added; payout row pending; earnings.pending_balance > 0. (Mirrors Task #66 AC26.) |
+| **Automated** | partial |
+| **Automation** | `scripts/uat/uat_task67.py::test_ac15_metric_billing_regression` |
+| **Evidence** | scraper log; SQL rows; earnings JSON |
+| **Cleanup** | void test payout |
+
+### AC16 — REGRESSION: Hosted /user/* surfaces still 200 + no console errors
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test user logged in. |
+| **Action** | DevTools MCP: visit `/user/`, `/user/campaigns`, `/user/campaign_detail/<id>`, `/user/posts`, `/user/earnings`, `/user/settings`. Per page: `list_console_messages`. |
+| **Expected** | 6/6 pages return 200. Zero console errors per page (Tailwind CDN warning OK). |
+| **Automated** | yes |
+| **Automation** | `scripts/uat/uat_task67.py::test_ac16_user_pages_regression` |
+| **Evidence** | per-page status + console messages |
+| **Cleanup** | none |
+
+### AC17 — REGRESSION: pytest 238/238 + ~15 new tests for drafts/commands/status
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Repo at HEAD post-#67 merge. |
+| **Action** | `pytest tests/ -v 2>&1 \| tee data/uat/task67_ac17_pytest.log` |
+| **Expected** | ≥253 tests passing (238 baseline + ~15 new). Zero `FAILED`/`ERROR`. New tests cover: draft sync conflict resolution, command queue lifecycle, status push debounce, auth handoff JWT decryption, local draft offline-first writes. |
+| **Automated** | yes |
+| **Automation** | command above |
+| **Evidence** | pytest log |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #67
+
+Task #67 is marked done in task-master ONLY when:
+1. AC1–AC17 all PASS (AC6/AC9/AC13/AC14 manual y/n confirmations from user)
+2. pytest suite ≥253/253 passing
+3. Zero `error|exception|traceback` in `journalctl -u amplifier-web` during UAT window
+4. Daemon log clean of unhandled exceptions for the full UAT run
+5. Local FastAPI process stable (no crashes during AC4–AC11)
+6. UAT report `docs/uat/reports/task-67-<yyyy-mm-dd>-<hhmm>.md` written with all evidence
+7. All cleanup steps completed (test users deleted, LinkedIn UAT posts deleted, drafts cleared)
+8. Server `/health` returns 200 at end; both `amplifier-web` + `amplifier-worker` `active`
