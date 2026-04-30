@@ -37,16 +37,16 @@
         {% endif %}
     </div>
     <div class="stat">
-        <div class="stat-val green">{{ active_users }}</div>
+        <div class="stat-val green" data-kpi="active_users">{{ active_users }}</div>
         <div class="stat-label">Active Users</div>
     </div>
     <div class="stat">
-        <div class="stat-val">{{ total_companies }}</div>
+        <div class="stat-val" data-kpi="total_companies">{{ total_companies }}</div>
         <div class="stat-label">Companies</div>
     </div>
     <div class="stat">
-        <div class="stat-val">{{ total_campaigns }}</div>
-        <div class="stat-label">Campaigns</div>
+        <div class="stat-val" data-kpi="active_campaigns">{{ total_campaigns }}</div>
+        <div class="stat-label">Active Campaigns</div>
         {% if new_campaigns_this_week > 0 %}
         <div class="trend up">+{{ new_campaigns_this_week }} this week</div>
         {% endif %}
@@ -57,6 +57,10 @@
         {% if new_posts_this_week > 0 %}
         <div class="trend up">+{{ new_posts_this_week }} this week</div>
         {% endif %}
+    </div>
+    <div class="stat">
+        <div class="stat-val" data-kpi="posts_today">0</div>
+        <div class="stat-label">Posts Today</div>
     </div>
     <div class="stat">
         <div class="stat-val yellow">${{ "%.2f"|format(total_payouts) }}</div>
@@ -126,15 +130,15 @@
                 <td>{{ item.campaign_title }}</td>
                 <td>
                     {% if item.status in ('paid', 'posted') %}
-                    <span class="badge badge-green">{{ item.status }}</span>
+                    <span class="badge badge-green">{{ item.status | display_status }}</span>
                     {% elif item.status in ('accepted', 'content_generated') %}
-                    <span class="badge badge-blue">{{ item.status }}</span>
+                    <span class="badge badge-blue">{{ item.status | display_status }}</span>
                     {% elif item.status == 'pending_invitation' %}
-                    <span class="badge badge-yellow">{{ item.status }}</span>
+                    <span class="badge badge-yellow">{{ item.status | display_status }}</span>
                     {% elif item.status in ('rejected', 'expired') %}
-                    <span class="badge badge-red">{{ item.status }}</span>
+                    <span class="badge badge-red">{{ item.status | display_status }}</span>
                     {% else %}
-                    <span class="badge badge-gray">{{ item.status }}</span>
+                    <span class="badge badge-gray">{{ item.status | display_status }}</span>
                     {% endif %}
                 </td>
                 <td>{{ item.assigned_at.strftime('%Y-%m-%d %H:%M') if item.assigned_at else '—' }}</td>
@@ -149,4 +153,38 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var backoff = 1000;
+    var maxBackoff = 30000;
+    var es = null;
+
+    function connect() {
+        if (es) { try { es.close(); } catch(_) {} }
+        es = new EventSource('/sse/admin/overview');
+
+        es.addEventListener('kpi_update', function(evt) {
+            try {
+                var data = JSON.parse(evt.data);
+                Object.keys(data).forEach(function(key) {
+                    var el = document.querySelector('[data-kpi="' + key + '"]');
+                    if (el) el.textContent = data[key];
+                });
+                backoff = 1000; // reset on success
+            } catch(_) {}
+        });
+
+        es.onerror = function() {
+            es.close();
+            setTimeout(connect, backoff);
+            backoff = Math.min(backoff * 2, maxBackoff);
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', connect);
+})();
+</script>
 {% endblock %}

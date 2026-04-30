@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Posts — Amplifier Creator{% endblock %}
+{% block brand %}Amplifier{% endblock %}
+{% block brand_sub %}Creator dashboard{% endblock %}
+{% block nav %}{% include "user/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.filter-select { padding: 6px 12px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; font-size: 13px; font-family: inherit; cursor: pointer; }
+.filter-select:focus { outline: none; border-color: #2563eb; }
+.pagination { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; color: #64748b; }
+.pagination .btn { min-width: 80px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Posts</h1>
+    <span style="font-size: 13px; color: #64748b;">{{ pagination.total }} total</span>
+</div>
+
+<form class="filters" method="get" action="/user/posts">
+    <select name="platform" class="filter-select"
+            hx-get="/user/posts"
+            hx-target="#posts-table-wrap"
+            hx-include="[name='status'],[name='platform']"
+            hx-trigger="change">
+        <option value="" {% if not platform %}selected{% endif %}>All Platforms</option>
+        {% for p in ['linkedin','facebook','reddit','x','tiktok','instagram'] %}
+        <option value="{{ p }}" {% if platform == p %}selected{% endif %}>{{ p | title }}</option>
+        {% endfor %}
+    </select>
+    <select name="status" class="filter-select"
+            hx-get="/user/posts"
+            hx-target="#posts-table-wrap"
+            hx-include="[name='status'],[name='platform']"
+            hx-trigger="change">
+        <option value="" {% if not status %}selected{% endif %}>All Statuses</option>
+        <option value="live" {% if status == 'live' %}selected{% endif %}>Live</option>
+        <option value="deleted" {% if status == 'deleted' %}selected{% endif %}>Deleted</option>
+        <option value="flagged" {% if status == 'flagged' %}selected{% endif %}>Flagged</option>
+    </select>
+</form>
+
+<div id="posts-table-wrap">
+    {% include "user/_posts_table.html" %}
+</div>
+{% endblock %}

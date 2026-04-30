@@ -1,6 +1,6 @@
 """Company influencers page — cross-campaign influencer performance."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,7 @@ router = APIRouter()
 
 @router.get("/influencers", response_class=HTMLResponse)
 async def influencers_page(
+    request: Request,
     company: Company | None = Depends(get_company_from_cookie),
     db: AsyncSession = Depends(get_db),
     search: str = "",
@@ -114,8 +115,7 @@ async def influencers_page(
     total_engagement = sum(i["engagement"] for i in influencers)
     total_paid = sum(i["total_paid"] for i in influencers)
 
-    return _render(
-        "company/influencers.html",
+    ctx = dict(
         company=company,
         active_page="influencers",
         influencers=influencers,
@@ -126,3 +126,8 @@ async def influencers_page(
         total_engagement=total_engagement,
         total_paid=total_paid,
     )
+
+    if request.headers.get("HX-Request"):
+        return _render("company/_influencers_list.html", **ctx)
+
+    return _render("company/influencers.html", **ctx)

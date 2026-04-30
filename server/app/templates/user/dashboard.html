@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Amplifier Creator{% endblock %}
+{% block brand %}Amplifier{% endblock %}
+{% block brand_sub %}Creator dashboard{% endblock %}
+{% block nav %}{% include "user/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome { margin-bottom: 24px; }
+.welcome h1 { font-size: 26px; font-weight: 700; background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 4px; }
+.welcome p { color: #64748b; font-size: 14px; }
+.platform-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; margin-right: 6px; margin-bottom: 6px; }
+.platform-badge.connected { background: #14532d; color: #86efac; border: 1px solid rgba(134, 239, 172, 0.2); }
+.platform-badge.disconnected { background: #334155; color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
+.quick-actions { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header h2 { font-size: 18px; font-weight: 700; color: #f8fafc; }
+.chart-wrap { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border-radius: 12px; padding: 20px; border: 1px solid #334155; margin-bottom: 24px; }
+.chart-wrap h3 { font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome">
+    <h1>Welcome back, {{ user.email.split('@')[0] | title }}</h1>
+    <p>Here's your creator performance overview.</p>
+</div>
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val green">${{ "%.2f"|format(user.total_earned_cents / 100) }}</div>
+        <div class="stat-label">Total Earned</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">${{ "%.2f"|format(user.earnings_balance_cents / 100) }}</div>
+        <div class="stat-label">Available Balance</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val yellow">${{ "%.2f"|format(pending_cents / 100) }}</div>
+        <div class="stat-label">Pending (7-day hold)</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{{ user.successful_post_count }}</div>
+        <div class="stat-label">Successful Posts</div>
+    </div>
+</div>
+
+<div class="quick-actions">
+    <a href="/user/campaigns" class="btn btn-primary">View Campaigns</a>
+    <a href="/user/earnings" class="btn btn-secondary">Earnings & Payouts</a>
+    <a href="http://localhost:5222/drafts" class="btn btn-secondary" target="_blank" rel="noopener">Open Desktop App</a>
+</div>
+
+<div class="chart-wrap">
+    <h3>Earnings — Last 30 Days</h3>
+    <canvas id="earningsSparkline" height="80" data-chart="earnings-sparkline"></canvas>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-title">Connected Platforms</div>
+    {% set all_platforms = ['linkedin', 'facebook', 'reddit', 'x', 'tiktok', 'instagram'] %}
+    {% for platform in all_platforms %}
+        {% set is_connected = platform in connected_platforms %}
+        <span class="platform-badge {{ 'connected' if is_connected else 'disconnected' }}">
+            {% if is_connected %}&#10003;{% else %}&#8211;{% endif %}
+            {{ platform | title }}
+        </span>
+    {% endfor %}
+    <p style="font-size: 12px; color: #475569; margin-top: 12px;">
+        To connect or disconnect platforms, open the desktop app at
+        <a href="http://localhost:5222/settings" target="_blank" rel="noopener">localhost:5222/settings</a>.
+    </p>
+</div>
+
+<div class="section-header">
+    <h2>Recent Posts</h2>
+    <a href="/user/posts" class="btn btn-sm btn-secondary">View All</a>
+</div>
+
+<div class="card">
+    {% if recent_posts %}
+    <table>
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>URL</th>
+                <th>Posted</th>
+                <th>Status</th>
+                <th>Impressions</th>
+                <th>Likes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for post in recent_posts %}
+            <tr>
+                <td>
+                    <span class="badge badge-gray">{{ post.platform | title }}</span>
+                </td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <div x-data="copyButton('{{ post.post_url }}')" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <a href="{{ post.post_url }}" target="_blank" rel="noopener"
+                           style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">{{ post.post_url }}</a>
+                        <button @click="copy()" class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 11px; flex-shrink: 0;" title="Copy URL">
+                            <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        </button>
+                    </div>
+                </td>
+                <td style="white-space: nowrap;">{{ post.posted_at.strftime('%b %d, %Y') if post.posted_at else '—' }}</td>
+                <td>
+                    {% set s = post.assignment_status %}
+                    <span class="badge {% if s == 'posted' %}badge-green{% elif s == 'paid' %}badge-blue{% elif s == 'content_generated' %}badge-yellow{% else %}badge-gray{% endif %}">
+                        {{ s | display_status }}
+                    </span>
+                </td>
+                <td>{{ "{:,}".format(post.impressions) }}</td>
+                <td>{{ "{:,}".format(post.likes) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No posts yet</h3>
+        <p>Accept a campaign invitation and start posting to see activity here.</p>
+        <a href="/user/campaigns" class="btn btn-primary" style="margin-top: 16px;">Browse Campaigns</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var canvas = document.getElementById('earningsSparkline');
+    if (!canvas) return;
+    var data = {{ daily_earnings | tojson }};
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: data.map(function(_, i) { return ''; }),
+            datasets: [{
+                data: data,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: {
+                    display: true,
+                    ticks: { color: '#64748b', font: { size: 11 }, callback: function(v) { return '$' + v.toFixed(2); } },
+                    grid: { color: 'rgba(51,65,85,0.4)' },
+                    border: { display: false },
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

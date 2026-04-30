@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Settings — Amplifier Creator{% endblock %}
+{% block brand %}Amplifier{% endblock %}
+{% block brand_sub %}Creator dashboard{% endblock %}
+{% block nav %}{% include "user/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.settings-section { margin-bottom: 24px; }
+.settings-section h2 { font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 16px; }
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(51,65,85,0.5); font-size: 14px; }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: #64748b; font-weight: 500; }
+.info-value { color: #e2e8f0; }
+.platform-status { display: flex; align-items: center; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: #22c55e; }
+.dot-gray { background: #475569; }
+.info-card { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #64748b; line-height: 1.6; }
+.info-card a { color: #60a5fa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings</h1>
+</div>
+
+<!-- Profile -->
+<div class="settings-section">
+    <h2>Profile</h2>
+    <div class="card">
+        <div class="info-row">
+            <span class="info-label">Email</span>
+            <span class="info-value">{{ user.email }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Reputation Tier</span>
+            <span class="info-value">
+                <span class="badge {% if user.tier == 'amplifier' %}badge-blue{% elif user.tier == 'grower' %}badge-green{% else %}badge-gray{% endif %}">
+                    {{ user.tier | title }}
+                </span>
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Region</span>
+            <span class="info-value">{{ user.audience_region | upper }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Automation Mode</span>
+            <span class="info-value">{{ user.mode.replace('_', ' ') | title }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Trust Score</span>
+            <span class="info-value">{{ user.trust_score }} / 100</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Member Since</span>
+            <span class="info-value">{{ user.created_at.strftime('%B %Y') if user.created_at else '—' }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Connected Platforms -->
+<div class="settings-section">
+    <h2>Connected Platforms</h2>
+    <div class="card">
+        {% for platform in connected_platforms %}
+        <div class="info-row">
+            <div class="platform-status">
+                <span class="dot {{ 'dot-green' if platform.connected else 'dot-gray' }}"></span>
+                <span class="info-label">{{ platform.label }}</span>
+                {% if platform.username %}
+                <span style="font-size: 12px; color: #475569;">{{ platform.username }}</span>
+                {% endif %}
+            </div>
+            <span class="badge {{ 'badge-green' if platform.connected else 'badge-gray' }}">
+                {{ 'Connected' if platform.connected else 'Not connected' }}
+            </span>
+        </div>
+        {% endfor %}
+        <div style="margin-top: 12px;" class="info-card">
+            To connect or disconnect platforms, open the desktop app at
+            <a href="http://localhost:5222/settings" target="_blank" rel="noopener">localhost:5222/settings</a>.
+            Changes sync automatically.
+        </div>
+    </div>
+</div>
+
+<!-- AI Keys -->
+<div class="settings-section">
+    <h2>AI Keys</h2>
+    <div class="card">
+        <div class="info-card">
+            <strong style="color: #e2e8f0;">API keys are stored locally in the desktop app.</strong><br>
+            To update or view your AI provider keys (Gemini, Groq, Mistral), open the desktop app at
+            <a href="http://localhost:5222/keys" target="_blank" rel="noopener">localhost:5222/keys</a>.
+            Keys never leave your device.
+        </div>
+    </div>
+</div>
+
+<!-- Stripe Connect -->
+<div class="settings-section" id="stripe-connect">
+    <h2>Bank Account & Payouts</h2>
+    <div class="card">
+        {% if user.stripe_account_id %}
+        <div class="info-row">
+            <span class="info-label">Stripe Connect</span>
+            <span class="badge badge-green">Connected</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Account ID</span>
+            <span class="info-value" style="font-family: monospace; font-size: 12px;">{{ user.stripe_account_id }}</span>
+        </div>
+        <p style="font-size: 12px; color: #475569; margin-top: 12px;">
+            Your bank account is connected. You can withdraw earnings from the
+            <a href="/user/earnings">Earnings page</a>.
+        </p>
+        {% else %}
+        <div style="margin-bottom: 12px;" class="info-card">
+            <strong style="color: #e2e8f0;">No bank account connected.</strong><br>
+            Connect a bank account via Stripe Connect to enable payouts. This is required to withdraw your earnings.
+        </div>
+        <button class="btn btn-primary" disabled title="Stripe Connect onboarding — coming soon">
+            Connect Bank Account
+        </button>
+        <p style="font-size: 12px; color: #475569; margin-top: 8px;">
+            Stripe Connect onboarding will be available in the next update (Task #19).
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

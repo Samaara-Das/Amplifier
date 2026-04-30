@@ -61,6 +61,13 @@
     </form>
 </div>
 
+<!-- Revenue 30-day Chart -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-title">Revenue — Last 30 Days (Paid Payouts)</div>
+    <script type="application/json" id="revenue-data">{{ revenue_data_json | safe }}</script>
+    <canvas data-chart="revenue-30d" height="80"></canvas>
+</div>
+
 <form method="GET" action="/admin/financial" class="filter-bar">
     <input type="text" name="search" placeholder="Search by user email..." value="{{ search }}" />
     <select name="status" onchange="this.form.submit()">
@@ -99,12 +106,12 @@
                 <td>{{ p.campaign_title }}</td>
                 <td style="font-weight: 600;">${{ "%.2f"|format(p.amount) }}</td>
                 <td>
-                    {% if p.status == 'paid' %}<span class="badge badge-green">paid</span>
-                    {% elif p.status == 'pending' %}<span class="badge badge-yellow">pending</span>
-                    {% elif p.status == 'available' %}<span class="badge badge-green">available</span>
-                    {% elif p.status == 'processing' %}<span class="badge badge-blue">processing</span>
-                    {% elif p.status == 'voided' %}<span class="badge badge-red">voided</span>
-                    {% else %}<span class="badge badge-red">failed</span>{% endif %}
+                    {% if p.status == 'paid' %}<span class="badge badge-green">{{ p.status | display_status }}</span>
+                    {% elif p.status == 'pending' %}<span class="badge badge-yellow">{{ p.status | display_status }}</span>
+                    {% elif p.status == 'available' %}<span class="badge badge-green">{{ p.status | display_status }}</span>
+                    {% elif p.status == 'processing' %}<span class="badge badge-blue">{{ p.status | display_status }}</span>
+                    {% elif p.status == 'voided' %}<span class="badge badge-red">{{ p.status | display_status }}</span>
+                    {% else %}<span class="badge badge-red">{{ p.status | display_status }}</span>{% endif %}
                 </td>
                 <td>
                     {% if p.breakdown %}
@@ -159,4 +166,40 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var dataEl = document.getElementById('revenue-data');
+    if (!dataEl) return;
+    var canvas = document.querySelector('[data-chart="revenue-30d"]');
+    if (!canvas || typeof Chart === 'undefined') return;
+    var data;
+    try { data = JSON.parse(dataEl.textContent); } catch(_) { return; }
+    new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Paid ($)',
+                data: data.values,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#94a3b8' } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: '#1e293b' } },
+                y: { ticks: { color: '#64748b', callback: function(v) { return '$' + v; } }, grid: { color: '#1e293b' } }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

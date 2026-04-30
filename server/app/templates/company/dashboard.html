@@ -84,6 +84,22 @@
     <a href="/company/stats" class="btn btn-secondary">View Analytics</a>
 </div>
 
+<!-- Budget burn-down chart -->
+<script type="application/json" id="budget-data">{{ budget_chart_json | safe }}</script>
+{% if budget_chart_json and budget_chart_json != '{"labels": [], "datasets": []}' %}
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        Budget Burn-down
+        <span style="font-size:12px;color:#64748b;" id="chart-campaign-label"></span>
+    </div>
+    <canvas data-chart="budget-burndown" id="budget-burndown-chart" height="80"></canvas>
+</div>
+{% else %}
+<div class="card" style="margin-bottom: 24px; padding: 24px; text-align: center;">
+    <div style="color:#64748b;font-size:14px;">No active campaigns yet — budget burn-down chart will appear here.</div>
+</div>
+{% endif %}
+
 <div class="section-header">
     <h2>Recent Campaigns</h2>
     <a href="/company/campaigns" class="btn btn-sm btn-secondary">View All</a>
@@ -107,7 +123,7 @@
             <tr class="campaign-row" onclick="window.location='/company/campaigns/{{ c.id }}'">
                 <td style="font-weight: 500; color: #f8fafc;">{{ c.title }}</td>
                 <td>
-                    <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">{{ c.status }}</span>
+                    <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">{{ c.status | display_status }}</span>
                 </td>
                 <td>
                     ${{ "%.0f"|format(c.spent) }} / ${{ "%.0f"|format(c.budget_total) }}
@@ -130,4 +146,32 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var raw = document.getElementById('budget-data');
+    if (!raw) return;
+    var data;
+    try { data = JSON.parse(raw.textContent || raw.innerHTML); } catch (_) { return; }
+    if (!data || !data.labels || !data.labels.length) return;
+    var canvas = document.getElementById('budget-burndown-chart');
+    if (!canvas) return;
+    var label = document.getElementById('chart-campaign-label');
+    if (label && data.campaign_title) label.textContent = '— ' + data.campaign_title;
+    new Chart(canvas, {
+        type: 'line',
+        data: { labels: data.labels, datasets: data.datasets },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#334155' } },
+                y: { ticks: { color: '#64748b', callback: function(v) { return '$' + v; } }, grid: { color: '#334155' } }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

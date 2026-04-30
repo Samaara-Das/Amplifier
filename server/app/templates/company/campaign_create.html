@@ -6,262 +6,63 @@
 
 {% block nav %}{% include "company/_nav.html" %}{% endblock %}
 
-{% block content %}
-<div class="page-header">
-    <h1>Create Campaign</h1>
-</div>
-
-{% if error %}
-<div class="alert alert-error">{{ error }}</div>
-{% endif %}
-
-<form method="post" action="/company/campaigns/new">
-    <!-- Campaign Type (repost feature hidden — deferred to post-launch, re-enable by uncommenting) -->
-    <!--
-    <div class="card">
-        <div class="card-title">Campaign Type</div>
-        <div class="form-help" style="margin-bottom: 16px;">Choose how creators will produce content for this campaign.</div>
-        <div class="campaign-type-toggle">
-            <button type="button" class="type-btn active" data-type="ai_generated" onclick="setCampaignType('ai_generated')">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"/></svg>
-                <span>AI Generated</span>
-                <small>Creators use AI to generate unique posts from your brief</small>
-            </button>
-            <button type="button" class="type-btn" data-type="repost" onclick="setCampaignType('repost')">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/></svg>
-                <span>Repost</span>
-                <small>Provide exact posts for creators to copy and publish</small>
-            </button>
-        </div>
-    </div>
-    -->
-    <input type="hidden" name="campaign_type" value="ai_generated">
-
-    <div class="card">
-        <div class="card-title">Campaign Details</div>
-        <div class="form-group">
-            <label for="title">Title</label>
-            <input type="text" id="title" name="title" class="form-control" placeholder="e.g. Spring Product Launch" required value="{{ form.title if form else '' }}">
-        </div>
-
-        <!-- AI Generated fields -->
-        <div id="aiFields">
-            <div class="form-group">
-                <label for="brief">Brief</label>
-                <textarea id="brief" name="brief" class="form-control" placeholder="Describe what you want creators to post about..." required>{{ form.brief if form else '' }}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="content_guidance">Content Guidance</label>
-                <textarea id="content_guidance" name="content_guidance" class="form-control" placeholder="Tone, must-include phrases, forbidden phrases...">{{ form.content_guidance if form else '' }}</textarea>
-                <div class="form-help">Optional. Provide tone, must-include phrases, or content restrictions.</div>
-            </div>
-        </div>
-
-        <!-- Repost fields -->
-        <div id="repostFields" style="display: none;">
-            <div class="form-help" style="margin-bottom: 16px; font-size: 13px;">
-                Write the exact post content for each platform. Only platforms with content will be included in the campaign.
-            </div>
-
-            <!-- X -->
-            <div class="repost-platform-card">
-                <div class="repost-platform-header">
-                    <div class="repost-platform-label">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                        <span>X (Twitter)</span>
-                    </div>
-                    <span class="char-count" id="xCharCount">0 / 280</span>
-                </div>
-                <textarea name="repost_x" id="repostX" class="form-control repost-editor" placeholder="Write the exact tweet creators will post..." maxlength="280" oninput="updateCharCount('x', this, 280)"></textarea>
-                <input type="text" name="repost_x_image" class="form-control" placeholder="Image URL (optional)" style="margin-top: 6px; font-size: 12px;">
-            </div>
-
-            <!-- LinkedIn -->
-            <div class="repost-platform-card">
-                <div class="repost-platform-header">
-                    <div class="repost-platform-label">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                        <span>LinkedIn</span>
-                    </div>
-                    <span class="char-count" id="linkedinCharCount">0 / 3,000</span>
-                </div>
-                <textarea name="repost_linkedin" id="repostLinkedin" class="form-control repost-editor" placeholder="Write the LinkedIn post content..." maxlength="3000" oninput="updateCharCount('linkedin', this, 3000)"></textarea>
-                <input type="text" name="repost_linkedin_image" class="form-control" placeholder="Image URL (optional)" style="margin-top: 6px; font-size: 12px;">
-            </div>
-
-            <!-- Facebook -->
-            <div class="repost-platform-card">
-                <div class="repost-platform-header">
-                    <div class="repost-platform-label">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                        <span>Facebook</span>
-                    </div>
-                    <span class="char-count" id="facebookCharCount" style="color: #64748b;">0 chars</span>
-                </div>
-                <textarea name="repost_facebook" id="repostFacebook" class="form-control repost-editor" placeholder="Write the Facebook post content..."></textarea>
-                <input type="text" name="repost_facebook_image" class="form-control" placeholder="Image URL (optional)" style="margin-top: 6px; font-size: 12px;">
-            </div>
-
-            <!-- Reddit -->
-            <div class="repost-platform-card">
-                <div class="repost-platform-header">
-                    <div class="repost-platform-label">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 0-.463.327.327 0 0 0-.462 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.231-.094z"/></svg>
-                        <span>Reddit</span>
-                    </div>
-                </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <input type="text" name="repost_reddit_title" id="repostRedditTitle" class="form-control" placeholder="Post title (required for Reddit)">
-                </div>
-                <textarea name="repost_reddit_body" id="repostRedditBody" class="form-control repost-editor" placeholder="Post body (optional for link/image posts)..."></textarea>
-            </div>
-
-            <!-- Hidden brief for repost (auto-generated) -->
-            <input type="hidden" name="repost_brief_fallback" id="repostBriefFallback" value="">
-        </div>
-
-        <div class="form-row">
-            <div class="form-group">
-                <label for="budget">Budget ($)</label>
-                <input type="number" id="budget" name="budget" class="form-control" min="1" step="0.01" placeholder="500.00" required value="{{ form.budget if form else '' }}">
-                <div class="form-help">Current balance: ${{ "%.2f"|format(company.balance|float) }}</div>
-            </div>
-            <div class="form-group">
-                <label for="start_date">Start Date</label>
-                <input type="datetime-local" id="start_date" name="start_date" class="form-control" required value="{{ form.start_date if form else '' }}">
-            </div>
-            <div class="form-group">
-                <label for="end_date">End Date</label>
-                <input type="datetime-local" id="end_date" name="end_date" class="form-control" required value="{{ form.end_date if form else '' }}">
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-title">Payout Rules</div>
-        <div class="form-help" style="margin-bottom: 16px;">Set how much you pay creators per engagement metric. Impressions (views) are billable on X and Reddit.</div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="rate_per_1k_impressions">Per 1K Impressions ($)</label>
-                <input type="number" id="rate_per_1k_impressions" name="rate_per_1k_impressions" class="form-control" min="0" step="0.01" value="{{ form.rate_per_1k_impressions if form else '0.50' }}">
-            </div>
-            <div class="form-group">
-                <label for="rate_per_like">Per Like ($)</label>
-                <input type="number" id="rate_per_like" name="rate_per_like" class="form-control" min="0" step="0.01" value="{{ form.rate_per_like if form else '0.01' }}">
-            </div>
-        </div>
-        <!-- Per Repost rate hidden — repost campaigns deferred to post-launch (Task #7) -->
-        <input type="hidden" name="rate_per_repost" value="0">
-        <!-- rate_per_click removed: clicks can't be scraped from post pages -->
-    </div>
-
-    <div class="card">
-        <div class="card-title">Targeting</div>
-        <div class="form-group">
-            <label for="min_followers_json">Minimum Followers (JSON)</label>
-            <input type="text" id="min_followers_json" name="min_followers_json" class="form-control" placeholder='{"x": 100, "linkedin": 50}' value="{{ form.min_followers_json if form else '{}' }}">
-            <div class="form-help">JSON object mapping platform to minimum follower count. e.g. {"x": 100, "linkedin": 50}</div>
-        </div>
-        <div class="form-group">
-            <label>Target Regions</label>
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
-                {% for region, label in [('us', 'US'), ('uk', 'UK'), ('india', 'India'), ('eu', 'EU'), ('latam', 'Latin America'), ('sea', 'Southeast Asia'), ('global', 'Global')] %}
-                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
-                    <input type="checkbox" name="target_regions" value="{{ region }}" style="accent-color: #2563eb;" {{ 'checked' if form and region in form.target_regions }}>
-                    {{ label }}
-                </label>
-                {% endfor %}
-            </div>
-            <div class="form-help">Select where your target audience is located. Leave empty for all regions.</div>
-        </div>
-        <div class="form-group">
-            <label>Categories</label>
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
-                {% for cat in ['finance', 'tech', 'ai', 'beauty', 'fashion', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
-                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
-                    <input type="checkbox" name="niche_tags" value="{{ cat }}" style="accent-color: #2563eb;" {{ 'checked' if form and cat in form.niche_tags }}>
-                    {{ cat|capitalize }}
-                </label>
-                {% endfor %}
-            </div>
-            <div class="form-help">Select categories to match with relevant creators.</div>
-        </div>
-        <div class="form-group">
-            <label>Required Platforms</label>
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
-                {% for platform in ['x', 'linkedin', 'facebook', 'reddit', 'tiktok', 'instagram'] %}
-                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
-                    <input type="checkbox" name="required_platforms" value="{{ platform }}" style="accent-color: #2563eb;" {{ 'checked' if form and platform in form.required_platforms }}>
-                    {{ platform|capitalize }}
-                </label>
-                {% endfor %}
-            </div>
-            <div class="form-help">Select which platforms creators must post on.</div>
-        </div>
-    </div>
-
-    <div style="margin-top: 20px; display: flex; gap: 12px;">
-        <button type="submit" class="btn btn-primary">Create Campaign</button>
-        <a href="/company/" class="btn btn-secondary">Cancel</a>
-    </div>
-</form>
-{% endblock %}
-
 {% block extra_css %}
 <style>
     input[type="datetime-local"].form-control {
         color-scheme: dark;
     }
-
-    /* Campaign type toggle */
-    .campaign-type-toggle {
+    .wizard-steps {
         display: flex;
-        gap: 12px;
+        gap: 0;
+        margin-bottom: 28px;
+        border-bottom: 2px solid #334155;
     }
-    .type-btn {
+    .wizard-step {
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-        padding: 16px 20px;
-        background: #0f172a;
-        border: 2px solid #334155;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: left;
-        font-family: inherit;
-        color: #94a3b8;
-    }
-    .type-btn:hover {
-        border-color: #475569;
-        background: #162033;
-    }
-    .type-btn.active {
-        border-color: #2563eb;
-        background: rgba(37, 99, 235, 0.08);
-        color: #f8fafc;
-        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 4px 16px rgba(37, 99, 235, 0.12);
-    }
-    .type-btn svg {
-        color: #64748b;
-        transition: color 0.2s;
-    }
-    .type-btn.active svg {
-        color: #3b82f6;
-    }
-    .type-btn span {
-        font-size: 15px;
+        padding: 10px 16px;
+        font-size: 13px;
         font-weight: 600;
-    }
-    .type-btn small {
-        font-size: 12px;
         color: #64748b;
-        line-height: 1.4;
+        text-align: center;
+        position: relative;
+        cursor: default;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.15s;
     }
-    .type-btn.active small {
-        color: #94a3b8;
+    .wizard-step.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+    }
+    .wizard-step.done {
+        color: #22c55e;
+        border-bottom-color: transparent;
+    }
+    .wizard-step .step-num {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #334155;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 20px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+    .wizard-step.active .step-num {
+        background: #2563eb;
+        color: #fff;
+    }
+    .wizard-step.done .step-num {
+        background: #22c55e;
+        color: #fff;
+    }
+    .wizard-nav {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: flex-end;
     }
 
     /* Repost platform cards */
@@ -286,108 +87,268 @@
         font-weight: 600;
         color: #f8fafc;
     }
-    .repost-platform-label svg {
-        color: #94a3b8;
-    }
-    .char-count {
-        font-size: 12px;
-        font-weight: 500;
-        color: #64748b;
-        transition: color 0.2s;
-    }
-    .char-count.warn {
-        color: #facc15;
-    }
-    .char-count.over {
-        color: #f87171;
-    }
-    .repost-editor {
-        min-height: 80px;
-        resize: vertical;
-    }
+    .char-count { font-size: 12px; font-weight: 500; color: #64748b; transition: color 0.2s; }
+    .char-count.warn { color: #facc15; }
+    .char-count.over { color: #f87171; }
+    .repost-editor { min-height: 80px; resize: vertical; }
+    .step-hint { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .review-item { padding: 10px 12px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; }
+    .review-label { font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .review-val { font-size: 13px; color: #f8fafc; }
 
     @media (max-width: 768px) {
-        .campaign-type-toggle {
-            flex-direction: column;
-        }
+        .review-grid { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}
 
+{% block content %}
+<div class="page-header">
+    <h1>Create Campaign</h1>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<!-- Step indicator -->
+<div class="wizard-steps" x-data="{ currentStep: 1 }">
+    <div class="wizard-step" :class="{ active: currentStep === 1, done: currentStep > 1 }">
+        <span class="step-num">1</span> Campaign Details
+    </div>
+    <div class="wizard-step" :class="{ active: currentStep === 2, done: currentStep > 2 }">
+        <span class="step-num">2</span> Payout Rules
+    </div>
+    <div class="wizard-step" :class="{ active: currentStep === 3, done: currentStep > 3 }">
+        <span class="step-num">3</span> Targeting
+    </div>
+    <div class="wizard-step" :class="{ active: currentStep === 4 }">
+        <span class="step-num">4</span> Review &amp; Activate
+    </div>
+</div>
+
+<!--
+    Single persistent form. All fields always in the DOM.
+    Alpine autosave persists to localStorage on every input (500ms debounce).
+    Step navigation uses x-show — no DOM swaps, no hydration issues.
+    Final submit posts all fields to /company/campaigns/new.
+-->
+<form method="post" action="/company/campaigns/new" id="wizard-form"
+      x-data="{
+          currentStep: 1,
+          ...autosave('wizard_draft', 500),
+          nextStep() { if (this.currentStep < 4) this.currentStep++; },
+          prevStep() { if (this.currentStep > 1) this.currentStep--; }
+      }"
+      @submit="clear()">
+
+    <input type="hidden" name="campaign_type" value="ai_generated">
+
+    <!-- ── Step 1: Campaign Details ───────────────────────────── -->
+    <div x-show="currentStep === 1" x-cloak>
+        <p class="step-hint">Describe your campaign and set the schedule and budget.</p>
+        <div class="card">
+            <div class="card-title">Campaign Details</div>
+            <div class="form-group">
+                <label for="title">Title <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="title" name="title" class="form-control"
+                       placeholder="e.g. Spring Product Launch" required
+                       value="{{ form.title if form else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="brief">Brief <span style="color:#ef4444;">*</span></label>
+                <textarea id="brief" name="brief" class="form-control"
+                          placeholder="Describe what you want creators to post about..." required>{{ form.brief if form else '' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="content_guidance">Content Guidance</label>
+                <textarea id="content_guidance" name="content_guidance" class="form-control"
+                          placeholder="Tone, must-include phrases, forbidden phrases...">{{ form.content_guidance if form else '' }}</textarea>
+                <div class="form-help">Optional. Tone, must-include phrases, or content restrictions.</div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="budget">Budget ($) <span style="color:#ef4444;">*</span></label>
+                    <input type="number" id="budget" name="budget" class="form-control"
+                           min="1" step="0.01" placeholder="500.00" required
+                           value="{{ form.budget if form else '' }}">
+                    <div class="form-help">Current balance: ${{ "%.2f"|format(company.balance|float) }}</div>
+                </div>
+                <div class="form-group">
+                    <label for="start_date">Start Date <span style="color:#ef4444;">*</span></label>
+                    <input type="datetime-local" id="start_date" name="start_date" class="form-control"
+                           required value="{{ form.start_date if form else '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="end_date">End Date <span style="color:#ef4444;">*</span></label>
+                    <input type="datetime-local" id="end_date" name="end_date" class="form-control"
+                           required value="{{ form.end_date if form else '' }}">
+                </div>
+            </div>
+        </div>
+        <div class="wizard-nav">
+            <a href="/company/" class="btn btn-secondary">Cancel</a>
+            <button type="button" class="btn btn-primary" @click="nextStep()">Next &rarr;</button>
+        </div>
+    </div>
+
+    <!-- ── Step 2: Payout Rules ───────────────────────────────── -->
+    <div x-show="currentStep === 2" x-cloak>
+        <p class="step-hint">Set how much you pay creators per engagement metric.</p>
+        <div class="card">
+            <div class="card-title">Payout Rules</div>
+            <div class="form-help" style="margin-bottom: 16px;">Impressions (views) are billable on X and Reddit.</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="rate_per_1k_impressions">Per 1K Impressions ($)</label>
+                    <input type="number" id="rate_per_1k_impressions" name="rate_per_1k_impressions"
+                           class="form-control" min="0" step="0.01"
+                           value="{{ form.rate_per_1k_impressions if form else '0.50' }}">
+                </div>
+                <div class="form-group">
+                    <label for="rate_per_like">Per Like ($)</label>
+                    <input type="number" id="rate_per_like" name="rate_per_like"
+                           class="form-control" min="0" step="0.01"
+                           value="{{ form.rate_per_like if form else '0.01' }}">
+                </div>
+            </div>
+            <input type="hidden" name="rate_per_repost" value="0">
+        </div>
+        <div class="wizard-nav">
+            <button type="button" class="btn btn-secondary" @click="prevStep()">&larr; Back</button>
+            <button type="button" class="btn btn-primary" @click="nextStep()">Next &rarr;</button>
+        </div>
+    </div>
+
+    <!-- ── Step 3: Targeting ──────────────────────────────────── -->
+    <div x-show="currentStep === 3" x-cloak>
+        <p class="step-hint">Define which creators can participate in this campaign.</p>
+        <div class="card">
+            <div class="card-title">Targeting</div>
+            <div class="form-group">
+                <label for="min_followers_json">Minimum Followers (JSON)</label>
+                <input type="text" id="min_followers_json" name="min_followers_json" class="form-control"
+                       placeholder='{"x": 100, "linkedin": 50}'
+                       value="{{ form.min_followers_json if form else '{}' }}">
+                <div class="form-help">JSON object mapping platform to minimum follower count. e.g. {"x": 100, "linkedin": 50}</div>
+            </div>
+            <div class="form-group">
+                <label>Target Regions</label>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
+                    {% for region, label in [('us', 'US'), ('uk', 'UK'), ('india', 'India'), ('eu', 'EU'), ('latam', 'Latin America'), ('sea', 'Southeast Asia'), ('global', 'Global')] %}
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
+                        <input type="checkbox" name="target_regions" value="{{ region }}"
+                               style="accent-color: #2563eb;" {{ 'checked' if form and region in form.target_regions }}>
+                        {{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="form-help">Leave empty for all regions.</div>
+            </div>
+            <div class="form-group">
+                <label>Categories</label>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
+                    {% for cat in ['finance', 'tech', 'ai', 'beauty', 'fashion', 'fitness', 'gaming', 'food', 'travel', 'education', 'lifestyle', 'business', 'health', 'entertainment', 'crypto'] %}
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
+                        <input type="checkbox" name="niche_tags" value="{{ cat }}"
+                               style="accent-color: #2563eb;" {{ 'checked' if form and cat in form.niche_tags }}>
+                        {{ cat|capitalize }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="form-help">Select categories to match with relevant creators.</div>
+            </div>
+            <div class="form-group">
+                <label>Required Platforms</label>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
+                    {# X disabled per Task #40 — 3 X account suspensions; do not surface in UI #}
+                    {% for platform in ['linkedin', 'facebook', 'reddit', 'tiktok', 'instagram'] %}
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
+                        <input type="checkbox" name="required_platforms" value="{{ platform }}"
+                               style="accent-color: #2563eb;" {{ 'checked' if form and platform in form.required_platforms }}>
+                        {{ platform|capitalize }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="form-help">Select which platforms creators must post on.</div>
+            </div>
+        </div>
+        <div class="wizard-nav">
+            <button type="button" class="btn btn-secondary" @click="prevStep()">&larr; Back</button>
+            <button type="button" class="btn btn-primary" @click="nextStep()">Next &rarr;</button>
+        </div>
+    </div>
+
+    <!-- ── Step 4: Review & Activate ─────────────────────────── -->
+    <div x-show="currentStep === 4" x-cloak>
+        <p class="step-hint">Review your campaign before activating. You can edit after creation.</p>
+        <div class="card">
+            <div class="card-title">Review Summary</div>
+            <div class="review-grid">
+                <div class="review-item">
+                    <div class="review-label">Title</div>
+                    <div class="review-val" id="review-title">—</div>
+                </div>
+                <div class="review-item">
+                    <div class="review-label">Budget</div>
+                    <div class="review-val" id="review-budget">—</div>
+                </div>
+                <div class="review-item">
+                    <div class="review-label">Start Date</div>
+                    <div class="review-val" id="review-start">—</div>
+                </div>
+                <div class="review-item">
+                    <div class="review-label">End Date</div>
+                    <div class="review-val" id="review-end">—</div>
+                </div>
+                <div class="review-item" style="grid-column: 1 / -1;">
+                    <div class="review-label">Brief</div>
+                    <div class="review-val" id="review-brief" style="white-space: pre-wrap; max-height: 80px; overflow-y: auto;">—</div>
+                </div>
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.3); border-radius: 8px; font-size: 13px; color: #93bbfd;">
+                Your campaign will be created as a <strong>Draft</strong>. After reviewing the quality score, you can activate it from the campaign detail page.
+            </div>
+        </div>
+        <div class="wizard-nav">
+            <button type="button" class="btn btn-secondary" @click="prevStep()">&larr; Back</button>
+            <button type="submit" class="btn btn-primary">Create Campaign</button>
+        </div>
+    </div>
+
+</form>
+{% endblock %}
+
 {% block scripts %}
 <script>
-function setCampaignType(type) {
-    // Update hidden input
-    document.getElementById('campaignTypeInput').value = type;
+// Populate review summary when step 4 is shown
+document.addEventListener('alpine:init', function () {
+    // Watch form fields to update review panel
+    var form = document.getElementById('wizard-form');
+    if (!form) return;
+    function updateReview() {
+        var titleEl = document.getElementById('review-title');
+        var budgetEl = document.getElementById('review-budget');
+        var startEl = document.getElementById('review-start');
+        var endEl = document.getElementById('review-end');
+        var briefEl = document.getElementById('review-brief');
 
-    // Update toggle buttons
-    document.querySelectorAll('.type-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.type === type);
+        if (titleEl) titleEl.textContent = form.querySelector('[name="title"]').value || '—';
+        if (budgetEl) {
+            var b = form.querySelector('[name="budget"]').value;
+            budgetEl.textContent = b ? '$' + parseFloat(b).toFixed(2) : '—';
+        }
+        if (startEl) startEl.textContent = form.querySelector('[name="start_date"]').value || '—';
+        if (endEl) endEl.textContent = form.querySelector('[name="end_date"]').value || '—';
+        if (briefEl) briefEl.textContent = form.querySelector('[name="brief"]').value || '—';
+    }
+    // Update on any input change and when step buttons are clicked
+    form.addEventListener('input', updateReview);
+    form.addEventListener('click', function(e) {
+        if (e.target.tagName === 'BUTTON') setTimeout(updateReview, 50);
     });
-
-    // Toggle field visibility
-    const aiFields = document.getElementById('aiFields');
-    const repostFields = document.getElementById('repostFields');
-    const briefField = document.getElementById('brief');
-
-    if (type === 'repost') {
-        aiFields.style.display = 'none';
-        repostFields.style.display = 'block';
-        // Remove required from brief since repost will auto-generate it
-        briefField.removeAttribute('required');
-    } else {
-        aiFields.style.display = 'block';
-        repostFields.style.display = 'none';
-        briefField.setAttribute('required', 'required');
-    }
-}
-
-function updateCharCount(platform, textarea, limit) {
-    const len = textarea.value.length;
-    const el = document.getElementById(platform + 'CharCount');
-    if (!el) return;
-
-    if (limit) {
-        el.textContent = len.toLocaleString() + ' / ' + limit.toLocaleString();
-        el.classList.remove('warn', 'over');
-        if (len > limit) {
-            el.classList.add('over');
-        } else if (len > limit * 0.9) {
-            el.classList.add('warn');
-        }
-    } else {
-        el.textContent = len.toLocaleString() + ' chars';
-    }
-}
-
-// Before form submit, if repost mode, auto-generate brief from repost content
-document.querySelector('form').addEventListener('submit', function(e) {
-    const type = document.getElementById('campaignTypeInput').value;
-    if (type === 'repost') {
-        const briefField = document.getElementById('brief');
-        // Build a brief from the repost content for the campaign record
-        const parts = [];
-        const x = document.getElementById('repostX').value.trim();
-        const li = document.getElementById('repostLinkedin').value.trim();
-        const fb = document.getElementById('repostFacebook').value.trim();
-        const rdTitle = document.getElementById('repostRedditTitle').value.trim();
-        const rdBody = document.getElementById('repostRedditBody').value.trim();
-
-        if (x) parts.push('[X] ' + x);
-        if (li) parts.push('[LinkedIn] ' + li);
-        if (fb) parts.push('[Facebook] ' + fb);
-        if (rdTitle) parts.push('[Reddit] ' + rdTitle + (rdBody ? '\n' + rdBody : ''));
-
-        if (parts.length === 0) {
-            e.preventDefault();
-            alert('Please provide content for at least one platform.');
-            return;
-        }
-
-        // Set brief to a summary so the campaign record has something meaningful
-        briefField.value = 'Repost campaign. Pre-written content provided for ' +
-            parts.length + ' platform' + (parts.length > 1 ? 's' : '') + '.';
-    }
+    updateReview();
 });
 </script>
 {% endblock %}

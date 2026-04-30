@@ -133,7 +133,7 @@
                 {% for a in assignments %}
                 <tr onclick="window.location='/admin/campaigns/{{ a.campaign_id }}'">
                     <td><a href="/admin/campaigns/{{ a.campaign_id }}">{{ a.campaign_title }}</a></td>
-                    <td><span class="badge badge-{{ 'green' if a.status in ('paid', 'posted') else 'blue' if a.status == 'accepted' else 'yellow' if a.status == 'pending_invitation' else 'red' if a.status in ('rejected', 'expired') else 'gray' }}">{{ a.status }}</span></td>
+                    <td><span class="badge badge-{{ 'green' if a.status in ('paid', 'posted') else 'blue' if a.status == 'accepted' else 'yellow' if a.status == 'pending_invitation' else 'red' if a.status in ('rejected', 'expired') else 'gray' }}">{{ a.status | display_status }}</span></td>
                     <td>{{ a.content_mode }}</td>
                     <td>{{ a.assigned_at.strftime('%Y-%m-%d') if a.assigned_at else '—' }}</td>
                 </tr>
@@ -153,7 +153,12 @@
                 {% for p in posts %}
                 <tr>
                     <td><span class="badge badge-blue">{{ p.platform }}</span></td>
-                    <td><a href="{{ p.post_url }}" target="_blank" rel="noopener">View</a></td>
+                    <td>
+                        <a href="{{ p.post_url }}" target="_blank" rel="noopener">View</a>
+                        <span x-data="copyButton('{{ p.post_url }}')" style="margin-left:6px;">
+                            <button @click="copy()" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px;" x-text="copied ? 'Copied!' : 'Copy'"></button>
+                        </span>
+                    </td>
                     <td><span class="badge badge-{{ 'green' if p.status == 'live' else 'red' }}">{{ p.status }}</span></td>
                     <td>{{ "{:,}".format(p.impressions) }}</td>
                     <td>{{ "{:,}".format(p.likes) }}</td>

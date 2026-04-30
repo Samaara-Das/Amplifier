@@ -1,7 +1,7 @@
 """Admin user management routes."""
 
 from fastapi import APIRouter, Cookie, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,20 +21,8 @@ from app.routers.admin import (
 router = APIRouter()
 
 
-@router.get("/users", response_class=HTMLResponse)
-async def users_page(
-    request: Request,
-    admin_token: str = Cookie(None),
-    db: AsyncSession = Depends(get_db),
-    page: int = 1,
-    search: str = "",
-    status: str = "",
-    sort: str = "created_at",
-    order: str = "desc",
-):
-    if not _check_admin(admin_token):
-        return _login_redirect()
-
+async def _build_users_list(db, page, search, status, sort, order):
+    """Shared helper: query + paginate users, return (users_list, pagination, qs)."""
     query = select(User)
     count_query = select(func.count()).select_from(User)
 
@@ -73,6 +61,34 @@ async def users_page(
         })
 
     qs = build_query_string(search=search, status=status, sort=sort, order=order)
+    return users_list, pagination, qs
+
+
+@router.get("/users", response_class=HTMLResponse)
+async def users_page(
+    request: Request,
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    search: str = "",
+    status: str = "",
+    sort: str = "created_at",
+    order: str = "desc",
+):
+    if not _check_admin(admin_token):
+        return _login_redirect()
+
+    users_list, pagination, qs = await _build_users_list(db, page, search, status, sort, order)
+
+    # HTMX partial swap: return only tbody rows when HX-Request header present
+    if request.headers.get("HX-Request"):
+        return _render(
+            "admin/_users_tbody.html",
+            users=users_list,
+            pagination=pagination,
+            search=search,
+            qs=qs,
+        )
 
     return _render(
         "admin/users.html",
@@ -85,6 +101,52 @@ async def users_page(
         order=order,
         qs=qs,
     )
+
+
+@router.post("/users/bulk/suspend")
+async def bulk_suspend_users(
+    request: Request,
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk suspend users by ID list. Accepts JSON {ids: [int, ...]} or form ids[]."""
+    if not _check_admin(admin_token):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    # Parse ids from JSON or form body
+    ids: list[int] = []
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body = await request.json()
+        ids = [int(i) for i in body.get("ids", [])]
+    else:
+        form = await request.form()
+        raw = form.getlist("ids") or form.getlist("ids[]")
+        ids = [int(i) for i in raw if i]
+
+    updated = 0
+    for user_id in ids:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user and user.status == "active":
+            user.status = "suspended"
+            await db.flush()
+            await log_admin_action(db, request, "user_suspended", "user", user_id, {"email": user.email, "bulk": True})
+            updated += 1
+
+    # Check if this is an HTMX request — return partial rows
+    if request.headers.get("HX-Request"):
+        users_list, pagination, qs = await _build_users_list(db, 1, "", "", "created_at", "desc")
+        return _render(
+            "admin/_users_tbody.html",
+            users=users_list,
+            pagination=pagination,
+            search="",
+            qs=qs,
+        )
+
+    # JSON response for non-HTMX callers
+    return JSONResponse({"updated": updated})
 
 
 @router.get("/users/{user_id}", response_class=HTMLResponse)

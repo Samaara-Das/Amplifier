@@ -1,0 +1,70 @@
+{% if posts %}
+<div class="card" style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>URL</th>
+                <th>Posted</th>
+                <th>Status</th>
+                <th>Views</th>
+                <th>Likes</th>
+                <th>Comments</th>
+                <th>Reposts</th>
+            </tr>
+        </thead>
+        <tbody id="posts-tbody">
+            {% for post in posts %}
+            <tr>
+                <td><span class="badge badge-gray">{{ post.platform | title }}</span></td>
+                <td style="max-width: 220px;">
+                    <div x-data="copyButton('{{ post.post_url }}')" style="display: inline-flex; align-items: center; gap: 6px; max-width: 100%;">
+                        <a href="{{ post.post_url }}" target="_blank" rel="noopener"
+                           style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; font-size: 12px;">{{ post.post_url }}</a>
+                        <button @click="copy()" class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 11px; flex-shrink: 0;" title="Copy URL">
+                            <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        </button>
+                    </div>
+                </td>
+                <td style="white-space: nowrap; font-size: 12px;">{{ post.posted_at.strftime('%b %d, %Y') if post.posted_at else '—' }}</td>
+                <td>
+                    <span class="badge {% if post.status == 'live' %}badge-green{% elif post.status == 'deleted' %}badge-red{% elif post.status == 'flagged' %}badge-yellow{% else %}badge-gray{% endif %}">
+                        {{ post.status | display_status }}
+                    </span>
+                </td>
+                <td>{{ "{:,}".format(post.impressions) }}</td>
+                <td>{{ "{:,}".format(post.likes) }}</td>
+                <td>{{ "{:,}".format(post.comments) }}</td>
+                <td>{{ "{:,}".format(post.reposts) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if pagination.pages > 1 %}
+<div class="pagination">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.page - 1 }}{% if platform %}&platform={{ platform }}{% endif %}{% if status %}&status={{ status }}{% endif %}"
+       class="btn btn-sm btn-secondary"
+       hx-get="/user/posts?page={{ pagination.page - 1 }}{% if platform %}&platform={{ platform }}{% endif %}{% if status %}&status={{ status }}{% endif %}"
+       hx-target="#posts-table-wrap"
+       hx-push-url="true">Previous</a>
+    {% endif %}
+    <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.page + 1 }}{% if platform %}&platform={{ platform }}{% endif %}{% if status %}&status={{ status }}{% endif %}"
+       class="btn btn-sm btn-secondary"
+       hx-get="/user/posts?page={{ pagination.page + 1 }}{% if platform %}&platform={{ platform }}{% endif %}{% if status %}&status={{ status }}{% endif %}"
+       hx-target="#posts-table-wrap"
+       hx-push-url="true">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty">
+    <h3>No posts found</h3>
+    <p>{% if platform or status %}Try adjusting your filters.{% else %}Posts will appear here once you start posting campaign content.{% endif %}</p>
+</div>
+{% endif %}

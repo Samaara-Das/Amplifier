@@ -1,0 +1,39 @@
+{% if active %}
+    {% for item in active %}
+    <div class="campaign-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div class="campaign-card-title">{{ item.title }}</div>
+            <span class="badge {% if item.status == 'posted' %}badge-green{% elif item.status == 'content_generated' %}badge-yellow{% else %}badge-blue{% endif %}">
+                {{ item.status | display_status }}
+            </span>
+        </div>
+        {% if item.brief %}
+        <div class="campaign-card-brief">{{ item.brief }}</div>
+        {% endif %}
+        {% if item.payout_rules %}
+        <div style="margin-bottom: 12px;">
+            {% if item.payout_rules.get('rate_per_1k_impressions') %}
+            <span class="payout-pill">${{ "%.2f"|format(item.payout_rules.rate_per_1k_impressions) }} / 1K impressions</span>
+            {% endif %}
+            {% if item.payout_rules.get('rate_per_like') %}
+            <span class="payout-pill">${{ "%.2f"|format(item.payout_rules.rate_per_like) }} / like</span>
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="campaign-card-meta">
+            {% if item.end_date %}
+            <span>Ends {{ item.end_date.strftime('%b %d, %Y') }}</span>
+            {% endif %}
+        </div>
+        <div class="campaign-card-actions">
+            <a href="/user/campaigns/{{ item.campaign_id }}" class="btn btn-primary btn-sm">View Detail</a>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="empty">
+    <h3>No active campaigns</h3>
+    <p>Accept an invitation to get started.</p>
+    <a href="/user/campaigns?tab=invitations" class="btn btn-primary" style="margin-top: 16px;">View Invitations</a>
+</div>
+{% endif %}

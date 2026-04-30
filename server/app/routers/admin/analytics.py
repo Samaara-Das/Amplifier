@@ -1,5 +1,7 @@
 """Admin platform analytics routes."""
 
+import json
+
 from fastapi import APIRouter, Cookie, Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, func, case
@@ -123,6 +125,14 @@ async def analytics_page(
             "total_engagement": metric.likes + metric.reposts + metric.comments,
         })
 
+    # Build platform engagement chart JSON for Chart.js
+    platform_chart_json = json.dumps({
+        "labels": [p["platform"].title() for p in platforms],
+        "posts": [p["total_posts"] for p in platforms],
+        "engagement": [p.get("total_engagement", 0) for p in platforms],
+        "impressions": [p.get("total_impressions", 0) for p in platforms],
+    })
+
     return _render(
         "admin/analytics.html",
         active_page="analytics",
@@ -131,4 +141,5 @@ async def analytics_page(
         total_impressions=total_impressions,
         total_engagement=total_engagement,
         top_posts=top_posts,
+        platform_chart_json=platform_chart_json,
     )

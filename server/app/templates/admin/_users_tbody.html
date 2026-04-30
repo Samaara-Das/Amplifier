@@ -1,0 +1,49 @@
+{% for u in users %}
+<tr onclick="window.location='/admin/users/{{ u.id }}'">
+    <td onclick="event.stopPropagation()">
+        <input type="checkbox" x-model="selected" :value="{{ u.id }}" style="cursor:pointer;">
+    </td>
+    <td>{{ u.id }}</td>
+    <td><a href="/admin/users/{{ u.id }}">{{ u.email }}</a></td>
+    <td>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="trust-bar" style="width: 60px;">
+                <div class="trust-fill" style="width: {{ u.trust_score }}%; background: {{ '#22c55e' if u.trust_score >= 70 else '#facc15' if u.trust_score >= 40 else '#ef4444' }};"></div>
+            </div>
+            <span style="font-size: 13px;">{{ u.trust_score }}</span>
+        </div>
+    </td>
+    <td><span class="badge badge-gray">{{ u.mode }}</span></td>
+    <td>{{ u.platform_count }}</td>
+    <td>${{ "%.2f"|format(u.total_earned) }}</td>
+    <td>
+        {% if u.status == 'active' %}<span class="badge badge-green">{{ u.status | display_status }}</span>
+        {% elif u.status == 'suspended' %}<span class="badge badge-yellow">{{ u.status | display_status }}</span>
+        {% elif u.status == 'banned' %}<span class="badge badge-red">{{ u.status | display_status }}</span>
+        {% else %}<span class="badge badge-gray">{{ u.status | display_status }}</span>{% endif %}
+    </td>
+</tr>
+{% else %}
+<tr>
+    <td colspan="8" style="text-align:center; padding: 32px; color: #64748b;">
+        {% if search %}No users match "{{ search }}"{% else %}No users found{% endif %}
+    </td>
+</tr>
+{% endfor %}
+{% if pagination.pages > 1 %}
+<tr id="pagination-row" style="background: transparent;">
+    <td colspan="8">
+        <div class="pagination">
+            <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} users)</div>
+            <div class="pagination-links">
+                {% if pagination.has_prev %}
+                <a hx-get="/admin/users?page={{ pagination.page - 1 }}&{{ qs }}" hx-target="#users-tbody" hx-push-url="true" class="btn btn-sm btn-secondary">&larr; Prev</a>
+                {% endif %}
+                {% if pagination.has_next %}
+                <a hx-get="/admin/users?page={{ pagination.page + 1 }}&{{ qs }}" hx-target="#users-tbody" hx-push-url="true" class="btn btn-sm btn-secondary">Next &rarr;</a>
+                {% endif %}
+            </div>
+        </div>
+    </td>
+</tr>
+{% endif %}

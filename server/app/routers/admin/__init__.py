@@ -20,6 +20,10 @@ ADMIN_TOKEN_VALUE = "valid"
 _template_dir = os.path.join(os.path.dirname(__file__), "..", "..", "templates")
 _env = Environment(loader=FileSystemLoader(_template_dir), autoescape=True)
 
+# Register shared filters
+from app.utils.status_labels import display_status as _display_status
+_env.filters["display_status"] = _display_status
+
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 

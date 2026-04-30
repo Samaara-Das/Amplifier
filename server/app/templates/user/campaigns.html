@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Campaigns — Amplifier Creator{% endblock %}
+{% block brand %}Amplifier{% endblock %}
+{% block brand_sub %}Creator dashboard{% endblock %}
+{% block nav %}{% include "user/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.tab-bar { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #334155; }
+.tab-btn { padding: 10px 18px; font-size: 14px; font-weight: 500; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.tab-btn:hover { color: #94a3b8; }
+.tab-btn.active { color: #60a5fa; border-bottom-color: #3b82f6; }
+.campaign-card { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border-radius: 12px; padding: 20px; border: 1px solid #334155; margin-bottom: 16px; }
+.campaign-card-title { font-size: 16px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
+.campaign-card-brief { font-size: 13px; color: #94a3b8; margin-bottom: 12px; line-height: 1.5; }
+.campaign-card-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.campaign-card-meta span { font-size: 12px; color: #64748b; }
+.campaign-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.payout-pill { background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.2); color: #93bbfd; padding: 3px 8px; border-radius: 6px; font-size: 12px; }
+.expire-timer { font-size: 12px; font-weight: 500; }
+.expire-timer.urgent { color: #f87171; }
+.expire-timer.ok { color: #86efac; }
+.decline-picker { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-top: 8px; }
+.decline-picker p { font-size: 12px; color: #94a3b8; margin-bottom: 8px; }
+.decline-reasons { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.decline-reason-btn { padding: 4px 10px; background: #334155; color: #cbd5e1; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+.decline-reason-btn:hover { background: #3d4f68; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Campaigns</h1>
+</div>
+
+<div class="tab-bar">
+    <button class="tab-btn {{ 'active' if tab == 'invitations' }}"
+            hx-get="/user/campaigns/_tab/invitations"
+            hx-target="#tab-content"
+            hx-push-url="?tab=invitations"
+            onclick="this.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        Invitations
+        {% if invitations %}<span style="background:#2563eb;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">{{ invitations|length }}</span>{% endif %}
+    </button>
+    <button class="tab-btn {{ 'active' if tab == 'active' }}"
+            hx-get="/user/campaigns/_tab/active"
+            hx-target="#tab-content"
+            hx-push-url="?tab=active"
+            onclick="this.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        Active
+        {% if active %}<span style="background:#2563eb;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">{{ active|length }}</span>{% endif %}
+    </button>
+    <button class="tab-btn {{ 'active' if tab == 'completed' }}"
+            hx-get="/user/campaigns/_tab/completed"
+            hx-target="#tab-content"
+            hx-push-url="?tab=completed"
+            onclick="this.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        Completed
+    </button>
+</div>
+
+<div id="tab-content">
+    {% if tab == 'invitations' %}
+        {% include "user/_invitations_list.html" %}
+    {% elif tab == 'active' %}
+        {% include "user/_active_list.html" %}
+    {% else %}
+        {% include "user/_completed_list.html" %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -90,7 +90,7 @@
                 <td style="font-weight: 500; color: #4ade80;">${{ "%.2f"|format(tx.amount_cents / 100) }}</td>
                 <td>
                     <span class="badge {% if tx.type == 'topup' %}badge-green{% elif tx.type == 'refund' %}badge-yellow{% endif %}">
-                        {{ tx.type }}
+                        {{ tx.type | display_status }}
                     </span>
                 </td>
                 <td style="color: #64748b; font-size: 12px; font-family: monospace;">
@@ -132,7 +132,7 @@
                 <td>${{ "%.2f"|format(a.amount - a.spent) }}</td>
                 <td>
                     <span class="badge {% if a.status == 'active' %}badge-green{% elif a.status == 'draft' %}badge-gray{% elif a.status == 'paused' %}badge-yellow{% elif a.status == 'completed' %}badge-blue{% elif a.status == 'cancelled' %}badge-red{% endif %}">
-                        {{ a.status }}
+                        {{ a.status | display_status }}
                     </span>
                 </td>
                 <td style="color: #64748b;">{{ a.date.strftime('%b %d, %Y') if a.date else 'N/A' }}</td>

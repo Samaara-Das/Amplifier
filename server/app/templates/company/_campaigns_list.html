@@ -1,0 +1,58 @@
+{% if campaigns %}
+<table>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Budget</th>
+            <th>Users</th>
+            <th>Posts</th>
+            <th>Impressions</th>
+            <th>Engagement</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in campaigns %}
+        <tr onclick="window.location='/company/campaigns/{{ c.id }}'">
+            <td style="font-weight: 500; color: #f8fafc;">
+                {{ c.title }}
+                {% if c.screening_status == 'flagged' %}<span class="badge badge-red" style="margin-left: 6px; font-size: 10px;">Flagged</span>{% endif %}
+            </td>
+            <td>
+                <span class="badge {% if c.status == 'active' %}badge-green{% elif c.status == 'draft' %}badge-gray{% elif c.status == 'paused' %}badge-yellow{% elif c.status == 'completed' %}badge-blue{% elif c.status == 'cancelled' %}badge-red{% endif %}">{{ c.status | display_status }}</span>
+            </td>
+            <td>
+                ${{ "%.0f"|format(c.budget_remaining) }} / ${{ "%.0f"|format(c.budget_total) }}
+                <div class="budget-bar"><div class="budget-fill" style="width: {{ c.budget_pct }}%; background: {{ '#ef4444' if c.budget_pct > 90 else '#facc15' if c.budget_pct > 70 else '#22c55e' }};"></div></div>
+            </td>
+            <td>{{ c.user_count }}</td>
+            <td>{{ c.post_count }}</td>
+            <td>{{ "{:,}".format(c.impressions) }}</td>
+            <td>{{ "{:,}".format(c.engagement) }}</td>
+            <td><a href="/company/campaigns/{{ c.id }}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if pagination.pages > 1 %}
+<div class="pagination">
+    <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} campaigns)</div>
+    <div class="pagination-links">
+        {% if pagination.has_prev %}
+        <a hx-get="/company/campaigns?page={{ pagination.page - 1 }}&{{ qs }}" hx-target="#campaigns-list" hx-push-url="true" class="btn btn-sm btn-secondary">&larr; Prev</a>
+        {% endif %}
+        {% if pagination.has_next %}
+        <a hx-get="/company/campaigns?page={{ pagination.page + 1 }}&{{ qs }}" hx-target="#campaigns-list" hx-push-url="true" class="btn btn-sm btn-secondary">Next &rarr;</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% else %}
+<div class="empty">
+    <h3>No campaigns found</h3>
+    <p>{% if search %}No campaigns match "{{ search }}"{% else %}Create your first campaign to start reaching influencers.{% endif %}</p>
+    <a href="/company/campaigns/new" class="btn btn-primary" style="margin-top: 16px;">Create Campaign</a>
+</div>
+{% endif %}

@@ -1,0 +1,85 @@
+{% set inv = invitation %}
+<div class="campaign-card" x-data="{
+    showDecline: false,
+    reason: '',
+    expiresAt: '{{ inv.expires_at.isoformat() if inv.expires_at else '' }}',
+    timeLeft: '',
+    expired: {{ 'true' if inv.expired else 'false' }},
+    init() {
+        if (this.expired || !this.expiresAt) { this.timeLeft = ''; return; }
+        this._tick();
+        setInterval(() => this._tick(), 60000);
+    },
+    _tick() {
+        if (!this.expiresAt) return;
+        var exp = new Date(this.expiresAt);
+        var now = new Date();
+        var diffMs = exp - now;
+        if (diffMs <= 0) { this.expired = true; this.timeLeft = 'EXPIRED'; return; }
+        var diffH = Math.floor(diffMs / 3600000);
+        var diffM = Math.floor((diffMs % 3600000) / 60000);
+        var diffD = Math.floor(diffH / 24);
+        if (diffD > 0) {
+            this.timeLeft = diffD + 'd ' + (diffH % 24) + 'h remaining';
+        } else {
+            this.timeLeft = diffH + 'h ' + diffM + 'm remaining';
+        }
+    }
+}">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <div class="campaign-card-title">{{ inv.title }}</div>
+        <div>
+            <template x-if="expired">
+                <span class="badge badge-red">EXPIRED</span>
+            </template>
+            <template x-if="!expired && timeLeft">
+                <span class="expire-timer" :class="timeLeft.includes('h') && !timeLeft.includes('d') ? 'urgent' : 'ok'" x-text="timeLeft"></span>
+            </template>
+        </div>
+    </div>
+
+    {% if inv.brief %}
+    <div class="campaign-card-brief">{{ inv.brief }}</div>
+    {% endif %}
+
+    {% if inv.payout_rules %}
+    <div style="margin-bottom: 12px;">
+        {% if inv.payout_rules.get('rate_per_1k_impressions') %}
+        <span class="payout-pill">${{ "%.2f"|format(inv.payout_rules.rate_per_1k_impressions) }} / 1K impressions</span>
+        {% endif %}
+        {% if inv.payout_rules.get('rate_per_like') %}
+        <span class="payout-pill">${{ "%.2f"|format(inv.payout_rules.rate_per_like) }} / like</span>
+        {% endif %}
+        {% if inv.payout_rules.get('rate_per_repost') %}
+        <span class="payout-pill">${{ "%.2f"|format(inv.payout_rules.rate_per_repost) }} / repost</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <template x-if="!expired">
+        <div class="campaign-card-actions">
+            <form method="post" action="/api/campaigns/invitations/{{ inv.assignment_id }}/accept">
+                <button type="submit" class="btn btn-success btn-sm">Accept</button>
+            </form>
+            <button type="button" class="btn btn-secondary btn-sm" @click="showDecline = !showDecline">
+                Decline
+            </button>
+        </div>
+    </template>
+
+    <div x-show="showDecline" class="decline-picker" x-cloak>
+        <p>Why are you declining? (optional)</p>
+        <div class="decline-reasons">
+            <button type="button" class="decline-reason-btn" @click="reason = 'Not my niche'">Not my niche</button>
+            <button type="button" class="decline-reason-btn" @click="reason = 'Too busy'">Too busy</button>
+            <button type="button" class="decline-reason-btn" @click="reason = 'Low payout'">Low payout</button>
+            <button type="button" class="decline-reason-btn" @click="reason = 'Content conflicts with values'">Conflicts with values</button>
+        </div>
+        <textarea x-model="reason" class="form-control" placeholder="Or type your own reason..." style="min-height: 60px; margin-bottom: 8px;"></textarea>
+        <form method="post" action="/api/campaigns/invitations/{{ inv.assignment_id }}/reject">
+            <input type="hidden" name="reason" :value="reason">
+            <button type="submit" class="btn btn-danger btn-sm">Confirm Decline</button>
+            <button type="button" class="btn btn-secondary btn-sm" @click="showDecline = false" style="margin-left: 6px;">Cancel</button>
+        </form>
+    </div>
+</div>
