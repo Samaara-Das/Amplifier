@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import select
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "server"))
@@ -13,6 +14,14 @@ from app.models.campaign import Campaign
 from app.models.assignment import CampaignAssignment
 from app.models.user import User
 from app.services.matching import _passes_hard_filters
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_rate_limiter():
+    """Reset slowapi rate limiter storage before every test to prevent cross-test contamination."""
+    from app.routers import auth as auth_router
+    auth_router.limiter.reset()
+    yield
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +58,7 @@ class TestCampaignCRUD:
                     "rate_per_click": 0.10,
                 },
                 "targeting": {
-                    "required_platforms": ["x"],
+                    "required_platforms": ["linkedin"],
                     "niche_tags": ["tech"],
                 },
                 "start_date": now.isoformat(),
@@ -63,7 +72,8 @@ class TestCampaignCRUD:
         assert data["budget_total"] == 500.0
 
     async def test_create_campaign_minimum_budget(self, client):
-        """Budget below minimum ($50) should be rejected."""
+        """Budget minimum is enforced at activation, not draft creation (Task #15 quality gate).
+        A $10 draft should be saved successfully; the quality gate blocks activation."""
         token = await self._register_company(client, email="minbudget@test.com")
         now = datetime.now(timezone.utc)
 
@@ -73,14 +83,14 @@ class TestCampaignCRUD:
             json={
                 "title": "Cheap Campaign",
                 "brief": "Too cheap",
-                "budget_total": 10.0,  # Below $50 minimum
+                "budget_total": 10.0,  # Below $50 minimum — allowed as draft
                 "payout_rules": {"rate_per_1k_impressions": 0.50},
                 "start_date": now.isoformat(),
                 "end_date": (now + timedelta(days=7)).isoformat(),
             },
         )
-        assert resp.status_code == 400
-        assert "minimum" in resp.json()["detail"].lower()
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "draft"
 
     async def test_list_campaigns(self, client):
         token = await self._register_company(client, email="list@test.com")
@@ -147,20 +157,22 @@ class TestMatchingHardFilters:
 
     def _make_user(self, platforms=None, follower_counts=None, audience_region="us",
                    niche_tags=None):
-        user = User.__new__(User)
-        user.platforms = platforms or {"x": True, "linkedin": True}
-        user.follower_counts = follower_counts or {"x": 500, "linkedin": 200}
-        user.audience_region = audience_region
-        user.niche_tags = niche_tags or ["finance"]
-        user.scraped_profiles = {}
-        return user
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            platforms=platforms or {"linkedin": True, "facebook": True},
+            follower_counts=follower_counts or {"linkedin": 500, "facebook": 200},
+            audience_region=audience_region,
+            niche_tags=niche_tags or ["finance"],
+            scraped_profiles={},
+        )
 
     def _make_campaign(self, targeting=None, max_users=None, accepted_count=0):
-        campaign = Campaign.__new__(Campaign)
-        campaign.targeting = targeting or {}
-        campaign.max_users = max_users
-        campaign.accepted_count = accepted_count
-        return campaign
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            targeting=targeting or {},
+            max_users=max_users,
+            accepted_count=accepted_count,
+        )
 
     def test_no_targeting_passes(self):
         """No targeting filters — everyone passes."""
@@ -170,8 +182,8 @@ class TestMatchingHardFilters:
 
     def test_required_platform_match(self):
         """User has required platform."""
-        user = self._make_user(platforms={"x": True})
-        campaign = self._make_campaign(targeting={"required_platforms": ["x"]})
+        user = self._make_user(platforms={"linkedin": True})
+        campaign = self._make_campaign(targeting={"required_platforms": ["linkedin"]})
         assert _passes_hard_filters(campaign, user) is True
 
     def test_required_platform_missing(self):
@@ -181,21 +193,21 @@ class TestMatchingHardFilters:
         assert _passes_hard_filters(campaign, user) is False
 
     def test_required_platform_dict_format(self):
-        """User has platform in dict format: {"x": {"connected": true}}."""
-        user = self._make_user(platforms={"x": {"connected": True, "username": "@test"}})
-        campaign = self._make_campaign(targeting={"required_platforms": ["x"]})
+        """User has platform in dict format: {"linkedin": {"connected": true}}."""
+        user = self._make_user(platforms={"linkedin": {"connected": True, "username": "@test"}})
+        campaign = self._make_campaign(targeting={"required_platforms": ["linkedin"]})
         assert _passes_hard_filters(campaign, user) is True
 
     def test_min_followers_pass(self):
         """User meets minimum follower threshold."""
-        user = self._make_user(follower_counts={"x": 500})
-        campaign = self._make_campaign(targeting={"min_followers": {"x": 100}})
+        user = self._make_user(follower_counts={"linkedin": 500})
+        campaign = self._make_campaign(targeting={"min_followers": {"linkedin": 100}})
         assert _passes_hard_filters(campaign, user) is True
 
     def test_min_followers_fail(self):
         """User below minimum follower threshold."""
-        user = self._make_user(follower_counts={"x": 50})
-        campaign = self._make_campaign(targeting={"min_followers": {"x": 100}})
+        user = self._make_user(follower_counts={"linkedin": 50})
+        campaign = self._make_campaign(targeting={"min_followers": {"linkedin": 100}})
         assert _passes_hard_filters(campaign, user) is False
 
     def test_target_region_match(self):
@@ -227,13 +239,13 @@ class TestMatchingHardFilters:
     def test_combined_filters(self):
         """All filters together — user must pass all."""
         user = self._make_user(
-            platforms={"x": True, "linkedin": True},
-            follower_counts={"x": 500, "linkedin": 200},
+            platforms={"linkedin": True, "facebook": True},
+            follower_counts={"linkedin": 500, "facebook": 200},
             audience_region="us",
         )
         campaign = self._make_campaign(targeting={
-            "required_platforms": ["x"],
-            "min_followers": {"x": 100},
+            "required_platforms": ["linkedin"],
+            "min_followers": {"linkedin": 100},
             "target_regions": ["us"],
         })
         assert _passes_hard_filters(campaign, user) is True
@@ -241,13 +253,13 @@ class TestMatchingHardFilters:
     def test_combined_filters_fail_one(self):
         """Failing any single filter should reject."""
         user = self._make_user(
-            platforms={"x": True},
-            follower_counts={"x": 50},  # Below minimum
+            platforms={"linkedin": True},
+            follower_counts={"linkedin": 50},  # Below minimum
             audience_region="us",
         )
         campaign = self._make_campaign(targeting={
-            "required_platforms": ["x"],
-            "min_followers": {"x": 100},  # User has only 50
+            "required_platforms": ["linkedin"],
+            "min_followers": {"linkedin": 100},  # User has only 50
             "target_regions": ["us"],
         })
         assert _passes_hard_filters(campaign, user) is False

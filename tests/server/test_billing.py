@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select
+from types import SimpleNamespace
 
 # Ensure server/ is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "server"))
@@ -36,22 +37,17 @@ class TestCalculatePostEarningsCents:
     """Test the core earnings calculation with known inputs."""
 
     def _make_metric(self, impressions=0, likes=0, reposts=0, clicks=0):
-        m = Metric.__new__(Metric)
-        m.impressions = impressions
-        m.likes = likes
-        m.reposts = reposts
-        m.clicks = clicks
-        return m
+        from types import SimpleNamespace
+        return SimpleNamespace(impressions=impressions, likes=likes, reposts=reposts, clicks=clicks)
 
     def _make_campaign(self, payout_rules=None):
-        c = Campaign.__new__(Campaign)
-        c.payout_rules = payout_rules or {
+        from types import SimpleNamespace
+        return SimpleNamespace(payout_rules=payout_rules or {
             "rate_per_1k_impressions": 0.50,
             "rate_per_like": 0.01,
             "rate_per_repost": 0.05,
             "rate_per_click": 0.10,
-        }
-        return c
+        })
 
     @patch("app.services.billing.settings")
     def test_basic_earnings(self, mock_settings):
@@ -179,13 +175,11 @@ class TestTierConfig:
         assert config == TIER_CONFIG["seedling"]
 
     def test_cpm_multiplier_seedling(self):
-        user = User.__new__(User)
-        user.tier = "seedling"
+        user = SimpleNamespace(tier="seedling")
         assert get_cpm_multiplier(user) == 1.0
 
     def test_cpm_multiplier_amplifier_2x(self):
-        user = User.__new__(User)
-        user.tier = "amplifier"
+        user = SimpleNamespace(tier="amplifier")
         assert get_cpm_multiplier(user) == 2.0
 
 
@@ -196,65 +190,44 @@ class TestTierConfig:
 
 class TestTierPromotion:
     def test_seedling_to_grower_at_20_posts(self):
-        user = User.__new__(User)
-        user.tier = "seedling"
-        user.successful_post_count = 20
-        user.trust_score = 50
+        user = SimpleNamespace(id=1, tier="seedling", successful_post_count=20, trust_score=50)
 
         _check_tier_promotion(user)
         assert user.tier == "grower"
 
     def test_seedling_stays_below_20_posts(self):
-        user = User.__new__(User)
-        user.tier = "seedling"
-        user.successful_post_count = 19
-        user.trust_score = 50
+        user = SimpleNamespace(id=1, tier="seedling", successful_post_count=19, trust_score=50)
 
         _check_tier_promotion(user)
         assert user.tier == "seedling"
 
     def test_grower_to_amplifier_at_100_posts_high_trust(self):
-        user = User.__new__(User)
-        user.tier = "grower"
-        user.successful_post_count = 100
-        user.trust_score = 80
+        user = SimpleNamespace(id=1, tier="grower", successful_post_count=100, trust_score=80)
 
         _check_tier_promotion(user)
         assert user.tier == "amplifier"
 
     def test_grower_stays_with_low_trust(self):
-        user = User.__new__(User)
-        user.tier = "grower"
-        user.successful_post_count = 100
-        user.trust_score = 79  # Needs >= 80
+        user = SimpleNamespace(id=1, tier="grower", successful_post_count=100, trust_score=79)  # Needs >= 80
 
         _check_tier_promotion(user)
         assert user.tier == "grower"
 
     def test_grower_stays_below_100_posts(self):
-        user = User.__new__(User)
-        user.tier = "grower"
-        user.successful_post_count = 99
-        user.trust_score = 90
+        user = SimpleNamespace(id=1, tier="grower", successful_post_count=99, trust_score=90)
 
         _check_tier_promotion(user)
         assert user.tier == "grower"
 
     def test_amplifier_stays_amplifier(self):
         """Amplifier is the top tier — no further promotion."""
-        user = User.__new__(User)
-        user.tier = "amplifier"
-        user.successful_post_count = 500
-        user.trust_score = 100
+        user = SimpleNamespace(id=1, tier="amplifier", successful_post_count=500, trust_score=100)
 
         _check_tier_promotion(user)
         assert user.tier == "amplifier"
 
     def test_none_tier_treated_as_seedling(self):
-        user = User.__new__(User)
-        user.tier = None
-        user.successful_post_count = 25
-        user.trust_score = 50
+        user = SimpleNamespace(id=1, tier=None, successful_post_count=25, trust_score=50)
 
         _check_tier_promotion(user)
         assert user.tier == "grower"
