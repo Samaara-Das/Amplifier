@@ -1,116 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Amplifier</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Amplifier{% endblock %}</title>
+  <!-- Tailwind CDN (preflight disabled so it doesn't reset browser defaults aggressively) -->
+  <script>
+    tailwind.config = { corePlugins: { preflight: false } };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+  <!-- Alpine helpers MUST load before Alpine itself (registers components before init) -->
+  <script src="/static/js/alpine-helpers.js"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- HTMX defaults (toast on errors, loading class) -->
+  <script src="/static/js/htmx-defaults.js" defer></script>
+  <style>
+    body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { color: #93bbfd; }
+  </style>
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <div id="app">
-    <!-- Sidebar Navigation -->
-    <nav id="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="14" fill="#2563eb"/>
-            <text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="700" font-family="DM Sans, sans-serif">A</text>
-          </svg>
-          <span class="logo-text">Amplifier</span>
-        </div>
-      </div>
-
-      <div class="nav-links">
-        <a href="{{ url_for('dashboard') }}" class="nav-item {{ 'active' if active_page == 'dashboard' else '' }}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-          </svg>
-          <span>Dashboard</span>
-        </a>
-        <a href="{{ url_for('campaigns') }}" class="nav-item {{ 'active' if active_page == 'campaigns' else '' }}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          <span>Campaigns</span>
-          <span id="badge-campaigns" class="nav-badge" style="display: none;">0</span>
-        </a>
-        <a href="{{ url_for('posts') }}" class="nav-item {{ 'active' if active_page == 'posts' else '' }}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          <span>Posts</span>
-        </a>
-        <a href="{{ url_for('earnings') }}" class="nav-item {{ 'active' if active_page == 'earnings' else '' }}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-          <span>Earnings</span>
-        </a>
-        <a href="{{ url_for('settings') }}" class="nav-item {{ 'active' if active_page == 'settings' else '' }}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          <span>Settings</span>
-        </a>
-        <form action="{{ url_for('logout') }}" method="post" style="margin-top: 8px;">
-          <button type="submit" class="nav-item" style="width: 100%; border: none; background: none; cursor: pointer; color: #94a3b8; font-family: inherit; font-size: inherit; text-align: left;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            <span>Logout</span>
-          </button>
-        </form>
-      </div>
-
-      <div class="sidebar-footer">
-        <div class="user-info">
-          <div class="user-avatar">{{ email[0]|upper if email else 'U' }}</div>
-          <div class="user-details">
-            <span class="user-name">{{ email }}</span>
-            <span class="user-status">Connected</span>
-          </div>
-        </div>
-      </div>
+<!-- Alpine traverses children from this wrapper -->
+<div x-data class="min-h-screen">
+  <!-- Slim top bar -->
+  <header class="bg-slate-900 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-white font-bold text-base tracking-tight">Amplifier</span>
+      <span class="text-slate-500 text-sm">Local App</span>
+    </div>
+    <nav class="flex items-center gap-4 text-sm">
+      <a href="/drafts" class="text-slate-300 hover:text-white">Review Drafts</a>
+      <a href="/connect" class="text-slate-300 hover:text-white">Connect</a>
+      <a href="/keys" class="text-slate-300 hover:text-white">API Keys</a>
     </nav>
+  </header>
 
-    <!-- Main Content -->
-    <main id="content">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}" style="margin: 16px 24px 0; padding: 12px 16px; border-radius: 8px; font-size: 14px;
-              {% if category == 'success' %}background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;
-              {% elif category == 'error' %}background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
-              {% else %}background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;{% endif %}">
-              {{ message }}
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      {% block content %}{% endblock %}
-    </main>
-  </div>
-
-  <script src="{{ url_for('static', filename='js/user.js') }}"></script>
-  <script>
-    // CSRF protection: inject token into all POST forms
-    document.addEventListener('DOMContentLoaded', function() {
-      var token = '{{ csrf_token() }}';
-      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function(form) {
-        if (!form.querySelector('input[name="csrf_token"]')) {
-          var input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'csrf_token';
-          input.value = token;
-          form.appendChild(input);
-        }
-      });
-    });
-  </script>
-  {% block scripts %}{% endblock %}
+  <main class="max-w-4xl mx-auto px-6 py-8">
+    {% block content %}{% endblock %}
+  </main>
+</div>
 </body>
 </html>
