@@ -1,0 +1,154 @@
+{% extends "user/base.html" %}
+
+{% block title %}Review Drafts — Amplifier{% endblock %}
+
+{% block content %}
+<div>
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Review Drafts</h1>
+      <p class="text-slate-400 text-sm mt-1">
+        Approve or reject AI-generated content before it posts.
+      </p>
+    </div>
+    {% if campaign_id %}
+    <a href="/drafts" class="text-slate-400 hover:text-white text-sm">&larr; All campaigns</a>
+    {% endif %}
+  </div>
+
+  {% if grouped %}
+    {% for group in grouped %}
+    <div class="mb-10">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-slate-200">
+          {{ group.campaign_title }}
+        </h2>
+        <span class="text-slate-500 text-xs">{{ group.drafts | length }} draft{{ 's' if group.drafts | length != 1 else '' }}</span>
+      </div>
+
+      {% if group.drafts %}
+      <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
+        {% for draft in group.drafts %}
+          {% set status = draft | display_status %}
+          {% set status_label = {'pending':'Draft Ready','approved':'Approved','rejected':'Rejected','posted':'Live'}.get(status, status|title) %}
+          {% set draft_id = draft.id %}
+          <div id="draft-{{ draft_id }}" class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <!-- Header row: platform + status badge -->
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-slate-300 text-sm font-semibold capitalize">{{ draft.platform or 'unknown' }}</span>
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                {% if status == 'approved' %}bg-green-900/60 text-green-300 border border-green-700/40
+                {% elif status == 'rejected' %}bg-red-900/60 text-red-300 border border-red-700/40
+                {% elif status == 'posted' %}bg-blue-900/60 text-blue-300 border border-blue-700/40
+                {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}
+              ">{{ status_label }}</span>
+            </div>
+
+            <!-- Image -->
+            {% if draft.image_path %}
+            <img
+              src="/drafts/{{ draft_id }}/image"
+              alt="Draft image"
+              loading="lazy"
+              class="w-full max-h-48 object-cover rounded-lg mb-3 border border-slate-700"
+              onerror="this.style.display='none'"
+            >
+            {% endif %}
+
+            <!-- Editable text -->
+            <div x-data="{ editing: false, text: {{ draft.draft_text | tojson }} }" class="mb-4">
+              <div x-show="!editing" class="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:text-white" @click="editing = true">
+                <span x-text="text"></span>
+                <span class="text-slate-500 text-xs ml-2">(click to edit)</span>
+              </div>
+              <div x-show="editing">
+                <textarea
+                  name="text"
+                  x-model="text"
+                  class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-y"
+                  rows="6"
+                  @keydown.escape="editing = false"
+                ></textarea>
+                <div class="flex gap-2 mt-2">
+                  <button
+                    hx-post="/drafts/{{ draft_id }}/edit"
+                    hx-target="#draft-{{ draft_id }}"
+                    hx-swap="outerHTML"
+                    hx-vals='{"text": ""}'
+                    @click.prevent="$el.closest('[x-data]').querySelector('[name=text]') && (htmx.ajax('POST', '/drafts/{{ draft_id }}/edit', {target:'#draft-{{ draft_id }}', swap:'outerHTML', values:{text: text}})); editing=false"
+                    class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                  >Save</button>
+                  <button type="button" @click="editing = false; text = {{ draft.draft_text | tojson }}" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">Cancel</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 flex-wrap">
+              {% if status == 'pending' %}
+              <button
+                hx-post="/drafts/{{ draft_id }}/approve"
+                hx-target="#draft-{{ draft_id }}"
+                hx-swap="outerHTML"
+                class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white text-xs font-semibold transition-colors"
+              >Approve</button>
+              <button
+                hx-post="/drafts/{{ draft_id }}/reject"
+                hx-target="#draft-{{ draft_id }}"
+                hx-swap="outerHTML"
+                class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-white text-xs font-semibold transition-colors"
+              >Reject</button>
+
+              {% elif status == 'approved' %}
+              <span class="text-green-400 text-xs font-medium">Approved</span>
+              <button
+                hx-post="/drafts/{{ draft_id }}/unapprove"
+                hx-target="#draft-{{ draft_id }}"
+                hx-swap="outerHTML"
+                class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
+              >Unapprove</button>
+
+              {% elif status == 'rejected' %}
+              <span class="text-red-400 text-xs font-medium">Rejected</span>
+              <button
+                hx-post="/drafts/{{ draft_id }}/restore"
+                hx-target="#draft-{{ draft_id }}"
+                hx-swap="outerHTML"
+                class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
+              >Restore</button>
+
+              {% elif status == 'posted' %}
+              {% if draft.post_url %}
+              <button x-data="copyButton('{{ draft.post_url }}')" @click="copy()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-blue-300 text-xs transition-colors">
+                <span x-text="copied ? 'Copied!' : 'Copy URL'"></span>
+              </button>
+              <a href="{{ draft.post_url }}" target="_blank" class="text-blue-400 text-xs hover:text-blue-300">View Post</a>
+              {% endif %}
+              {% endif %}
+            </div>
+
+            <!-- Metadata footer -->
+            <div class="mt-3 text-slate-600 text-xs flex gap-3">
+              {% if draft.quality_score %}
+                <span>Quality: {{ "%.0f" | format(draft.quality_score) }}%</span>
+              {% endif %}
+              {% if draft.created_at %}
+                <span>{{ draft.created_at[:10] }}</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-slate-500 text-sm">No drafts for this campaign.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="bg-slate-800 border border-slate-700 rounded-xl p-12 text-center">
+    <p class="text-slate-400 text-base mb-2">No drafts yet</p>
+    <p class="text-slate-500 text-sm">The daemon will generate drafts once a campaign is accepted and the content agent runs.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

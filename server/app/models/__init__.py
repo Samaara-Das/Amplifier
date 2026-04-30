@@ -12,6 +12,9 @@ from app.models.audit_log import AuditLog
 from app.models.campaign_post import CampaignPost
 from app.models.company_transaction import CompanyTransaction
 from app.models.admin_review_queue import AdminReviewQueue
+from app.models.draft import Draft
+from app.models.agent_command import AgentCommand
+from app.models.agent_status import AgentStatus
 
 __all__ = [
     "Company",
@@ -28,4 +31,7 @@ __all__ = [
     "CampaignPost",
     "CompanyTransaction",
     "AdminReviewQueue",
+    "Draft",
+    "AgentCommand",
+    "AgentStatus",
 ]

@@ -1,0 +1,37 @@
+{% extends "user/base.html" %}
+
+{% block title %}Connect Platforms — Amplifier{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <h1 class="text-2xl font-bold text-white mb-2">Connect Your Platforms</h1>
+  <p class="text-slate-400 text-sm mb-8">
+    Click a platform to open a browser window. Log in manually, then close the browser — your session is saved automatically.
+  </p>
+
+  <div class="space-y-4" id="connect-buttons">
+    {% for platform in platforms %}
+    <div>
+      <button
+        hx-post="/connect/{{ platform }}"
+        hx-target="#connect-result-{{ platform }}"
+        hx-indicator="#spinner-{{ platform }}"
+        class="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-slate-800 border border-slate-700 hover:border-blue-500/50 hover:bg-slate-750 transition-all text-left group"
+      >
+        <span class="font-semibold text-white text-base">{{ platform_labels.get(platform, platform|capitalize) }}</span>
+        <span class="text-blue-400 text-sm group-hover:text-blue-300">
+          <span id="spinner-{{ platform }}" class="htmx-indicator text-slate-400">Opening...</span>
+          <span class="htmx-indicator-hide">Connect &rarr;</span>
+        </span>
+      </button>
+      <div id="connect-result-{{ platform }}" class="mt-2"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <p class="mt-8 text-slate-500 text-xs">
+    X (Twitter) is disabled — see settings for details.
+    TikTok and Instagram are not yet supported.
+  </p>
+</div>
+{% endblock %}
