@@ -262,7 +262,8 @@
             <div class="form-group">
                 <label>Required Platforms</label>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px;">
-                    {% for platform in ['x', 'linkedin', 'facebook', 'reddit', 'tiktok', 'instagram'] %}
+                    {# X disabled per Task #40 — 3 X account suspensions; do not surface in UI #}
+                    {% for platform in ['linkedin', 'facebook', 'reddit', 'tiktok', 'instagram'] %}
                     <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: #cbd5e1;">
                         <input type="checkbox" name="required_platforms" value="{{ platform }}"
                                style="accent-color: #2563eb;" {{ 'checked' if form and platform in form.required_platforms }}>
