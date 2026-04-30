@@ -31,6 +31,7 @@ CONTENT_GEN_INTERVAL = 120    # 2 minutes — check for campaigns needing conten
 HEALTH_CHECK_INTERVAL = 1800  # 30 minutes
 PROFILE_REFRESH_INTERVAL = 604800  # 7 days
 DB_BACKUP_INTERVAL = 21600         # 6 hours
+UPDATE_CHECK_INTERVAL = 86400      # 24 hours
 
 # ── Phase D: server-sync intervals ──────────────────────────────────
 # Honor AMPLIFIER_UAT_INTERVAL_SEC override at module load
@@ -1105,6 +1106,7 @@ class BackgroundAgent:
         self.last_profile_refresh = 0.0
         self.last_metric_scrape = 0.0
         self.last_db_backup = 0.0
+        self.last_update_check = 0.0
         # Phase D: server-sync task timestamps
         self.last_command_poll = 0.0
         self.last_status_push = 0.0
@@ -1186,6 +1188,15 @@ class BackgroundAgent:
                         logger.error("DB backup crashed: %s", e)
                         results["db_backup"] = {"success": False, "error": str(e)}
                     self.last_db_backup = now
+
+                # Every 24h: check for app updates (runs once on startup, then daily)
+                if now - self.last_update_check >= UPDATE_CHECK_INTERVAL:
+                    try:
+                        from utils import auto_update
+                        await asyncio.to_thread(auto_update.check_and_notify)
+                    except Exception as e:
+                        logger.error("Update check crashed: %s", e)
+                    self.last_update_check = now
 
                 # Every 7 days: refresh profiles
                 if now - self.last_profile_refresh >= PROFILE_REFRESH_INTERVAL:

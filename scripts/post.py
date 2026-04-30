@@ -148,7 +148,6 @@ async def _launch_context(pw, platform: str):
             "Chrome/137.0.0.0 Safari/537.36"
         ),
         args=[
-            "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
         ],
     )
@@ -1541,7 +1540,7 @@ async def main() -> None:
     random.shuffle(platforms_for_slot)
     logger.info("Posting order: %s", platforms_for_slot)
 
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
 
     results = {}
     retry_results = {}

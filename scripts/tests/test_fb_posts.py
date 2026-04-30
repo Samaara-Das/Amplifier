@@ -7,7 +7,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -58,7 +58,7 @@ async def main():
             user_data_dir=str(ROOT / "profiles" / "facebook-profile"),
             headless=True,
             viewport={"width": 1280, "height": 900},
-            args=["--disable-blink-features=AutomationControlled"],
+            args=[],
         )
         page = ctx.pages[0] if ctx.pages else await ctx.new_page()
         await page.goto("https://www.facebook.com/me", wait_until="domcontentloaded", timeout=20000)

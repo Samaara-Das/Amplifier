@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
-from playwright.async_api import async_playwright, Page, BrowserContext
+from patchright.async_api import async_playwright, Page, BrowserContext
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -45,7 +45,6 @@ with open(ROOT / "config" / "platforms.json", "r", encoding="utf-8") as f:
 
 # Stealth args to bypass headless detection (Reddit, etc.)
 STEALTH_ARGS = [
-    "--disable-blink-features=AutomationControlled",
     "--no-sandbox",
     "--disable-infobars",
     "--disable-dev-shm-usage",

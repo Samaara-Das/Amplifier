@@ -2,7 +2,7 @@
 import asyncio, json, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from pathlib import Path
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -10,7 +10,6 @@ with open(ROOT / "config" / "platforms.json") as f:
     PLATFORMS = json.load(f)
 
 STEALTH_ARGS = [
-    "--disable-blink-features=AutomationControlled",
     "--no-sandbox", "--disable-infobars", "--disable-dev-shm-usage",
     "--disable-gpu", "--lang=en-US,en",
 ]

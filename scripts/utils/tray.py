@@ -116,6 +116,16 @@ def start_tray(port: int = 5222, on_quit=None):
     def open_keys(icon, item):
         _open(f"http://localhost:{port}/keys")
 
+    def check_updates(icon, item):
+        """Trigger an update check in a daemon thread (never blocks the tray loop)."""
+        def _run():
+            try:
+                from utils import auto_update
+                auto_update.check_and_notify()
+            except Exception as e:
+                logger.error("Manual update check failed: %s", e)
+        threading.Thread(target=_run, daemon=True).start()
+
     def pause_agent(icon, item):
         try:
             from background_agent import get_agent
@@ -155,6 +165,7 @@ def start_tray(port: int = 5222, on_quit=None):
         _pystray.MenuItem("Review Drafts", open_drafts),
         _pystray.MenuItem("Connect Platforms", open_connect),
         _pystray.MenuItem("API Keys", open_keys),
+        _pystray.MenuItem("Check for Updates", check_updates),
         _pystray.Menu.SEPARATOR,
         _pystray.MenuItem(
             lambda item: f"Agent: {_get_agent_status()}",

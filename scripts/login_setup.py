@@ -13,7 +13,7 @@ from utils.guard import filter_disabled
 
 
 async def run_login(platform: str) -> None:
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
 
     # Load platform config
     config_path = ROOT / "config" / "platforms.json"
@@ -47,7 +47,6 @@ async def run_login(platform: str) -> None:
                 "Chrome/137.0.0.0 Safari/537.36"
             ),
             args=[
-                "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
             ],
         )

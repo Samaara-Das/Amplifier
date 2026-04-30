@@ -129,7 +129,7 @@ class MetricCollector:
     async def _collect_playwright(self, post_url: str, platform: str) -> dict:
         """Fallback: use existing Playwright scrapers from metric_scraper.py."""
         from utils.metric_scraper import SCRAPER_MAP, _launch_context
-        from playwright.async_api import async_playwright
+        from patchright.async_api import async_playwright
 
         scraper = SCRAPER_MAP.get(platform)
         if not scraper:

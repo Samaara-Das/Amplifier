@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from engine.script_parser import DelayRange
 
 if TYPE_CHECKING:
-    from playwright.async_api import Page
+    from patchright.async_api import Page
 
 
 async def random_delay(delay_range: DelayRange | None) -> None:

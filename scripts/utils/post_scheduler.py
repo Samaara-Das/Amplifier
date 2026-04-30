@@ -355,7 +355,7 @@ async def _post_to_platform(platform: str, draft: dict, image_path: str | None =
 
     Returns post URL on success, None on failure.
     """
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
     from post import post_to_platform
 
     # Build a draft dict compatible with post.py functions

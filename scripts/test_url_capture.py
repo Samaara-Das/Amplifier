@@ -39,7 +39,7 @@ async def launch_context(pw, platform: str):
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/137.0.0.0 Safari/537.36"
         ),
-        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        args=["--no-sandbox"],
     )
     proxy_url = PLATFORMS.get(platform, {}).get("proxy")
     if proxy_url:
@@ -313,7 +313,7 @@ async def test_reddit(pw):
 
 
 async def main():
-    from playwright.async_api import async_playwright
+    from patchright.async_api import async_playwright
 
     target = None
     if "--platform" in sys.argv:

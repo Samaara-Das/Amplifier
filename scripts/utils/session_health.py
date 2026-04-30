@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -125,7 +125,6 @@ async def _launch_context(pw, platform: str, headless: bool = True):
             "Chrome/137.0.0.0 Safari/537.36"
         ),
         args=[
-            "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
         ],
     )
@@ -402,7 +401,6 @@ async def reauthenticate_platform(platform: str) -> dict:
                 user_data_dir=str(profile_dir),
                 headless=False,  # Visible for manual login
                 args=[
-                    "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
                 ],
             )

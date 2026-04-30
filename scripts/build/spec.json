@@ -1,0 +1,19 @@
+{
+  "name": "Amplifier",
+  "entry_point": "scripts/app_entry.py",
+  "version": "0.1.0",
+  "include_packages": ["patchright", "scripts", "scripts.utils", "scripts.engine", "scripts.ai"],
+  "include_data_dirs": [
+    {"src": "config", "dest": "config"},
+    {"src": "scripts/templates", "dest": "scripts/templates"},
+    {"src": "scripts/static", "dest": "scripts/static"}
+  ],
+  "windows": {
+    "icon": "scripts/build/installer/icon.ico",
+    "console": false
+  },
+  "mac": {
+    "icon": "scripts/build/installer/icon.icns",
+    "bundle_identifier": "com.pointcapitalis.amplifier"
+  }
+}

@@ -71,12 +71,12 @@ def _build_tray_menu(port=5222, env_server_url=None):
 
 class TestTrayMenu:
     def test_menu_has_correct_item_count(self):
-        """Menu: 4 nav items + status + pause + quit = 7 items, plus 2 separators = 9 total."""
+        """Menu: 5 nav items + status + pause + quit = 8 items, plus 2 separators = 10 total."""
         menu_args, item_calls = _build_tray_menu()
-        # 7 non-separator items: Open Dashboard, Review Drafts, Connect Platforms, API Keys,
-        # Agent status (disabled), Pause/Resume, Quit
+        # 8 non-separator items: Open Dashboard, Review Drafts, Connect Platforms, API Keys,
+        # Check for Updates, Agent status (disabled), Pause/Resume, Quit
         non_sep = [a for a in menu_args if a != "SEPARATOR"]
-        assert len(non_sep) == 7, f"Expected 7 non-separator items, got {len(non_sep)}"
+        assert len(non_sep) == 8, f"Expected 8 non-separator items, got {len(non_sep)}"
         separators = [a for a in menu_args if a == "SEPARATOR"]
         assert len(separators) == 2
 
