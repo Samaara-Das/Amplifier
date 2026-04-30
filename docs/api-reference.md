@@ -17,9 +17,9 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 
 | Method | Endpoint | Body | Response |
 |--------|----------|------|----------|
-| POST | `/api/auth/register` | `{email, password}` | `{access_token, token_type}` |
+| POST | `/api/auth/register` | `{email, password, accept_tos}` | `{access_token, token_type}`. Returns 400 "You must accept the Terms of Service and Privacy Policy to register" if `accept_tos` is missing or false. Sets `users.tos_accepted_at` on success. (Task #28) |
 | POST | `/api/auth/login` | `{email, password}` | `{access_token, token_type}` |
-| POST | `/api/auth/company/register` | `{name, email, password}` | `{access_token, token_type}` |
+| POST | `/api/auth/company/register` | `{name, email, password, accept_tos}` | `{access_token, token_type}`. Same ToS gate as user register. Sets `companies.tos_accepted_at` on success. (Task #28) |
 | POST | `/api/auth/company/login` | `{email, password}` | `{access_token, token_type}` |
 
 ---
@@ -71,8 +71,17 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 
 | Method | Endpoint | Purpose | Body |
 |--------|----------|---------|------|
-| POST | `/api/posts` | Register posted URLs (batch) | `[{assignment_id, platform, post_url, content_hash, posted_at}]` |
+| POST | `/api/posts` | Register posted URLs (batch). Deduplicates by `post_url` — duplicates are skipped, not errored. Response: `{created: [{id, platform}], count, skipped_duplicate, skipped_invalid_assignment}` (Task #27). | `{posts: [{assignment_id, platform, post_url, content_hash, posted_at}]}` |
 | POST | `/api/metrics` | Submit scraped metrics (batch, triggers billing) | `[{post_id, impressions, likes, reposts, comments, clicks, scraped_at, is_final}]` |
+
+---
+
+## Public Pages (no auth)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/terms` | Terms of Service page (Task #28). Linked from company register form. |
+| GET | `/privacy` | Privacy Policy page (Task #28). Linked from company register form. |
 
 ---
 

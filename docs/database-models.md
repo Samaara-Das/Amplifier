@@ -12,6 +12,7 @@
 | balance | numeric(12,2) | Available funds for campaigns (legacy) |
 | balance_cents | int | Available funds in integer cents (v2) |
 | status | varchar(20) | active (default) |
+| tos_accepted_at | timestamptz (nullable) | When the company accepted ToS + Privacy Policy at registration. Required for new registrations (`accept_tos: true` on `POST /api/auth/company/register`). Added 2026-04-30 (Task #28). |
 | created_at | datetime | Auto-set |
 | updated_at | datetime | Auto-update |
 
@@ -83,6 +84,7 @@
 | total_earned | numeric(12,2) | Lifetime earnings (legacy) |
 | total_earned_cents | int | Lifetime earnings in integer cents (v2) |
 | stripe_account_id | varchar(255) | Stripe Connect Express account ID — set when user completes onboarding. Required for `POST /api/users/me/payout` (returns 400 when null). Added 2026-04-30 (Task #18 + Task #19 readiness). |
+| tos_accepted_at | timestamptz (nullable) | When the user accepted ToS + Privacy Policy at registration. Required for new registrations (`accept_tos: true` on `POST /api/auth/register`). Added 2026-04-30 (Task #28). |
 | status | varchar(20) | active, suspended, banned (indexed) |
 | scraped_profiles | jsonb | Full per-platform scraped data (bio, posts, engagement, etc.) |
 | ai_detected_niches | jsonb | AI-classified niches (deprecated, use niche_tags) |

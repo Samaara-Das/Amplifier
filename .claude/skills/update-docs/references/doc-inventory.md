@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: 2026-04-30
+Last updated: 2026-04-30 evening (Phase C closure: Tasks #27, #28, #23 shipped + verified; #24/#25/#26 deferred; #52 closed; #74 added; Stripe MCP installed)
 
 ---
 
@@ -25,7 +25,7 @@ Last updated: 2026-04-30
 | `docs/specs/batch-2-ai-brain.md` | Per-task specs (Tasks #12, #13, #14, #15) + Verification Procedure blocks (Task #14 has 18 ACs) | Developers | When task scope changes |
 | `docs/specs/batch-3-product-features.md` | Per-task specs (Tasks #5, #7, #8, #16) + Verification Procedure blocks for cleanup bugs #57, #59, #60 (added 2026-04-30) | Developers | When task scope changes |
 | `docs/specs/batch-4-business-launch.md` | Per-task specs (Tasks #6, #17, #19, #22). Task #19 has 13 ACs (Stripe MCP autonomous setup + test-mode → live smoke); Task #22 has 8 ACs (perf, dual-audience, OG tags, mobile, FAQ). Backfilled 2026-04-30 via Task #51. | Developers | When task scope changes |
-| `docs/specs/infra.md` | Per-task specs for non-batch infra: Task #18 (pytest suite), #44 (ARQ worker), #45 (Alembic baseline), #73 (gemini model id fix) — all with full Verification Procedure blocks | Developers | When infra task scope changes |
+| `docs/specs/infra.md` | Per-task specs for non-batch infra: Task #18 (pytest suite), #44 (ARQ worker), #45 (Alembic baseline), #73 (gemini model id fix), #27 (post URL dedup, added 2026-04-30), #28 (ToS gate, added 2026-04-30), #23 (daemon DB backup, added 2026-04-30) — all with full Verification Procedure blocks | Developers | When infra task scope changes |
 | `docs/specs/uat-infra.md` | Per-task specs for UAT-harness bugs (Tasks #63, #64, #65) — added 2026-04-30 alongside Phase C bug cleanup batch | Developers | When UAT helper scripts evolve |
 | `docs/specs/user-app-tech-stack.md` | ⚠️ SUPERSEDED 2026-04-28 by `docs/migrations/2026-04-28-*.md`. Kept for historical context only. | -- | Do not edit |
 | `docs/migrations/2026-04-25-task41-schema-fixes.md` | Vercel→Hostinger schema-fix runbook (Task #41 deployment) | DevOps | One-shot historical record |
@@ -97,8 +97,9 @@ Last updated: 2026-04-30
 | `amplifier.spec` | PyInstaller build spec (LEGACY — Phase D migrates to Nuitka per `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`) |
 | `installer.iss` | Inno Setup Windows installer |
 | `server/deploy/amplifier-worker.service` | systemd unit file for ARQ worker (deployed to `/etc/systemd/system/` on VPS) |
-| `server/alembic/` | Alembic migrations directory. Baseline `c5967048d886` covers all 14 tables as of 2026-04-30. |
-| `tests/conftest.py` + `tests/server/test_*.py` | 181-test pytest suite. Run via `pytest tests/`. See `docs/specs/infra.md` Task #18. |
+| `server/alembic/` | Alembic migrations directory. Baseline `c5967048d886` (Task #45). Current head `a1b2c3d4e5f6` (Task #28, 2026-04-30: adds `tos_accepted_at` to users + companies). |
+| `tests/conftest.py` + `tests/server/test_*.py` | 194-test pytest suite (was 181 before Task #27 + #28). Run via `pytest tests/`. See `docs/specs/infra.md` Task #18. |
+| `.mcp.json` | Project-scope MCP servers. Includes `tradingview` (stdio) and `stripe` (HTTP/OAuth at `https://mcp.stripe.com/`, added 2026-04-30 for Task #19 — needs one-time `/mcp` auth before tools become callable). |
 
 ## Key Codebase Areas to Monitor
 

@@ -89,19 +89,21 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health). **LIVE at `https://api.pointcapitalis.com`** since 2026-04-25 on Hostinger KVM 1 VPS (Mumbai). systemd: `amplifier-web.service`. See "Server Hosting" section below for full ops context.
+FastAPI + Supabase PostgreSQL / SQLite (local dev). ~92 routes total (28 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health + 2 public legal pages). **LIVE at `https://api.pointcapitalis.com`** since 2026-04-25 on Hostinger KVM 1 VPS (Mumbai). systemd: `amplifier-web.service`. See "Server Hosting" section below for full ops context.
 
 **Background worker (`server/app/worker.py`)**: ARQ-based, 4 cron jobs — `run_promote_pending_earnings` (hourly), `run_process_pending_payouts` (hourly), `run_trust_score_sweep` (daily), `run_billing_reconciliation` (daily). Live as `amplifier-worker.service` since 2026-04-30 (Task #44). Honors `AMPLIFIER_UAT_INTERVAL_SEC` (every 30s in UAT) + `AMPLIFIER_UAT_DRY_STRIPE` (logs Transfer kwargs without calling Stripe). systemd unit at `server/deploy/amplifier-worker.service`.
 
-**Schema migrations (`server/alembic/`)**: Alembic baseline `c5967048d886` (Task #45, 2026-04-30) covers all 14 tables. Production stamped at this revision. All future model changes MUST flow through `alembic revision --autogenerate` per the "Schema migration policy" section near the top of this file.
+**Schema migrations (`server/alembic/`)**: Alembic baseline `c5967048d886` (Task #45, 2026-04-30) covers all 14 tables. Production currently at head `a1b2c3d4e5f6_add_tos_accepted_at_to_user_and_company` (Task #28, 2026-04-30 evening) — adds nullable `tos_accepted_at` to `users` + `companies`. All future model changes MUST flow through `alembic revision --autogenerate` per the "Schema migration policy" section near the top of this file.
 
 **API endpoints** (`/api/`):
-- Auth: user + company register/login (JWT) — 4 routes
+- Auth: user + company register/login (JWT). Both register endpoints require `accept_tos: bool` (Task #28) and stamp `tos_accepted_at` on success — 4 routes
 - Campaigns: CRUD for companies, AI wizard, reach estimates, matching + polling for users — 13 routes
 - Invitations: list/accept/reject + active assignments — 6 routes
 - Users: profile CRUD + earnings + payout — 4 routes
-- Posts/Metrics: batch registration and submission — 2 routes
+- Posts/Metrics: batch registration and submission. `POST /api/posts` deduplicates by `post_url` and returns `skipped_duplicate` + `skipped_invalid_assignment` counters in addition to `created`/`count` (Task #27) — 2 routes
 - System: health check + version — 2 routes
+
+**Public unauthenticated pages** (`server/app/routers/public.py`, no `/api` prefix): `GET /terms`, `GET /privacy` — render `templates/public/terms.html` and `templates/public/privacy.html`. Linked from the company register form's ToS checkbox (Task #28).
 
 **Web dashboards** (blue `#2563eb` theme, DM Sans font, gradient cards, SVG Heroicons nav):
 - **Company** (`/company/`) — 10 pages: login, dashboard, campaigns list, create campaign, AI wizard, campaign detail, billing, influencers, stats, settings. Routers modularized into `server/app/routers/company/` (7 files).
@@ -119,9 +121,9 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON AP
 **Server utilities:**
 - `server/app/utils/crypto.py` — AES-256-GCM server-side encryption
 
-**Models** (14 tables): Company (`balance_cents` added), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count`, `stripe_account_id` added — last for Task #19 readiness), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog, AdminReviewQueue
+**Models** (14 tables): Company (`balance_cents` added, `tos_accepted_at` added Task #28), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count`, `stripe_account_id` added for Task #19 readiness, `tos_accepted_at` added Task #28), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog, AdminReviewQueue
 
-**Test suite**: 181 pytest tests in `tests/server/` covering money loop, quality_gate rubric, trust events, matching cache, crypto round-trip, platform_guard, admin/company smoke routes, metrics + users API endpoints. Run via `pytest tests/` (~24s). `tests/conftest.py` provides in-memory async SQLite + httpx test client + factory helpers. See `docs/specs/infra.md` for Task #18's Verification Procedure.
+**Test suite**: 194 pytest tests in `tests/server/` covering money loop, quality_gate rubric, trust events, matching cache, crypto round-trip, platform_guard, admin/company smoke routes, metrics + users API endpoints, post URL dedup (`TestPostRegisterDedup`, Task #27), and ToS-gate registration (`TestTosGate`, Task #28). Run via `pytest tests/` (~28s). `tests/conftest.py` provides in-memory async SQLite + httpx test client + factory helpers. See `docs/specs/infra.md` for Task #18's Verification Procedure.
 
 ### Amplifier User App
 **Phase D migration planned (2026-04-28):** The local Flask UI (`scripts/user_app.py`) is being replaced by a slim local FastAPI (5 routes, ~400-600 LOC) + hosted creator dashboard (`/user/*` on the FastAPI server). The daemon's 6,500 LOC of automation code is preserved verbatim. See `docs/migrations/2026-04-28-migration-creator-app-split.md`. **Do not add features to `scripts/user_app.py` or `scripts/templates/user/` — they are dead code post-migration.**
@@ -129,7 +131,7 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON AP
 Current state (pre-migration):
 
 - `scripts/user_app.py` — Main Flask app on port 5222 (32+ routes). 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding. Handles auth, campaign lifecycle, draft review, scheduling, background agent control.
-- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
+- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d), local DB backup every 6h via SQLite online `.backup()` API to `data/local.db.bak` (Task #23). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
 - `scripts/campaign_runner.py` — Legacy campaign polling loop (replaced by background_agent.py)
 - `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
 - `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` column (path to generated or downloaded product image). `get_user_profiles()` reads from `scraped_profile` (the table the profile scraper writes to during onboarding) — vestigial `agent_user_profile` table dropped 2026-04-26 (Bug #55).

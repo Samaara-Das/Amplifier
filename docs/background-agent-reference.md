@@ -42,6 +42,7 @@ await stop_background_agent()
 | Campaign polling | `poll_campaigns()` | 600s (10 min) | `now - last_poll >= 600` |
 | Session health check | `check_sessions()` | 1800s (30 min) | `now - last_health_check >= 1800` |
 | Profile refresh | `refresh_profiles()` | 604800s (7 days) | `now - last_profile_refresh >= 604800` |
+| Local DB backup | `backup_local_db()` | 21600s (6h) | `now - last_db_backup >= 21600` (Task #23, added 2026-04-30) |
 
 All `last_*` timestamps start at `0.0`, so every task runs on the first iteration.
 
