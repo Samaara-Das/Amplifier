@@ -113,6 +113,11 @@ async def request_payout(
     amount = data.amount
 
     # Validation
+    if not user.stripe_account_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Stripe Connect bank account not linked. Please complete onboarding to enable payouts.",
+        )
     if amount < 10.0:
         raise HTTPException(
             status_code=400,
