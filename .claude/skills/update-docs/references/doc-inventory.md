@@ -10,8 +10,9 @@ Last updated: 2026-04-26
 
 | File | Purpose | Audience | Update Frequency |
 |------|---------|----------|-----------------|
-| `CLAUDE.md` | Architecture, commands, platform gotchas, config | Claude / developers | Every feature change |
+| `CLAUDE.md` | Architecture, commands, platform gotchas, config, schema-migration policy | Claude / developers | Every feature change |
 | `README.md` | Project overview, setup, tech stack, doc index | Public / contributors | New features, setup changes |
+| `docs/STATUS.md` | Derived view of tasks.json — batches, phases, status counts, immediate next steps | Claude / developers | Re-derive from tasks.json on every task status change |
 
 ## Tier 2: Architecture & Planning Docs (audit when features change)
 
@@ -24,7 +25,13 @@ Last updated: 2026-04-26
 | `docs/specs/batch-2-ai-brain.md` | Per-task specs (Tasks #12, #13, #14, #15) + Verification Procedure blocks (Task #14 has 18 ACs) | Developers | When task scope changes |
 | `docs/specs/batch-3-product-features.md` | Per-task specs (Tasks #5, #7, #8, #16) | Developers | When task scope changes |
 | `docs/specs/batch-4-business-launch.md` | Per-task specs (Tasks #6, #17, #19, #22) | Developers | When task scope changes |
-| `docs/specs/user-app-tech-stack.md` | User app architecture decision: web dashboard + headless agent split | Developers, co-founders | When tech stack reconsidered (Task #54) |
+| `docs/specs/infra.md` | Per-task specs for non-batch infra: Task #18 (pytest suite), #44 (ARQ worker), #45 (Alembic baseline) — all with full Verification Procedure blocks | Developers | When infra task scope changes |
+| `docs/specs/user-app-tech-stack.md` | ⚠️ SUPERSEDED 2026-04-28 by `docs/migrations/2026-04-28-*.md`. Kept for historical context only. | -- | Do not edit |
+| `docs/migrations/2026-04-25-task41-schema-fixes.md` | Vercel→Hostinger schema-fix runbook (Task #41 deployment) | DevOps | One-shot historical record |
+| `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` | Phase D blueprint: dashboards HTMX upgrade (#66) | Developers | When migration plan evolves |
+| `docs/migrations/2026-04-28-migration-creator-app-split.md` | Phase D blueprint: creator app split (#67) | Developers | When migration plan evolves |
+| `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` | Phase D blueprint: Patchright + Nuitka + installers (#68) | Developers | When migration plan evolves |
+| `docs/migrations/2026-04-30-task18-stripe-account-id.md` | Schema migration: ALTER TABLE adding `users.stripe_account_id` (pre-Alembic-baseline pattern) | DevOps | One-shot historical record |
 | `docs/uat/AC-FORMAT.md` | Format spec for `## Verification Procedure` blocks; rules for `/uat-task` skill | Developers, Claude | When AC format evolves |
 
 ## Tier 3: Reference Docs (audit when relevant subsystems change)
@@ -39,7 +46,7 @@ Last updated: 2026-04-26
 | `docs/config-reference.md` | Config options reference | Developers | Config changes |
 | `docs/content-generation.md` | Content generation pipeline | Developers | AI provider changes |
 | `docs/database-models.md` | DB model field reference | Developers | Model changes |
-| `docs/deployment-guide.md` | Vercel + Supabase deployment | DevOps | Deployment changes |
+| `docs/deployment-guide.md` | ⚠️ Stale Vercel-era setup. Server moved to Hostinger 2026-04-25. Refresh needed. | DevOps | Out of date — flag for rewrite |
 | `docs/development-setup.md` | Local dev setup | Developers | Setup changes |
 | `docs/local-database-schema.md` | Local SQLite schema | Developers | Local DB changes |
 | `docs/platform-posting-playbook.md` | Platform-specific posting details | Developers | Platform changes |
@@ -85,8 +92,11 @@ Last updated: 2026-04-26
 | `config/.env.example` | Canonical template for `config/.env` — documents UAT_TEST_* creds + AMPLIFIER_UAT_* test-mode flags |
 | `server/.env.example` | Server config template (DB URL, JWT, Stripe, platform cut) |
 | `vercel.json` | Vercel deployment config (LEGACY — server now on Hostinger VPS as of 2026-04-25) |
-| `amplifier.spec` | PyInstaller build spec |
+| `amplifier.spec` | PyInstaller build spec (LEGACY — Phase D migrates to Nuitka per `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`) |
 | `installer.iss` | Inno Setup Windows installer |
+| `server/deploy/amplifier-worker.service` | systemd unit file for ARQ worker (deployed to `/etc/systemd/system/` on VPS) |
+| `server/alembic/` | Alembic migrations directory. Baseline `c5967048d886` covers all 14 tables as of 2026-04-30. |
+| `tests/conftest.py` + `tests/server/test_*.py` | 181-test pytest suite. Run via `pytest tests/`. See `docs/specs/infra.md` Task #18. |
 
 ## Key Codebase Areas to Monitor
 
@@ -104,9 +114,11 @@ These are the main code areas. When files here change, docs likely need updating
 | Metric collection | `scripts/utils/metric_collector.py`, `scripts/utils/metric_scraper.py` | CLAUDE.md |
 | User app | `scripts/user_app.py` | CLAUDE.md, docs/PRD.md |
 | Profile scraping | `scripts/utils/profile_scraper.py`, `scripts/utils/ai_profile_scraper.py`, `scripts/utils/browser_config.py` | CLAUDE.md |
-| Server API | `server/app/routers/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
-| Server models | `server/app/models/` | CLAUDE.md, docs/PRD.md |
+| Server API | `server/app/routers/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md, docs/api-reference.md |
+| Server models | `server/app/models/` | CLAUDE.md, docs/PRD.md, docs/database-models.md, AND requires Alembic migration in `server/alembic/versions/` per CLAUDE.md schema-migration policy |
 | Server services | `server/app/services/` | CLAUDE.md, docs/PRD.md, docs/AMPLIFIER-SPEC.md |
+| Background worker | `server/app/worker.py` | CLAUDE.md, docs/technical-architecture.md, docs/specs/infra.md |
+| Schema migrations | `server/alembic/versions/` | CLAUDE.md (schema-migration policy section) |
 | Config | `config/` | CLAUDE.md |
 | Deployment | `vercel.json`, `server/.env.example`, Hostinger VPS systemd unit | CLAUDE.md, docs/deployment-guide.md, docs/HOSTING-DECISION-RECORD.md, docs/MIGRATION-FROM-VERCEL.md |
 | UAT infrastructure | `scripts/uat/`, `.claude/skills/uat-task/`, `docs/uat/`, `docs/specs/batch-*.md` Verification Procedure blocks | CLAUDE.md, doc-inventory.md, docs/uat/AC-FORMAT.md |

@@ -82,6 +82,7 @@
 | earnings_balance_cents | int | Withdrawal-ready balance in integer cents (v2) |
 | total_earned | numeric(12,2) | Lifetime earnings (legacy) |
 | total_earned_cents | int | Lifetime earnings in integer cents (v2) |
+| stripe_account_id | varchar(255) | Stripe Connect Express account ID — set when user completes onboarding. Required for `POST /api/users/me/payout` (returns 400 when null). Added 2026-04-30 (Task #18 + Task #19 readiness). |
 | status | varchar(20) | active, suspended, banned (indexed) |
 | scraped_profiles | jsonb | Full per-platform scraped data (bio, posts, engagement, etc.) |
 | ai_detected_niches | jsonb | AI-classified niches (deprecated, use niche_tags) |

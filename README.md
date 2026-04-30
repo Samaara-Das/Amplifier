@@ -19,7 +19,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 | Admin dashboard  |       | Local SQLite     |       | Image gen        |
 | Matching engine  |       | Metric scraper   |       | (Personal brand: |
 +------------------+       +------------------+       |  Claude CLI)     |
-     VPS (pending)            User's desktop           +------------------+
+  VPS (api.pointcapitalis.com)  User's desktop         +------------------+
                                                          User's desktop
 ```
 
@@ -31,8 +31,8 @@ Two systems in one repo: a **personal social media automation engine** that gene
 |-----------|-----------|
 | Server | Python, FastAPI, SQLAlchemy, Supabase PostgreSQL (prod) / SQLite (dev), ARQ, Jinja2 |
 | User App | Python, Flask, Playwright, AiManager (Gemini/Mistral/Groq), httpx, SQLite |
-| Distribution | PyInstaller, Inno Setup |
-| Deployment | Hostinger KVM VPS + Supabase (server — migration in progress), Windows installer (user app) |
+| Distribution | Nuitka + Inno Setup (Windows) + pkgbuild (Mac) — Phase D, see `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` |
+| Deployment | Hostinger KVM VPS + Supabase (server LIVE since 2026-04-25), GitHub Releases for installer auto-update (Phase D) |
 
 ## Quick Start
 

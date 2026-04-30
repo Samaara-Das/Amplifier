@@ -107,7 +107,7 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 **Company Dashboard (~22 routes across 7 routers):**
 - Login/register/logout, dashboard overview, campaign CRUD + wizard, billing + Stripe checkout, influencer performance, stats, settings
 
-### Database Models (11 tables)
+### Database Models (14 tables)
 
 | Model | Key Fields | Purpose |
 |---|---|---|
@@ -123,7 +123,7 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 | **AuditLog** | action, target_type, target_id, details, admin_ip | Admin action tracking |
 | **ContentScreeningLog** | campaign_id, flagged, flagged_keywords, review_result | AI content moderation |
 
-### Services (7)
+### Services (8)
 
 | Service | File | Key Functions |
 |---|---|---|
@@ -133,6 +133,21 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 | **Payments** | `payments.py` | `create_company_checkout()` — Stripe Checkout for top-up. `process_pending_payouts()` — auto-send via Stripe Connect (marks paid in test mode). `run_payout_cycle()` — batch process eligible users. |
 | **Campaign Wizard** | `campaign_wizard.py` | `run_campaign_wizard()` — deep crawl URLs (BFS, 10 pages, 2 hops), Gemini generates brief + guidance + rates. `screen_campaign()` — AI content safety. `estimate_reach()` — count eligible users + follower sum. |
 | **Storage** | `storage.py` | `upload_file()`, `delete_file()` — Supabase Storage or local fallback. `extract_text_from_file()` — PDF/DOCX text extraction. |
+| **Quality Gate** | `quality_gate.py` | `score_campaign()` — 8-criterion deterministic rubric (0-100, threshold 85). `ai_review_campaign()` — Gemini→Mistral→Groq fallback chain for brand-safety review. AI does NOT review company-chosen targeting (Task #72 reverted 2026-04-30). |
+
+### Background Worker (`server/app/worker.py`, Task #44)
+
+ARQ-based, runs as `amplifier-worker.service` systemd unit on the same VPS as the web service. 4 cron jobs:
+- `run_promote_pending_earnings` — hourly at :05. Wraps `services.billing.promote_pending_earnings`.
+- `run_process_pending_payouts` — hourly at :15. Wraps `services.payments.process_pending_payouts` + handles `available → processing → paid` transition. Honors `AMPLIFIER_UAT_DRY_STRIPE`.
+- `run_trust_score_sweep` — daily 03:30 UTC. Calls `services.trust.detect_metrics_anomalies` + writes `audit_log` rows for trust_adjusted events.
+- `run_billing_reconciliation` — daily 04:00 UTC. Cross-checks Metric vs Payout rows. Logs drift. Does NOT auto-create payouts.
+
+`AMPLIFIER_UAT_INTERVAL_SEC=30` env var overrides cron schedules so jobs fire every 30s during UAT.
+
+### Schema Migrations (`server/alembic/`, Task #45)
+
+Alembic baseline `c5967048d886` (2026-04-30) covers all 14 tables. Production stamped at this revision via SSH. All future model changes flow through `alembic revision --autogenerate -m "describe"` + `alembic upgrade head` deployment per the policy in `CLAUDE.md`.
 
 ### Earning Lifecycle
 

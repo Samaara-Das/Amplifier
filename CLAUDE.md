@@ -89,7 +89,11 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health). **Currently offline** — previous Vercel deployment taken down; migration to Hostinger KVM VPS in progress (see `docs/MIGRATION-FROM-VERCEL.md`, Task #41).
+FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health). **LIVE at `https://api.pointcapitalis.com`** since 2026-04-25 on Hostinger KVM 1 VPS (Mumbai). systemd: `amplifier-web.service`. See "Server Hosting" section below for full ops context.
+
+**Background worker (`server/app/worker.py`)**: ARQ-based, 4 cron jobs — `run_promote_pending_earnings` (hourly), `run_process_pending_payouts` (hourly), `run_trust_score_sweep` (daily), `run_billing_reconciliation` (daily). Live as `amplifier-worker.service` since 2026-04-30 (Task #44). Honors `AMPLIFIER_UAT_INTERVAL_SEC` (every 30s in UAT) + `AMPLIFIER_UAT_DRY_STRIPE` (logs Transfer kwargs without calling Stripe). systemd unit at `server/deploy/amplifier-worker.service`.
+
+**Schema migrations (`server/alembic/`)**: Alembic baseline `c5967048d886` (Task #45, 2026-04-30) covers all 14 tables. Production stamped at this revision. All future model changes MUST flow through `alembic revision --autogenerate` per the "Schema migration policy" section near the top of this file.
 
 **API endpoints** (`/api/`):
 - Auth: user + company register/login (JWT) — 4 routes
@@ -115,7 +119,9 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~90 routes total (27 JSON AP
 **Server utilities:**
 - `server/app/utils/crypto.py` — AES-256-GCM server-side encryption
 
-**Models** (12 tables): Company (`balance_cents` added), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count` added), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog
+**Models** (14 tables): Company (`balance_cents` added), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count`, `stripe_account_id` added — last for Task #19 readiness), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog, AdminReviewQueue
+
+**Test suite**: 181 pytest tests in `tests/server/` covering money loop, quality_gate rubric, trust events, matching cache, crypto round-trip, platform_guard, admin/company smoke routes, metrics + users API endpoints. Run via `pytest tests/` (~24s). `tests/conftest.py` provides in-memory async SQLite + httpx test client + factory helpers. See `docs/specs/infra.md` for Task #18's Verification Procedure.
 
 ### Amplifier User App
 **Phase D migration planned (2026-04-28):** The local Flask UI (`scripts/user_app.py`) is being replaced by a slim local FastAPI (5 routes, ~400-600 LOC) + hosted creator dashboard (`/user/*` on the FastAPI server). The daemon's 6,500 LOC of automation code is preserved verbatim. See `docs/migrations/2026-04-28-migration-creator-app-split.md`. **Do not add features to `scripts/user_app.py` or `scripts/templates/user/` — they are dead code post-migration.**

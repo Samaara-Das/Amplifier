@@ -31,7 +31,7 @@ Admin pages use: `admin_token` cookie matching `ADMIN_PASSWORD` env var.
 | GET | `/api/users/me` | Get profile | -- |
 | PATCH | `/api/users/me` | Update profile | `{platforms, follower_counts, niche_tags, audience_region, mode, scraped_profiles}` |
 | GET | `/api/users/me/earnings` | Earnings summary | -- |
-| POST | `/api/users/me/payout` | Request withdrawal (min $10) | `{amount}` |
+| POST | `/api/users/me/payout` | Request withdrawal (min $10). Returns 400 "Stripe Connect bank account not linked" when `user.stripe_account_id` is null. | `{amount}` |
 
 ---
 
