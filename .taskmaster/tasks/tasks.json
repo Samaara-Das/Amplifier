@@ -1004,7 +1004,7 @@
         "id": 67,
         "title": "Migration: Creator app split (hosted dashboard + local daemon)",
         "description": "Split Flask user app into hosted /user/* pages on FastAPI server + slim local FastAPI (5 routes, ~400-600 LOC) + daemon additions (~150 LOC). Strips 9 templates + 3451 LOC CSS. 12 ACs. Depends on #66. See docs/migrations/2026-04-28-migration-creator-app-split.md.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "66",

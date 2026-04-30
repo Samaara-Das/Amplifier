@@ -27,7 +27,9 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **46 done** · **6 pending** · **22 deferred** · 0 in-progress · **74 total**
+- **47 done** · **5 pending** · **22 deferred** · 0 in-progress · **74 total**
+
+> **Phase D #67 SHIPPED 2026-05-01 01:30 IST.** Creator app split: hosted `/user/*` dashboard on FastAPI server + slim local FastAPI replaces Flask user_app (1649 LOC → ~10 LOC entry, ~500 LOC `local_server.py`, 8 templates + 3451 LOC CSS deleted), Tailwind CDN replaces hand-rolled CSS, daemon gains 3 new sync tasks (process_server_commands, push_agent_status, sync_unsynced_drafts), 3 new server tables (drafts, agent_commands, agent_status) shipped via Alembic `63d9159c4ce6`. 288/288 pytest green. Deployed to api.pointcapitalis.com — `/api/agent/status`, `/api/drafts` return 405 (route + table exist). Status badge polish ('pending' → 'Draft Ready'). Bug found via real-browser smoke: tailwind CDN init order trap (same as #66, fixed in c5a59f1). Branch merged to flask-user-app as `f080966`.
 
 > **Phase D #66 SHIPPED 2026-04-30 23:41 IST.** Dashboards HTMX upgrade: 5 chunks (foundation → creator surface → admin HTMX → company HTMX → polish), merged to flask-user-app as `d10bce9`, deployed to api.pointcapitalis.com. **6 critical bugs caught via real-browser smoke** (none would have been caught by 238 passing pytest tests): SSE EventSource auth must be cookie not Bearer; alpine-helpers.js must load BEFORE alpinejs (defer-order trap); x-teleport requires `<template>` not `<div>`; missing `x-data` on layout root; X platform leaked into wizard checkbox group; bulk-suspend `hx-vals='js:'` evaluates in document scope, not Alpine reactive scope. 11/34 ACs verified locally via Chrome DevTools MCP + 1 real campaign create+activate flow. Lessons saved to MemPalace `discoveries` for Task #67 (next, bigger rewrite).
 
