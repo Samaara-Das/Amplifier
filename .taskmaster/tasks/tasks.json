@@ -427,13 +427,14 @@
         "id": 28,
         "title": "ToS and privacy policy acceptance in registration",
         "description": "Add ToS checkbox to registration. Block if unchecked. Create /privacy and /terms pages.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [],
         "metadata": {
           "tier": 5
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-30T13:16:44.940588+00:00"
       },
       {
         "id": 29,
