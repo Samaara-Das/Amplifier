@@ -429,7 +429,7 @@ This migration adds HTMX + Alpine + Tailwind CDN to the existing dashboards inst
 | Field | Value |
 |-------|-------|
 | **Setup** | Test company logged in, balance $50. |
-| **Action** | DevTools MCP: `/company/campaigns/wizard` → enter URL `https://example.com/product` → click "Generate" → wait for Gemini brief → review → click "Activate". |
+| **Action** | DevTools MCP: `/company/campaigns/ai-wizard` → enter URL `https://example.com/product` → click "Generate" → wait for Gemini brief → review → click "Activate". (Note: route swap in Chunk 4 — `/campaigns/new` is now the manual wizard, AI wizard moved to `/ai-wizard`.) |
 | **Expected** | Within 60s: brief generated (length > 200 chars). Content screening returns `caution` or `safe` (not `reject` for example.com). Activate succeeds, campaign live. |
 | **Automated** | partial — Gemini call is real |
 | **Automation** | `scripts/uat/uat_task66.py::test_ac20_ai_wizard_e2e` |
