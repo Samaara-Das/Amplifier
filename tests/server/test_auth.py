@@ -4,8 +4,16 @@ import sys
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "server"))
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_rate_limiter():
+    from app.routers import auth as auth_router
+    auth_router.limiter.reset()
+    yield
 
 
 class TestUserRegistration:

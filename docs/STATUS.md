@@ -27,11 +27,14 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **31 done** · **24 pending** · **18 deferred** · 0 in-progress · **73 total**
+- **31 done** · **23 pending** · **19 deferred** · 0 in-progress · **73 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
-- **Most recent UAT wins** (2026-04-29 23:01): Tasks #71 + #72 — both follow-ups from Task #15's W8 SaaS UAT shipped autonomously overnight. #71 (5/5 ACs PASS): wizard create-and-activate now runs full quality pipeline + writes audit_log rows. #72 (3/3 ACs PASS): AI review prompt tightened with explicit NICHE MISMATCH RULE — caught 3/3 mismatch fixtures (crypto→kids=reject, finance→fashion=caution, b2b→pets=caution) without false-positive on aligned niches. **#73 filed** (low priority): gemini-1.5-flash returns 404 in retry chain — provider chain falls through to Mistral correctly so non-blocking.
+- **Most recent wins** (2026-04-30 09:23):
+  - **Task #72 REVERTED** — niche-mismatch AI review was wrong-direction. Companies own their targeting decisions; AI doesn't second-guess. Both my new rule AND the original Task #15 targeting check were stripped from `_build_review_prompt()`. AI review now checks only: brief-is-content / harmful-guidance / legitimacy-scam. Verified via post-revert regression check (5/5 fixtures: zero "niche mismatch" / "targeting mismatch" / "audience fit" mentions in any concerns).
+  - **Task #18 DONE** — pytest unit suite. 80 tests pass in 10.2s. New: `test_quality_gate.py` (12 tests covering all 8 rubric criteria + hard-fail vetoes), `test_trust.py` (4 tests events + bounds), `test_matching_cache.py` (4 tests TTL + invalidation). Existing test rot fixed: `User.__new__` SQLAlchemy patterns + X-disabled-platform regressions + slowapi rate-limit cross-test contamination.
+- **Active blockers**: #19 needs Stripe Connect setup from user before it can ship.
 
 ---
 
@@ -130,10 +133,10 @@ Per feedback 2026-04-18. Run A → C → D → E. **B is deferred entirely.**
 **Modified order (2026-04-28): pull #18 first.** Without test coverage, the Phase D migration breaks things invisibly. Bug #53 (Facebook follower count regression) and the disappearing Next-button fix are exactly the kind of regressions a pytest suite catches.
 
 Run in this order:
-1. **#18 Automated test suite (pytest)** — deps `#10`, `#11`. **Non-negotiable, must come first.**
-2. #44 ARQ worker entrypoint — required before paying users
+1. ~~**#18 Automated test suite (pytest)**~~ ✅ done 2026-04-30 — 80 tests pass in 10.2s. New: quality_gate (12) + trust (4) + matching_cache (4). Verification Procedure in `docs/specs/infra.md`.
+2. #44 ARQ worker entrypoint — required before paying users (next)
 3. #45 Alembic baseline migration — locks the schema before Phase D ports it
-4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65
+4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73
 5. #27 Server-side post URL dedup
 6. #28 ToS + privacy policy acceptance in registration
 7. Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation)
@@ -208,7 +211,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | Task | Title | Status |
 |------|-------|--------|
 | #71 | BUG: Wizard create-and-activate skips audit_log + AI review | ✅ done 2026-04-29 23:01 — 5/5 ACs PASS via `scripts/uat/verify_task71_72.py` |
-| #72 | POLISH: Tighten AI review prompt for niche-mismatch cases | ✅ done 2026-04-29 23:01 — 3/3 ACs PASS, 3/3 mismatch fixtures caught |
+| #72 | ~~POLISH: Tighten AI review prompt for niche-mismatch cases~~ | ⏪ **REVERTED 2026-04-30** — companies own targeting decisions, AI doesn't review. Full reversal record: `docs/uat/reports/task-72-2026-04-30-REVERTED.md` |
 | #73 | BUG: gemini-1.5-flash returns 404 in AI review provider chain | 📋 pending (low) — Phase C cleanup |
 
 ---
@@ -247,7 +250,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 
 **Active blockers (need user)**: Task #19 requires user to set up Stripe Connect + bank onboarding before it can be implemented. Phase D Stripe work (#19) can run in parallel with the UI migrations once Stripe is set up.
 
-**Tasks.json status (2026-04-29 23:01):** 31 done / 24 pending / 18 deferred / 73 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging), #69 (nvidia, deferred), #70 (BYOK) are in tasks.json. #71 (wizard audit_log + AI review) and #72 (niche prompt tightening) shipped overnight 2026-04-29 — 5/5 + 3/3 ACs PASS. #73 (gemini-1.5-flash 404) filed pending. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
+**Tasks.json status (2026-04-30 09:23):** 31 done / 23 pending / 19 deferred / 73 total. Tasks #66 (dashboards-htmx), #67 (creator-app-split), #68 (stealth-and-packaging), #69 (nvidia, deferred), #70 (BYOK) are in tasks.json. #71 (wizard audit_log + AI review) shipped 2026-04-29 — 5/5 ACs PASS. **#72 REVERTED 2026-04-30** (companies own their targeting; AI doesn't second-guess) — moved to deferred with `[REVERTED]` prefix. **#18 (pytest suite) shipped 2026-04-30** — 80 tests pass in 10.2s, including 20 new + cleanup of pre-existing test rot. #73 (gemini-1.5-flash 404) filed pending. #20 / #21 carry status `deferred` (functionally equivalent to `superseded` — both mean "won't be built as originally scoped, see migration docs"). #54 is `done`.
 
 ---
 

@@ -366,3 +366,111 @@ Task #45 is marked done in task-master ONLY when:
 3. `git status` clean at end of run (no model edits left over)
 4. UAT report `docs/uat/reports/task-45-<yyyy-mm-dd>-<hhmm>.md` written with the autogenerate diff included verbatim
 5. Production `alembic current` re-checked at end (AC3) — still at head, not accidentally bumped
+
+---
+
+## Task #18 — Automated pytest suite (money loop + quality gate + trust + matching)
+
+### What It Does
+
+Pytest unit suite covering three service layers with no external dependencies: the 8-criterion campaign quality gate rubric (`score_campaign()`), trust event adjustments (`adjust_trust()`), and matching score cache CRUD and TTL invalidation. Builds on existing billing and campaign tests already in `tests/server/`. All tests run against in-memory SQLite (via `tests/conftest.py`) — no real AI calls, no network, no Postgres required.
+
+- `tests/server/test_billing.py` — 43 cases: earnings formula, tier promotion, hold periods, dedup (existing)
+- `tests/server/test_campaigns.py` — CRUD + matching hard filters (existing)
+- `tests/server/test_auth.py` — JWT auth flows (existing)
+- `server/tests/test_billing_calcs.py` — pure-math billing (existing)
+- `tests/server/test_quality_gate.py` — 12 tests: all 8 rubric criteria + hard-fail veto (new)
+- `tests/server/test_trust.py` — 4 tests: event deltas, clamping, unknown event (new)
+- `tests/server/test_matching_cache.py` — 4 tests: TTL hit/miss, campaign edit invalidation, user refresh invalidation (new)
+
+---
+
+## Verification Procedure — Task #18
+
+> Format: `docs/uat/AC-FORMAT.md`. All ACs run locally — in-memory SQLite, no VPS, no external services.
+
+### Preconditions
+
+- Repo on branch `flask-user-app`, working tree clean.
+- `pip install -r requirements-test.txt` (installs pytest 8.0+, pytest-asyncio 0.24+, httpx, aiosqlite).
+- `pyproject.toml` has `testpaths = ["tests"]` and `asyncio_mode = "auto"`.
+
+### Test data setup
+
+None. All tests use in-memory SQLite via `tests/conftest.py`. No seeding required.
+
+### Test-mode flags
+
+None.
+
+---
+
+### AC1 — Existing tests still green (regression guard)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | `cd /c/Users/dassa/Work/Auto-Posting-System && pytest tests/server/test_billing.py tests/server/test_campaigns.py tests/server/test_auth.py -v` |
+| **Expected** | All tests PASS. Zero `ERROR` or `FAILED` lines. |
+| **Automated** | yes |
+| **Automation** | command above |
+| **Evidence** | pytest stdout |
+| **Cleanup** | none |
+
+### AC2 — Quality gate rubric: 12 tests green
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | `pytest tests/server/test_quality_gate.py -v` |
+| **Expected** | 12 tests PASS. Covers all 8 criteria (brief, guidance, payout, targeting, assets, title, dates, budget) + hard-fail veto for each hard-fail criterion. Zero `ERROR` or `FAILED` lines. |
+| **Automated** | yes |
+| **Automation** | command above |
+| **Evidence** | pytest stdout |
+| **Cleanup** | none |
+
+### AC3 — Trust events: 4 tests green
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | `pytest tests/server/test_trust.py -v` |
+| **Expected** | 4 tests PASS: clamping at 0 and 100, `post_verified_live_24h` increment, `confirmed_fake_metrics` severe decrement, unknown event no-op. Zero `ERROR` or `FAILED` lines. |
+| **Automated** | yes |
+| **Automation** | command above |
+| **Evidence** | pytest stdout |
+| **Cleanup** | none |
+
+### AC4 — Matching cache: 4 tests green
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | `pytest tests/server/test_matching_cache.py -v` |
+| **Expected** | 4 tests PASS: TTL hit, TTL miss/eviction, campaign edit invalidation, user profile refresh invalidation. Zero `ERROR` or `FAILED` lines. |
+| **Automated** | yes |
+| **Automation** | command above |
+| **Evidence** | pytest stdout |
+| **Cleanup** | none |
+
+### AC5 — Full suite: all tests green, wall clock < 60s
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None. |
+| **Action** | `pytest tests/ -v` |
+| **Expected** | All tests PASS. Zero `error`/`exception`/`traceback` lines (case-insensitive). Suite completes in < 60 seconds wall clock. |
+| **Automated** | yes |
+| **Automation** | command above |
+| **Evidence** | pytest stdout including timing summary |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #18
+
+Task #18 is marked done in task-master ONLY when:
+1. AC1–AC5 all PASS
+2. Zero `FAILED` or `ERROR` lines in `pytest tests/ -v` output
+3. No skipped tests outside of explicit `@pytest.mark.skip` decorators
+4. Suite wall clock < 60s
