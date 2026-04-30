@@ -1019,8 +1019,8 @@
       {
         "id": 68,
         "title": "Migration: Stealth + packaging (Patchright + Nuitka + installers)",
-        "description": "Replace Playwright with Patchright. Build Nuitka native binary. Inno Setup (Windows) + pkgbuild (Mac) installers. GitHub Releases + auto-update. No code signing v1. 12 ACs. Depends on #67. See docs/migrations/2026-04-28-migration-stealth-and-packaging.md.",
-        "status": "pending",
+        "description": "Replace Playwright with Patchright. Build Nuitka native binary. Inno Setup (Windows) + pkgbuild (Mac) installers. GitHub Releases + auto-update. No code signing v1. 12 ACs. Depends on #67. See docs/migrations/2026-04-28-migration-stealth-and-packaging.md. PARTIAL 2026-05-01: AC-1, AC-2, AC-11, AC-12 verified. AC-3, AC-5, AC-7, AC-8 code shipped, awaits v1.0.0 release tag. AC-4, AC-6 deferred (no Mac).",
+        "status": "partial",
         "priority": "high",
         "dependencies": [
           "67",
