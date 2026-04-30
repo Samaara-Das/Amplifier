@@ -20,16 +20,24 @@ if _db_url.startswith("sqlite"):
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
     _engine_kwargs["poolclass"] = StaticPool
 elif _db_url.startswith("postgresql"):
-    # Supabase requires SSL
-    _ssl_ctx = ssl.create_default_context()
-    _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode = ssl.CERT_NONE
-    _engine_kwargs["connect_args"] = {
-        "ssl": _ssl_ctx,
-        # Required for Supabase transaction pooler (pgbouncer on port 6543)
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0,
-    }
+    # Local Postgres (docker-compose) rejects SSL; Supabase requires it.
+    _is_local_pg = "localhost" in _db_url or "127.0.0.1" in _db_url
+    if _is_local_pg:
+        _engine_kwargs["connect_args"] = {
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+        }
+    else:
+        # Supabase requires SSL
+        _ssl_ctx = ssl.create_default_context()
+        _ssl_ctx.check_hostname = False
+        _ssl_ctx.verify_mode = ssl.CERT_NONE
+        _engine_kwargs["connect_args"] = {
+            "ssl": _ssl_ctx,
+            # Required for Supabase transaction pooler (pgbouncer on port 6543)
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+        }
     # NullPool is recommended for serverless — no persistent connections
     _engine_kwargs["poolclass"] = NullPool
 

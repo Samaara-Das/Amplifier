@@ -1,0 +1,19 @@
+[Unit]
+Description=Amplifier ARQ background worker
+After=network.target redis-server.service amplifier-web.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=amplifier
+WorkingDirectory=/home/amplifier/app/server
+EnvironmentFile=/home/amplifier/app/server/.env
+EnvironmentFile=/etc/amplifier/worker.env
+ExecStart=/home/amplifier/app/server/.venv/bin/arq app.worker.WorkerSettings
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
