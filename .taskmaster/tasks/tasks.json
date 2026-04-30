@@ -756,9 +756,9 @@
         "id": 52,
         "title": "Backfill Verification Procedure blocks for Batch 5 polish tasks (#23-#28)",
         "description": "Append blocks for #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (form validation), #27 (post URL dedup), #28 (ToS acceptance). Most are 3-5 ACs each - small UI/server changes with simple verification. #28 has a registration flow AC requiring Chrome DevTools MCP form-fill. #27 needs API-level dedup AC + curl test. #23 needs cron-trigger + file-existence AC.",
-        "details": "Lower priority than #50 and #51 - these tasks aren't on the critical launch path.",
+        "details": "Lower priority than #50 and #51 - these tasks aren't on the critical launch path.\n\nClosed 2026-04-30: scope absorbed. AC blocks for #23/#27/#28 shipped inline with their implementation PRs. #24/#25/#26 deferred (target dead Flask templates) — requirements folded into docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md.",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           51
         ],
@@ -767,7 +767,7 @@
         "metadata": {
           "batch": "uat-infra"
         },
-        "updatedAt": "2026-04-25T13:45:37.378929Z"
+        "updatedAt": "2026-04-30T13:21:29.086241+00:00"
       },
       {
         "id": 53,

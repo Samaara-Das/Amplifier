@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **44 done** · **8 pending** · **22 deferred** · 0 in-progress · **74 total**
+- **45 done** · **7 pending** · **22 deferred** · 0 in-progress · **74 total**
 
 > **Phase C COMPLETE 2026-04-30** ✅ All 7 items shipped or rationally deferred: #18 pytest, #44 ARQ worker, #45 Alembic baseline, bug-cleanup batch, #27 post URL dedup, #28 ToS gate, #23 DB backup. #24/#25/#26 deferred into Phase D HTMX migration. Pre-launch tests + safety net + legal gate are all in place. Server LIVE at `https://api.pointcapitalis.com`.
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
@@ -185,7 +185,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #49 | First real `/uat-task 14` run + capture learnings | ✅ done (2026-04-26) |
 | #50 | Backfill Verification Procedure for #15, #44, #45 | ✅ done 2026-04-29 — #15 ACs in batch-2-ai-brain.md (14 ACs); #44 + #45 ACs in new docs/specs/infra.md (10 + 7 ACs). |
 | #51 | Backfill Verification Procedure for Batch 4 (#19, #22) | ✅ done 2026-04-30 — #19 has 13 ACs (Stripe MCP autonomous setup + test-mode → live smoke); #22 has 8 ACs (perf, dual-audience, OG tags, mobile, FAQ). |
-| #52 | Backfill Verification Procedure for polish tasks (#23–28) | 📋 pending |
+| #52 | Backfill Verification Procedure for polish tasks (#23–28) | ✅ done 2026-04-30 — scope absorbed. AC blocks for #23/#27/#28 shipped inline with their PRs. #24/#25/#26 deferred (dead-template polish) — requirements folded into Phase D HTMX migration doc. |
 | #74 | **Pre-launch comprehensive UAT** — user app + company dashboard + admin dashboard, all features driven via Chrome DevTools MCP. 3 sub-tasks, ~50–70 ACs. Phase E entry gate. | 📋 pending (high) |
 
 ### Server / infra one-offs
