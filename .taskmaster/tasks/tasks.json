@@ -1076,6 +1076,38 @@
         "description": "server/app/services/quality_gate.py _run_gemini_review chain retries gemini-2.0-flash → gemini-1.5-flash → Mistral → Groq. Gemini 1.5-flash now returns 404 NOT_FOUND for v1beta API ('models/gemini-1.5-flash is not found ... or is not supported for generateContent'). Retry step is dead. Replace with 'gemini-1.5-flash-latest' or 'gemini-1.5-flash-002' or remove from chain. Discovered 2026-04-29 22:35 IST in prod logs while deploying #71+#72 — server fell through correctly to Mistral.",
         "details": "Quick fix: replace model id in the retry list. Tested in prod logs: error message 'models/gemini-1.5-flash is not found for API version v1beta'.",
         "testStrategy": "After fix: trigger an activate, observe server log shows gemini-1.5-flash-latest succeeded OR was tried before falling to Mistral. No 404 NOT_FOUND lines."
+      },
+      {
+        "id": 74,
+        "title": "Comprehensive UAT — user app, company dashboard, admin dashboard",
+        "description": "Pre-launch UAT gate. Drive every page, every form, every button across all three user-facing surfaces (local user app at :5222, company dashboard at /company/*, admin dashboard at /admin/*). Catch console errors, broken empty states, dead buttons, copy bugs, missing CTAs, and any feature that ships but doesn't actually work end-to-end.",
+        "details": "Three sub-surfaces, each with its own Verification Procedure block in docs/specs/ following docs/uat/AC-FORMAT.md. (1) USER APP: onboarding, login, campaigns tab (open invitations / active / declined), drafts review (text + image), approve+post flow with real platform post then delete, earnings page (summary + per-campaign + history), withdraw flow (with and without Stripe Connect), settings (platforms, API keys, region, mode), background agent control (start/stop, status). (2) COMPANY DASHBOARD: register, login, dashboard cards, campaigns list + filters, create campaign (manual + AI wizard), campaign detail (assignments, posts, metrics, decline reasons, edit, activate, complete, cancel, refund), billing top-up (Stripe test card), influencers list, stats, settings. (3) ADMIN DASHBOARD: login, overview, users + user detail, companies + company detail, campaigns + campaign detail, financial (run-billing, run-payout, run-earning-promotion, run-payout-processing, void payout, force-approve payout), fraud, analytics, review queue (approve/reject queued campaigns), audit log filters, settings. Use Chrome DevTools MCP for verification (snapshot DOM, list_console_messages, list_network_requests, screenshots). Use Playwright only for the real-platform-posting AC. Refuses 'done' until: every page loads with zero console errors, every CTA leads to expected next state, audit_log has zero severity=error during the run, every screenshot embedded in report. Estimated ~50-70 ACs total across the 3 sub-tasks.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [],
+        "metadata": {
+          "tier": 4,
+          "phase": "pre-launch-gate"
+        },
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "User app full sweep (/uat-task 74.1)",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Company dashboard full sweep (/uat-task 74.2)",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Admin dashboard full sweep (/uat-task 74.3)",
+            "status": "pending"
+          }
+        ],
+        "testStrategy": "Three /uat-task runs, one per surface. Each writes its own report to docs/uat/reports/task-74-<sub>-<date>.md. Aggregate PASS rule: all 3 sub-task reports show every AC PASS, zero error-level console messages across all pages, zero severity=error rows in audit_log during the UAT window.",
+        "createdAt": "2026-04-30T12:40:07.444697Z"
       }
     ],
     "metadata": {

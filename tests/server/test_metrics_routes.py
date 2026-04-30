@@ -103,6 +103,109 @@ class TestPostRegister:
         assert resp.json()["count"] == 0
 
 
+class TestPostRegisterDedup:
+    async def test_register_posts_dedups_same_url(self, client, db_session, factory):
+        user = await factory.create_user(db_session, email="dedup-url@test.com")
+        company = await factory.create_company(db_session, email="dedup-url-co@test.com")
+        campaign = await factory.create_campaign(db_session, company_id=company.id)
+        assignment = await factory.create_assignment(db_session, campaign_id=campaign.id, user_id=user.id)
+        await db_session.commit()
+
+        now = datetime.now(timezone.utc)
+        payload = {
+            "posts": [{
+                "assignment_id": assignment.id,
+                "platform": "reddit",
+                "post_url": "https://reddit.com/r/test/comments/dedup-task27",
+                "content_hash": "hash1",
+                "posted_at": now.isoformat(),
+            }]
+        }
+        auth = {"Authorization": f"Bearer {_user_token(user.id)}"}
+
+        resp1 = await client.post("/api/posts", headers=auth, json=payload)
+        assert resp1.status_code == 200
+        d1 = resp1.json()
+        assert d1["count"] == 1
+        assert d1["skipped_duplicate"] == 0
+
+        resp2 = await client.post("/api/posts", headers=auth, json=payload)
+        assert resp2.status_code == 200
+        d2 = resp2.json()
+        assert d2["count"] == 0
+        assert d2["skipped_duplicate"] == 1
+
+        # Only 1 row in posts table for this URL
+        result = await db_session.execute(
+            select(Post).where(Post.post_url == "https://reddit.com/r/test/comments/dedup-task27")
+        )
+        posts = result.scalars().all()
+        assert len(posts) == 1
+
+    async def test_register_posts_two_different_urls_both_created(self, client, db_session, factory):
+        user = await factory.create_user(db_session, email="two-urls@test.com")
+        company = await factory.create_company(db_session, email="two-urls-co@test.com")
+        campaign = await factory.create_campaign(db_session, company_id=company.id)
+        assignment = await factory.create_assignment(db_session, campaign_id=campaign.id, user_id=user.id)
+        await db_session.commit()
+
+        now = datetime.now(timezone.utc)
+        resp = await client.post(
+            "/api/posts",
+            headers={"Authorization": f"Bearer {_user_token(user.id)}"},
+            json={
+                "posts": [
+                    {
+                        "assignment_id": assignment.id,
+                        "platform": "linkedin",
+                        "post_url": "https://linkedin.com/posts/task27-url-a",
+                        "content_hash": "hasha",
+                        "posted_at": now.isoformat(),
+                    },
+                    {
+                        "assignment_id": assignment.id,
+                        "platform": "linkedin",
+                        "post_url": "https://linkedin.com/posts/task27-url-b",
+                        "content_hash": "hashb",
+                        "posted_at": now.isoformat(),
+                    },
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 2
+        assert data["skipped_duplicate"] == 0
+
+    async def test_register_posts_response_shape(self, client, db_session, factory):
+        user = await factory.create_user(db_session, email="shape-check@test.com")
+        company = await factory.create_company(db_session, email="shape-check-co@test.com")
+        campaign = await factory.create_campaign(db_session, company_id=company.id)
+        assignment = await factory.create_assignment(db_session, campaign_id=campaign.id, user_id=user.id)
+        await db_session.commit()
+
+        now = datetime.now(timezone.utc)
+        resp = await client.post(
+            "/api/posts",
+            headers={"Authorization": f"Bearer {_user_token(user.id)}"},
+            json={
+                "posts": [{
+                    "assignment_id": assignment.id,
+                    "platform": "facebook",
+                    "post_url": "https://facebook.com/posts/task27-shape",
+                    "content_hash": "shape1",
+                    "posted_at": now.isoformat(),
+                }]
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "created" in data
+        assert "count" in data
+        assert "skipped_duplicate" in data
+        assert "skipped_invalid_assignment" in data
+
+
 class TestMetricsSubmit:
     async def test_submit_metrics_creates_payout(self, client, db_session, factory):
         user, assignment, campaign, post = await _seed_post_chain(db_session, factory)

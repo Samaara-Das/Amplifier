@@ -2,7 +2,13 @@
   "mcpServers": {
     "tradingview": {
       "command": "node",
-      "args": ["C:/Users/dassa/tradingview-mcp-jackson/src/server.js"]
+      "args": [
+        "C:/Users/dassa/tradingview-mcp-jackson/src/server.js"
+      ]
+    },
+    "stripe": {
+      "type": "http",
+      "url": "https://mcp.stripe.com/"
     }
   }
 }

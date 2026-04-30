@@ -519,3 +519,95 @@ Replaces deprecated bare model ID `gemini-1.5-flash` (returns 404 from Google Ge
 
 - AC1 PASS (grep returns empty for bare `gemini-1.5-flash`)
 - `pytest tests/server/test_quality_gate.py -v` → all tests PASS
+
+---
+
+## Task #27 — Server-side post URL dedup
+
+### What It Does
+
+Adds app-level deduplication to `POST /api/posts` (`register_posts` in `server/app/routers/metrics.py`). Before inserting a new `Post` row, the endpoint checks whether a row with the same `post_url` already exists. If it does, the post is silently skipped and `skipped_duplicate` is incremented. Also makes the existing invalid-assignment skip observable via `skipped_invalid_assignment`. Response gains two new fields: `skipped_duplicate` and `skipped_invalid_assignment`. No schema change — no Alembic migration required.
+
+### Files Changed
+
+- `server/app/routers/metrics.py` — `register_posts()` updated with URL dedup query and extended response shape.
+- `tests/server/test_metrics_routes.py` — 3 new tests added in `TestPostRegisterDedup` class.
+
+---
+
+## Verification Procedure — Task #27
+
+**Preconditions**:
+- Repo on branch `flask-user-app`, working tree clean.
+- `pip install -r requirements-test.txt` (pytest, pytest-asyncio, httpx, aiosqlite).
+- Server live at `https://api.pointcapitalis.com` with a valid user account for AC4.
+
+**Test data setup**: None — unit tests are self-contained (in-memory SQLite).
+
+**Test-mode flags**: None.
+
+---
+
+### AC1: Same URL submitted twice results in 1 DB row and skipped_duplicate=1
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None (in-memory test DB). |
+| **Action** | `pytest tests/server/test_metrics_routes.py::TestPostRegisterDedup::test_register_posts_dedups_same_url -v` |
+| **Expected** | PASS. First POST: `count=1`, `skipped_duplicate=0`. Second POST: `count=0`, `skipped_duplicate=1`. Only 1 row in `posts` table for that URL. |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_metrics_routes.py::TestPostRegisterDedup::test_register_posts_dedups_same_url` |
+| **Evidence** | pytest stdout — `1 passed` |
+| **Cleanup** | none |
+
+---
+
+### AC2: Two distinct URLs in a single batch both created
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None (in-memory test DB). |
+| **Action** | `pytest tests/server/test_metrics_routes.py::TestPostRegisterDedup::test_register_posts_two_different_urls_both_created -v` |
+| **Expected** | PASS. `count=2`, `skipped_duplicate=0`. |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_metrics_routes.py::TestPostRegisterDedup::test_register_posts_two_different_urls_both_created` |
+| **Evidence** | pytest stdout — `1 passed` |
+| **Cleanup** | none |
+
+---
+
+### AC3: Response JSON contains all 4 expected keys
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None (in-memory test DB). |
+| **Action** | `pytest tests/server/test_metrics_routes.py::TestPostRegisterDedup::test_register_posts_response_shape -v` |
+| **Expected** | PASS. Response has keys: `created`, `count`, `skipped_duplicate`, `skipped_invalid_assignment`. |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_metrics_routes.py::TestPostRegisterDedup::test_register_posts_response_shape` |
+| **Evidence** | pytest stdout — `1 passed` |
+| **Cleanup** | none |
+
+---
+
+### AC4: Live prod smoke — dedup works end-to-end against api.pointcapitalis.com
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Valid user account exists on prod. Obtain a JWT: `curl -s -X POST https://api.pointcapitalis.com/api/auth/user/login -H "Content-Type: application/json" -d '{"email":"<EMAIL>","password":"<PASS>"}' \| jq -r .access_token` — capture as `$TOKEN`. Obtain a valid `assignment_id` for an active campaign (`GET /api/invitations/active`). |
+| **Action** | POST the same URL twice: `curl -s -X POST https://api.pointcapitalis.com/api/posts -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"posts":[{"assignment_id":<ID>,"platform":"linkedin","post_url":"https://linkedin.com/posts/uat-task27-smoke","content_hash":"uat27","posted_at":"2026-04-30T12:00:00Z"}]}' \| jq .` — repeat the same curl. |
+| **Expected** | First call: `{"created":[{"id":N,"platform":"linkedin"}],"count":1,"skipped_duplicate":0,"skipped_invalid_assignment":0}`. Second call: `{"created":[],"count":0,"skipped_duplicate":1,"skipped_invalid_assignment":0}`. |
+| **Automated** | no |
+| **Automation** | manual |
+| **Evidence** | JSON output of both curl calls captured in terminal. |
+| **Cleanup** | Delete the UAT post row from prod DB: `ssh sammy@31.97.207.162 "psql \$DATABASE_URL -c \"DELETE FROM posts WHERE post_url='https://linkedin.com/posts/uat-task27-smoke';\""` |
+
+---
+
+### Aggregated PASS rule for Task #27
+
+Task #27 is marked done in task-master ONLY when:
+1. AC1, AC2, AC3 PASS (all 3 pytest tests green)
+2. AC4 PASS (manual prod smoke confirms dedup behavior)
+3. `pytest tests/server/test_metrics_routes.py -v` → all 9 tests PASS (3 new + 6 existing)
+4. `pytest tests/ -v` → no regressions, total count = 188

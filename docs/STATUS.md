@@ -27,7 +27,7 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **41 done** · **13 pending** · **19 deferred** · 0 in-progress · **73 total**
+- **41 done** · **14 pending** · **19 deferred** · 0 in-progress · **74 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Worker**: ✅ LIVE as `amplifier-worker.service` on the same VPS since 2026-04-30 06:17 UTC. 4 cron jobs running.
 - **Schema migrations**: ✅ Alembic baseline `c5967048d886` stamped on prod 2026-04-30. All future model changes flow through `server/alembic/versions/`.
@@ -165,7 +165,8 @@ Run in this order:
 **Sequencing rationale:** Dashboards must come first because the creator-app-split's hosted creator pages (`/user/*`) depend on the new `base.html`. Creator-app-split must come before stealth-and-packaging because the strip-down to local FastAPI must happen before the Nuitka build (otherwise dead Flask templates and CSS bloat the binary).
 
 ### Phase E — Launch 📋
-- #22 Landing page — last, links to new installer from Phase D
+- **#74 Comprehensive UAT — user app + company dashboard + admin dashboard** (pre-launch gate, MUST pass before #22). Drives every page, every form, every button across all 3 surfaces. ~50–70 ACs across 3 sub-tasks (74.1 user app, 74.2 company, 74.3 admin). AC blocks live in `docs/specs/` and follow `docs/uat/AC-FORMAT.md`.
+- #22 Landing page — last, links to new installer from Phase D. Only opens for traffic after #74 passes.
 
 ---
 
@@ -183,6 +184,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #50 | Backfill Verification Procedure for #15, #44, #45 | ✅ done 2026-04-29 — #15 ACs in batch-2-ai-brain.md (14 ACs); #44 + #45 ACs in new docs/specs/infra.md (10 + 7 ACs). |
 | #51 | Backfill Verification Procedure for Batch 4 (#19, #22) | ✅ done 2026-04-30 — #19 has 13 ACs (Stripe MCP autonomous setup + test-mode → live smoke); #22 has 8 ACs (perf, dual-audience, OG tags, mobile, FAQ). |
 | #52 | Backfill Verification Procedure for polish tasks (#23–28) | 📋 pending |
+| #74 | **Pre-launch comprehensive UAT** — user app + company dashboard + admin dashboard, all features driven via Chrome DevTools MCP. 3 sub-tasks, ~50–70 ACs. Phase E entry gate. | 📋 pending (high) |
 
 ### Server / infra one-offs
 | Task | Title | Status |
@@ -269,6 +271,7 @@ Every task spec ends with a `## Verification Procedure — Task #<id>` block fol
 - #45 (Alembic baseline) — owner: Task **#50**
 - #17, #19, #22 (Batch 4) — owner: Task **#51**
 - #23–#28 (polish) — owner: Task **#52**
+- #74 (pre-launch UAT) — three sub-task AC blocks (74.1/74.2/74.3) authored as part of #74 itself. Block must exist before launch and is itself the launch gate.
 - New migration tasks #66, #67, #68 already have inline ACs in their migration docs (each migration doc has an Acceptance Criteria section that follows the same shape).
 
 ---

@@ -26,6 +26,8 @@ async def register_posts(
 ):
     """Register posted content URLs with the server."""
     created = []
+    skipped_duplicate = 0
+    skipped_invalid_assignment = 0
     for post_data in data.posts:
         # Verify assignment belongs to this user
         result = await db.execute(
@@ -38,7 +40,16 @@ async def register_posts(
         )
         assignment = result.scalar_one_or_none()
         if not assignment:
-            continue  # Skip invalid assignments silently
+            skipped_invalid_assignment += 1
+            continue
+
+        # Dedup: skip if a post with this URL already exists
+        existing = await db.execute(
+            select(Post.id).where(Post.post_url == post_data.post_url)
+        )
+        if existing.scalar_one_or_none() is not None:
+            skipped_duplicate += 1
+            continue
 
         post = Post(
             assignment_id=post_data.assignment_id,
@@ -51,7 +62,12 @@ async def register_posts(
         await db.flush()
         created.append({"id": post.id, "platform": post.platform})
 
-    return {"created": created, "count": len(created)}
+    return {
+        "created": created,
+        "count": len(created),
+        "skipped_duplicate": skipped_duplicate,
+        "skipped_invalid_assignment": skipped_invalid_assignment,
+    }
 
 
 @router.post("/metrics")
