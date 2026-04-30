@@ -199,22 +199,23 @@ async def upload_campaign_asset(
     return JSONResponse(result)
 
 
-@router.get("/campaigns/create", response_class=HTMLResponse)
-async def campaign_create_manual_page(
-    request: Request,
-    company: Company | None = Depends(get_company_from_cookie),
-):
-    """Manual campaign creation — HTMX multi-step wizard with localStorage autosave."""
-    if not company:
-        return _login_redirect()
-    return _render("company/campaign_create.html", company=company, active_page="campaigns", form=None, error=None)
-
-
 @router.get("/campaigns/new", response_class=HTMLResponse)
 async def campaign_create_page(
     request: Request,
     company: Company | None = Depends(get_company_from_cookie),
 ):
+    """Manual campaign creation — HTMX multi-step wizard with localStorage autosave (AC4, AC5)."""
+    if not company:
+        return _login_redirect()
+    return _render("company/campaign_create.html", company=company, active_page="create", form=None, error=None)
+
+
+@router.get("/campaigns/ai-wizard", response_class=HTMLResponse)
+async def campaign_ai_wizard_page(
+    request: Request,
+    company: Company | None = Depends(get_company_from_cookie),
+):
+    """AI-powered campaign wizard."""
     if not company:
         return _login_redirect()
 

@@ -34,13 +34,13 @@ def _reset_rate_limiter():
 
 
 class TestCompanyWizardPage:
-    """GET /company/campaigns/create — manual wizard page renders."""
+    """GET /company/campaigns/new — manual wizard page renders."""
 
     async def test_wizard_page_renders_200(self, client, db_session, factory):
         company = await factory.create_company(db_session, email="wiz1@co.com")
         await db_session.commit()
         client.cookies.set("company_token", _make_company_token(company.id))
-        resp = await client.get("/company/campaigns/create")
+        resp = await client.get("/company/campaigns/new")
         assert resp.status_code == 200
         assert "traceback" not in resp.text.lower()
 
@@ -49,7 +49,7 @@ class TestCompanyWizardPage:
         company = await factory.create_company(db_session, email="wiz2@co.com")
         await db_session.commit()
         client.cookies.set("company_token", _make_company_token(company.id))
-        resp = await client.get("/company/campaigns/create")
+        resp = await client.get("/company/campaigns/new")
         assert resp.status_code == 200
         assert "autosave" in resp.text
         assert "wizard_draft" in resp.text
@@ -59,7 +59,7 @@ class TestCompanyWizardPage:
         company = await factory.create_company(db_session, email="wiz3@co.com")
         await db_session.commit()
         client.cookies.set("company_token", _make_company_token(company.id))
-        resp = await client.get("/company/campaigns/create")
+        resp = await client.get("/company/campaigns/new")
         assert resp.status_code == 200
         # All 4 step sections should be present as x-show divs
         assert resp.text.count('x-show="currentStep') >= 4
@@ -67,7 +67,7 @@ class TestCompanyWizardPage:
         assert 'action="/company/campaigns/new"' in resp.text
 
     async def test_wizard_unauthenticated_redirects(self, client):
-        resp = await client.get("/company/campaigns/create", follow_redirects=False)
+        resp = await client.get("/company/campaigns/new", follow_redirects=False)
         assert resp.status_code in (302, 303)
 
 
@@ -84,7 +84,7 @@ class TestCampaignCreateE2E:
         client.cookies.set("company_token", _make_company_token(company.id))
 
         # Get CSRF token first (required by CSRFMiddleware for form POSTs)
-        get_resp = await client.get("/company/campaigns/create")
+        get_resp = await client.get("/company/campaigns/new")
         csrf = get_resp.cookies.get("csrf_token") or ""
 
         now = datetime.now(timezone.utc)

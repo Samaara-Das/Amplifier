@@ -85,10 +85,8 @@
 </div>
 
 <!-- Budget burn-down chart -->
-{% set chart = budget_chart_json | tojson if budget_chart_json is string else '{}' %}
 <script type="application/json" id="budget-data">{{ budget_chart_json | safe }}</script>
-{% set bcd = budget_chart_json %}
-{% if bcd and bcd != '{"labels": [], "datasets": []}' %}
+{% if budget_chart_json and budget_chart_json != '{"labels": [], "datasets": []}' %}
 <div class="card" style="margin-bottom: 24px;">
     <div class="card-title" style="display:flex;align-items:center;gap:10px;">
         Budget Burn-down
