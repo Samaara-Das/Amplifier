@@ -27,7 +27,9 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **45 done** · **7 pending** · **22 deferred** · 0 in-progress · **74 total**
+- **46 done** · **6 pending** · **22 deferred** · 0 in-progress · **74 total**
+
+> **Phase D #66 SHIPPED 2026-04-30 23:41 IST.** Dashboards HTMX upgrade: 5 chunks (foundation → creator surface → admin HTMX → company HTMX → polish), merged to flask-user-app as `d10bce9`, deployed to api.pointcapitalis.com. **6 critical bugs caught via real-browser smoke** (none would have been caught by 238 passing pytest tests): SSE EventSource auth must be cookie not Bearer; alpine-helpers.js must load BEFORE alpinejs (defer-order trap); x-teleport requires `<template>` not `<div>`; missing `x-data` on layout root; X platform leaked into wizard checkbox group; bulk-suspend `hx-vals='js:'` evaluates in document scope, not Alpine reactive scope. 11/34 ACs verified locally via Chrome DevTools MCP + 1 real campaign create+activate flow. Lessons saved to MemPalace `discoveries` for Task #67 (next, bigger rewrite).
 
 > **Phase C COMPLETE 2026-04-30** ✅ All 7 items shipped or rationally deferred: #18 pytest, #44 ARQ worker, #45 Alembic baseline, bug-cleanup batch, #27 post URL dedup, #28 ToS gate, #23 DB backup. #24/#25/#26 deferred into Phase D HTMX migration. Pre-launch tests + safety net + legal gate are all in place. Server LIVE at `https://api.pointcapitalis.com`.
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.

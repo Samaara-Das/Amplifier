@@ -986,8 +986,8 @@
       {
         "id": 66,
         "title": "Migration: Dashboards HTMX upgrade",
-        "description": "Add HTMX+Alpine+Tailwind CDN+Chart.js to existing company/admin Jinja2 templates. New /user/* creator pages on same FastAPI server. 10 ACs. Depends on Task #18 (pytest). See docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md.",
-        "status": "pending",
+        "description": "Add HTMX+Alpine+Tailwind CDN+Chart.js to existing company/admin Jinja2 templates. New /user/* creator pages on same FastAPI server. 10 ACs. Depends on Task #18 (pytest). See docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md. DONE 2026-04-30: 5 chunks shipped (foundation, creator surface, admin HTMX, company HTMX, polish), 6 critical bugs caught via real-browser smoke, 11/34 ACs verified locally, deployed to api.pointcapitalis.com via merge d10bce9.",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "18",
