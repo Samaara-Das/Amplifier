@@ -37,19 +37,52 @@ _HEARTBEAT_SEC = _HEARTBEAT_MS / 1000.0
 async def sse_admin_overview(
     request: Request,
     admin_token: str | None = Cookie(None),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Stream admin-overview events. Requires admin cookie."""
+    """Stream admin-overview KPI events. Requires admin cookie."""
     if not _check_admin(admin_token):
-        raise HTTPException(status_code=403, detail="Admin authentication required")
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+
+    async def _query_kpis(session: AsyncSession) -> dict:
+        from sqlalchemy import select, func
+        from app.models.user import User
+        from app.models.campaign import Campaign
+        from app.models.post import Post
+        from app.models.company import Company
+
+        active_users = await session.scalar(
+            select(func.count()).select_from(User).where(User.status == "active")
+        ) or 0
+        active_campaigns = await session.scalar(
+            select(func.count()).select_from(Campaign).where(Campaign.status == "active")
+        ) or 0
+        posts_today = await session.scalar(
+            select(func.count()).select_from(Post).where(
+                func.date(Post.posted_at) == func.current_date()
+            )
+        ) or 0
+        total_companies_count = await session.scalar(
+            select(func.count()).select_from(Company)
+        ) or 0
+        return {
+            "active_users": active_users,
+            "active_campaigns": active_campaigns,
+            "posts_today": posts_today,
+            "total_companies": total_companies_count,
+        }
 
     async def generator():
         # Initial connection acknowledgement
         yield {"event": "connected", "data": json.dumps({"stream": "admin/overview"})}
-        # Heartbeat loop
+        # KPI stream loop
         while True:
             if await request.is_disconnected():
                 break
-            yield {"event": "ping", "data": json.dumps({"alive": True})}
+            try:
+                kpis = await _query_kpis(db)
+                yield {"event": "kpi_update", "data": json.dumps(kpis)}
+            except Exception:
+                yield {"event": "ping", "data": json.dumps({"alive": True})}
             await asyncio.sleep(_HEARTBEAT_SEC)
 
     return EventSourceResponse(generator())

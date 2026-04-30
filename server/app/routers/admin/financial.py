@@ -1,6 +1,7 @@
 """Admin financial dashboard routes."""
 
-from datetime import datetime, timezone
+import json
+from datetime import datetime, timezone, date, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -50,6 +51,33 @@ async def _fetch_payout_stats(db: AsyncSession):
         "total_budget_spent": total_budget_spent,
         "platform_revenue": platform_revenue,
     }
+
+
+async def _fetch_revenue_30d(db: AsyncSession) -> str:
+    """Return JSON string of last-30-days daily payout totals for Chart.js."""
+    cutoff = date.today() - timedelta(days=29)
+    result = await db.execute(
+        select(
+            func.date(Payout.created_at).label("day"),
+            func.coalesce(func.sum(Payout.amount), 0).label("total"),
+        )
+        .where(Payout.status == "paid")
+        .where(func.date(Payout.created_at) >= cutoff)
+        .group_by(func.date(Payout.created_at))
+        .order_by(func.date(Payout.created_at))
+    )
+    rows = {str(r[0]): float(r[1]) for r in result.all()}
+
+    # Fill all 30 days (0 for missing days)
+    labels, values = [], []
+    for i in range(30):
+        d = cutoff + timedelta(days=i)
+        ds = str(d)
+        # Short label: MM/DD
+        labels.append(f"{d.month}/{d.day}")
+        values.append(rows.get(ds, 0.0))
+
+    return json.dumps({"labels": labels, "values": values})
 
 
 async def _fetch_payouts(db: AsyncSession, page, status_filter, search):
@@ -103,6 +131,7 @@ async def financial_page(
 
     stats = await _fetch_payout_stats(db)
     payouts_list, pagination = await _fetch_payouts(db, page, status, search)
+    revenue_data_json = await _fetch_revenue_30d(db)
     qs = build_query_string(status=status, search=search)
 
     return _render(
@@ -115,6 +144,7 @@ async def financial_page(
         current_status=status,
         qs=qs,
         result_msg=None,
+        revenue_data_json=revenue_data_json,
     )
 
 
@@ -130,6 +160,7 @@ async def run_billing(request: Request, admin_token: str = Cookie(None), db: Asy
 
     stats = await _fetch_payout_stats(db)
     payouts_list, pagination = await _fetch_payouts(db, 1, "", "")
+    revenue_data_json = await _fetch_revenue_30d(db)
 
     return _render(
         "admin/financial.html",
@@ -141,6 +172,7 @@ async def run_billing(request: Request, admin_token: str = Cookie(None), db: Asy
         current_status="",
         qs="",
         result_msg=msg,
+        revenue_data_json=revenue_data_json,
     )
 
 
@@ -156,6 +188,7 @@ async def run_payout(request: Request, admin_token: str = Cookie(None), db: Asyn
 
     stats = await _fetch_payout_stats(db)
     payouts_list, pagination = await _fetch_payouts(db, 1, "", "")
+    revenue_data_json = await _fetch_revenue_30d(db)
 
     return _render(
         "admin/financial.html",
@@ -167,6 +200,7 @@ async def run_payout(request: Request, admin_token: str = Cookie(None), db: Asyn
         current_status="",
         qs="",
         result_msg=msg,
+        revenue_data_json=revenue_data_json,
     )
 
 
@@ -185,6 +219,7 @@ async def run_earning_promotion(request: Request, admin_token: str = Cookie(None
 
     stats = await _fetch_payout_stats(db)
     payouts_list, pagination = await _fetch_payouts(db, 1, "", "")
+    revenue_data_json = await _fetch_revenue_30d(db)
 
     return _render(
         "admin/financial.html",
@@ -196,6 +231,7 @@ async def run_earning_promotion(request: Request, admin_token: str = Cookie(None
         current_status="",
         qs="",
         result_msg=msg,
+        revenue_data_json=revenue_data_json,
     )
 
 
@@ -214,6 +250,7 @@ async def run_payout_processing(request: Request, admin_token: str = Cookie(None
 
     stats = await _fetch_payout_stats(db)
     payouts_list, pagination = await _fetch_payouts(db, 1, "", "")
+    revenue_data_json = await _fetch_revenue_30d(db)
 
     return _render(
         "admin/financial.html",
@@ -225,6 +262,7 @@ async def run_payout_processing(request: Request, admin_token: str = Cookie(None
         current_status="",
         qs="",
         result_msg=msg,
+        revenue_data_json=revenue_data_json,
     )
 
 

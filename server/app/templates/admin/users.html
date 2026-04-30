@@ -13,8 +13,15 @@
 .pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155; }
 .pagination-info { font-size: 13px; color: #64748b; }
 .pagination-links { display: flex; gap: 8px; }
-.pagination-links a { text-decoration: none; }
 tr { cursor: pointer; }
+.bulk-toolbar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #1e3a5f; border: 1px solid #2563eb; border-radius: 8px; margin-bottom: 12px; }
+.bulk-toolbar span { font-size: 13px; color: #93bbfd; }
+/* Modal overlay */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; min-width: 320px; max-width: 400px; }
+.modal-card h3 { font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 12px; }
+.modal-card p { font-size: 14px; color: #94a3b8; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 </style>
 {% endblock %}
 
@@ -24,86 +31,102 @@ tr { cursor: pointer; }
     <span class="badge badge-blue" style="font-size: 14px; padding: 6px 14px;">{{ pagination.total }} total</span>
 </div>
 
-<form method="GET" action="/admin/users" class="filter-bar">
-    <input type="text" name="search" placeholder="Search by email..." value="{{ search }}" />
-    <select name="status" onchange="this.form.submit()">
+<div class="filter-bar">
+    <input
+        type="text"
+        name="search"
+        placeholder="Search by email..."
+        value="{{ search }}"
+        hx-get="/admin/users"
+        hx-target="#users-tbody"
+        hx-push-url="true"
+        hx-trigger="keyup changed delay:300ms"
+        hx-include="[name='status'],[name='sort'],[name='order']"
+    />
+    <select
+        name="status"
+        hx-get="/admin/users"
+        hx-target="#users-tbody"
+        hx-push-url="true"
+        hx-trigger="change"
+        hx-include="[name='search'],[name='sort'],[name='order']"
+    >
         <option value="">All Statuses</option>
         <option value="active" {{ 'selected' if current_status == 'active' }}>Active</option>
         <option value="suspended" {{ 'selected' if current_status == 'suspended' }}>Suspended</option>
         <option value="banned" {{ 'selected' if current_status == 'banned' }}>Banned</option>
     </select>
-    <select name="sort" onchange="this.form.submit()">
+    <select
+        name="sort"
+        hx-get="/admin/users"
+        hx-target="#users-tbody"
+        hx-push-url="true"
+        hx-trigger="change"
+        hx-include="[name='search'],[name='status'],[name='order']"
+    >
         <option value="created_at" {{ 'selected' if sort == 'created_at' }}>Newest First</option>
         <option value="trust_score" {{ 'selected' if sort == 'trust_score' }}>Trust Score</option>
         <option value="total_earned" {{ 'selected' if sort == 'total_earned' }}>Total Earned</option>
         <option value="email" {{ 'selected' if sort == 'email' }}>Email</option>
     </select>
     <input type="hidden" name="order" value="{{ order }}" />
-    <button type="submit" class="btn btn-primary btn-sm">Search</button>
-</form>
+</div>
 
-<div class="card">
-    {% if users %}
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Email</th>
-                <th>Trust Score</th>
-                <th>Mode</th>
-                <th>Platforms</th>
-                <th>Total Earned</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in users %}
-            <tr onclick="window.location='/admin/users/{{ u.id }}'">
-                <td>{{ u.id }}</td>
-                <td><a href="/admin/users/{{ u.id }}">{{ u.email }}</a></td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div class="trust-bar" style="width: 60px;">
-                            <div class="trust-fill" style="width: {{ u.trust_score }}%; background: {{ '#22c55e' if u.trust_score >= 70 else '#facc15' if u.trust_score >= 40 else '#ef4444' }};"></div>
-                        </div>
-                        <span style="font-size: 13px;">{{ u.trust_score }}</span>
-                    </div>
-                </td>
-                <td><span class="badge badge-gray">{{ u.mode }}</span></td>
-                <td>{{ u.platform_count }}</td>
-                <td>${{ "%.2f"|format(u.total_earned) }}</td>
-                <td>
-                    {% if u.status == 'active' %}
-                    <span class="badge badge-green">active</span>
-                    {% elif u.status == 'suspended' %}
-                    <span class="badge badge-yellow">suspended</span>
-                    {% elif u.status == 'banned' %}
-                    <span class="badge badge-red">banned</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div x-data="{ selected: [], confirming: false }">
 
-    {% if pagination.pages > 1 %}
-    <div class="pagination">
-        <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} users)</div>
-        <div class="pagination-links">
-            {% if pagination.has_prev %}
-            <a href="/admin/users?page={{ pagination.page - 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">&larr; Prev</a>
-            {% endif %}
-            {% if pagination.has_next %}
-            <a href="/admin/users?page={{ pagination.page + 1 }}&{{ qs }}" class="btn btn-sm btn-secondary">Next &rarr;</a>
-            {% endif %}
+    <!-- Bulk toolbar (visible when rows selected) -->
+    <div class="bulk-toolbar" x-show="selected.length > 0" x-cloak>
+        <span x-text="selected.length + ' user(s) selected'"></span>
+        <button
+            @click="confirming = true"
+            class="btn btn-sm btn-danger"
+        >Bulk: Suspend</button>
+        <button @click="selected = []" class="btn btn-sm btn-secondary">Clear</button>
+    </div>
+
+    <!-- Confirmation modal -->
+    <div class="modal-overlay" x-show="confirming" x-cloak @click.self="confirming = false">
+        <div class="modal-card">
+            <h3>Suspend Users</h3>
+            <p x-text="'Suspend ' + selected.length + ' selected user(s)? Their accounts will be deactivated.'"></p>
+            <div class="modal-actions">
+                <button @click="confirming = false" class="btn btn-sm btn-secondary">Cancel</button>
+                <button
+                    @click="confirming = false"
+                    hx-post="/admin/users/bulk/suspend"
+                    hx-target="#users-tbody"
+                    hx-vals='js:{"ids": selected}'
+                    @htmx:after-request="selected = []"
+                    class="btn btn-sm btn-danger"
+                >Confirm Suspend</button>
+            </div>
         </div>
     </div>
-    {% endif %}
-    {% else %}
-    <div class="empty">
-        <h3>No users found</h3>
-        <p>{% if search %}No users match "{{ search }}"{% else %}No users registered yet{% endif %}</p>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 36px;"></th>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Trust Score</th>
+                    <th>Mode</th>
+                    <th>Platforms</th>
+                    <th>Total Earned</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="users-tbody">
+                {% include "admin/_users_tbody.html" %}
+            </tbody>
+        </table>
+        {% if not users %}
+        <div class="empty">
+            <h3>No users found</h3>
+            <p>{% if search %}No users match "{{ search }}"{% else %}No users registered yet{% endif %}</p>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}
