@@ -245,5 +245,9 @@ Approved flags:
 - `AMPLIFIER_UAT_INTERVAL_SEC` — shortens any "every N hours" loop to N seconds
 - `AMPLIFIER_UAT_BYPASS_AI` — forces the fallback path in any AI-call function (proves fallback works)
 - `AMPLIFIER_UAT_FAKE_METRICS` — injects a metric row directly without scraping (proves billing without waiting for real engagement)
+- `AMPLIFIER_UAT_DRY_STRIPE` — `services.payments` logs `Transfer.create` kwargs without calling Stripe (Task #44)
+- `AMPLIFIER_UAT_FORCE_DAY` — overrides `day_number` in content-gen so UAT can test diversity (Task #65)
+- `AMPLIFIER_UAT_POST_NOW` — schedules approved drafts ~1 min out instead of next slot
+- `AMPLIFIER_UAT_SSE_HEARTBEAT_MS` — forces SSE heartbeat interval (default 30000ms / 30s) to a smaller value so UAT can verify SSE-driven UI in <5s instead of >30s. Used by Task #66 AC11.
 
 Adding a new flag requires updating this file.
