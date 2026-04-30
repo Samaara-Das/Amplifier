@@ -27,12 +27,15 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **33 done** · **21 pending** · **19 deferred** · 0 in-progress · **73 total**
+- **41 done** · **13 pending** · **19 deferred** · 0 in-progress · **73 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Worker**: ✅ LIVE as `amplifier-worker.service` on the same VPS since 2026-04-30 06:17 UTC. 4 cron jobs running.
 - **Schema migrations**: ✅ Alembic baseline `c5967048d886` stamped on prod 2026-04-30. All future model changes flow through `server/alembic/versions/`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
+- **Most recent wins** (2026-04-30 15:15):
+  - **Phase C bug cleanup batch DONE** — 7 bugs shipped in one PR: #57 (quality gate empty target_regions), #59 (duplicate /campaigns row), #60 (X hidden from dashboard via filter_disabled), #63 (seed_campaign accept endpoint), #64 (new `POST /api/company/campaigns/assets` Bearer route + seed uses it), #65 (FORCE_DAY → agent_draft.iteration), #73 (gemini-1.5-flash → gemini-1.5-flash-latest). 185 tests pass (+4 new). AC blocks for all 7 in batch-3-product-features.md, infra.md, and new uat-infra.md.
+  - **Task #51 DONE** — AC blocks backfilled for #19 (13 ACs covering test-mode + live-mode flow via Stripe MCP) and #22 (8 ACs covering perf, dual-audience hero, CTAs, OG tags, mobile, FAQ). #19 description updated to direct autonomous Stripe MCP setup (no longer blocked on user setup).
 - **Most recent wins** (2026-04-30 09:23):
   - **Task #72 REVERTED** — niche-mismatch AI review was wrong-direction. Companies own their targeting decisions; AI doesn't second-guess. Both my new rule AND the original Task #15 targeting check were stripped from `_build_review_prompt()`. AI review now checks only: brief-is-content / harmful-guidance / legitimacy-scam. Verified via post-revert regression check (5/5 fixtures: zero "niche mismatch" / "targeting mismatch" / "audience fit" mentions in any concerns).
   - **Task #18 DONE (extended for migration-readiness)** — 181 tests pass in 24.0s. Round 1 (10:23): 80 tests covering money loop + rubric + trust + cache + cleanup of pre-existing rot. Round 2 (10:50, after user audit): 101 more tests for migration-readiness — `test_crypto.py` (21, AES-GCM round-trip + tampering + key isolation, 96% line coverage), `test_platform_guard.py` (21, X-disable safety guard, 100% coverage), `test_admin_smoke.py` (24, all 14 admin GET routes), `test_company_smoke.py` (19, all 10 company GET routes), `test_metrics_routes.py` (6, daemon→server contract), `test_users_routes.py` (10, profile + earnings + payout). Caught + fixed real bug: `User.stripe_account_id` field was missing (`payments.py` had a TODO since forever). Schema migration applied to prod Supabase before code deploy: `docs/migrations/2026-04-30-task18-stripe-account-id.md`.
@@ -138,8 +141,8 @@ Run in this order:
 1. ~~**#18 Automated test suite (pytest)**~~ ✅ done 2026-04-30 — 181 tests pass in 24.0s (extended for migration-readiness). Migration safety net in place.
 2. ~~**#44 ARQ worker entrypoint**~~ ✅ done 2026-04-30 11:17 — 9/10 ACs PASS. Worker live on VPS systemd. Unblocks Phase D Stripe.
 3. ~~**#45 Alembic baseline migration**~~ ✅ done 2026-04-30 11:42 — 7/7 ACs PASS. Baseline `c5967048d886` covers 14 tables. Prod stamped. CLAUDE.md policy enforces forward migrations.
-4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73 — **next batch**
-5. #27 Server-side post URL dedup
+4. ~~Bug cleanup batch (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73~~ ✅ done 2026-04-30 (one bundled PR, 185 tests pass, AC blocks for all 7).
+5. #27 Server-side post URL dedup — **next**
 6. #28 ToS + privacy policy acceptance in registration
 7. Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation)
 
@@ -178,7 +181,7 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #48 | Build `scripts/uat/` helper scripts (seed_campaign, accept_invitation, etc.) | ✅ done |
 | #49 | First real `/uat-task 14` run + capture learnings | ✅ done (2026-04-26) |
 | #50 | Backfill Verification Procedure for #15, #44, #45 | ✅ done 2026-04-29 — #15 ACs in batch-2-ai-brain.md (14 ACs); #44 + #45 ACs in new docs/specs/infra.md (10 + 7 ACs). |
-| #51 | Backfill Verification Procedure for Batch 4 (#19, #22) | 📋 pending |
+| #51 | Backfill Verification Procedure for Batch 4 (#19, #22) | ✅ done 2026-04-30 — #19 has 13 ACs (Stripe MCP autonomous setup + test-mode → live smoke); #22 has 8 ACs (perf, dual-audience, OG tags, mobile, FAQ). |
 | #52 | Backfill Verification Procedure for polish tasks (#23–28) | 📋 pending |
 
 ### Server / infra one-offs

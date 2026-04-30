@@ -732,7 +732,7 @@
         "description": "Append per-task `## Verification Procedure - Task #<id>` blocks to docs/specs/batch-4-business-launch.md for #17 (Free/Pro tiers), #19 (Stripe live integration), #22 (landing page). #17 and #19 require Stripe test-mode webhooks - UAT plan must accommodate (use Stripe CLI to forward events to local server during UAT). #22 is mostly Chrome DevTools MCP-driven (load page, screenshot at desktop+mobile breakpoints, check OG tags via evaluate_script, check page weight via list_network_requests).",
         "details": "Pull AC checklist from each task's spec section + add E2E DevTools MCP drive ACs. Tag any Stripe-touching AC as requires-stripe-test-mode in the AC's Setup field.",
         "testStrategy": "Each task verifiable via /uat-task <id> after this backfill.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           50
         ],
