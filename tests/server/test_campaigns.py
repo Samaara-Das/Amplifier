@@ -37,6 +37,7 @@ class TestCampaignCRUD:
             "name": "TestCo",
             "email": email,
             "password": "pass123",
+            "accept_tos": True,
         })
         return resp.json()["access_token"]
 
@@ -282,6 +283,7 @@ class TestInvitationFlow:
             "name": "InvCo",
             "email": "inv@test.com",
             "password": "pass123",
+            "accept_tos": True,
         })
         co_token = co_resp.json()["access_token"]
 
@@ -304,6 +306,7 @@ class TestInvitationFlow:
         user_resp = await client.post("/api/auth/register", json={
             "email": "invuser@test.com",
             "password": "pass123",
+            "accept_tos": True,
         })
         user_token = user_resp.json()["access_token"]
 
@@ -323,6 +326,7 @@ class TestInvitationFlow:
         user_resp = await client.post("/api/auth/register", json={
             "email": "noinv@test.com",
             "password": "pass123",
+            "accept_tos": True,
         })
         token = user_resp.json()["access_token"]
 
@@ -338,6 +342,7 @@ class TestInvitationFlow:
         user_resp = await client.post("/api/auth/register", json={
             "email": "ghost@test.com",
             "password": "pass123",
+            "accept_tos": True,
         })
         token = user_resp.json()["access_token"]
 
@@ -352,6 +357,7 @@ class TestInvitationFlow:
         user_resp = await client.post("/api/auth/register", json={
             "email": "ghost2@test.com",
             "password": "pass123",
+            "accept_tos": True,
         })
         token = user_resp.json()["access_token"]
 
@@ -370,6 +376,7 @@ class TestCampaignAssetUpload:
             "name": "AssetCo",
             "email": email,
             "password": "pass123",
+            "accept_tos": True,
         })
         return resp.json()["access_token"]
 

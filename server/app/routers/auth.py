@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -17,6 +19,9 @@ limiter = Limiter(key_func=get_remote_address)
 @router.post("/register", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def register_user(request: Request, data: UserRegister, db: AsyncSession = Depends(get_db)):
+    if not data.accept_tos:
+        raise HTTPException(status_code=400, detail="You must accept the Terms of Service and Privacy Policy to register")
+
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
@@ -25,6 +30,7 @@ async def register_user(request: Request, data: UserRegister, db: AsyncSession =
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
+        tos_accepted_at=datetime.now(timezone.utc),
     )
     db.add(user)
     await db.flush()
@@ -82,6 +88,9 @@ async def reset_company_password(request: Request, data: PasswordResetRequest, d
 @router.post("/company/register", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def register_company(request: Request, data: CompanyRegister, db: AsyncSession = Depends(get_db)):
+    if not data.accept_tos:
+        raise HTTPException(status_code=400, detail="You must accept the Terms of Service and Privacy Policy to register")
+
     result = await db.execute(select(Company).where(Company.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -90,6 +99,7 @@ async def register_company(request: Request, data: CompanyRegister, db: AsyncSes
         name=data.name,
         email=data.email,
         password_hash=hash_password(data.password),
+        tos_accepted_at=datetime.now(timezone.utc),
     )
     db.add(company)
     await db.flush()

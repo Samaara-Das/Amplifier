@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
 from app.core.database import init_tables
-from app.routers import auth, campaigns, users, metrics, admin, invitations
+from app.routers import auth, campaigns, users, metrics, admin, invitations, public as public_router
 from app.routers.admin import router as admin_pages_router
 from app.routers.company import router as company_pages_router
 
@@ -59,6 +59,7 @@ app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(admin_pages_router, prefix="/admin", tags=["admin-pages"])
 app.include_router(company_pages_router, prefix="/company", tags=["company-pages"])
 app.include_router(invitations.router, prefix="/api/campaigns", tags=["invitations"])
+app.include_router(public_router.router, tags=["public"])
 
 
 APP_VERSION = "0.1.0"

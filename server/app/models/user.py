@@ -68,6 +68,10 @@ class User(Base):
     # Stripe Connect Express account ID — set when user completes onboarding.
     # Required for payout withdrawals. None = no Stripe Connect, payouts blocked.
 
+    tos_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

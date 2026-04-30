@@ -1,5 +1,7 @@
 """Company login/register/logout routes."""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from slowapi import Limiter
@@ -55,8 +57,12 @@ async def register_submit(
     name: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
+    accept_tos: bool = Form(False),
     db: AsyncSession = Depends(get_db),
 ):
+    if not accept_tos:
+        return _render("company/login.html", status_code=400, error="You must accept the Terms of Service and Privacy Policy to register", show_register=True)
+
     existing = await db.execute(select(Company).where(Company.email == email))
     if existing.scalar_one_or_none():
         return _render("company/login.html", status_code=400, error="Email already registered", show_register=True)
@@ -65,6 +71,7 @@ async def register_submit(
         name=name,
         email=email,
         password_hash=hash_password(password),
+        tos_accepted_at=datetime.now(timezone.utc),
     )
     db.add(company)
     await db.flush()

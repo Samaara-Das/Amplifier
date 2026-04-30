@@ -35,6 +35,9 @@
         .form-footer { text-align: center; margin-top: 20px; font-size: 13px; color: #64748b; }
         .form-footer a { color: #60a5fa; text-decoration: none; }
         .form-footer a:hover { text-decoration: underline; }
+        .tos-group { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+        .tos-group input[type="checkbox"] { margin-top: 2px; accent-color: #2563eb; flex-shrink: 0; }
+        .tos-group label { font-size: 13px; color: #94a3b8; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -83,6 +86,10 @@
                     <div class="form-group">
                         <label for="reg-password">Password</label>
                         <input type="password" id="reg-password" name="password" class="form-control" placeholder="Choose a password" required minlength="6">
+                    </div>
+                    <div class="tos-group">
+                        <input type="checkbox" id="accept_tos" name="accept_tos" value="true">
+                        <label for="accept_tos">I have read and accept the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a></label>
                     </div>
                     <button type="submit" class="btn btn-primary">Create Account</button>
                 </form>

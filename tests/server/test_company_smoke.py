@@ -133,6 +133,7 @@ class TestCompanyRegisterLoginFlow:
                 "name": "FlowCorp",
                 "email": "flowcorp-flow@test.com",
                 "password": "testpass123",
+                "accept_tos": "true",
                 "csrf_token": csrf,
             },
             cookies={"csrf_token": csrf},

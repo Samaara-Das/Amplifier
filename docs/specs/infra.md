@@ -611,3 +611,126 @@ Task #27 is marked done in task-master ONLY when:
 2. AC4 PASS (manual prod smoke confirms dedup behavior)
 3. `pytest tests/server/test_metrics_routes.py -v` → all 9 tests PASS (3 new + 6 existing)
 4. `pytest tests/ -v` → no regressions, total count = 188
+
+---
+
+## Task #28 — ToS + privacy policy acceptance in registration
+
+### What It Does
+
+Adds a hard Terms of Service gate to both user and company registration endpoints. Introduces two public pages (`/terms` and `/privacy`) with MVP legal placeholder content. Both `User` and `Company` models gain a `tos_accepted_at` nullable timestamp column. Registration is blocked with HTTP 400 if `accept_tos` is `false` or absent. The HTML company register form gains a visible checkbox linking to both pages.
+
+### Files Changed
+
+- `server/app/models/user.py` — `tos_accepted_at: Mapped[datetime | None]` added after `stripe_account_id`.
+- `server/app/models/company.py` — `tos_accepted_at: Mapped[datetime | None]` added after `status`.
+- `server/app/schemas/auth.py` — `accept_tos: bool = Field(False)` added to `UserRegister` and `CompanyRegister`.
+- `server/app/routers/auth.py` — ToS guard + `tos_accepted_at` timestamp set in `register_user()` and `register_company()`.
+- `server/app/routers/company/login.py` — `accept_tos: bool = Form(False)` added to `register_submit()`. ToS guard + timestamp set.
+- `server/app/templates/company/login.html` — ToS checkbox with links to `/terms` and `/privacy` in register panel.
+- `server/app/routers/public.py` — New file. `GET /terms` and `GET /privacy` routes.
+- `server/app/main.py` — `public_router` included with no prefix.
+- `server/app/templates/public/terms.html` — New file. ToS content.
+- `server/app/templates/public/privacy.html` — New file. Privacy policy content.
+- `server/alembic/versions/a1b2c3d4e5f6_add_tos_accepted_at_to_user_and_company.py` — Migration: `ADD COLUMN tos_accepted_at DATETIME` to `users` and `companies`.
+- `tests/server/test_auth.py` — Existing tests updated to include `accept_tos: True`. 6 new `TestTosGate` tests added.
+- `tests/server/test_campaigns.py` — All company/user register calls updated to include `accept_tos: True`.
+- `tests/server/test_company_smoke.py` — HTML form register test updated to include `accept_tos: "true"`.
+
+**Deviation from plan**: `scripts/onboarding.py` does not exist in the repo — step 7 (CLI ToS prompt) was skipped. No onboarding script to update.
+
+---
+
+## Verification Procedure — Task #28
+
+**Preconditions**:
+- Repo on branch `flask-user-app`, working tree clean.
+- `pip install -r requirements-test.txt` (pytest, pytest-asyncio, httpx, aiosqlite).
+- Server live at `https://api.pointcapitalis.com` with a valid user account for AC4.
+
+**Test data setup**: None — unit tests are self-contained (in-memory SQLite).
+
+**Test-mode flags**: None.
+
+---
+
+### AC1: pytest — 4 register tests pass (ToS gate for user + company, both paths)
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None (in-memory test DB). |
+| **Action** | `pytest tests/server/test_auth.py::TestTosGate::test_register_user_without_tos_returns_400 tests/server/test_auth.py::TestTosGate::test_register_user_with_tos_sets_timestamp tests/server/test_auth.py::TestTosGate::test_register_company_without_tos_returns_400 tests/server/test_auth.py::TestTosGate::test_register_company_with_tos_sets_timestamp -v` |
+| **Expected** | 4 passed. `without_tos` tests: HTTP 400, detail contains "terms of service". `with_tos` tests: HTTP 200 + token, `tos_accepted_at` is non-null and within 10s of now. |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_auth.py::TestTosGate -k "register" -v` |
+| **Evidence** | pytest stdout — `4 passed` |
+| **Cleanup** | none |
+
+---
+
+### AC2: pytest — GET /terms and GET /privacy return 200 with expected content
+
+| Field | Value |
+|-------|-------|
+| **Setup** | None (in-memory test DB). |
+| **Action** | `pytest tests/server/test_auth.py::TestTosGate::test_get_terms_returns_200_with_terms_text tests/server/test_auth.py::TestTosGate::test_get_privacy_returns_200_with_privacy_text -v` |
+| **Expected** | 2 passed. `/terms` 200 + body contains "Terms" + "Amplifier". `/privacy` 200 + body contains "Privacy" + "Amplifier". |
+| **Automated** | yes |
+| **Automation** | `pytest tests/server/test_auth.py::TestTosGate -k "get_terms or get_privacy" -v` |
+| **Evidence** | pytest stdout — `2 passed` |
+| **Cleanup** | none |
+
+---
+
+### AC3: Chrome DevTools MCP UI smoke — company register form blocks without ToS checkbox, succeeds with it
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Local server running: `cd server && DATABASE_URL="sqlite+aiosqlite://" JWT_SECRET_KEY="test-secret" python -m uvicorn app.main:app --port 8000`. Navigate to `http://localhost:8000/company/login` and click "Register" tab. |
+| **Action** | 1. Fill in Company Name, Email, Password fields. Leave the "accept_tos" checkbox UNCHECKED. Click "Create Account". 2. Screenshot as `data/uat/screenshots/task28_ac3_blocked.png`. 3. Check the ToS checkbox. Click "Create Account" again (with a different email to avoid dup). 4. Screenshot as `data/uat/screenshots/task28_ac3_success.png`. |
+| **Expected** | Step 1: Page reloads/stays at `/company/login?register=1` showing error banner "You must accept the Terms of Service and Privacy Policy to register". No redirect to `/company/`. Step 3: Page redirects to `/company/` (302) — success. The ToS checkbox label links open `/terms` and `/privacy` in new tabs. |
+| **Automated** | partial (Chrome DevTools MCP drives the flow; result comparison is automated) |
+| **Automation** | Chrome DevTools MCP — drive `http://localhost:8000/company/login`, switch to Register tab, fill fields, leave checkbox unchecked, click submit, capture error DOM via `take_snapshot`, then check checkbox, re-submit, confirm redirect. |
+| **Evidence** | `task28_ac3_blocked.png` (error visible), `task28_ac3_success.png` (redirect or `/company/` dashboard). DOM snapshot showing error text. |
+| **Cleanup** | Close DevTools page. Stop local server. |
+
+---
+
+### AC4: Live prod smoke — API register blocked without ToS, succeeds with ToS, cleanup
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Prod server live at `https://api.pointcapitalis.com`. Choose a throwaway email (e.g., `uat-task28-<timestamp>@pointcapitalis.com`). |
+| **Action** | **Call 1 (no ToS):** `curl -s -X POST https://api.pointcapitalis.com/api/auth/register -H "Content-Type: application/json" -d '{"email":"uat-task28-test@pointcapitalis.com","password":"testpass123","accept_tos":false}' \| jq .` **Call 2 (with ToS):** `curl -s -X POST https://api.pointcapitalis.com/api/auth/register -H "Content-Type: application/json" -d '{"email":"uat-task28-test@pointcapitalis.com","password":"testpass123","accept_tos":true}' \| jq .` |
+| **Expected** | Call 1: `{"detail": "You must accept the Terms of Service and Privacy Policy to register"}` (HTTP 400). Call 2: `{"access_token": "...", "token_type": "bearer"}` (HTTP 200). Confirm: `curl -s https://api.pointcapitalis.com/terms \| grep -o "Terms of Service"` outputs `Terms of Service`. |
+| **Automated** | no |
+| **Automation** | manual |
+| **Evidence** | JSON output of both curl calls in terminal. grep output confirming `/terms` live. |
+| **Cleanup** | Delete the throwaway user from prod DB. Upload cleanup script to VPS: `ssh sammy@31.97.207.162 "sudo -u amplifier tee /tmp/uat28_cleanup.py >/dev/null <<'PY'\nimport asyncio, os, sys\nsys.path.insert(0,'/home/amplifier/app/server')\nos.chdir('/home/amplifier/app/server')\nfrom dotenv import load_dotenv\nload_dotenv('/home/amplifier/app/server/.env')\nasync def main():\n    from app.core.database import get_db_direct\n    from sqlalchemy import text\n    async with get_db_direct() as db:\n        await db.execute(text(\"DELETE FROM users WHERE email LIKE 'uat-task28-%'\"))\n        await db.commit()\n        print('cleanup done')\nasyncio.run(main())\nPY\nsudo -u amplifier /home/amplifier/app/server/.venv/bin/python /tmp/uat28_cleanup.py"` |
+
+---
+
+### AC5: Alembic migration round-trip — upgrade and downgrade clean
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Repo working tree clean. Migration file `server/alembic/versions/a1b2c3d4e5f6_add_tos_accepted_at_to_user_and_company.py` present. |
+| **Action** | Inspect the migration file: confirm `upgrade()` has exactly 2 `op.add_column` calls (users + companies) and `downgrade()` has exactly 2 `op.drop_column` calls. Run: `python -c "import ast, sys; src=open('server/alembic/versions/a1b2c3d4e5f6_add_tos_accepted_at_to_user_and_company.py').read(); assert 'add_column' in src and 'drop_column' in src; print('migration file OK')"` |
+| **Expected** | Script prints `migration file OK`. Revision chain: `a1b2c3d4e5f6` depends on `c5967048d886` (baseline). |
+| **Automated** | yes |
+| **Automation** | `python -c "src=open('server/alembic/versions/a1b2c3d4e5f6_add_tos_accepted_at_to_user_and_company.py').read(); assert \"add_column('users'\" in src or \"add_column('users',\" in src; assert \"add_column('companies'\" in src or \"add_column('companies',\" in src; print('OK')"` |
+| **Evidence** | Script stdout `OK`. File content inspection confirms only 2 add_column calls in upgrade, 2 drop_column in downgrade. |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #28
+
+Task #28 is marked done in task-master ONLY when:
+1. AC1 PASS (4 register ToS gate tests green)
+2. AC2 PASS (2 public page tests green)
+3. AC3 PASS (Chrome DevTools smoke: error shown without checkbox, redirect with checkbox)
+4. AC4 PASS (prod curl: 400 without ToS, 200 with ToS, `/terms` live, throwaway user cleaned up)
+5. AC5 PASS (migration file structure verified)
+6. `pytest tests/server/test_auth.py -v` → all 18 tests PASS
+7. `pytest tests/ -v` → no regressions, total count = 194
