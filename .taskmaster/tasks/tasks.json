@@ -1045,7 +1045,7 @@
       {
         "id": 70,
         "title": "Companies bring their own AI API keys (BYOK)",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [],
         "description": "Companies optionally provide their own Gemini/Mistral/Groq keys via Settings page. Server stores AES-encrypted (reuse server/app/utils/crypto.py). quality_gate.ai_review_campaign() and campaign_wizard.generate_with_ai() check company keys first, fall back to server keys. New company_api_keys table. Settings UI: 3 input fields + Test-connection per provider.",
