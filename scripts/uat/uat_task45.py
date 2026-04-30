@@ -175,20 +175,44 @@ def test_ac2_baseline_matches_models():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def test_ac3_prod_stamped():
-    """AC3: alembic current on prod shows <revision> (head)."""
+    """AC3: prod's alembic_version table has the baseline revision_id.
+
+    Queries the table directly via SQL — `alembic current` output behavior varies
+    on Windows (no stdout when revision IS at head). The actual contract is:
+    alembic_version table has exactly 1 row matching the baseline revision.
+    """
     if not os.environ.get("AMPLIFIER_UAT_PROD_DB"):
         pytest.skip("AC3 opt-in — set AMPLIFIER_UAT_PROD_DB=1 to run against prod")
 
     prod_url = os.environ.get("DATABASE_URL_PROD") or os.environ.get("DATABASE_URL")
     assert prod_url, "DATABASE_URL_PROD or DATABASE_URL must be set for AC3"
 
-    result = _alembic(["current"], db_url=prod_url)
-    output = result.stdout + result.stderr
-    assert result.returncode == 0, f"alembic current failed:\n{output}"
-    assert "(head)" in output, (
-        f"Expected '(head)' in alembic current output, got:\n{output}"
+    # Read the baseline revision from the local alembic versions/ directory
+    versions_dir = _SERVER_DIR / "alembic" / "versions"
+    py_files = [f for f in versions_dir.glob("*.py") if not f.name.startswith("__")]
+    assert len(py_files) >= 1, "No baseline migration file in alembic/versions/"
+    expected_rev = py_files[0].stem.split("_")[0]  # filename pattern: {revision}_baseline.py
+
+    # Direct asyncpg query
+    import asyncio
+    async def _query():
+        import asyncpg
+        plain = prod_url.replace("postgresql+asyncpg://", "postgresql://")
+        conn = await asyncpg.connect(plain, statement_cache_size=0)
+        try:
+            rows = await conn.fetch("SELECT version_num FROM alembic_version")
+            return [r["version_num"] for r in rows]
+        finally:
+            await conn.close()
+
+    versions = asyncio.run(_query())
+    assert len(versions) == 1, (
+        f"alembic_version should have exactly 1 row; got {len(versions)}: {versions}"
     )
-    print(f"\nalembic current on prod:\n{output.strip()}")
+    assert versions[0] == expected_rev, (
+        f"Prod alembic_version is {versions[0]}, expected baseline {expected_rev}"
+    )
+    print(f"\nprod alembic_version = {versions[0]} (matches baseline file)")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

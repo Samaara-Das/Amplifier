@@ -624,9 +624,9 @@
         "id": 44,
         "title": "Implement ARQ worker entrypoint",
         "description": "Define app.worker.WorkerSettings so background jobs auto-run: earning promotion (7-day hold), trust-score sweeps, billing reconciliation, payout processing. Currently codebase imports arq>=0.26.1 but no WorkerSettings class exists. BLOCKING before Task #19 (Stripe live + paying users) \u2014 without this, paying users' pending earnings never auto-promote to available. Spec + 10-AC Verification Procedure: docs/specs/infra.md (Task #44 section).",
-        "details": "",
+        "details": "[DONE 2026-04-30 11:17 - 9/10 ACs PASS (AC8 10-min soak deferred to continuous prod observation, AC9 verified via VPS kill -9 test). Worker live as amplifier-worker.service since 06:17 UTC.]",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -635,9 +635,9 @@
         "id": 45,
         "title": "Generate baseline Alembic migration + enforce migrations going forward",
         "description": "Discovered during Task #41 post-deploy UAT: server/alembic/ is configured but server/alembic/versions/ is EMPTY. No migrations have ever been generated. Models drifted silently from prod schema, causing 2 prod-blocking bugs (decline_reason missing, 14 json columns needed jsonb). Both manually fixed via psql; SQL captured at docs/migrations/2026-04-25-task41-schema-fixes.md. WORK: (1) Generate baseline alembic revision, (2) stamp prod, (3) document policy in CLAUDE.md that every model change needs migration in same PR. PRIORITY: Medium \u2014 not blocking deploy or current functionality, BLOCKING before Task #15 (AI quality gate may add columns). Spec + 7-AC Verification Procedure: docs/specs/infra.md (Task #45 section).",
-        "details": "",
+        "details": "[DONE 2026-04-30 11:42 - 7/7 ACs PASS. Baseline c5967048d886 covers 14 tables. Prod stamped via SSH. CLAUDE.md schema-migration-policy section live.]",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []

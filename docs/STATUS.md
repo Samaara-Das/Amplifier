@@ -27,8 +27,10 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **31 done** · **23 pending** · **19 deferred** · 0 in-progress · **73 total**
+- **33 done** · **21 pending** · **19 deferred** · 0 in-progress · **73 total**
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
+- **Worker**: ✅ LIVE as `amplifier-worker.service` on the same VPS since 2026-04-30 06:17 UTC. 4 cron jobs running.
+- **Schema migrations**: ✅ Alembic baseline `c5967048d886` stamped on prod 2026-04-30. All future model changes flow through `server/alembic/versions/`.
 - **Active branch**: `flask-user-app`
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
 - **Most recent wins** (2026-04-30 09:23):
@@ -133,10 +135,10 @@ Per feedback 2026-04-18. Run A → C → D → E. **B is deferred entirely.**
 **Modified order (2026-04-28): pull #18 first.** Without test coverage, the Phase D migration breaks things invisibly. Bug #53 (Facebook follower count regression) and the disappearing Next-button fix are exactly the kind of regressions a pytest suite catches.
 
 Run in this order:
-1. ~~**#18 Automated test suite (pytest)**~~ ✅ done 2026-04-30 — 181 tests pass in 24.0s (extended for migration-readiness). New test files: quality_gate (12) + trust (4) + matching_cache (4) + crypto (21, 96% cov) + platform_guard (21, 100% cov) + admin_smoke (24) + company_smoke (19) + metrics_routes (6) + users_routes (10). Verification Procedure in `docs/specs/infra.md`. **Migration safety net for #66/#67/#68 in place.**
-2. #44 ARQ worker entrypoint — required before paying users (next)
-3. #45 Alembic baseline migration — locks the schema before Phase D ports it
-4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73
+1. ~~**#18 Automated test suite (pytest)**~~ ✅ done 2026-04-30 — 181 tests pass in 24.0s (extended for migration-readiness). Migration safety net in place.
+2. ~~**#44 ARQ worker entrypoint**~~ ✅ done 2026-04-30 11:17 — 9/10 ACs PASS. Worker live on VPS systemd. Unblocks Phase D Stripe.
+3. ~~**#45 Alembic baseline migration**~~ ✅ done 2026-04-30 11:42 — 7/7 ACs PASS. Baseline `c5967048d886` covers 14 tables. Prod stamped. CLAUDE.md policy enforces forward migrations.
+4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73 — **next batch**
 5. #27 Server-side post URL dedup
 6. #28 ToS + privacy policy acceptance in registration
 7. Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation)
@@ -187,8 +189,8 @@ These exist outside the 4-batch / 5-phase model. They're either (a) infrastructu
 | #4 | Install slowapi + apply rate limiting to auth endpoints | ✅ done |
 | #40 | Fully disable X — hardcoded safety guard (3 X account suspensions) | ✅ done |
 | #41 | Vercel → Hostinger KVM migration | ✅ done (server LIVE since 2026-04-25) |
-| #44 | ARQ worker entrypoint | 📋 pending (Phase C — blocking #19) |
-| #45 | Baseline Alembic migration + enforce going forward | 📋 pending (Phase C — blocking #15 and Phase D) |
+| #44 | ARQ worker entrypoint | ✅ done 2026-04-30 — 9/10 ACs PASS, live on VPS systemd, unblocks Phase D |
+| #45 | Baseline Alembic migration + enforce going forward | ✅ done 2026-04-30 — 7/7 ACs PASS, prod stamped at `c5967048d886`, CLAUDE.md policy live |
 
 ### Bugs discovered 2026-04-26 (during `/uat-task 14`)
 | Task | Title | Status |
