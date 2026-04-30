@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Amplifier{% endblock %}</title>
   <!-- Tailwind CDN (preflight disabled so it doesn't reset browser defaults aggressively) -->
+  <!-- Pattern: define window.tailwind.config BEFORE Tailwind script loads. Tailwind reads it on init. -->
   <script>
-    tailwind.config = { corePlugins: { preflight: false } };
+    window.tailwind = window.tailwind || {};
+    window.tailwind.config = { corePlugins: { preflight: false } };
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- HTMX -->
