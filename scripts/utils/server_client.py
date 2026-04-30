@@ -62,6 +62,21 @@ def _request_with_retry(method: str, path: str, max_retries: int = 3, **kwargs) 
                 resp = client.request(method, url, headers=headers, **kwargs)
                 if resp.status_code == 401:
                     logger.error("Auth token expired or invalid. Re-login needed.")
+                    # Clear stored credentials so next startup forces re-auth
+                    try:
+                        from utils.local_db import clear_jwt
+                        clear_jwt()
+                    except Exception:
+                        pass
+                    # Send desktop notification if tray is available
+                    try:
+                        from utils.tray import send_notification
+                        send_notification(
+                            "Amplifier",
+                            "Re-authenticate at amplifier.app/login",
+                        )
+                    except Exception:
+                        pass
                     raise RuntimeError("Auth token expired. Run onboarding to re-login.")
                 return resp
         except httpx.ConnectError:

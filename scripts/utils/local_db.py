@@ -278,6 +278,21 @@ def set_setting(key: str, value: str) -> None:
     conn.close()
 
 
+def clear_jwt() -> None:
+    """Clear stored JWT from settings table and server_auth.json file."""
+    conn = _get_db()
+    conn.execute("DELETE FROM settings WHERE key = 'jwt'")
+    conn.commit()
+    conn.close()
+    # Also remove the encrypted auth file written by server_client._save_auth
+    auth_file = ROOT / "config" / "server_auth.json"
+    try:
+        if auth_file.exists():
+            auth_file.unlink()
+    except Exception:
+        pass
+
+
 # ── Campaigns ──────────────────────────────────────────────────────
 
 

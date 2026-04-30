@@ -5,6 +5,7 @@ Quit. Sends Windows desktop notifications for key events.
 """
 
 import logging
+import os
 import threading
 import webbrowser
 
@@ -86,8 +87,8 @@ def start_tray(port: int = 5222, on_quit=None):
     """Start the system tray icon in a background thread.
 
     Args:
-        port: Flask server port (for "Open Dashboard" menu item)
-        on_quit: Callback when user clicks "Quit" (should stop Flask + agent)
+        port: Local server port (for local menu items /drafts, /connect, /keys)
+        on_quit: Callback when user clicks "Quit" (should stop local server + agent)
     """
     global _tray_icon, _tray_thread
 
@@ -95,8 +96,25 @@ def start_tray(port: int = 5222, on_quit=None):
         logger.warning("System tray not available — running without tray icon")
         return
 
+    # Resolve hosted dashboard URL once at startup (not per-click)
+    _server_base = os.getenv("CAMPAIGN_SERVER_URL", "https://api.pointcapitalis.com")
+    hosted_url = f"{_server_base}/user/"
+
+    def _open(url):
+        """Open URL in a daemon thread to avoid blocking the tray event loop."""
+        threading.Thread(target=lambda: webbrowser.open(url), daemon=True).start()
+
     def open_dashboard(icon, item):
-        webbrowser.open(f"http://localhost:{port}")
+        _open(hosted_url)
+
+    def open_drafts(icon, item):
+        _open(f"http://localhost:{port}/drafts")
+
+    def open_connect(icon, item):
+        _open(f"http://localhost:{port}/connect")
+
+    def open_keys(icon, item):
+        _open(f"http://localhost:{port}/keys")
 
     def pause_agent(icon, item):
         try:
@@ -134,6 +152,9 @@ def start_tray(port: int = 5222, on_quit=None):
 
     menu = _pystray.Menu(
         _pystray.MenuItem("Open Dashboard", open_dashboard, default=True),
+        _pystray.MenuItem("Review Drafts", open_drafts),
+        _pystray.MenuItem("Connect Platforms", open_connect),
+        _pystray.MenuItem("API Keys", open_keys),
         _pystray.Menu.SEPARATOR,
         _pystray.MenuItem(
             lambda item: f"Agent: {_get_agent_status()}",
