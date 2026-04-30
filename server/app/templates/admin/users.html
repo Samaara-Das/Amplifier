@@ -92,11 +92,25 @@ tr { cursor: pointer; }
             <div class="modal-actions">
                 <button @click="confirming = false" class="btn btn-sm btn-secondary">Cancel</button>
                 <button
-                    @click="confirming = false"
-                    hx-post="/admin/users/bulk/suspend"
-                    hx-target="#users-tbody"
-                    hx-vals='js:{"ids": selected}'
-                    @htmx:after-request="selected = []"
+                    @click="
+                        const ids = [...selected].map(s => parseInt(s, 10));
+                        const csrf = (document.cookie.match(/csrf_token=([^;]+)/) || [])[1] || '';
+                        fetch('/admin/users/bulk/suspend', {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrf,
+                                'HX-Request': 'true'
+                            },
+                            body: JSON.stringify({ ids })
+                        }).then(r => r.text()).then(html => {
+                            const tbody = document.getElementById('users-tbody');
+                            if (tbody) tbody.innerHTML = html;
+                        });
+                        confirming = false;
+                        selected = [];
+                    "
                     class="btn btn-sm btn-danger"
                 >Confirm Suspend</button>
             </div>
