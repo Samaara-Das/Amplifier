@@ -34,4 +34,100 @@
     </form>
 </div>
 
+<div class="card" style="margin-top: 24px;">
+    <div class="card-title">AI API Keys (BYOK)</div>
+    <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">
+        Optionally provide your own API keys. The server uses your key first; if it fails or is not set,
+        it falls back to the shared platform key. Keys are encrypted at rest and never displayed after saving.
+    </p>
+
+    {% set providers = [
+        ("gemini", "Gemini", "https://aistudio.google.com/app/apikey"),
+        ("mistral", "Mistral", "https://console.mistral.ai/api-keys"),
+        ("groq", "Groq", "https://console.groq.com/keys")
+    ] %}
+
+    <form method="post" action="/company/settings/api-keys">
+        {% for provider_id, provider_label, key_url in providers %}
+        <div class="form-group" style="border-bottom: 1px solid #1e293b; padding-bottom: 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <label style="font-weight: 600; font-size: 15px;">{{ provider_label }}</label>
+                {% if provider_id in configured_providers %}
+                <span style="font-size: 12px; background: rgba(34,197,94,0.12); color: #4ade80; padding: 2px 10px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.2);">
+                    Configured
+                </span>
+                {% else %}
+                <span style="font-size: 12px; background: rgba(100,116,139,0.15); color: #64748b; padding: 2px 10px; border-radius: 20px; border: 1px solid #334155;">
+                    Not set
+                </span>
+                {% endif %}
+            </div>
+
+            {% if provider_id in configured_providers %}
+            <p style="color: #475569; font-size: 13px; margin-bottom: 10px;">
+                &bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull; (configured — re-enter to overwrite)
+            </p>
+            {% endif %}
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input
+                    type="password"
+                    name="{{ provider_id }}_key"
+                    class="form-control"
+                    placeholder="Enter new key{% if provider_id in configured_providers %} to overwrite{% endif %}"
+                    autocomplete="new-password"
+                    style="flex: 1;"
+                >
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    style="white-space: nowrap;"
+                    onclick="testKey('{{ provider_id }}', this)"
+                >
+                    Test
+                </button>
+            </div>
+
+            <div id="test-result-{{ provider_id }}" style="margin-top: 8px; font-size: 13px; min-height: 20px;"></div>
+
+            <a href="{{ key_url }}" target="_blank" rel="noopener" style="font-size: 12px; color: #60a5fa; margin-top: 6px; display: inline-block;">
+                Get {{ provider_label }} API key &rarr;
+            </a>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary">Save Keys</button>
+        <p style="color: #475569; font-size: 12px; margin-top: 8px;">
+            Only non-empty fields will be saved. Leave blank to keep the existing key.
+        </p>
+    </form>
+</div>
+
+<script>
+async function testKey(provider, btn) {
+    const resultEl = document.getElementById('test-result-' + provider);
+    resultEl.textContent = 'Testing…';
+    resultEl.style.color = '#94a3b8';
+    btn.disabled = true;
+
+    try {
+        const fd = new FormData();
+        fd.append('provider', provider);
+        const resp = await fetch('/company/settings/api-keys/test', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.success) {
+            resultEl.textContent = '✓ ' + data.message;
+            resultEl.style.color = '#4ade80';
+        } else {
+            resultEl.textContent = '✗ ' + data.message;
+            resultEl.style.color = '#f87171';
+        }
+    } catch (e) {
+        resultEl.textContent = 'Request failed';
+        resultEl.style.color = '#f87171';
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
 {% endblock %}

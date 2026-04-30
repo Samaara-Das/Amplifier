@@ -15,6 +15,7 @@ from app.models.admin_review_queue import AdminReviewQueue
 from app.models.draft import Draft
 from app.models.agent_command import AgentCommand
 from app.models.agent_status import AgentStatus
+from app.models.company_api_key import CompanyApiKey
 
 __all__ = [
     "Company",
@@ -34,4 +35,5 @@ __all__ = [
     "Draft",
     "AgentCommand",
     "AgentStatus",
+    "CompanyApiKey",
 ]

@@ -317,7 +317,7 @@ def _is_retryable_gemini_error(exc: Exception) -> bool:
     return False
 
 
-async def ai_review_campaign(campaign, request_headers=None) -> dict:
+async def ai_review_campaign(campaign, request_headers=None, db=None) -> dict:
     """Server-side Gemini AI review. Catches what rules can't.
 
     Test-mode env vars (read live, not at module load):
@@ -386,11 +386,13 @@ async def ai_review_campaign(campaign, request_headers=None) -> dict:
     # ── Gemini ─────────────────────────────────────────────────────────
     gemini_models = [("gemini-2.0-flash", _AI_REVIEW_MAX_RETRIES), ("gemini-1.5-flash-latest", 1)]
 
+    _company_id = getattr(campaign, "company_id", None)
+
     for model, max_attempts in gemini_models:
         for attempt in range(1, max_attempts + 1):
             logger.info("AI review: trying gemini/%s (attempt %d)", model, attempt)
             try:
-                result = await _run_gemini_review(campaign, prompt=prompt, model=model)
+                result = await _run_gemini_review(campaign, prompt=prompt, model=model, company_id=_company_id, db=db)
                 return result
             except Exception as exc:
                 if _is_retryable_gemini_error(exc):
@@ -410,10 +412,9 @@ async def ai_review_campaign(campaign, request_headers=None) -> dict:
     logger.info("AI review: gemini exhausted, falling through to mistral")
 
     # ── Mistral ────────────────────────────────────────────────────────
-    from app.core.config import get_settings
-    settings = get_settings()
+    from app.services.api_keys import resolve_api_key as _resolve_api_key
 
-    mistral_key = settings.mistral_api_key.strip()
+    mistral_key = await _resolve_api_key("mistral", _company_id, db)
     if mistral_key:
         logger.info("AI review: trying mistral/mistral-large-latest (attempt 1)")
         try:
@@ -433,7 +434,7 @@ async def ai_review_campaign(campaign, request_headers=None) -> dict:
     logger.info("AI review: mistral exhausted, falling through to groq")
 
     # ── Groq ───────────────────────────────────────────────────────────
-    groq_key = settings.groq_api_key.strip()
+    groq_key = await _resolve_api_key("groq", _company_id, db)
     if groq_key:
         logger.info("AI review: trying groq/llama-3.3-70b-versatile (attempt 1)")
         try:
@@ -501,12 +502,17 @@ def _normalize_ai_result(result: dict) -> dict:
     return result
 
 
-async def _run_gemini_review(campaign, prompt: str, model: str = "gemini-2.0-flash") -> dict:
+async def _run_gemini_review(
+    campaign, prompt: str, model: str = "gemini-2.0-flash",
+    company_id: int | None = None, db=None,
+) -> dict:
     """Call Gemini to review the campaign. Returns parsed dict.
 
     Raises on any error — caller handles retry and fallback logic.
     """
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    from app.services.api_keys import resolve_api_key as _resolve_api_key
+
+    api_key = await _resolve_api_key("gemini", company_id, db)
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY not set on server")
 
