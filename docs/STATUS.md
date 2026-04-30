@@ -33,7 +33,7 @@ A fresh agent should read in this order:
 - **Active platforms**: LinkedIn, Facebook, Reddit. **X is unconditionally disabled** (Task #40 hardcoded guard) after 3 account suspensions.
 - **Most recent wins** (2026-04-30 09:23):
   - **Task #72 REVERTED** — niche-mismatch AI review was wrong-direction. Companies own their targeting decisions; AI doesn't second-guess. Both my new rule AND the original Task #15 targeting check were stripped from `_build_review_prompt()`. AI review now checks only: brief-is-content / harmful-guidance / legitimacy-scam. Verified via post-revert regression check (5/5 fixtures: zero "niche mismatch" / "targeting mismatch" / "audience fit" mentions in any concerns).
-  - **Task #18 DONE** — pytest unit suite. 80 tests pass in 10.2s. New: `test_quality_gate.py` (12 tests covering all 8 rubric criteria + hard-fail vetoes), `test_trust.py` (4 tests events + bounds), `test_matching_cache.py` (4 tests TTL + invalidation). Existing test rot fixed: `User.__new__` SQLAlchemy patterns + X-disabled-platform regressions + slowapi rate-limit cross-test contamination.
+  - **Task #18 DONE (extended for migration-readiness)** — 181 tests pass in 24.0s. Round 1 (10:23): 80 tests covering money loop + rubric + trust + cache + cleanup of pre-existing rot. Round 2 (10:50, after user audit): 101 more tests for migration-readiness — `test_crypto.py` (21, AES-GCM round-trip + tampering + key isolation, 96% line coverage), `test_platform_guard.py` (21, X-disable safety guard, 100% coverage), `test_admin_smoke.py` (24, all 14 admin GET routes), `test_company_smoke.py` (19, all 10 company GET routes), `test_metrics_routes.py` (6, daemon→server contract), `test_users_routes.py` (10, profile + earnings + payout). Caught + fixed real bug: `User.stripe_account_id` field was missing (`payments.py` had a TODO since forever). Schema migration applied to prod Supabase before code deploy: `docs/migrations/2026-04-30-task18-stripe-account-id.md`.
 - **Active blockers**: #19 needs Stripe Connect setup from user before it can ship.
 
 ---
@@ -133,7 +133,7 @@ Per feedback 2026-04-18. Run A → C → D → E. **B is deferred entirely.**
 **Modified order (2026-04-28): pull #18 first.** Without test coverage, the Phase D migration breaks things invisibly. Bug #53 (Facebook follower count regression) and the disappearing Next-button fix are exactly the kind of regressions a pytest suite catches.
 
 Run in this order:
-1. ~~**#18 Automated test suite (pytest)**~~ ✅ done 2026-04-30 — 80 tests pass in 10.2s. New: quality_gate (12) + trust (4) + matching_cache (4). Verification Procedure in `docs/specs/infra.md`.
+1. ~~**#18 Automated test suite (pytest)**~~ ✅ done 2026-04-30 — 181 tests pass in 24.0s (extended for migration-readiness). New test files: quality_gate (12) + trust (4) + matching_cache (4) + crypto (21, 96% cov) + platform_guard (21, 100% cov) + admin_smoke (24) + company_smoke (19) + metrics_routes (6) + users_routes (10). Verification Procedure in `docs/specs/infra.md`. **Migration safety net for #66/#67/#68 in place.**
 2. #44 ARQ worker entrypoint — required before paying users (next)
 3. #45 Alembic baseline migration — locks the schema before Phase D ports it
 4. Bug cleanup (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73

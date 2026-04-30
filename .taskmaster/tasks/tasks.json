@@ -255,8 +255,51 @@
         "metadata": {
           "tier": 3
         },
-        "subtasks": [],
-        "details": "[DONE 2026-04-30 09:23 \u2014 80/80 pytest tests pass in 10.2s. New: test_quality_gate.py (12), test_trust.py (4), test_matching_cache.py (4). Existing rot fixed: User.__new__ patterns and X-disabled-platform regressions in test_billing.py + test_campaigns.py + test_auth.py rate-limit. Verification Procedure block in docs/specs/infra.md.]"
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "test_crypto.py - AES-GCM encrypt/decrypt round-trip + tampering detection",
+            "status": "done",
+            "description": "~7 tests in tests/server/test_crypto.py covering server/app/utils/crypto.py (AES-256-GCM via cryptography.hazmat). Tests: round-trip preserves plaintext, empty string passthrough, plaintext input to decrypt() returns unchanged, malformed format returns unchanged, tampered ciphertext (flip last byte) returns unchanged (graceful, no crash), is_encrypted() recognizes valid format vs plaintext, encrypt_if_needed() doesn't double-encrypt, decrypt_safe() passes through plaintext. Critical for Migration #67 (creator-app-split) - encrypted API keys must remain decryptable.",
+            "details": "Pure-function tests, no DB. Use os.environ patching to test deterministic key derivation."
+          },
+          {
+            "id": 2,
+            "title": "test_platform_guard.py - X-disable safety guard regression coverage",
+            "status": "done",
+            "description": "~3 tests in tests/server/test_platform_guard.py covering server/app/utils/platform_guard.py. Tests: is_platform_disabled('x') / 'X' / ' x ' all True (case + whitespace handling); is_platform_disabled() returns False for linkedin/facebook/reddit/None/empty; contains_disabled() and filter_disabled() handle iterables correctly; DISABLED_PLATFORMS frozenset is exactly {'x'} (regression guard - adding/removing without explicit user approval should be a deliberate decision, not a typo). Critical for ALL migrations - if guard breaks silently, X campaigns activate, accounts get suspended.",
+            "details": "Pure-function tests."
+          },
+          {
+            "id": 3,
+            "title": "test_admin_smoke.py - GET 200 + auth-redirect for all 14 admin pages",
+            "status": "done",
+            "description": "~12-15 tests via parametrize. Cover all admin GET HTML routes: /admin/, /admin/login, /admin/users, /admin/users/{id}, /admin/companies, /admin/companies/{id}, /admin/campaigns, /admin/campaigns/{id}, /admin/financial, /admin/fraud, /admin/analytics, /admin/review-queue, /admin/audit-log, /admin/settings, /admin/influencers, /admin/billing, /admin/stats. For each: (a) GET without auth -> 302 to /admin/login, (b) GET with admin_token cookie -> 200, (c) zero 5xx. Plus 1 test for /admin/login POST flow with correct password sets admin_token. Critical for Migration #66 (dashboards-htmx) - template refactors must not 500 any admin page.",
+            "details": "Use existing client fixture from tests/conftest.py. Admin auth = simple cookie ('admin_token', ADMIN_TOKEN_VALUE from admin/login.py). For detail pages with {id}, seed minimal fixture (1 user, 1 company, 1 campaign) via factory helpers from conftest.py."
+          },
+          {
+            "id": 4,
+            "title": "test_company_smoke.py - GET 200 + auth-redirect for all company dashboard pages",
+            "status": "done",
+            "description": "~10 tests via parametrize. Cover company GET HTML routes: /company/, /company/login, /company/campaigns, /company/campaigns/new, /company/campaigns/{id}, /company/billing, /company/influencers, /company/stats, /company/settings. Each: (a) without company_token cookie -> 302 to /company/login, (b) with valid company_token (JWT) -> 200, (c) no 5xx. Plus 1 register-then-login flow test. Critical for Migration #66 - template refactors must not 500 any company page.",
+            "details": "Company auth = JWT cookie 'company_token'. Use create_access_token({'sub': str(company.id), 'type': 'company'}) from app.core.security. Seed company via factory from conftest.py."
+          },
+          {
+            "id": 5,
+            "title": "test_metrics_routes.py - daemon-server contract for posts + metrics + status",
+            "status": "done",
+            "description": "~4 tests in tests/server/test_metrics_routes.py covering server/app/routers/metrics.py. Tests: POST /api/posts creates Post row given valid payload; POST /api/metrics submits batch and triggers billing (check Payout row created); POST /api/metrics with same metric_id twice is deduped (no duplicate Payout); PATCH /api/posts/{id}/status to 'deleted' calls void_earnings_for_post (pending payouts moved to voided). Critical for Migration #67 - daemon ships post URLs + metrics to server; this contract must hold.",
+            "details": "Use client fixture + JWT auth (Bearer header - match what daemon uses)."
+          },
+          {
+            "id": 6,
+            "title": "test_users_routes.py - earnings + payout request API",
+            "status": "done",
+            "description": "~5 tests in tests/server/test_users_routes.py covering server/app/routers/users.py. Tests: GET /api/users/me returns profile; PATCH /api/users/me updates editable fields (region, niche_tags); GET /api/users/me/earnings returns balance summary; POST /api/users/me/payout with valid amount creates Payout in processing status and decrements available balance; POST payout without Stripe Connect returns 400 'Connect bank account first'. Critical for Migration #67 - daemon reads earnings via these endpoints.",
+            "details": "Bearer token auth. Seed user with earnings_balance_cents > 0 to test withdrawal flow."
+          }
+        ],
+        "details": "Originally shipped 2026-04-30 09:23 with 80 tests (3 new files + cleanup of 37 pre-existing failures). User audit 10:00 AM identified migration-readiness gaps: zero coverage for crypto.py, platform_guard.py, admin/company HTML routes, metrics + users routers - all of which Phase D migrations (#66/#67/#68) will refactor blind without smoke tests. Reopened to extend with 6 subtasks (~38 new tests). Suite target: 110+ tests, all green, < 90s wall clock. Must be fully done before #66/#67/#68 begin. | DONE 2026-04-30 10:50 - 181 tests pass in 24.0s, all 6 subtasks complete. Coverage: crypto.py 96%, platform_guard.py 100%. Caught + fixed real bug: User.stripe_account_id field was missing (payments.py TODO). Schema migration applied to prod Supabase 2026-04-30 10:42; record at docs/migrations/2026-04-30-task18-stripe-account-id.md."
       },
       {
         "id": 19,
