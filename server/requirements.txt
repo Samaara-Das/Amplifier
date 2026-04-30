@@ -43,3 +43,6 @@ supabase>=2.0.0
 # File content extraction
 PyPDF2>=3.0.0
 python-docx>=1.0.0
+
+# Server-Sent Events
+sse-starlette>=2.0

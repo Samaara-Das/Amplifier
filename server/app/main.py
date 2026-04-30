@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -11,6 +14,7 @@ from app.core.database import init_tables
 from app.routers import auth, campaigns, users, metrics, admin, invitations, public as public_router
 from app.routers.admin import router as admin_pages_router
 from app.routers.company import router as company_pages_router
+from app.routers.sse import router as sse_router
 
 settings = get_settings()
 
@@ -60,6 +64,11 @@ app.include_router(admin_pages_router, prefix="/admin", tags=["admin-pages"])
 app.include_router(company_pages_router, prefix="/company", tags=["company-pages"])
 app.include_router(invitations.router, prefix="/api/campaigns", tags=["invitations"])
 app.include_router(public_router.router, tags=["public"])
+app.include_router(sse_router)
+
+# Static files (JS helpers, etc.)
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
 APP_VERSION = "0.1.0"
