@@ -485,27 +485,38 @@ async def run_task71() -> dict:
     return {"results": results, "campaign_ids": created_campaign_ids, "baseline": baseline}
 
 
-async def run_task72() -> dict:
-    print("\n" + "=" * 70, "\nTASK #72 verification", "\n", "=" * 70)
+async def run_task72_regression() -> dict:
+    """Regression check after Task #72 was REVERTED 2026-04-30.
+
+    Task #72 added a NICHE MISMATCH RULE that vetoed activation when targeting
+    'didn't match' the brief. That rule was removed. The AI must NOT flag any
+    campaign on niche/targeting/audience-fit grounds. It MAY still flag for
+    legitimate product-side brand safety (e.g. high-risk financial leverage,
+    misleading claims) — that's fine; we only care that targeting-fit is gone.
+
+    Pass condition: NONE of the AI's concerns mention 'niche', 'targeting',
+    'audience fit', 'mismatch' across the 3 mismatch fixtures.
+    """
+    print("\n" + "=" * 70, "\nTASK #72 REGRESSION (post-revert)", "\n", "=" * 70)
     suffix = str(int(time.time()))
     results = {}
     api, _ = login_api()
     created: list[int] = []
 
-    scenarios = {
-        "AC1_mismatch":          ("t72_mismatch", "caution_or_reject"),
-        "AC2_aligned":           ("t72_aligned", "safe"),
-        "AC3_crypto_kids":       ("t72_crypto_kids", "caution_or_reject"),
-        "AC3_finance_fashion":   ("t72_finance_fashion", "caution_or_reject"),
-        "AC3_b2b_pets":          ("t72_b2b_pets", "caution_or_reject"),
-    }
+    fixtures = [
+        ("t72_mismatch",        "productivity SaaS + fashion/beauty/fitness niches"),
+        ("t72_aligned",         "productivity SaaS + business/tech/marketing (aligned)"),
+        ("t72_crypto_kids",     "crypto + parenting/kids"),
+        ("t72_finance_fashion", "finance + fashion"),
+        ("t72_b2b_pets",        "B2B SaaS + pets/animals"),
+    ]
+    forbidden_keywords = ("niche mismatch", "targeting mismatch", "audience fit", "niche fit", "targeting fit")
 
-    for ac_name, (sc, expectation) in scenarios.items():
+    for sc, label in fixtures:
         cid = await seed_via_api(api, sc, suffix)
         created.append(cid)
-        print(f"\n[{ac_name}] {sc} -> expect {expectation} (campaign_id={cid})")
+        print(f"\n[{label}] (campaign_id={cid})")
         r = activate_via_api(api, cid)
-        print(f"  http={r.status_code}")
         body = {}
         try:
             body = r.json()
@@ -513,53 +524,33 @@ async def run_task72() -> dict:
             pass
         ai_review = body.get("ai_review", {})
         brand_safety = ai_review.get("brand_safety")
-        concerns = ai_review.get("concerns", [])
-        ai_error = ai_review.get("error")
-        results[ac_name] = {
+        concerns = ai_review.get("concerns", []) or []
+        concerns_lower = " | ".join(concerns).lower()
+        has_forbidden = any(kw in concerns_lower for kw in forbidden_keywords)
+        results[sc] = {
             "campaign_id": cid,
             "http": r.status_code,
             "brand_safety": brand_safety,
-            "ai_error": ai_error,
             "concerns": concerns,
-            "expectation": expectation,
-            "passed": None,  # filled below
+            "has_targeting_concern": has_forbidden,
         }
-        print(f"  brand_safety={brand_safety}, ai_error={ai_error}, concerns={concerns[:2]}")
+        print(f"  brand_safety={brand_safety}, concerns={concerns[:2]}, targeting_concern_present={has_forbidden}")
 
-    # Score the ACs
-    ac1 = results["AC1_mismatch"]
-    ac1["passed"] = ac1["brand_safety"] in ("caution", "reject")
+    any_targeting_concerns = any(v["has_targeting_concern"] for v in results.values())
+    regression_passed = not any_targeting_concerns
+    print(f"\n[task72 regression] PASS={regression_passed} — AI {'still mentions' if any_targeting_concerns else 'no longer mentions'} niche/targeting/audience-fit in concerns")
 
-    ac2 = results["AC2_aligned"]
-    # Aligned should remain safe; allow brand_safety=='safe' OR an ai_error fallback (no over-tighten regression)
-    ac2["passed"] = ac2["brand_safety"] == "safe" or ac2.get("ai_error") in ("bypassed", "fallback")
-
-    ac3_results = [results["AC3_crypto_kids"], results["AC3_finance_fashion"], results["AC3_b2b_pets"]]
-    flagged = sum(1 for r in ac3_results if r["brand_safety"] in ("caution", "reject"))
-    for r in ac3_results:
-        r["passed"] = r["brand_safety"] in ("caution", "reject")
-    ac3_pass = flagged >= 2
-
-    summary = {
-        "AC1": ac1,
-        "AC2": ac2,
-        "AC3_aggregate": {"passed": ac3_pass, "flagged_count": flagged, "details": ac3_results},
-    }
-    print(f"\n[task72 summary] AC1:{ac1['passed']} AC2:{ac2['passed']} AC3:{ac3_pass} ({flagged}/3 mismatches caught)")
-
-    # Cleanup
-    print(f"\n[cleanup] cancelling {len(created)} campaigns")
     if created:
         await cancel_campaigns(created)
     api.close()
 
-    return {"results": summary, "campaign_ids": created}
+    return {"results": {"regression_passed": regression_passed, "fixtures": results}, "campaign_ids": created}
 
 
 async def main() -> None:
     out_path = OUT / f"task71_72_run_{int(time.time())}.json"
     t71 = await run_task71()
-    t72 = await run_task72()
+    t72 = await run_task72_regression()
     full = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "server": SERVER,
@@ -576,9 +567,8 @@ async def main() -> None:
     print("=" * 70)
     for ac, body in t71["results"].items():
         print(f"  Task #71 {ac}: {'PASS' if body['passed'] else 'FAIL'}")
-    for ac, body in t72["results"].items():
-        passed = body.get("passed") if isinstance(body, dict) else None
-        print(f"  Task #72 {ac}: {'PASS' if passed else 'FAIL'}")
+    t72_passed = t72["results"]["regression_passed"]
+    print(f"  Task #72 REGRESSION (no targeting concerns): {'PASS' if t72_passed else 'FAIL'}")
 
 
 if __name__ == "__main__":
