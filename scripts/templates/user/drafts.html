@@ -30,6 +30,7 @@
       <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
         {% for draft in group.drafts %}
           {% set status = draft | display_status %}
+          {% set status_label = {'pending':'Draft Ready','approved':'Approved','rejected':'Rejected','posted':'Live'}.get(status, status|title) %}
           {% set draft_id = draft.id %}
           <div id="draft-{{ draft_id }}" class="bg-slate-800 border border-slate-700 rounded-xl p-4">
             <!-- Header row: platform + status badge -->
@@ -40,7 +41,7 @@
                 {% elif status == 'rejected' %}bg-red-900/60 text-red-300 border border-red-700/40
                 {% elif status == 'posted' %}bg-blue-900/60 text-blue-300 border border-blue-700/40
                 {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}
-              ">{{ status }}</span>
+              ">{{ status_label }}</span>
             </div>
 
             <!-- Image -->
