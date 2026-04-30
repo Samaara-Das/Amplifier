@@ -51,6 +51,26 @@
     </div>
 </div>
 
+<!-- Chart data (server-rendered JSON) -->
+<script type="application/json" id="post-volume-data">{{ post_volume_chart_json | safe }}</script>
+<script type="application/json" id="platform-mix-data">{{ platform_mix_chart_json | safe }}</script>
+
+<!-- Charts row -->
+<div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+    <div class="card" style="flex: 2; min-width: 300px;">
+        <div class="card-title">Monthly Spend</div>
+        <canvas data-chart="post-volume" id="post-volume-chart" height="120"></canvas>
+    </div>
+    <div class="card" style="flex: 1; min-width: 220px;">
+        <div class="card-title">Platform Mix</div>
+        {% if platform_breakdown %}
+        <canvas data-chart="platform-mix" id="platform-mix-chart" height="180"></canvas>
+        {% else %}
+        <div class="empty" style="padding: 20px 0;"><p>No platform data yet.</p></div>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Best Performers -->
 <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
     <!-- Best Campaign -->
@@ -178,4 +198,48 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    function parseChart(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent || el.innerHTML); } catch (_) { return null; }
+    }
+
+    var pvData = parseChart('post-volume-data');
+    var pvCanvas = document.getElementById('post-volume-chart');
+    if (pvData && pvCanvas && pvData.labels && pvData.labels.length) {
+        new Chart(pvCanvas, {
+            type: 'bar',
+            data: pvData,
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#64748b' }, grid: { color: '#334155' } },
+                    y: { ticks: { color: '#64748b', callback: function(v) { return '$' + v; } }, grid: { color: '#334155' } }
+                }
+            }
+        });
+    }
+
+    var pmData = parseChart('platform-mix-data');
+    var pmCanvas = document.getElementById('platform-mix-chart');
+    if (pmData && pmCanvas && pmData.labels && pmData.labels.length) {
+        new Chart(pmCanvas, {
+            type: 'doughnut',
+            data: pmData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } }
+                }
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}

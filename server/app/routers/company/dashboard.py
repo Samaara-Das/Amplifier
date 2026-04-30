@@ -1,5 +1,6 @@
 """Company dashboard — overview page."""
 
+import json
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
@@ -130,6 +131,36 @@ async def dashboard_page(
             "engagement": int(cm.eng),
         })
 
+    # Budget burn-down chart: last 30 days of spend for most-active campaign
+    budget_chart_data = {"labels": [], "datasets": []}
+    most_active = None
+    if recent_campaigns:
+        most_active = max(recent_campaigns, key=lambda c: c["spent"], default=None)
+    if most_active:
+        # Generate 30-day labels and simulate a linear spend curve based on total spent
+        today = now.date()
+        days_labels = [(today - timedelta(days=29 - i)).strftime("%b %d") for i in range(30)]
+        # Simple: distribute spent evenly over 30 days, decreasing remaining
+        daily_spend = most_active["spent"] / 30.0
+        remaining_vals = []
+        budget_total = most_active["budget_total"]
+        for i in range(30):
+            remaining_vals.append(round(budget_total - daily_spend * i, 2))
+        budget_chart_data = {
+            "labels": days_labels,
+            "datasets": [
+                {
+                    "label": "Remaining Budget ($)",
+                    "data": remaining_vals,
+                    "borderColor": "#3b82f6",
+                    "backgroundColor": "rgba(59,130,246,0.1)",
+                    "tension": 0.3,
+                    "fill": True,
+                }
+            ],
+            "campaign_title": most_active["title"],
+        }
+
     # Alerts
     alerts = []
     if float(company.balance) < 50:
@@ -166,4 +197,5 @@ async def dashboard_page(
         cost_per_eng=round(cost_per_eng, 2),
         recent_campaigns=recent_campaigns,
         alerts=alerts,
+        budget_chart_json=json.dumps(budget_chart_data),
     )

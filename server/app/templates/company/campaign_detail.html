@@ -78,7 +78,7 @@
         <h1>{{ campaign.title }}</h1>
         <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
             <span class="badge {% if campaign.status == 'active' %}badge-green{% elif campaign.status == 'draft' %}badge-gray{% elif campaign.status == 'paused' %}badge-yellow{% elif campaign.status == 'completed' %}badge-blue{% elif campaign.status == 'cancelled' %}badge-red{% endif %}">
-                {{ campaign.status }}
+                {{ campaign.status | display_status }}
             </span>
             {% if campaign.screening_status == 'flagged' %}
             <span class="badge badge-yellow">Flagged for Review</span>
@@ -130,18 +130,18 @@
     </div>
 </div>
 
-<!-- Stats Row -->
+<!-- Stats Row — data-metric attrs enable SSE live updates -->
 <div class="stats">
     <div class="stat">
-        <div class="stat-val">{{ "{:,}".format(impressions) }}</div>
+        <div class="stat-val"><span data-metric="views">{{ "{:,}".format(impressions) }}</span></div>
         <div class="stat-label">Impressions</div>
     </div>
     <div class="stat">
-        <div class="stat-val green">{{ "{:,}".format(engagement) }}</div>
+        <div class="stat-val green"><span data-metric="engagement">{{ "{:,}".format(engagement) }}</span></div>
         <div class="stat-label">Engagement</div>
     </div>
     <div class="stat">
-        <div class="stat-val yellow">${{ "%.2f"|format(spent) }}</div>
+        <div class="stat-val yellow">$<span data-metric="spent">{{ "%.2f"|format(spent) }}</span></div>
         <div class="stat-label">Spent</div>
     </div>
     <div class="stat">
@@ -149,7 +149,7 @@
         <div class="stat-label">Creators</div>
     </div>
     <div class="stat">
-        <div class="stat-val">{{ post_count }}</div>
+        <div class="stat-val"><span data-metric="posts">{{ post_count }}</span></div>
         <div class="stat-label">Posts</div>
     </div>
     <div class="stat">
@@ -420,7 +420,7 @@ function toggleRepostEdit() {
                 </td>
                 <td>
                     <span class="badge badge-{{ inf.status }}">
-                        {{ inf.status|replace('_', ' ') }}
+                        {{ inf.status | display_status }}
                     </span>
                 </td>
                 <td>
@@ -430,6 +430,9 @@ function toggleRepostEdit() {
                         <span class="plat-badge plat-{{ post.platform }}" style="padding: 1px 5px; font-size: 10px;">{{ post.platform }}</span>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                     </a>
+                    <span x-data="copyButton('{{ post.url }}')" style="margin-left:2px;">
+                        <button @click="copy()" class="btn btn-sm btn-secondary" style="padding:1px 6px;font-size:10px;" x-text="copied ? 'Copied!' : 'Copy'"></button>
+                    </span>
                     {% endfor %}
                     {% else %}-{% endif %}
                 </td>
@@ -590,4 +593,41 @@ function toggleRepostEdit() {
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var campaignId = {{ campaign.id }};
+    var url = '/sse/campaign/' + campaignId + '/metrics';
+    var backoff = 2000;
+    var maxBackoff = 30000;
+    var es;
+
+    function connect() {
+        es = new EventSource(url);
+        es.addEventListener('metrics_update', function (e) {
+            try {
+                var d = JSON.parse(e.data);
+                var posts = document.querySelector('[data-metric="posts"]');
+                if (posts && d.posts !== undefined) posts.textContent = d.posts.toLocaleString();
+                var views = document.querySelector('[data-metric="views"]');
+                if (views && d.views !== undefined) views.textContent = d.views.toLocaleString();
+                var eng = document.querySelector('[data-metric="engagement"]');
+                if (eng && d.likes !== undefined) eng.textContent = (d.likes + d.reposts + d.comments).toLocaleString();
+                var spent = document.querySelector('[data-metric="spent"]');
+                if (spent && d.spent_cents !== undefined) spent.textContent = (d.spent_cents / 100).toFixed(2);
+                backoff = 2000;
+            } catch (_) {}
+        });
+        es.onerror = function () {
+            es.close();
+            setTimeout(connect, backoff);
+            backoff = Math.min(backoff * 2, maxBackoff);
+        };
+    }
+
+    connect();
+})();
+</script>
 {% endblock %}

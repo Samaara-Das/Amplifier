@@ -116,6 +116,50 @@ async def sse_campaign_metrics(
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
 
+    async def _query_metrics(session: AsyncSession) -> dict:
+        from sqlalchemy import func
+        from app.models.post import Post
+        from app.models.metric import Metric
+        from app.models.assignment import CampaignAssignment
+        from app.services.metric_helpers import latest_metric_filter
+
+        posts_count = await session.scalar(
+            select(func.count(Post.id))
+            .select_from(Post)
+            .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
+            .where(CampaignAssignment.campaign_id == campaign_id)
+        ) or 0
+
+        metrics_q = await session.execute(
+            select(
+                func.coalesce(func.sum(Metric.impressions), 0).label("views"),
+                func.coalesce(func.sum(Metric.likes), 0).label("likes"),
+                func.coalesce(func.sum(Metric.comments), 0).label("comments"),
+                func.coalesce(func.sum(Metric.reposts), 0).label("reposts"),
+            )
+            .select_from(Metric)
+            .join(Post, Metric.post_id == Post.id)
+            .join(CampaignAssignment, Post.assignment_id == CampaignAssignment.id)
+            .where(CampaignAssignment.campaign_id == campaign_id, latest_metric_filter())
+        )
+        m = metrics_q.one()
+
+        from app.models.campaign import Campaign as CampaignModel
+        camp_row = await session.get(CampaignModel, campaign_id)
+        budget_total = float(camp_row.budget_total) if camp_row else 0.0
+        budget_remaining = float(camp_row.budget_remaining) if camp_row else 0.0
+        spent = budget_total - budget_remaining
+
+        return {
+            "posts": posts_count,
+            "views": int(m.views),
+            "likes": int(m.likes),
+            "comments": int(m.comments),
+            "reposts": int(m.reposts),
+            "spent_cents": int(spent * 100),
+            "remaining_budget_cents": int(budget_remaining * 100),
+        }
+
     async def generator():
         yield {
             "event": "connected",
@@ -124,7 +168,11 @@ async def sse_campaign_metrics(
         while True:
             if await request.is_disconnected():
                 break
-            yield {"event": "ping", "data": json.dumps({"alive": True})}
+            try:
+                metrics = await _query_metrics(db)
+                yield {"event": "metrics_update", "data": json.dumps(metrics)}
+            except Exception:
+                yield {"event": "ping", "data": json.dumps({"alive": True})}
             await asyncio.sleep(_HEARTBEAT_SEC)
 
     return EventSourceResponse(generator())

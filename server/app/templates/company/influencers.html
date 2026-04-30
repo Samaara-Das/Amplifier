@@ -47,68 +47,19 @@
     </div>
 </div>
 
-<form method="GET" action="/company/influencers" class="filter-bar">
-    <input type="text" name="search" placeholder="Search by email..." value="{{ search }}" />
-    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+<div class="filter-bar">
+    <input type="text" name="search" placeholder="Search by email..." value="{{ search }}"
+           hx-get="/company/influencers" hx-target="#influencers-list"
+           hx-trigger="keyup changed delay:300ms" hx-push-url="true"
+           hx-include="[name='search']" />
     {% if search %}
     <a href="/company/influencers" class="btn btn-sm btn-secondary">Clear</a>
     {% endif %}
-</form>
+</div>
 
 <div class="card">
-    {% if influencers %}
-    <table>
-        <thead>
-            <tr>
-                <th>Creator</th>
-                <th>Platforms</th>
-                <th>Trust</th>
-                <th>Campaigns</th>
-                <th>Posts</th>
-                <th>Impressions</th>
-                <th>Engagement</th>
-                <th>Eng. Rate</th>
-                <th>Total Paid</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for i in influencers %}
-            <tr>
-                <td style="font-weight: 500; color: #f8fafc;">{{ i.email }}</td>
-                <td>
-                    <div class="platform-badges">
-                        {% for p in i.platforms %}
-                        <span class="platform-badge">{{ p }}</span>
-                        {% endfor %}
-                    </div>
-                </td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <div class="trust-bar" style="width: 40px;">
-                            <div class="trust-fill" style="width: {{ i.trust_score }}%; background: {{ '#22c55e' if i.trust_score >= 70 else '#facc15' if i.trust_score >= 40 else '#ef4444' }};"></div>
-                        </div>
-                        <span style="font-size: 12px;">{{ i.trust_score }}</span>
-                    </div>
-                </td>
-                <td>{{ i.campaign_count }}</td>
-                <td>{{ i.post_count }}</td>
-                <td>{{ "{:,}".format(i.impressions) }}</td>
-                <td>{{ "{:,}".format(i.engagement) }}</td>
-                <td>
-                    <span class="eng-rate {{ 'high' if i.engagement_rate >= 5 else 'mid' if i.engagement_rate >= 2 else 'low' }}">
-                        {{ "%.1f"|format(i.engagement_rate) }}%
-                    </span>
-                </td>
-                <td style="font-weight: 500;">${{ "%.2f"|format(i.total_paid) }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty">
-        <h3>No influencers yet</h3>
-        <p>{% if search %}No influencers match "{{ search }}"{% else %}Influencers will appear here once they accept your campaign invitations.{% endif %}</p>
+    <div id="influencers-list">
+        {% include "company/_influencers_list.html" %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}

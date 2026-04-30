@@ -1,5 +1,6 @@
 """Company statistics/analytics page."""
 
+import json
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, Request
@@ -118,6 +119,29 @@ async def stats_page(
         for k, v in sorted(monthly_spend.items())
     ]
 
+    # Chart JSON: post volume per month (reuse monthly_spend data as proxy)
+    post_volume_chart = json.dumps({
+        "labels": [m["month"] for m in monthly_spend_list],
+        "datasets": [{
+            "label": "Monthly Spend ($)",
+            "data": [m["spend"] for m in monthly_spend_list],
+            "backgroundColor": "rgba(59,130,246,0.7)",
+        }],
+    })
+
+    # Chart JSON: platform mix doughnut
+    platform_colors = {
+        "x": "#1d9bf0", "linkedin": "#0a66c2", "facebook": "#1877f2",
+        "reddit": "#ff4500", "tiktok": "#25f4ee", "instagram": "#e1306c",
+    }
+    platform_mix_chart = json.dumps({
+        "labels": [p["name"] for p in platform_breakdown],
+        "datasets": [{
+            "data": [p["engagement"] for p in platform_breakdown],
+            "backgroundColor": [platform_colors.get(p["name"], "#334155") for p in platform_breakdown],
+        }],
+    })
+
     return _render(
         "company/stats.html",
         company=company,
@@ -133,4 +157,6 @@ async def stats_page(
         platform_breakdown=platform_breakdown,
         monthly_spend=monthly_spend_list,
         active_page="stats",
+        post_volume_chart_json=post_volume_chart,
+        platform_mix_chart_json=platform_mix_chart,
     )
