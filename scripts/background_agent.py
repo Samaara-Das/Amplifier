@@ -32,6 +32,13 @@ HEALTH_CHECK_INTERVAL = 1800  # 30 minutes
 PROFILE_REFRESH_INTERVAL = 604800  # 7 days
 DB_BACKUP_INTERVAL = 21600         # 6 hours
 
+# ── Phase D: server-sync intervals ──────────────────────────────────
+# Honor AMPLIFIER_UAT_INTERVAL_SEC override at module load
+_uat_interval_sec = int(os.environ.get("AMPLIFIER_UAT_INTERVAL_SEC", "0").strip() or "0")
+COMMAND_POLL_INTERVAL = _uat_interval_sec if _uat_interval_sec > 0 else 60   # 60s
+STATUS_PUSH_INTERVAL  = _uat_interval_sec if _uat_interval_sec > 0 else 60   # 60s
+DRAFT_SYNC_INTERVAL   = _uat_interval_sec if _uat_interval_sec > 0 else 30   # 30s
+
 
 # ── Campaign asset helpers ──────────────────────────────────────────
 
@@ -403,6 +410,13 @@ async def generate_daily_content(campaign_id_filter: int | None = None) -> dict:
                     logger.info("Daily content generated for campaign %s (day %d)", campaign_id, day_number)
                     from utils.local_db import add_notification
                     add_notification("content", "Drafts Ready", f"Generated {len(draft_ids)} draft(s) for \"{campaign.get('title', 'campaign')}\".")
+
+                    # Phase D: fire-and-forget draft upload; periodic sync picks up failures
+                    try:
+                        asyncio.create_task(sync_unsynced_drafts())
+                    except RuntimeError:
+                        # No running event loop (e.g. called from thread) — skip; periodic task covers it
+                        pass
 
                     # Send desktop notification for THIS campaign
                     try:
@@ -844,6 +858,233 @@ def _store_notifications(notifications: list[dict]) -> None:
             pass  # Tray not available — silent
 
 
+# ── Phase D: server-sync task functions ─────────────────────────────
+
+
+# Command type → handler mapping (built lazily to avoid circular imports)
+_COMMAND_HANDLERS: dict | None = None
+
+
+def _get_command_handlers(agent: "BackgroundAgent") -> dict:
+    """Return dispatch table keyed by command type.
+
+    Built on first call so imports only happen when actually dispatching.
+    """
+    global _COMMAND_HANDLERS
+
+    async def _handle_force_poll(cmd: dict) -> None:
+        if agent.paused:
+            return
+        await poll_campaigns()
+
+    async def _handle_generate_content(cmd: dict) -> None:
+        if agent.paused:
+            return
+        campaign_id = (cmd.get("payload") or {}).get("campaign_id")
+        await generate_daily_content(campaign_id_filter=campaign_id)
+
+    async def _handle_scrape_profiles(cmd: dict) -> None:
+        if agent.paused:
+            return
+        await refresh_profiles()
+
+    async def _handle_pause_agent(cmd: dict) -> None:
+        agent.pause()
+
+    async def _handle_resume_agent(cmd: dict) -> None:
+        agent.resume()
+
+    async def _handle_draft_approved(cmd: dict) -> None:
+        from utils.local_db import approve_draft
+        local_id = (cmd.get("payload") or {}).get("local_id")
+        if local_id is not None:
+            approve_draft(int(local_id))
+
+    async def _handle_draft_rejected(cmd: dict) -> None:
+        from utils.local_db import reject_draft
+        local_id = (cmd.get("payload") or {}).get("local_id")
+        if local_id is not None:
+            reject_draft(int(local_id))
+
+    async def _handle_draft_edited(cmd: dict) -> None:
+        from utils.local_db import update_draft_text
+        payload = cmd.get("payload") or {}
+        local_id = payload.get("local_id")
+        text = payload.get("text")
+        if local_id is not None and text is not None:
+            update_draft_text(int(local_id), text)
+
+    return {
+        "force_poll":       _handle_force_poll,
+        "generate_content": _handle_generate_content,
+        "scrape_profiles":  _handle_scrape_profiles,
+        "pause_agent":      _handle_pause_agent,
+        "resume_agent":     _handle_resume_agent,
+        "draft_approved":   _handle_draft_approved,
+        "draft_rejected":   _handle_draft_rejected,
+        "draft_edited":     _handle_draft_edited,
+    }
+
+
+async def process_server_commands(agent: "BackgroundAgent") -> dict:
+    """Poll GET /api/agent/commands?status=pending, dispatch each, then ack.
+
+    Always runs (even when paused) so the daemon can receive resume_agent.
+    Individual command handlers check agent.paused themselves if needed.
+    """
+    from utils.server_client import get_pending_commands, ack_command
+
+    try:
+        commands = get_pending_commands()
+    except Exception as e:
+        logger.warning("get_pending_commands failed: %s", e)
+        return {"processed": 0, "failed": 0, "error": str(e)}
+
+    if not commands:
+        return {"processed": 0, "failed": 0}
+
+    handlers = _get_command_handlers(agent)
+    processed = 0
+    failed = 0
+
+    for cmd in commands:
+        cmd_id = cmd.get("id")
+        cmd_type = cmd.get("type", "")
+        handler = handlers.get(cmd_type)
+
+        if handler is None:
+            logger.warning("Unknown command type: %s (id=%s)", cmd_type, cmd_id)
+            try:
+                ack_command(cmd_id, result="failed", error="unknown command type")
+            except Exception as ack_err:
+                logger.warning("ack failed for cmd %s: %s", cmd_id, ack_err)
+            failed += 1
+            continue
+
+        try:
+            await handler(cmd)
+            ack_command(cmd_id, result="done")
+            processed += 1
+            logger.info("Processed command %s (type=%s)", cmd_id, cmd_type)
+        except Exception as e:
+            logger.error("Command handler failed for %s (type=%s): %s", cmd_id, cmd_type, e)
+            try:
+                ack_command(cmd_id, result="failed", error=str(e)[:500])
+            except Exception as ack_err:
+                logger.warning("ack failed for cmd %s: %s", cmd_id, ack_err)
+            failed += 1
+
+    logger.info("process_server_commands: processed=%d failed=%d", processed, failed)
+    return {"processed": processed, "failed": failed}
+
+
+async def push_agent_status(agent: "BackgroundAgent") -> dict:
+    """Push current daemon status to the server (running, paused, platform_health, ai_keys)."""
+    from utils.server_client import push_agent_status as _push
+
+    # Gather platform health from session_health module
+    platform_health: dict = {}
+    try:
+        from utils.session_health import get_platform_health
+        platform_health = get_platform_health() or {}
+    except Exception as e:
+        logger.debug("Could not fetch platform_health: %s", e)
+
+    # Detect which AI keys are configured (non-empty strings)
+    ai_keys_configured: dict = {}
+    try:
+        from utils.local_db import get_setting
+        for key_name in ("gemini_api_key", "mistral_api_key", "groq_api_key"):
+            val = get_setting(key_name, "") or ""
+            ai_keys_configured[key_name] = bool(val.strip())
+    except Exception as e:
+        logger.debug("Could not read AI key settings: %s", e)
+
+    try:
+        result = _push(
+            running=agent.running,
+            paused=agent.paused,
+            platform_health=platform_health,
+            ai_keys_configured=ai_keys_configured,
+            version="phase-d",
+        )
+        logger.debug("Status pushed to server (running=%s paused=%s)", agent.running, agent.paused)
+        return result
+    except Exception as e:
+        logger.warning("push_agent_status failed: %s", e)
+        return {"error": str(e)}
+
+
+async def sync_unsynced_drafts() -> dict:
+    """Upload local drafts that have not yet been synced to the server.
+
+    For each unsynced draft:
+    1. If image_path points to a local file (not http/https URL), upload it first.
+    2. Call upload_draft with text + image_url.
+    3. Mark synced=1 on success.
+
+    Returns summary {uploaded: N, failed: M}.
+    """
+    from utils.local_db import get_unsynced_drafts, mark_draft_synced
+    from utils.server_client import upload_draft, upload_draft_image
+
+    drafts = get_unsynced_drafts(limit=50)
+    if not drafts:
+        return {"uploaded": 0, "failed": 0}
+
+    uploaded = 0
+    failed = 0
+
+    for draft in drafts:
+        draft_id = draft.get("id")
+        campaign_id = draft.get("campaign_id")
+        platform = draft.get("platform")
+        text = draft.get("draft_text", "")
+        image_path = draft.get("image_path")
+        quality_score = draft.get("quality_score")
+        iteration = draft.get("iteration", 1)
+
+        if not campaign_id or not platform or not text:
+            logger.debug("Skipping draft %s — missing required fields", draft_id)
+            continue
+
+        image_url: str | None = None
+        if image_path:
+            if image_path.startswith("http://") or image_path.startswith("https://"):
+                image_url = image_path
+            else:
+                # Local file — upload it first
+                try:
+                    result = await asyncio.to_thread(upload_draft_image, image_path)
+                    image_url = result.get("url")
+                except Exception as img_err:
+                    logger.warning("Image upload failed for draft %s: %s", draft_id, img_err)
+                    # Continue without image rather than blocking the draft upload
+
+        try:
+            qs = int(quality_score) if quality_score is not None else None
+            server_resp = await asyncio.to_thread(
+                upload_draft,
+                campaign_id=campaign_id,
+                platform=platform,
+                text=text,
+                image_url=image_url,
+                iteration=iteration,
+                quality_score=qs,
+                local_id=draft_id,
+            )
+            server_id = server_resp.get("id")
+            mark_draft_synced(draft_id, server_draft_id=server_id)
+            uploaded += 1
+            logger.info("Synced draft %s -> server id %s", draft_id, server_id)
+        except Exception as e:
+            logger.warning("Failed to upload draft %s: %s", draft_id, e)
+            failed += 1
+
+    logger.info("sync_unsynced_drafts: uploaded=%d failed=%d", uploaded, failed)
+    return {"uploaded": uploaded, "failed": failed}
+
+
 # ── Background Agent class ───────────────────────────────────────────
 
 
@@ -864,6 +1105,10 @@ class BackgroundAgent:
         self.last_profile_refresh = 0.0
         self.last_metric_scrape = 0.0
         self.last_db_backup = 0.0
+        # Phase D: server-sync task timestamps
+        self.last_command_poll = 0.0
+        self.last_status_push = 0.0
+        self.last_draft_sync = 0.0
         self._task: asyncio.Task | None = None
         self._iteration_count = 0
         # UAT: allow overriding the content-gen check interval (default 120s)
@@ -958,6 +1203,16 @@ class BackgroundAgent:
                     logger.error("Metric scraping crashed: %s", e)
                     results["metrics"] = {"success": False, "error": str(e)}
 
+                # Phase D: every DRAFT_SYNC_INTERVAL: upload unsynced drafts to server
+                _draft_sync_force = bool(os.environ.get("AMPLIFIER_UAT_DRAFT_SYNC_NOW", ""))
+                if _draft_sync_force or (now - self.last_draft_sync >= DRAFT_SYNC_INTERVAL):
+                    try:
+                        results["draft_sync"] = await sync_unsynced_drafts()
+                    except Exception as e:
+                        logger.error("Draft sync crashed: %s", e)
+                        results["draft_sync"] = {"success": False, "error": str(e)}
+                    self.last_draft_sync = now
+
                 # Generate and store notifications from results
                 try:
                     notifications = _build_notifications(results)
@@ -968,6 +1223,22 @@ class BackgroundAgent:
                         )
                 except Exception as e:
                     logger.error("Notification building failed: %s", e)
+
+            # Phase D: always run command poll + status push (even when paused)
+            # so the daemon can receive resume_agent and the web UI reflects paused state.
+            if now - self.last_command_poll >= COMMAND_POLL_INTERVAL:
+                try:
+                    await process_server_commands(self)
+                except Exception as e:
+                    logger.error("Command poll crashed: %s", e)
+                self.last_command_poll = now
+
+            if now - self.last_status_push >= STATUS_PUSH_INTERVAL:
+                try:
+                    await push_agent_status(self)
+                except Exception as e:
+                    logger.error("Status push crashed: %s", e)
+                self.last_status_push = now
 
             await asyncio.sleep(LOOP_INTERVAL)
 

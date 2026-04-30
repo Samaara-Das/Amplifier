@@ -156,6 +156,8 @@ def init_db() -> None:
             iteration INTEGER DEFAULT 1,
             approved INTEGER DEFAULT 0,
             posted INTEGER DEFAULT 0,
+            synced INTEGER DEFAULT 0,
+            server_draft_id INTEGER,
             created_at TEXT DEFAULT (datetime('now'))
         );
 
@@ -211,6 +213,9 @@ def init_db() -> None:
         "ALTER TABLE agent_draft ADD COLUMN variant_id INTEGER DEFAULT 0",
         # v6: anomaly flag for metric accuracy improvements
         "ALTER TABLE local_metric ADD COLUMN anomaly_flag INTEGER DEFAULT 0",
+        # Phase D: draft sync tracking — synced=1 once uploaded to server
+        "ALTER TABLE agent_draft ADD COLUMN synced INTEGER DEFAULT 0",
+        "ALTER TABLE agent_draft ADD COLUMN server_draft_id INTEGER",
     ]
     for stmt in _safe_alter_columns:
         try:
@@ -1142,6 +1147,34 @@ def update_draft_text(draft_id: int, new_text: str) -> None:
     conn.execute("UPDATE agent_draft SET draft_text = ? WHERE id = ?", (new_text, draft_id))
     conn.commit()
     conn.close()
+
+
+def mark_draft_synced(draft_id: int, server_draft_id: int | None = None) -> None:
+    """Mark a local draft as successfully uploaded to the server (synced=1).
+
+    Optionally records the server-side draft id for cross-referencing.
+    """
+    conn = _get_db()
+    if server_draft_id is not None:
+        conn.execute(
+            "UPDATE agent_draft SET synced = 1, server_draft_id = ? WHERE id = ?",
+            (server_draft_id, draft_id),
+        )
+    else:
+        conn.execute("UPDATE agent_draft SET synced = 1 WHERE id = ?", (draft_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_unsynced_drafts(limit: int = 50) -> list[dict]:
+    """Return drafts that have not yet been uploaded to the server (synced=0)."""
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT * FROM agent_draft WHERE synced = 0 ORDER BY created_at ASC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_all_drafts(campaign_id: int = None) -> list[dict]:

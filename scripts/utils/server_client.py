@@ -282,3 +282,100 @@ def request_payout(amount: float) -> dict:
     resp = _request_with_retry("POST", "/api/users/me/payout", json={"amount": amount})
     resp.raise_for_status()
     return resp.json()
+
+
+# ── Agent Commands ─────────────────────────────────────────────────
+
+
+def get_pending_commands() -> list[dict]:
+    """GET /api/agent/commands?status=pending. Returns list of pending commands for current user."""
+    resp = _request_with_retry("GET", "/api/agent/commands", params={"status": "pending"})
+    if resp.status_code == 200:
+        return resp.json()
+    logger.warning("Failed to get pending commands: %s", resp.status_code)
+    return []
+
+
+def ack_command(command_id: int, result: str = "done", error: str | None = None) -> dict:
+    """POST /api/agent/commands/{id}/ack. result: 'done' | 'failed'."""
+    body: dict = {"result": result}
+    if error is not None:
+        body["error"] = error
+    resp = _request_with_retry("POST", f"/api/agent/commands/{command_id}/ack", json=body)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def push_agent_status(running: bool, paused: bool, platform_health: dict,
+                      ai_keys_configured: dict, version: str | None = None) -> dict:
+    """POST /api/agent/status. Daemon pushes own status. Returns the upserted row."""
+    body: dict = {
+        "running": running,
+        "paused": paused,
+        "platform_health": platform_health,
+        "ai_keys_configured": ai_keys_configured,
+    }
+    if version is not None:
+        body["version"] = version
+    resp = _request_with_retry("POST", "/api/agent/status", json=body)
+    resp.raise_for_status()
+    return resp.json()
+
+
+# ── Drafts ─────────────────────────────────────────────────────────
+
+
+def upload_draft(*, campaign_id: int, platform: str, text: str,
+                 image_url: str | None = None, image_local_path: str | None = None,
+                 quality_score: int | None = None, iteration: int = 1,
+                 local_id: int | None = None) -> dict:
+    """POST /api/drafts. Idempotent for the same (user_id, campaign_id, platform, local_id) tuple."""
+    body: dict = {
+        "campaign_id": campaign_id,
+        "platform": platform,
+        "text": text,
+        "iteration": iteration,
+    }
+    if image_url is not None:
+        body["image_url"] = image_url
+    if image_local_path is not None:
+        body["image_local_path"] = image_local_path
+    if quality_score is not None:
+        body["quality_score"] = quality_score
+    if local_id is not None:
+        body["local_id"] = local_id
+    resp = _request_with_retry("POST", "/api/drafts", json=body)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def upload_draft_image(image_path: str) -> dict:
+    """POST /api/drafts/upload-image (multipart). Returns {'url': ...}."""
+    url = f"{_get_server_url()}/api/drafts/upload-image"
+    # Auth only — no Content-Type header (httpx sets multipart boundary automatically)
+    auth = _load_auth()
+    token = auth.get("access_token")
+    if not token:
+        raise RuntimeError("Not logged in. Run onboarding first.")
+    headers = {"Authorization": f"Bearer {token}"}
+    with open(image_path, "rb") as fh:
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.post(url, headers=headers, files={"file": fh})
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"Image upload failed: {resp.status_code} {resp.text[:200]}")
+    return resp.json()
+
+
+def update_draft_status_remote(draft_id: int, status: str | None = None,
+                               text: str | None = None, image_url: str | None = None) -> dict:
+    """PATCH /api/drafts/{id}. Used when local user approves/edits a draft."""
+    body: dict = {}
+    if status is not None:
+        body["status"] = status
+    if text is not None:
+        body["text"] = text
+    if image_url is not None:
+        body["image_url"] = image_url
+    resp = _request_with_retry("PATCH", f"/api/drafts/{draft_id}", json=body)
+    resp.raise_for_status()
+    return resp.json()
