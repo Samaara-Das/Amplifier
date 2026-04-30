@@ -358,7 +358,6 @@ class TestAiReviewCampaignByok:
         campaign.payout_rules = {}
         campaign.targeting = {}
 
-        # Patch _run_gemini_review to capture its kwargs and return a valid result
         captured = {}
 
         async def fake_gemini_review(camp, prompt, model="gemini-2.0-flash", company_id=None, db=None):
@@ -366,9 +365,7 @@ class TestAiReviewCampaignByok:
             captured["db"] = db
             return {"passed": True, "brand_safety": "safe", "concerns": []}
 
-        # Also patch resolve_api_key for mistral/groq since it gets called even if gemini succeeds
         with patch.object(quality_gate, "_run_gemini_review", side_effect=fake_gemini_review):
-            # Bypass UAT env vars
             os.environ.pop("AMPLIFIER_UAT_BYPASS_AI_REVIEW", None)
             os.environ.pop("AMPLIFIER_UAT_FORCE_AI_REVIEW_RESULT", None)
             result = await quality_gate.ai_review_campaign(campaign, db=db_session)
@@ -376,3 +373,85 @@ class TestAiReviewCampaignByok:
         assert result["brand_safety"] == "safe"
         assert captured["company_id"] == 42
         assert captured["db"] is db_session
+
+    @pytest.mark.asyncio
+    async def test_gemini_review_uses_byok_fallback_wrapper(self, db_session, monkeypatch):
+        """_run_gemini_review calls call_with_byok_fallback — verifies the wiring.
+
+        We patch call_with_byok_fallback to record calls and return a valid result,
+        then assert it was invoked with the correct provider and company_id.
+        """
+        from app.services import quality_gate
+        from app.services import api_keys as ak
+        from app.models.company import Company
+        from app.core.security import hash_password
+
+        monkeypatch.setenv("GEMINI_API_KEY", "server-gemini-key")
+
+        company = Company(name="T9", email="t9@t.com", password_hash=hash_password("p"), balance=0)
+        db_session.add(company)
+        await db_session.flush()
+        await _add_key_row(db_session, company.id, "gemini", "company-gemini-key")
+
+        fallback_calls = []
+        original_fallback = ak.call_with_byok_fallback
+
+        async def recording_fallback(provider, cid, db_s, fn):
+            fallback_calls.append({"provider": provider, "company_id": cid})
+            # Call through to the real fn with the company key
+            return await original_fallback(provider, cid, db_s, fn)
+
+        campaign_mock = MagicMock()
+        campaign_mock.company_id = company.id
+        campaign_mock.payout_rules = {}
+        campaign_mock.targeting = {}
+        campaign_mock.title = "T"
+        campaign_mock.brief = "b" * 50
+        campaign_mock.content_guidance = "g" * 50
+
+        # Patch the genai Client so no real network calls happen
+        mock_response = MagicMock()
+        mock_response.text = '{"passed": true, "brand_safety": "safe", "concerns": []}'
+
+        with patch.object(ak, "call_with_byok_fallback", side_effect=recording_fallback):
+            import asyncio as _asyncio
+            with patch("asyncio.to_thread", new=AsyncMock(return_value=mock_response)):
+                with patch.dict("sys.modules", {"google": MagicMock(), "google.genai": MagicMock()}):
+                    result = await quality_gate._run_gemini_review(
+                        campaign_mock, "prompt", "gemini-2.0-flash",
+                        company_id=company.id, db=db_session,
+                    )
+
+        assert len(fallback_calls) == 1
+        assert fallback_calls[0]["provider"] == "gemini"
+        assert fallback_calls[0]["company_id"] == company.id
+
+    @pytest.mark.asyncio
+    async def test_fallback_retries_on_401_within_gemini_review(self, db_session, monkeypatch):
+        """Integration: call_with_byok_fallback retries with server key when company key gets 401."""
+        from app.services.api_keys import call_with_byok_fallback
+        from app.models.company import Company
+        from app.core.security import hash_password
+
+        monkeypatch.setenv("GEMINI_API_KEY", "server-good-key")
+
+        company = Company(name="T10", email="t10@t.com", password_hash=hash_password("p"), balance=0)
+        db_session.add(company)
+        await db_session.flush()
+        await _add_key_row(db_session, company.id, "gemini", "bad-company-key")
+
+        keys_tried = []
+
+        async def fn_that_fails_on_company_key(api_key: str):
+            keys_tried.append(api_key)
+            if api_key == "bad-company-key":
+                raise RuntimeError("401 Unauthorized: invalid api key")
+            return {"passed": True, "brand_safety": "safe", "concerns": []}
+
+        result = await call_with_byok_fallback(
+            "gemini", company.id, db_session, fn_that_fails_on_company_key
+        )
+
+        assert result["brand_safety"] == "safe"
+        assert keys_tried[0] == "bad-company-key"   # tried company key first
+        assert keys_tried[1] == "server-good-key"    # retried with server key

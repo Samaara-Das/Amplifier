@@ -412,19 +412,25 @@ async def ai_review_campaign(campaign, request_headers=None, db=None) -> dict:
     logger.info("AI review: gemini exhausted, falling through to mistral")
 
     # ── Mistral ────────────────────────────────────────────────────────
-    from app.services.api_keys import resolve_api_key as _resolve_api_key
+    from app.services.api_keys import resolve_api_key as _resolve_api_key, call_with_byok_fallback as _byok_fallback
 
-    mistral_key = await _resolve_api_key("mistral", _company_id, db)
-    if mistral_key:
+    # Use resolve_api_key to check if any key is available before attempting the call.
+    # call_with_byok_fallback handles the company→server retry on auth error internally.
+    _mistral_probe = await _resolve_api_key("mistral", _company_id, db)
+    if _mistral_probe:
         logger.info("AI review: trying mistral/mistral-large-latest (attempt 1)")
-        try:
-            result = await _run_openai_compat_review(
+
+        async def _call_mistral(api_key: str):
+            return await _run_openai_compat_review(
                 prompt=prompt,
-                api_key=mistral_key,
+                api_key=api_key,
                 base_url="https://api.mistral.ai/v1",
                 model="mistral-large-latest",
                 provider="mistral",
             )
+
+        try:
+            result = await _byok_fallback("mistral", _company_id, db, _call_mistral)
             return result
         except Exception as exc:
             logger.warning("AI review mistral failed: %s", exc)
@@ -434,17 +440,21 @@ async def ai_review_campaign(campaign, request_headers=None, db=None) -> dict:
     logger.info("AI review: mistral exhausted, falling through to groq")
 
     # ── Groq ───────────────────────────────────────────────────────────
-    groq_key = await _resolve_api_key("groq", _company_id, db)
-    if groq_key:
+    _groq_probe = await _resolve_api_key("groq", _company_id, db)
+    if _groq_probe:
         logger.info("AI review: trying groq/llama-3.3-70b-versatile (attempt 1)")
-        try:
-            result = await _run_openai_compat_review(
+
+        async def _call_groq(api_key: str):
+            return await _run_openai_compat_review(
                 prompt=prompt,
-                api_key=groq_key,
+                api_key=api_key,
                 base_url="https://api.groq.com/openai/v1",
                 model="llama-3.3-70b-versatile",
                 provider="groq",
             )
+
+        try:
+            result = await _byok_fallback("groq", _company_id, db, _call_groq)
             return result
         except Exception as exc:
             logger.warning("AI review groq failed: %s", exc)
@@ -508,26 +518,26 @@ async def _run_gemini_review(
 ) -> dict:
     """Call Gemini to review the campaign. Returns parsed dict.
 
+    Uses BYOK fallback: tries company key first, falls back to server key on auth error.
     Raises on any error — caller handles retry and fallback logic.
     """
-    from app.services.api_keys import resolve_api_key as _resolve_api_key
+    from app.services.api_keys import call_with_byok_fallback as _byok_fallback
 
-    api_key = await _resolve_api_key("gemini", company_id, db)
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY not set on server")
+    async def _call_gemini_with_key(api_key: str):
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY not set on server")
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=model,
+            contents=prompt,
+        )
+        text = response.text.strip()
+        result = _parse_json_response(text)
+        return _normalize_ai_result(result)
 
-    from google import genai
-
-    client = genai.Client(api_key=api_key)
-
-    response = await asyncio.to_thread(
-        client.models.generate_content,
-        model=model,
-        contents=prompt,
-    )
-    text = response.text.strip()
-    result = _parse_json_response(text)
-    return _normalize_ai_result(result)
+    return await _byok_fallback("gemini", company_id, db, _call_gemini_with_key)
 
 
 async def _run_openai_compat_review(
