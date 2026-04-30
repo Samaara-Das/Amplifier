@@ -458,14 +458,12 @@ def _build_review_prompt(campaign) -> str:
 Campaign Title: {title}
 Campaign Brief: {brief}
 Content Guidance for creators: {guidance}
-Niche Tags / Target Audience: {", ".join(niche_tags) if niche_tags else "Not specified"}
 Payout Rates: {json.dumps(rules)}
 
-Review for these 4 concerns:
-1. Is the brief coherent and specific, or vague filler text?
+Review for these 3 concerns:
+1. Is the brief actual content, or empty/gibberish/placeholder text?
 2. Does the content guidance contain anything harmful? (attacking competitors, misleading claims, fake reviews, defamation)
-3. Does the targeting make sense for the product? (finance product targeting fashion = mismatch)
-4. Is this a legitimate product, or does it look like a scam or spam?
+3. Is this a legitimate product, or does it look like a scam or spam?
 
 Return ONLY valid JSON (no markdown, no commentary):
 {{
@@ -477,15 +475,8 @@ Return ONLY valid JSON (no markdown, no commentary):
 Rules:
 - brand_safety = "reject" ONLY for content with harmful guidance (fake reviews, competitor attacks, defamation, scam/misleading claims)
 - brand_safety = "caution" for borderline cases (aggressive tone, vague suspicious claims)
-- NICHE MISMATCH RULE: If the brief's primary subject (the product/service category) does NOT relate to ANY of the listed Niche Tags or a category-adjacent tag, set brand_safety to "caution" at minimum. Examples:
-    - Productivity SaaS brief + niches=[fashion, beauty, fitness] → "caution" (creators' audiences won't care)
-    - Crypto trading brief + niches=[parenting, kids, education] → "reject" (inappropriate audience)
-    - Finance/trading brief + niches=[fashion] → "caution"
-    - Aligned: SaaS brief + niches=[business, technology, marketing] → "safe"
-- Empty niche_tags ("Not specified") = neutral; do NOT trigger this rule.
-- Use judgment for category-adjacency (productivity → business is adjacent; productivity → fitness is not).
 - brand_safety = "safe" for legitimate campaigns
-- concerns must mention specific issues found (e.g. "competitor", "false claims", "defamation", "harmful content", "niche mismatch", "targeting mismatch")
+- concerns must mention specific issues found (e.g. "competitor", "false claims", "defamation", "harmful content", "scam", "misleading claims")
 - If no concerns, return an empty concerns list"""
 
 
