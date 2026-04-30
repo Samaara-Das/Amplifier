@@ -1,0 +1,27 @@
+name: Build Test
+
+on:
+  push:
+    branches: [flask-user-app, main]
+  pull_request:
+    branches: [flask-user-app, main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-build.txt
+          python -m patchright install chromium
+
+      - name: Compile
+        run: python scripts/build/build_windows.py
