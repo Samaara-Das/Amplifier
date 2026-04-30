@@ -1,0 +1,11 @@
+{% if invitations %}
+    {% for inv in invitations %}
+        {% set invitation = inv %}
+        {% include "user/_invitation_card.html" %}
+    {% endfor %}
+{% else %}
+<div class="empty">
+    <h3>No pending invitations</h3>
+    <p>New campaign invitations will appear here when companies match with your profile.</p>
+</div>
+{% endif %}

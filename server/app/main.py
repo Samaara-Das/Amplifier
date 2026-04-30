@@ -14,6 +14,7 @@ from app.core.database import init_tables
 from app.routers import auth, campaigns, users, metrics, admin, invitations, public as public_router
 from app.routers.admin import router as admin_pages_router
 from app.routers.company import router as company_pages_router
+from app.routers.user import router as user_pages_router
 from app.routers.sse import router as sse_router
 
 settings = get_settings()
@@ -62,6 +63,7 @@ app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(admin_pages_router, prefix="/admin", tags=["admin-pages"])
 app.include_router(company_pages_router, prefix="/company", tags=["company-pages"])
+app.include_router(user_pages_router, prefix="/user", tags=["user-pages"])
 app.include_router(invitations.router, prefix="/api/campaigns", tags=["invitations"])
 app.include_router(public_router.router, tags=["public"])
 app.include_router(sse_router)

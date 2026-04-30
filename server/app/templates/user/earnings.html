@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Earnings — Amplifier Creator{% endblock %}
+{% block brand %}Amplifier{% endblock %}
+{% block brand_sub %}Creator dashboard{% endblock %}
+{% block nav %}{% include "user/_nav.html" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.withdraw-gate { background: rgba(37, 99, 235, 0.06); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 10px; padding: 20px; margin-top: 24px; }
+.withdraw-gate h3 { font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
+.withdraw-gate p { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+.withdraw-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Earnings</h1>
+</div>
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val green">${{ "%.2f"|format(total_earned_cents / 100) }}</div>
+        <div class="stat-label">Total Earned (all time)</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">${{ "%.2f"|format(available_cents / 100) }}</div>
+        <div class="stat-label">Available to Withdraw</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val yellow">${{ "%.2f"|format(pending_cents / 100) }}</div>
+        <div class="stat-label">Pending (7-day hold)</div>
+    </div>
+</div>
+
+<!-- Per-campaign breakdown -->
+{% if campaign_breakdown %}
+<div style="margin-bottom: 24px;">
+    <h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 16px;">Per-Campaign Breakdown</h2>
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Campaign</th>
+                    <th>Earned</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in campaign_breakdown %}
+                <tr>
+                    <td style="font-weight: 500; color: #f8fafc;">{{ item.campaign_title }}</td>
+                    <td style="color: #4ade80; font-weight: 600;">${{ "%.2f"|format(item.earned_cents / 100) }}</td>
+                    <td>
+                        <span class="badge {% if item.status == 'paid' %}badge-blue{% elif item.status == 'available' %}badge-green{% elif item.status == 'voided' %}badge-red{% else %}badge-yellow{% endif %}">
+                            {{ item.status | display_status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Payout history -->
+{% if payout_history %}
+<div style="margin-bottom: 24px;">
+    <h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 16px;">Payout History</h2>
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payout in payout_history %}
+                <tr>
+                    <td>{{ payout.requested_at.strftime('%b %d, %Y') if payout.requested_at else '—' }}</td>
+                    <td style="font-weight: 600;">${{ "%.2f"|format(payout.amount_cents / 100) }}</td>
+                    <td>
+                        <span class="badge {% if payout.status == 'paid' %}badge-blue{% elif payout.status == 'processing' %}badge-yellow{% elif payout.status == 'failed' %}badge-red{% else %}badge-gray{% endif %}">
+                            {{ payout.status | display_status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Withdraw section -->
+<div class="withdraw-gate">
+    <h3>Withdraw Earnings</h3>
+    {% if user.stripe_account_id %}
+    <p>Your Stripe bank account is connected. You can withdraw your available balance.</p>
+    <div class="withdraw-form">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="withdraw-amount">Amount (USD)</label>
+            <input type="number" id="withdraw-amount" name="amount" class="form-control"
+                   style="width: 160px;"
+                   min="10" max="{{ "%.2f"|format(available_cents / 100) }}"
+                   step="0.01" placeholder="10.00" required>
+        </div>
+        <button type="button" class="btn btn-primary"
+                onclick="submitWithdraw()"
+                {% if available_cents < 1000 %}disabled title="Minimum withdrawal is $10.00"{% endif %}>
+            Withdraw
+        </button>
+    </div>
+    <p style="font-size: 12px; color: #475569; margin-top: 8px;">
+        Available: ${{ "%.2f"|format(available_cents / 100) }} &mdash; Minimum withdrawal: $10.00
+    </p>
+    {% else %}
+    <p>Connect your bank account to enable withdrawals. Payouts require a Stripe Connect account.</p>
+    <a href="/user/settings#stripe-connect" class="btn btn-primary">Connect Bank Account</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if user.stripe_account_id %}
+<script>
+function submitWithdraw() {
+    var amount = parseFloat(document.getElementById('withdraw-amount').value);
+    if (isNaN(amount) || amount < 10) {
+        alert('Minimum withdrawal is $10.00');
+        return;
+    }
+    var token = document.cookie.split('; ').find(function(c) { return c.startsWith('user_token='); });
+    if (!token) { alert('Session expired. Please log in again.'); return; }
+    token = token.split('=')[1];
+    fetch('/api/users/me/payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ amount: amount })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.payout_id) {
+            alert('Withdrawal of $' + amount.toFixed(2) + ' requested successfully! New balance: $' + data.new_balance.toFixed(2));
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.detail || 'Unknown error'));
+        }
+    })
+    .catch(function() { alert('Network error. Please try again.'); });
+}
+</script>
+{% endif %}
+{% endblock %}
