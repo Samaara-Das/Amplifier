@@ -38,6 +38,24 @@ python scripts/campaign_runner.py --once   # single poll + process
 python scripts/utils/metric_scraper.py     # scrape engagement metrics from posted URLs
 ```
 
+## Schema migration policy (Task #45)
+
+Every PR that changes a SQLAlchemy model in `server/app/models/` MUST include a corresponding Alembic migration in `server/alembic/versions/`. No exceptions.
+
+Procedure:
+1. Edit the model
+2. `cd server && alembic revision --autogenerate -m "describe_change"` — generates a migration matching the diff
+3. Hand-review the migration file (autogenerate is not perfect)
+4. Test locally: `alembic upgrade head` against a test DB
+5. Commit BOTH the model change AND the migration in the same PR
+6. Deploy: SSH to VPS, run `alembic upgrade head`, then restart `amplifier-web.service`
+
+Why this is non-negotiable: prior to this policy, schema changes drifted silently from production. Two prod-blocking bugs surfaced during the Vercel→Hostinger migration (Task #41) — `decline_reason` column missing, 14 columns needed `json → jsonb`. Both were caused by `Base.metadata.create_all` (only adds new tables, not new columns). The same trap caught us again on 2026-04-30 with `users.stripe_account_id` (manually applied via direct ALTER TABLE in `docs/migrations/2026-04-30-task18-stripe-account-id.md`).
+
+For the migration itself: Task #45 generated the baseline `c5967048d886_baseline.py` covering all 14 tables as of 2026-04-30. Production was stamped at this baseline. Going forward, all schema changes flow through Alembic.
+
+**Note on JSON vs JSONB:** Models use `from sqlalchemy import JSON as JSONB` — a portability alias (works with SQLite + PostgreSQL). The baseline emits `sa.JSON()`. Prod was manually fixed to `jsonb` during Task #41. When stamping prod, `alembic check` will show zero diffs (SQLAlchemy's `JSON` type maps to postgres `json`, not `jsonb`). If you want prod columns to be proper `JSONB` for GIN indexing, file a follow-up migration using `sa.dialects.postgresql.JSONB` and run it against prod.
+
 ## How Claude Works on This Project
 
 **Read `docs/STATUS.md` first** at every session start — it's the single source of truth for batches, every task's status, deferred reasons, the AC/UAT workflow, and what to work on next. Per-task specs live in `docs/specs/batch-*.md`.
