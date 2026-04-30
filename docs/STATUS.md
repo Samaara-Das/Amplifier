@@ -27,7 +27,9 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **43 done** · **12 pending** · **19 deferred** · 0 in-progress · **74 total**
+- **44 done** · **8 pending** · **22 deferred** · 0 in-progress · **74 total**
+
+> **Phase C COMPLETE 2026-04-30** ✅ All 7 items shipped or rationally deferred: #18 pytest, #44 ARQ worker, #45 Alembic baseline, bug-cleanup batch, #27 post URL dedup, #28 ToS gate, #23 DB backup. #24/#25/#26 deferred into Phase D HTMX migration. Pre-launch tests + safety net + legal gate are all in place. Server LIVE at `https://api.pointcapitalis.com`.
 - **Server**: ✅ LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai). Task #41 done 2026-04-25. Deploy via `/commit-push`.
 - **Worker**: ✅ LIVE as `amplifier-worker.service` on the same VPS since 2026-04-30 06:17 UTC. 4 cron jobs running.
 - **Schema migrations**: ✅ Alembic baseline `c5967048d886` stamped on prod 2026-04-30. All future model changes flow through `server/alembic/versions/`.
@@ -144,7 +146,7 @@ Run in this order:
 4. ~~Bug cleanup batch (carry-overs from `/uat-task 14`): #57, #59, #60, #63, #64, #65, #73~~ ✅ done 2026-04-30 (one bundled PR, 185 tests pass, AC blocks for all 7).
 5. ~~#27 Server-side post URL dedup~~ ✅ done 2026-04-30 18:17 — 4/4 ACs PASS via `/uat-task 27` (3 pytest + 1 prod curl smoke). 188 tests pass. Report: `docs/uat/reports/task-27-2026-04-30-1817.md`.
 6. ~~#28 ToS + privacy policy acceptance in registration~~ ✅ done 2026-04-30 18:42 — 5/5 ACs PASS via `/uat-task 28`. Alembic migration `a1b2c3d4e5f6` applied to prod. /terms + /privacy live. Report: `docs/uat/reports/task-28-2026-04-30-1842.md`.
-7. Low-prio polish: #23 (DB backup), #24 (status label rename), #25 (clipboard copy), #26 (client-side validation) — **next** via #52 AC sweep
+7. ~~#23 DB backup~~ ✅ done 2026-04-30 18:56 — 3/3 ACs PASS via `/uat-task 23`. Online SQLite `.backup()` API + 6h interval in daemon main loop. Report: `docs/uat/reports/task-23-2026-04-30-1856.md`. **#24/#25/#26 DEFERRED 2026-04-30** — they target dead Flask user-app templates that get ripped up in Phase D. Requirements folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` (Polish requirements section).
 
 **Skipped from Phase C** (replaced by Phase D migration docs):
 - ~~#20 PyInstaller packaging~~ → superseded by `2026-04-28-migration-stealth-and-packaging.md` (Nuitka, not PyInstaller)

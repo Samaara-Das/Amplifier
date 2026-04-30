@@ -734,3 +734,79 @@ Task #28 is marked done in task-master ONLY when:
 5. AC5 PASS (migration file structure verified)
 6. `pytest tests/server/test_auth.py -v` → all 18 tests PASS
 7. `pytest tests/ -v` → no regressions, total count = 194
+
+---
+
+## Task #23 — Periodic DB backup in background agent
+
+### What It Does
+
+Adds a 6-hourly job to the daemon's main loop that snapshots `data/local.db` to `data/local.db.bak` using SQLite's online `.backup()` API (safe under concurrent writes). Falls back to `shutil.copy2` if the online backup fails. The backup runs alongside the existing posts/campaigns/content_gen/health/metric_scraping/profile_refresh blocks.
+
+### Files Changed
+
+- `scripts/background_agent.py` — `+DB_BACKUP_INTERVAL = 21600`, new `async def backup_local_db()` (~25 LOC), new `self.last_db_backup` tracker, new block in `BackgroundAgent.run()` between metric-scraping and profile-refresh.
+
+### Why It Survives Phase D
+
+Daemon code (`scripts/background_agent.py`) is preserved verbatim through the migration per `docs/migrations/2026-04-28-migration-creator-app-split.md`. This change ships now, no rework later.
+
+---
+
+## Verification Procedure — Task #23
+
+**Preconditions**:
+- Repo on `flask-user-app` branch.
+- `data/local.db` exists (any user-app session has created it).
+
+**Test data setup**: None.
+
+**Test-mode flags**: None.
+
+---
+
+### AC1: backup_local_db() produces a valid SQLite file at data/local.db.bak
+
+| Field | Value |
+|-------|-------|
+| **Setup** | `data/local.db` exists. Remove any stale `data/local.db.bak`. |
+| **Action** | `python -c "import asyncio,sys; sys.path.insert(0,'scripts'); from background_agent import backup_local_db; print(asyncio.run(backup_local_db()))"` |
+| **Expected** | Output: `{'success': True, 'size_bytes': N}` with N > 0. `data/local.db.bak` exists and is a valid SQLite file (header check: first 16 bytes match `b'SQLite format 3\x00'`). |
+| **Automated** | yes |
+| **Automation** | manual + 1-line python |
+| **Evidence** | stdout dict; `python -c "print(open('data/local.db.bak','rb').read(16))"` returns `b'SQLite format 3\x00'` |
+| **Cleanup** | none — backup is the desired post-state |
+
+### AC2: Backup contains the same row count as source
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC1 passed. Both files exist. |
+| **Action** | `python -c "import sqlite3; src=sqlite3.connect('data/local.db').execute('SELECT COUNT(*) FROM agent_draft').fetchone()[0]; bak=sqlite3.connect('data/local.db.bak').execute('SELECT COUNT(*) FROM agent_draft').fetchone()[0]; print('src=',src,'bak=',bak,'match=',src==bak)"` |
+| **Expected** | `match= True`. Counts identical. (Spot-checks 1 table; full schema integrity is implicit in `.backup()`'s contract.) |
+| **Automated** | yes |
+| **Automation** | one-line python above |
+| **Evidence** | stdout |
+| **Cleanup** | none |
+
+### AC3: Loop integration — backup block fires when 6h interval elapses
+
+| Field | Value |
+|-------|-------|
+| **Setup** | `BackgroundAgent` instantiated with `last_db_backup=0`. `time.time()` mocked to return a value > 21600. |
+| **Action** | Code inspection: confirm `backup_local_db()` is called from `BackgroundAgent.run()` inside an `if now - self.last_db_backup >= DB_BACKUP_INTERVAL` block, and that `self.last_db_backup` is updated to `now` after the call. |
+| **Expected** | Both lines present in `scripts/background_agent.py`. Block sits between metric-scraping and profile-refresh in the main loop. |
+| **Automated** | partial |
+| **Automation** | `grep -n "DB_BACKUP_INTERVAL\|backup_local_db\|last_db_backup" scripts/background_agent.py` — expect 4+ hits. |
+| **Evidence** | grep output |
+| **Cleanup** | none |
+
+---
+
+### Aggregated PASS rule for Task #23
+
+Task #23 is marked done in task-master ONLY when:
+1. AC1 PASS (`.bak` file produced + valid SQLite header)
+2. AC2 PASS (row count matches source)
+3. AC3 PASS (loop integration confirmed by grep)
+4. `pytest tests/ -v` → no regressions (`backup_local_db` is daemon code, not server — but the test suite must remain green)

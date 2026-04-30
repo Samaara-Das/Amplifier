@@ -30,6 +30,7 @@ POLL_INTERVAL = 600           # 10 minutes
 CONTENT_GEN_INTERVAL = 120    # 2 minutes — check for campaigns needing content
 HEALTH_CHECK_INTERVAL = 1800  # 30 minutes
 PROFILE_REFRESH_INTERVAL = 604800  # 7 days
+DB_BACKUP_INTERVAL = 21600         # 6 hours
 
 
 # ── Campaign asset helpers ──────────────────────────────────────────
@@ -653,6 +654,33 @@ async def check_sessions() -> dict:
         return {"success": False, "error": str(e), "platforms": {}}
 
 
+async def backup_local_db() -> dict:
+    """Copy data/local.db to data/local.db.bak atomically.
+
+    Uses SQLite's `.backup()` API (online backup, safe under concurrent writes
+    from other connections). Falls back to file-copy if anything fails.
+    """
+    import sqlite3
+    import shutil
+
+    src = Path(__file__).resolve().parent.parent / "data" / "local.db"
+    dst = src.with_suffix(".db.bak")
+    if not src.exists():
+        return {"success": False, "error": "source db missing"}
+
+    try:
+        with sqlite3.connect(str(src)) as src_conn, sqlite3.connect(str(dst)) as dst_conn:
+            src_conn.backup(dst_conn)
+        return {"success": True, "size_bytes": dst.stat().st_size}
+    except Exception as e:
+        logger.warning("SQLite online backup failed (%s); falling back to file copy", e)
+        try:
+            shutil.copy2(src, dst)
+            return {"success": True, "size_bytes": dst.stat().st_size, "method": "file_copy"}
+        except Exception as e2:
+            return {"success": False, "error": str(e2)}
+
+
 async def refresh_profiles() -> dict:
     """Re-scrape all connected platform profiles if stale (>7 days).
 
@@ -835,6 +863,7 @@ class BackgroundAgent:
         self.last_health_check = 0.0
         self.last_profile_refresh = 0.0
         self.last_metric_scrape = 0.0
+        self.last_db_backup = 0.0
         self._task: asyncio.Task | None = None
         self._iteration_count = 0
         # UAT: allow overriding the content-gen check interval (default 120s)
@@ -903,6 +932,15 @@ class BackgroundAgent:
                         logger.error("Session health check crashed: %s", e)
                         results["health"] = {"success": False, "error": str(e)}
                     self.last_health_check = now
+
+                # Every 6 hours: snapshot local.db -> local.db.bak
+                if now - self.last_db_backup >= DB_BACKUP_INTERVAL:
+                    try:
+                        results["db_backup"] = await backup_local_db()
+                    except Exception as e:
+                        logger.error("DB backup crashed: %s", e)
+                        results["db_backup"] = {"success": False, "error": str(e)}
+                    self.last_db_backup = now
 
                 # Every 7 days: refresh profiles
                 if now - self.last_profile_refresh >= PROFILE_REFRESH_INTERVAL:

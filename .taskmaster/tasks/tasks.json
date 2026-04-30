@@ -366,49 +366,56 @@
         "id": 23,
         "title": "Periodic DB backup in background agent",
         "description": "Copy data/local.db to data/local.db.bak every 6 hours in background agent loop.",
-        "status": "pending",
+        "status": "done",
         "priority": "low",
         "dependencies": [],
         "metadata": {
           "tier": 5
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-30T13:20:45.771148+00:00"
       },
       {
         "id": 24,
         "title": "Status label renaming in user app templates",
         "description": "Replace internal names: pending_invitation to Invited, content_generated to Draft Ready, posted to Live, paid to Earned.",
-        "status": "pending",
+        "status": "deferred",
         "priority": "low",
         "dependencies": [],
         "metadata": {
           "tier": 5
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-30T13:17:45.130866+00:00",
+        "details": "\n\nDeferred 2026-04-30: targets `scripts/user_app.py` / `scripts/templates/user/` which CLAUDE.md marks as dead code post-Phase D migration. Requirement folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` so the new HTMX creator dashboard inherits it. Polishing soon-to-be-deleted templates is wasted work."
       },
       {
         "id": 25,
         "title": "Clipboard copy button for post URLs",
         "description": "Add Copy URL button next to each post URL on Posts tab.",
-        "status": "pending",
+        "status": "deferred",
         "priority": "low",
         "dependencies": [],
         "metadata": {
           "tier": 5
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-30T13:17:45.130866+00:00",
+        "details": "\n\nDeferred 2026-04-30: targets `scripts/user_app.py` / `scripts/templates/user/` which CLAUDE.md marks as dead code post-Phase D migration. Requirement folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` so the new HTMX creator dashboard inherits it. Polishing soon-to-be-deleted templates is wasted work."
       },
       {
         "id": 26,
         "title": "Client-side form validation in user app",
         "description": "Add required attributes, email format, number range validation to all forms.",
-        "status": "pending",
+        "status": "deferred",
         "priority": "low",
         "dependencies": [],
         "metadata": {
           "tier": 5
         },
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-30T13:17:45.130866+00:00",
+        "details": "\n\nDeferred 2026-04-30: targets `scripts/user_app.py` / `scripts/templates/user/` which CLAUDE.md marks as dead code post-Phase D migration. Requirement folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` so the new HTMX creator dashboard inherits it. Polishing soon-to-be-deleted templates is wasted work."
       },
       {
         "id": 27,

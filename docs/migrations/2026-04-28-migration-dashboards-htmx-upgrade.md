@@ -179,3 +179,13 @@ This migration adds HTMX + Alpine + Tailwind CDN to the existing dashboards inst
 ## Followups
 
 - Migrate one specific admin page to React if a future feature genuinely needs it (e.g., real-time collaborative draft editing). Until that triggers, stay on HTMX.
+
+## Polish requirements absorbed from deferred tasks (2026-04-30)
+
+These three task-master items were deferred at the same time the user-app split was committed, because polishing the soon-to-be-deleted Flask templates is wasted work. Each requirement must land in the HTMX migration so the new creator/company/admin surfaces ship with them on day 1.
+
+- **#24 — Status label rename** (originally targeted `scripts/templates/user/`). In every new HTMX surface that displays a status badge, the user-facing label must be: `pending_invitation` → "Invited", `content_generated` → "Draft Ready", `posted` → "Live", `paid` → "Earned". Apply consistently across user app `/user/*`, company `/company/*` (campaign assignment lists), and admin `/admin/*` (post status, payout status). Internal DB enum values stay the same — this is a presentation-layer rename only.
+- **#25 — Copy URL button** (originally Posts tab in user app). Every new surface that renders a post URL (creator dashboard Posts page, company campaign-detail post list, admin posts table) must include a Copy button next to the URL. Use the standard Tailwind/HTMX clipboard pattern (`navigator.clipboard.writeText` + a 1.5s "Copied!" tooltip via Alpine).
+- **#26 — Client-side form validation** (originally user app forms). Every form in every new HTMX surface must use HTML5 native validation: `required` on all required fields, `type="email"` on email inputs, `type="number"` with `min`/`max` on numeric inputs, `pattern=` on URL fields. No custom JS validation — native HTML5 + the existing Pydantic server-side validation is enough.
+
+Each of these is small but easy to forget. Adding them to the migration's Acceptance Criteria block (when the AC block is expanded for #66 implementation) ensures they ship.
