@@ -753,7 +753,7 @@ Every page and action under `/admin/*` (36+ routes across 11 modular routers):
 16. Available payout void: returns funds AND decrements user `earnings_balance_cents` — AC16 (Task #8)
 17. Fraud page lists flagged users; run-check button fires manual sweep — AC17
 18. Fraud penalty appeal approve/deny each work and write audit_log — AC18
-19. Review queue lists campaigns with `caution` verdict from AI quality gate; approve/reject each work — AC19 (Task #15)
+19. Review queue lists unresolved campaigns (caution-verdict from AI quality gate; queue table has no verdict column — all entries are implicitly caution); approve/reject each work — AC19 (Task #15)
 20. Analytics page renders Chart.js charts without console errors — AC20
 21. Audit log page renders with filters (event type, severity, time range); pagination works — AC21
 22. Settings page renders feature flags / platform-cut % / hold days — AC22
@@ -1011,9 +1011,9 @@ Every page and action under `/admin/*` (36+ routes across 11 modular routers):
 
 | Field | Value |
 |-------|-------|
-| **Setup** | Penalty `P_A` with appeal pending. |
+| **Setup** | Penalty `P_A` with `appealed=True` and `appeal_result=NULL` (= "pending appeal" — schema has no separate `appeal_status` column). Same for P_B. |
 | **Action** | (1) Click "Approve Appeal" on P_A → confirm. (2) Repeat for P_B (different penalty) but click "Deny Appeal". |
-| **Expected** | (1) P_A `status=appeal_approved`, penalty refunded if applicable. audit_log `event='penalty_appeal_approved'`. (2) P_B `status=appeal_denied`. audit_log `event='penalty_appeal_denied'`. |
+| **Expected** | (1) P_A `appeal_result='approved'`, penalty refunded if applicable. audit_log `event='penalty_appeal_approved'`. (2) P_B `appeal_result='denied'`. audit_log `event='penalty_appeal_denied'`. |
 | **Automated** | yes |
 | **Automation** | DevTools MCP + SQL |
 | **Evidence** | SQL state per penalty |
@@ -1023,8 +1023,8 @@ Every page and action under `/admin/*` (36+ routes across 11 modular routers):
 
 | Field | Value |
 |-------|-------|
-| **Setup** | ≥1 campaign with quality gate verdict `caution` queued in `admin_review_queue`. Capture campaign id. |
-| **Action** | `navigate_page("/admin/review-queue")` → `take_snapshot`. Click "Approve" on the test entry → confirm. Then create another `caution` entry, click "Reject" → enter reason → confirm. |
+| **Setup** | ≥1 row in `admin_review_queue` with `resolved_at=NULL` (= unresolved — every queue row is implicitly a caution-verdict campaign needing admin review; the table has no `verdict` column). Capture campaign id. |
+| **Action** | `navigate_page("/admin/review-queue")` → `take_snapshot`. Click "Approve" on the test entry → confirm. Then create another unresolved entry, click "Reject" → enter reason → confirm. |
 | **Expected** | Approve: campaign `status` transitions to `active`. Queue entry removed. audit_log `event='admin_review_approved'`. Reject: campaign stays `draft` (or transitions to `rejected` per spec). audit_log `event='admin_review_rejected'` with reason. |
 | **Automated** | yes |
 | **Automation** | DevTools MCP + SQL |
