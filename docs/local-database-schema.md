@@ -215,6 +215,8 @@ Agent pipeline table. Stores generated draft content per campaign per platform. 
 | `iteration` | INTEGER | `1` | Generation iteration / day number |
 | `approved` | INTEGER | `0` | `0` = pending, `1` = approved, `-1` = rejected |
 | `posted` | INTEGER | `0` | `1` if this draft has been posted |
+| `synced` | INTEGER | `0` | `1` if draft has been uploaded to server (Task #67) |
+| `server_draft_id` | INTEGER | NULL | ID assigned by server after sync; used for status updates (Task #67) |
 | `created_at` | TEXT | `datetime('now')` | Row creation timestamp |
 
 ---

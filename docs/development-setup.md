@@ -18,7 +18,7 @@ pip install -r requirements.txt
 
 # User app / scripts
 pip install -r requirements.txt
-playwright install chromium
+python -m patchright install chromium
 ```
 
 Notable dependencies beyond the standard web stack: `numpy>=1.24.0` (image processing), `piexif>=1.1.3` (EXIF metadata for UGC image pipeline).
@@ -104,7 +104,7 @@ cd scripts && python -m pytest tests/ -v
 cd scripts && python -c "
 import asyncio, sys; sys.path.insert(0, '.')
 from utils.profile_scraper import scrape_linkedin_profile
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 async def t():
     async with async_playwright() as pw:
         r = await scrape_linkedin_profile(pw)

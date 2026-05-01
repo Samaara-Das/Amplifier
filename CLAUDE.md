@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Two interconnected systems in one repo:
-1. **Amplifier** — Personal social media automation engine (6 platforms, Playwright, Claude CLI)
+1. **Amplifier** — Personal social media automation engine (6 platforms, Patchright, Claude CLI)
 2. **Amplifier Server** — Two-sided marketplace server where companies create campaigns and users earn money by posting campaign content via Amplifier
 
 ## Commands
@@ -13,7 +13,7 @@ Two interconnected systems in one repo:
 ```bash
 # ── Amplifier Engine ──────────────────────────────
 pip install -r requirements.txt
-playwright install chromium
+python -m patchright install chromium
 
 python scripts/login_setup.py <platform>   # x | linkedin | facebook | instagram | reddit | tiktok
 powershell scripts/generate.ps1            # generate drafts (Claude CLI)
@@ -32,10 +32,9 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 # ── Amplifier User App ────────────────────────────────────
 python scripts/onboarding.py               # first-run setup (register, connect platforms, set mode)
-python scripts/campaign_dashboard.py       # user dashboard at http://localhost:5222
-python scripts/campaign_runner.py          # start campaign polling loop
-python scripts/campaign_runner.py --once   # single poll + process
+python scripts/user_app.py                 # local FastAPI at http://localhost:5222 (drafts, connect, keys)
 python scripts/utils/metric_scraper.py     # scrape engagement metrics from posted URLs
+# Hosted creator dashboard: https://api.pointcapitalis.com/user/
 ```
 
 ## Schema migration policy (Task #45)
@@ -89,11 +88,11 @@ Three-phase pipeline: **generate** (PowerShell + Claude CLI) → **review** (Fla
 - Draft lifecycle: `drafts/review/` → `drafts/pending/` → `drafts/posted/` or `drafts/failed/`
 
 ### Amplifier Server (`server/`)
-FastAPI + Supabase PostgreSQL / SQLite (local dev). ~92 routes total (28 JSON API + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health + 2 public legal pages). **LIVE at `https://api.pointcapitalis.com`** since 2026-04-25 on Hostinger KVM 1 VPS (Mumbai). systemd: `amplifier-web.service`. See "Server Hosting" section below for full ops context.
+FastAPI + Supabase PostgreSQL / SQLite (local dev). ~130 routes total (28 JSON API + 8 drafts/agent API + 3 SSE + ~28 user creator dashboard + 36 admin dashboard + ~21 company dashboard + 2 system + 2 health + 2 public legal pages). **LIVE at `https://api.pointcapitalis.com`** since 2026-04-25 on Hostinger KVM 1 VPS (Mumbai). systemd: `amplifier-web.service`. See "Server Hosting" section below for full ops context.
 
 **Background worker (`server/app/worker.py`)**: ARQ-based, 4 cron jobs — `run_promote_pending_earnings` (hourly), `run_process_pending_payouts` (hourly), `run_trust_score_sweep` (daily), `run_billing_reconciliation` (daily). Live as `amplifier-worker.service` since 2026-04-30 (Task #44). Honors `AMPLIFIER_UAT_INTERVAL_SEC` (every 30s in UAT) + `AMPLIFIER_UAT_DRY_STRIPE` (logs Transfer kwargs without calling Stripe). systemd unit at `server/deploy/amplifier-worker.service`.
 
-**Schema migrations (`server/alembic/`)**: Alembic baseline `c5967048d886` (Task #45, 2026-04-30) covers all 14 tables. Production currently at head `a1b2c3d4e5f6_add_tos_accepted_at_to_user_and_company` (Task #28, 2026-04-30 evening) — adds nullable `tos_accepted_at` to `users` + `companies`. All future model changes MUST flow through `alembic revision --autogenerate` per the "Schema migration policy" section near the top of this file.
+**Schema migrations (`server/alembic/`)**: Alembic baseline `c5967048d886` (Task #45, 2026-04-30) covers all 14 original tables. Migration chain: `c5967048d886` → `a1b2c3d4e5f6` (tos_accepted_at, Task #28) → `63d9159c4ce6` (drafts + agent_commands + agent_status tables, Task #67) → `b1c2d3e4f5a6` (company_api_keys table, Task #70). **Current head: `b1c2d3e4f5a6`** — applied to prod 2026-05-01. All future model changes MUST flow through `alembic revision --autogenerate` per the "Schema migration policy" section near the top of this file.
 
 **API endpoints** (`/api/`):
 - Auth: user + company register/login (JWT). Both register endpoints require `accept_tos: bool` (Task #28) and stamp `tos_accepted_at` on success — 4 routes
@@ -101,13 +100,22 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~92 routes total (28 JSON AP
 - Invitations: list/accept/reject + active assignments — 6 routes
 - Users: profile CRUD + earnings + payout — 4 routes
 - Posts/Metrics: batch registration and submission. `POST /api/posts` deduplicates by `post_url` and returns `skipped_duplicate` + `skipped_invalid_assignment` counters in addition to `created`/`count` (Task #27) — 2 routes
+- Drafts: `POST /api/drafts` (upload), `GET /api/drafts`, `PATCH /api/drafts/{id}` — daemon → server draft sync (Task #67) — 3 routes
+- Agent: `POST /api/agent/commands`, `GET /api/agent/commands`, `POST /api/agent/commands/{id}/ack`, `GET /api/agent/status`, `POST /api/agent/status` — server↔daemon command/status channel (Task #67) — 5 routes
 - System: health check + version — 2 routes
+
+**SSE endpoints** (cookie auth — EventSource limitation, NOT Bearer):
+- `GET /sse/admin/overview` — live admin overview stats
+- `GET /sse/campaign/{id}/metrics` — live campaign metric stream
+- `GET /sse/user/agent-status` — live daemon heartbeat for creator dashboard (Task #66)
 
 **Public unauthenticated pages** (`server/app/routers/public.py`, no `/api` prefix): `GET /terms`, `GET /privacy` — render `templates/public/terms.html` and `templates/public/privacy.html`. Linked from the company register form's ToS checkbox (Task #28).
 
-**Web dashboards** (blue `#2563eb` theme, DM Sans font, gradient cards, SVG Heroicons nav):
-- **Company** (`/company/`) — 10 pages: login, dashboard, campaigns list, create campaign, AI wizard, campaign detail, billing, influencers, stats, settings. Routers modularized into `server/app/routers/company/` (7 files).
-- **Admin** (`/admin/`) — 14 pages: login, overview, users, user detail, companies, company detail, campaigns, campaign detail, financial, fraud, analytics, review queue, audit log, settings. Routers modularized into `server/app/routers/admin/` (11 files). Financial router has 5 routes: GET list + POST run-billing + POST run-payout + POST run-earning-promotion + POST run-payout-processing.
+**Web dashboards** (blue `#2563eb` theme, DM Sans font, gradient cards, SVG Heroicons nav; HTMX 1.9 + Alpine.js 3 for live partials — Task #66):
+- **Company** (`/company/`) — 10 pages: login, dashboard, campaigns list, create campaign, AI wizard, campaign detail, billing, influencers, stats, settings. Routers modularized into `server/app/routers/company/` (7 files). Campaigns/billing/influencers pages use HTMX partials.
+- **Admin** (`/admin/`) — 14 pages: login, overview, users, user detail, companies, company detail, campaigns, campaign detail, financial, fraud, analytics, review queue, audit log, settings. Routers modularized into `server/app/routers/admin/` (11 files). Financial router has 5 routes: GET list + POST run-billing + POST run-payout + POST run-earning-promotion + POST run-payout-processing. Overview/users/financial/analytics pages use HTMX partials. Bulk-suspend uses direct `fetch()` (Alpine scope mismatch with `hx-vals='js:'`).
+- **User creator dashboard** (`/user/*`) — HOSTED on the server, 7 pages: login, dashboard, campaigns, posts, earnings, settings. Routers in `server/app/routers/user/` (7 files). Tailwind CDN. SSE for live agent status.
+- `server/app/static/js/alpine-helpers.js` + `htmx-defaults.js` — shared HTMX/Alpine configuration for all dashboards.
 
 **Services:**
 - `matching.py` — Campaign-to-user matching (hard filters + AI scoring via Gemini with fallback). Enforces tier-based campaign limits (seedling:3, grower:10, amplifier:unlimited).
@@ -117,24 +125,24 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~92 routes total (28 JSON AP
 - `campaign_wizard.py` — AI campaign generation (URL scraping + Gemini brief generation + content screening)
 - `storage.py` — File upload management (Supabase Storage + local fallback)
 - `quality_gate.py` — Campaign quality gate: `score_campaign()` (8-criterion deterministic rubric, 0-100) + `ai_review_campaign()` (server Gemini call for brand-safety, caution/reject/safe). Gates activation at score >= 85.
+- `api_keys.py` — BYOK (Bring Your Own Key): `resolve_api_key(provider, company_id, db)` tries company-specific DB key first, falls back to env-var key. `call_with_byok_fallback()` retries with env-var key on auth error. Wired into `quality_gate.ai_review_campaign` and `campaign_wizard`. Keys stored encrypted via `company_api_keys` table (Task #70).
 
 **Server utilities:**
 - `server/app/utils/crypto.py` — AES-256-GCM server-side encryption
 
-**Models** (14 tables): Company (`balance_cents` added, `tos_accepted_at` added Task #28), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred feature), User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count`, `stripe_account_id` added for Task #19 readiness, `tos_accepted_at` added Task #28), CampaignAssignment (`decline_reason` added), Post, Metric, Payout (`amount_cents`, `available_at`, expanded status lifecycle: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents` added), CampaignInvitationLog, AuditLog, ContentScreeningLog, AdminReviewQueue
+**Models** (18 tables): Company (`balance_cents`, `tos_accepted_at`), Campaign (`campaign_type`: ai_generated|repost), CampaignPost (repost content per platform — deferred), CompanyTransaction, User (`earnings_balance_cents`, `total_earned_cents`, `tier`, `successful_post_count`, `stripe_account_id`, `tos_accepted_at`), CampaignAssignment (`decline_reason`), Post, Metric, Payout (`amount_cents`, `available_at`, status: pending→available→processing→paid|voided|failed, EARNING_HOLD_DAYS=7), Penalty (`amount_cents`), CampaignInvitationLog, AuditLog, ContentScreeningLog, AdminReviewQueue — plus 4 added in Phase D: **Draft** (daemon→server draft sync, Task #67), **AgentCommand** (server→daemon command queue, Task #67), **AgentStatus** (daemon heartbeat, Task #67), **CompanyApiKey** (BYOK encrypted keys per provider, Task #70)
 
-**Test suite**: 194 pytest tests in `tests/server/` covering money loop, quality_gate rubric, trust events, matching cache, crypto round-trip, platform_guard, admin/company smoke routes, metrics + users API endpoints, post URL dedup (`TestPostRegisterDedup`, Task #27), and ToS-gate registration (`TestTosGate`, Task #28). Run via `pytest tests/` (~28s). `tests/conftest.py` provides in-memory async SQLite + httpx test client + factory helpers. See `docs/specs/infra.md` for Task #18's Verification Procedure.
+**Test suite**: 303 pytest tests in `tests/server/` covering money loop, quality_gate rubric, trust events, matching cache, crypto round-trip, platform_guard, admin/company smoke routes, metrics + users API endpoints, post URL dedup (`TestPostRegisterDedup`, Task #27), ToS-gate registration (`TestTosGate`, Task #28), BYOK encryption + fallback paths (`test_byok.py` — 15 tests, Task #70). Run via `pytest tests/` (~28s). `tests/conftest.py` provides in-memory async SQLite + httpx test client + factory helpers. See `docs/specs/infra.md` for Task #18's Verification Procedure.
 
 ### Amplifier User App
-**Phase D migration planned (2026-04-28):** The local Flask UI (`scripts/user_app.py`) is being replaced by a slim local FastAPI (5 routes, ~400-600 LOC) + hosted creator dashboard (`/user/*` on the FastAPI server). The daemon's 6,500 LOC of automation code is preserved verbatim. See `docs/migrations/2026-04-28-migration-creator-app-split.md`. **Do not add features to `scripts/user_app.py` or `scripts/templates/user/` — they are dead code post-migration.**
+**Phase D migration SHIPPED 2026-05-01 (Task #67).** The local Flask UI has been replaced by a slim local FastAPI + hosted creator dashboard. Daemon automation code preserved verbatim. See `docs/migrations/2026-04-28-migration-creator-app-split.md`.
 
-Current state (pre-migration):
-
-- `scripts/user_app.py` — Main Flask app on port 5222 (32+ routes). 5 tabs: Campaigns, Posts, Earnings, Settings, Onboarding. Handles auth, campaign lifecycle, draft review, scheduling, background agent control.
-- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d), local DB backup every 6h via SQLite online `.backup()` API to `data/local.db.bak` (Task #23). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
+- `scripts/user_app.py` — Thin entry point (~10 LOC). Calls `uvicorn.run(create_app())` from `local_server.py`. Port 5222 preserved for backwards compatibility.
+- `scripts/utils/local_server.py` — Slim local FastAPI (~500 LOC). 5 top-level routes: `GET /healthz`, `GET+POST /connect` + `POST /connect/{platform}`, `GET+POST /keys` + `POST /keys/test`, `GET /drafts` + `GET /drafts/{campaign_id}` + draft sub-actions (`approve`, `reject`, `restore`, `unapprove`, `edit`, `image`), `GET /auth/callback` (OAuth JWT handoff from hosted server). Templates in `scripts/templates/user/` (Tailwind CDN: base.html, connect.html, keys.html, drafts.html, draft_card.html).
+- `scripts/background_agent.py` — Always-running async agent: content generation (120s), post execution (60s), campaign polling (10m), session health (30m), metric scraping, profile refresh (7d), local DB backup every 6h, auto-update check (24h). Three new Phase D sync tasks: `process_server_commands` (polls and executes daemon commands from server), `push_agent_status` (heartbeat to server SSE channel), `sync_unsynced_drafts` (uploads drafts to server on creation). Downloads ALL campaign product images (`_download_campaign_product_images()`). Rotates through product photos daily (`_pick_daily_image()`) for img2img generation.
 - `scripts/campaign_runner.py` — Legacy campaign polling loop (replaced by background_agent.py)
-- `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff)
-- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` column (path to generated or downloaded product image). `get_user_profiles()` reads from `scraped_profile` (the table the profile scraper writes to during onboarding) — vestigial `agent_user_profile` table dropped 2026-04-26 (Bug #55).
+- `scripts/utils/server_client.py` — Server API client (auth, polling, reporting, retry with backoff). Phase D additions: `get_pending_commands`, `ack_command`, `push_agent_status`, `upload_draft`, `upload_draft_image`, `update_draft_status_remote`. 401 handler clears JWT + sends tray notification.
+- `scripts/utils/local_db.py` — Local SQLite database. API keys auto-encrypted on save / decrypted on read. `post_schedule` gains `error_code`, `execution_log`, `max_retries`; `classify_error()` for structured retry lifecycle with exponential backoff. `agent_draft` gains `image_path` + `synced` + `server_draft_id` columns (idempotent ALTER); helpers `mark_draft_synced`, `get_unsynced_drafts`, `clear_jwt`. `get_user_profiles()` reads from `scraped_profile` — vestigial `agent_user_profile` table dropped 2026-04-26 (Bug #55).
 - `scripts/utils/content_generator.py` — AI content generation using AiManager (text) and ImageManager (images). Three image modes: img2img (product photo via `ImageManager.transform()`), txt2img (`ImageManager.generate()`), PIL fallback. Replaces PowerShell + Claude CLI for campaign content.
 - `scripts/utils/content_agent.py` — 4-phase AI content agent (Task #14): Phase 1 Research (weekly, webcrawler + product images), Phase 2 Strategy (weekly, goal→format mapping via `GOAL_STRATEGY`), Phase 3 Creation (daily, AiManager with retry + quality gate), Phase 4 Review (auto-approve or queue). Supersedes single-prompt `ContentGenerator` for campaign content.
 - `scripts/utils/content_quality.py` — Quality validator for the content agent pipeline. Checks character limits, banned AI phrases (`BANNED_PHRASES`), cosine/sequence similarity (dedup), and per-platform format rules. Returns `(bool, [reasons])`.
@@ -145,7 +153,7 @@ Current state (pre-migration):
 - `scripts/utils/session_health.py` — Platform session health monitoring (30-min interval, marks expired sessions)
 - `scripts/utils/profile_scraper.py` — Per-platform profile scraping with 3-tier pipeline (Tier 1 text via AiManager → Tier 2 CSS selectors → Tier 3 Gemini Vision). Platform-specific supplements: LinkedIn experience/education from `/details/*/` pages, Featured (link-style + post-style) from `/details/featured/`, Honors + Interests from respective detail pages, posts from `/recent-activity/shares/` (not `/all/` which mixes comments/reactions). Facebook About sub-tabs + Reels + More dropdown (likes/checkins/events/reviews) via `?sk=` query params with redirect + empty-state detection. Facebook follower_count supplemented in AI Tier 1 via display-name-anchored regex on live page text — prevents matching aggregate "X friends" elsewhere on the page (Bug #53 fix 2026-04-26). Reddit private profile handling (`profile_privacy="private"`) + karma/age/subreddits regex supplement. Helpers: `_scrape_linkedin_posts`, `_scrape_linkedin_experience_education`, `_scrape_linkedin_extras`, `_scrape_facebook_extras`.
 - `scripts/utils/ai_profile_scraper.py` — AI-powered profile extraction. `ai_scrape_profile_from_text()` (Tier 1) routes through AiManager with per-platform extraction prompts; `ai_scrape_profile()` (Tier 3) uses Gemini Vision on a screenshot. `is_missing_key_fields()` is lenient — accepts posts/niches/bio as valid data even when follower_count=0.
-- `scripts/utils/browser_config.py` — `apply_full_screen(kwargs, headless)` helper standardises viewport setup for all Playwright `launch_persistent_context()` calls. Headless → 1920x1080 viewport. Headed → `--start-maximized` + `no_viewport=True`.
+- `scripts/utils/browser_config.py` — `apply_full_screen(kwargs, headless)` helper standardises viewport setup for all Patchright `launch_persistent_context()` calls. Headless → 1920x1080 viewport. Headed → `--start-maximized` + `no_viewport=True`.
 - `scripts/generate_campaign.ps1` — Preserved but unused for campaigns (replaced by content_generator.py)
 - `scripts/uat/` — UAT helper scripts driven by the `/uat-task` skill (NOT for production). Contains `seed_campaign.py` (creates UAT campaign + force-accepts invitation), `reset_local_cache.py` (truncates research/drafts/schedule for one campaign), `dump_research.py` + `dump_drafts.py` (extract fields for AC verification), `cleanup_campaign.py` (voids UAT campaigns — refuses non-UAT-prefixed titles), `delete_post.py` (autonomous post deletion via Playwright + persistent profile, supports `--update-local-db`), `uat_task14.py` + `conftest.py` (pytest harness for Task #14 ACs).
 
@@ -156,7 +164,7 @@ Platform posting is now driven by JSON scripts in `config/scripts/` via `scripts
 - **X**: Overlay div intercepts pointer events — must use `dispatch_event("click")` on the post button, not `.click()`. Image upload via hidden `input[data-testid="fileInput"]`.
 - **LinkedIn**: Shadow DOM — use `page.locator().wait_for()` (pierces shadow), NOT `page.wait_for_selector()` (does not pierce). Image upload via file input or `expect_file_chooser`.
 - **Facebook**: Image upload via "Photo/video" button then hidden file input.
-- **Reddit**: Shadow DOM (faceplate web components) — Playwright locators pierce automatically
+- **Reddit**: Shadow DOM (faceplate web components) — Patchright locators pierce automatically
 - **TikTok**: Draft.js editor requires `Ctrl+A → Backspace` to clear pre-filled filename before typing caption. Needs VPN (blocked in India).
 - **Instagram**: Multi-step dialog flow (Create → Post submenu → Upload → Next → Next → Caption → Share). All buttons need `force=True` due to overlay intercepts.
 
@@ -181,7 +189,7 @@ Platform posting is now driven by JSON scripts in `config/scripts/` via `scripts
 - **Host**: Hostinger KVM 1 VPS (Mumbai, Ubuntu 24.04, `31.97.207.162`)
 - **Reverse proxy**: Caddy with auto-TLS via Let's Encrypt
 - **Process**: systemd unit `amplifier-web.service` running uvicorn (1 worker, 127.0.0.1:8000)
-- **Local Redis** for ARQ (worker not yet implemented — Task #9)
+- **Local Redis** for ARQ worker (`amplifier-worker.service`, live since 2026-04-30 — Task #44)
 - **Supabase PostgreSQL** via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility)
 - **SSH access**: `ssh -i ~/.ssh/amplifier_vps sammy@31.97.207.162` (key-only, no passwords). NOPASSWD sudo for `sammy`. Backup access via Hostinger hPanel browser terminal.
 - **Hardening**: SSH key-only, UFW (22/80/443 only), fail2ban, unattended-upgrades, Tailscale (`amplifier-vps` on `dassamaara@gmail.com` tailnet at `100.81.109.43`)
@@ -231,7 +239,7 @@ Claude operates as cofounder and CTO of Amplifier — not an assistant, not a ye
 - Per-platform proxy support in `_launch_context()` for geo-restricted platforms (configured in `platforms.json`)
 - Active platforms: LinkedIn, Facebook, Reddit. **X DISABLED 2026-04-14** after 2 account blocks by anti-bot detection — do not re-enable without a safe automation method (X API v2, stealth browser like camoufox, or equivalent). TikTok and Instagram also disabled in `config/platforms.json` (`"enabled": false`) — code preserved, just skipped
 - Reddit posts to 1 random subreddit per run from the configured list
-- No test suite exists yet — Task #18 (pytest suite) is Phase C item 1, non-negotiable prerequisite for Phase D migrations
+- Test suite: 303 pytest tests in `tests/server/` (Task #18 done). Run via `pytest tests/` (~28s)
 - **Stealth (Task #68 SHIPPED 2026-05-01 partial):** All Playwright imports are now `from patchright.async_api import ...`. `--disable-blink-features=AutomationControlled` flag removed everywhere (redundant — Patchright applies stealth patches by default). Setup on a fresh checkout: `pip install patchright && python -m patchright install chromium`. CreepJS shows 0% stealth detection (vanilla Playwright fails this badly). Browser binary lives at `~/AppData/Local/ms-playwright/chromium-*` (same dir as Playwright). X stays hardcoded-disabled — re-enablement requires 7-day Patchright soak on throwaway account.
 - **Packaging (Task #68 scaffolding shipped, build-time only):** Nuitka (not PyInstaller) + Inno Setup (Windows) + pkgbuild (Mac). All build scripts in `scripts/build/`. `spec.json` is single source of truth (version, packages, data dirs, icons). Build commands: `python scripts/build/build_windows.py` then `powershell scripts/build/build_windows_installer.ps1`. Live verification of installers + GHA matrix deferred to v1.0.0 release tag. See `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`.
 - Server uses SQLite for local dev, Supabase PostgreSQL in production. Connection via transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543` with NullPool + `prepared_statement_cache_size=0` (pgbouncer compatibility). Server LIVE at `https://api.pointcapitalis.com` (Hostinger KVM 1, Mumbai) since 2026-04-25.

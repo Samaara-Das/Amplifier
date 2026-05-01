@@ -14,7 +14,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 |   Amplifier      |       |   Amplifier      |       |   Amplifier      |
 |   Server         |<----->|   User App       |------>|   Engine         |
 |                  |       |                  |       |                  |
-| FastAPI + Supabase |       | Flask dashboard  |       | Playwright       |
+| FastAPI + Supabase |       | FastAPI local    |       | Patchright       |
 | Company dashboard|       | Background agent |       | Human emulation  |
 | Admin dashboard  |       | Local SQLite     |       | Image gen        |
 | Matching engine  |       | Metric scraper   |       | (Personal brand: |
@@ -30,7 +30,7 @@ Two systems in one repo: a **personal social media automation engine** that gene
 | Component | Technology |
 |-----------|-----------|
 | Server | Python, FastAPI, SQLAlchemy, Supabase PostgreSQL (prod) / SQLite (dev), ARQ, Jinja2 |
-| User App | Python, Flask, Playwright, AiManager (Gemini/Mistral/Groq), httpx, SQLite |
+| User App | Python, FastAPI (local), Patchright, AiManager (Gemini/Mistral/Groq), httpx, SQLite |
 | Distribution | Nuitka + Inno Setup (Windows) + pkgbuild (Mac) — Phase D, see `docs/migrations/2026-04-28-migration-stealth-and-packaging.md` |
 | Deployment | Hostinger KVM VPS + Supabase (server LIVE since 2026-04-25), GitHub Releases for installer auto-update (Phase D) |
 
@@ -64,9 +64,10 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 ```bash
 pip install -r requirements.txt
-playwright install chromium
+python -m patchright install chromium
 python scripts/onboarding.py               # first-time setup
-python scripts/user_app.py                 # dashboard + background agent at localhost:5222
+python scripts/user_app.py                 # local FastAPI at localhost:5222 (drafts, connect, keys)
+# Hosted creator dashboard: https://api.pointcapitalis.com/user/
 ```
 
 ### Personal Brand Engine
@@ -96,7 +97,7 @@ scripts/                 Main scripts
   post.py                  Posting engine (6 platforms, human emulation)
   generate.ps1             Content generation (Claude CLI, pillar rotation)
   review_dashboard.py      Draft review dashboard (Flask, port 5111)
-  user_app.py              User campaign dashboard + background agent (Flask, port 5222)
+  user_app.py              Entry point for local FastAPI on port 5222 (drafts, connect, keys)
   background_agent.py      Always-running async agent (posting, polling, content gen, metrics)
   onboarding.py            First-time user setup
   login_setup.py           One-time browser login helper
@@ -104,12 +105,13 @@ scripts/                 Main scripts
   generate_campaign.ps1    Campaign content generation (preserved but unused — replaced by content_generator.py)
   setup_scheduler.ps1      Windows Task Scheduler setup
   utils/                   Shared modules
+    local_server.py          Slim local FastAPI (~500 LOC) — drafts review, platform connect, API keys
     draft_manager.py         Draft lifecycle management
     human_behavior.py        Anti-detection (typing, scrolling, engagement)
     profile_scraper.py       Per-platform profile scraping (3-tier: text → CSS → Vision)
     ai_profile_scraper.py    AI-powered profile extraction (Tier 1 text + Tier 3 vision)
-    browser_config.py        Playwright full-screen browser setup helper
-    server_client.py         Server API client with retry
+    browser_config.py        Patchright full-screen browser setup helper
+    server_client.py         Server API client with retry (21 methods)
     local_db.py              Local SQLite database
     content_generator.py     Free AI API content gen (Gemini → Mistral → Groq fallback)
     metric_collector.py      Hybrid metric collection (APIs for X/Reddit, Browser Use for LinkedIn/Facebook)
@@ -171,7 +173,7 @@ TikTok is blocked in some regions. Connect a VPN or configure a SOCKS proxy in `
 Check `logs/generator.log`. The generator strips markdown fences and validates JSON. If Claude's output format changes, check the prompt in `scripts/generate.ps1`. For campaign content, generation is handled by `scripts/utils/content_generator.py` via AiManager — check the log output in the background agent console.
 
 ### Server won't start (local)
-Check `server/.env` exists and `DATABASE_URL` is valid. For local dev (SQLite), the DB file is auto-created on startup. For Vercel, ensure `DATABASE_URL` is set to the Supabase transaction pooler URL — missing this causes fallback to ephemeral `/tmp/` SQLite.
+Check `server/.env` exists and `DATABASE_URL` is valid. For local dev (SQLite), the DB file is auto-created on startup. For the VPS, `DATABASE_URL` must point to the Supabase transaction pooler URL — see `server/.env.example`.
 
 ### Campaign runner can't connect to server
 Verify `CAMPAIGN_SERVER_URL` in `config/.env` points to a running server. Check `config/server_auth.json` has a valid token.

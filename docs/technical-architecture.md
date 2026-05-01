@@ -1,6 +1,6 @@
 # Amplifier — Product Architecture
 
-**Last Updated**: April 4, 2026
+**Last Updated**: May 1, 2026
 
 ## System Overview
 
@@ -23,9 +23,9 @@ graph TB
     end
 
     subgraph "Creator's Windows Desktop"
-        UI["Flask Web UI<br/>localhost:5222"]
-        BA["Background Agent<br/>6 async tasks"]
-        PW["Playwright<br/>Persistent Profiles"]
+        UI["Local FastAPI<br/>localhost:5222"]
+        BA["Background Agent<br/>11 async tasks"]
+        PW["Patchright<br/>Persistent Profiles"]
         AI["AI Layer<br/>AiManager + ImageManager"]
         LDB["Local SQLite<br/>12 tables, encrypted keys"]
 
@@ -56,13 +56,16 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 
 ### Routes
 
-~90 routes total across 3 route groups:
+~130 routes total across 5 route groups:
 
 | Group | Router Files | Routes | Auth |
 |---|---|---|---|
-| **JSON API** (`/api/`) | auth.py, campaigns.py, invitations.py, users.py, metrics.py | 27 | JWT |
-| **Admin Dashboard** (`/admin/`) | admin/ (11 files: login, overview, users, companies, campaigns, financial, fraud, analytics, review, audit, settings) | 36 | Admin cookie |
-| **Company Dashboard** (`/company/`) | company/ (7 files: login, dashboard, campaigns, billing, influencers, stats, settings) | ~22 | Company JWT cookie |
+| **JSON API** (`/api/`) | auth.py, campaigns.py, invitations.py, users.py, metrics.py, drafts.py, agent.py | ~35 | JWT |
+| **SSE** (`/sse/`) | sse.py | 3 | Cookie (EventSource limitation) |
+| **Admin Dashboard** (`/admin/`) | admin/ (11 files) | 36 | Admin cookie |
+| **Company Dashboard** (`/company/`) | company/ (7 files) | ~22 | Company JWT cookie |
+| **User Creator Dashboard** (`/user/`) | user/ (7 files: __init__, login, dashboard, campaigns, posts, earnings, settings) | ~28 | User JWT cookie |
+| **Public** | public.py | 2 | None |
 | **System** | main.py | 2 | None |
 
 ### API Endpoints
@@ -107,7 +110,7 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 **Company Dashboard (~22 routes across 7 routers):**
 - Login/register/logout, dashboard overview, campaign CRUD + wizard, billing + Stripe checkout, influencer performance, stats, settings
 
-### Database Models (14 tables)
+### Database Models (18 tables)
 
 | Model | Key Fields | Purpose |
 |---|---|---|
@@ -123,7 +126,7 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 | **AuditLog** | action, target_type, target_id, details, admin_ip | Admin action tracking |
 | **ContentScreeningLog** | campaign_id, flagged, flagged_keywords, review_result | AI content moderation |
 
-### Services (8)
+### Services (9)
 
 | Service | File | Key Functions |
 |---|---|---|
@@ -133,7 +136,8 @@ FastAPI + Supabase PostgreSQL (production) / SQLite (local dev). **LIVE at `http
 | **Payments** | `payments.py` | `create_company_checkout()` — Stripe Checkout for top-up. `process_pending_payouts()` — auto-send via Stripe Connect (marks paid in test mode). `run_payout_cycle()` — batch process eligible users. |
 | **Campaign Wizard** | `campaign_wizard.py` | `run_campaign_wizard()` — deep crawl URLs (BFS, 10 pages, 2 hops), Gemini generates brief + guidance + rates. `screen_campaign()` — AI content safety. `estimate_reach()` — count eligible users + follower sum. |
 | **Storage** | `storage.py` | `upload_file()`, `delete_file()` — Supabase Storage or local fallback. `extract_text_from_file()` — PDF/DOCX text extraction. |
-| **Quality Gate** | `quality_gate.py` | `score_campaign()` — 8-criterion deterministic rubric (0-100, threshold 85). `ai_review_campaign()` — Gemini→Mistral→Groq fallback chain for brand-safety review. AI does NOT review company-chosen targeting (Task #72 reverted 2026-04-30). |
+| **Quality Gate** | `quality_gate.py` | `score_campaign()` — 8-criterion deterministic rubric (0-100, threshold 85). `ai_review_campaign(db=None)` — Gemini→Mistral→Groq fallback chain for brand-safety review. BYOK-aware (passes db for company key lookup). |
+| **API Keys (BYOK)** | `api_keys.py` | `resolve_api_key(provider, company_id, db)` — company DB key → env-var fallback. `call_with_byok_fallback()` — retries with env-var key on 401. Wired into quality_gate + campaign_wizard. Keys stored encrypted in `company_api_keys` table (Task #70). |
 
 ### Background Worker (`server/app/worker.py`, Task #44)
 
@@ -147,7 +151,7 @@ ARQ-based, runs as `amplifier-worker.service` systemd unit on the same VPS as th
 
 ### Schema Migrations (`server/alembic/`, Task #45)
 
-Alembic baseline `c5967048d886` (2026-04-30) covers all 14 tables. Production stamped at this revision via SSH. All future model changes flow through `alembic revision --autogenerate -m "describe"` + `alembic upgrade head` deployment per the policy in `CLAUDE.md`.
+Alembic baseline `c5967048d886` (2026-04-30) covers the original 14 tables. Migration chain: → `a1b2c3d4e5f6` (tos_accepted_at, Task #28) → `63d9159c4ce6` (drafts/agent_commands/agent_status, Task #67) → `b1c2d3e4f5a6` (company_api_keys, Task #70). **Current head: `b1c2d3e4f5a6`** — applied to prod 2026-05-01. All future model changes flow through `alembic revision --autogenerate -m "describe"` + `alembic upgrade head` deployment per the policy in `CLAUDE.md`.
 
 ### Earning Lifecycle
 

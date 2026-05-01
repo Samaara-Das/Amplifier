@@ -163,6 +163,50 @@
 | appeal_result | text | Appeal decision (nullable) |
 | created_at | datetime | Auto-set |
 
+### Draft (Task #67)
+| Field | Type | Notes |
+|-------|------|-------|
+| id | int (PK) | Auto-increment |
+| user_id | int (FK) | References User |
+| campaign_id | int (FK) | References Campaign |
+| platform | varchar(20) | Target platform |
+| draft_text | text | Generated post text |
+| image_path | text (nullable) | Server-side image path |
+| status | varchar(20) | pending, approved, rejected, posted |
+| synced_from | varchar(20) | Source: daemon upload |
+| created_at | datetime | Auto-set |
+
+### AgentCommand (Task #67)
+| Field | Type | Notes |
+|-------|------|-------|
+| id | int (PK) | Auto-increment |
+| user_id | int (FK) | References User |
+| command | varchar(50) | Command type (e.g. pause, resume, force_poll) |
+| payload | jsonb | Command parameters |
+| status | varchar(20) | pending, acked, failed |
+| created_at | datetime | Auto-set |
+| acked_at | datetime (nullable) | When daemon acknowledged |
+
+### AgentStatus (Task #67)
+| Field | Type | Notes |
+|-------|------|-------|
+| id | int (PK) | Auto-increment |
+| user_id | int (FK) | References User, UNIQUE |
+| status | varchar(20) | running, paused, stopped |
+| last_heartbeat_at | datetime | Updated every 60s by daemon |
+| active_tasks | jsonb | Currently executing tasks |
+| updated_at | datetime | Auto-update |
+
+### CompanyApiKey (Task #70)
+| Field | Type | Notes |
+|-------|------|-------|
+| id | int (PK) | Auto-increment |
+| company_id | int (FK) | References Company |
+| provider | varchar(30) | gemini, mistral, groq — UNIQUE per company |
+| encrypted_key | text | AES-256-GCM encrypted via `server/app/utils/crypto.py` |
+| created_at | datetime | Auto-set |
+| updated_at | datetime | Auto-update |
+
 ---
 
 ## Local Database (User App -- SQLite at `data/local.db`)
@@ -178,7 +222,7 @@
 | settings | Key-value config | key (PK), value |
 | scraped_profile | Platform profiles | platform (UNIQUE), follower_count, following_count, display_name, profile_pic_url, bio, recent_posts (JSON), engagement_rate, posting_frequency, ai_niches (JSON), profile_data (JSON) |
 | post_schedule | Post queue | campaign_server_id, platform, scheduled_at, content, image_path, status, error_code, execution_log, max_retries |
-| agent_draft | Generated drafts | campaign_id, platform, draft_text, image_path, approved, posted |
+| agent_draft | Generated drafts | campaign_id, platform, draft_text, image_path, approved, posted, synced, server_draft_id |
 | agent_research | Campaign research | campaign_id, research_type, content, source_url |
 | agent_content_insights | Content performance tracking | platform, pillar_type, hook_type, avg_engagement_rate, sample_count, best_performing_text |
 | local_notification | Event feed | type, title, message, data (JSON), read |

@@ -42,7 +42,11 @@ await stop_background_agent()
 | Campaign polling | `poll_campaigns()` | 600s (10 min) | `now - last_poll >= 600` |
 | Session health check | `check_sessions()` | 1800s (30 min) | `now - last_health_check >= 1800` |
 | Profile refresh | `refresh_profiles()` | 604800s (7 days) | `now - last_profile_refresh >= 604800` |
-| Local DB backup | `backup_local_db()` | 21600s (6h) | `now - last_db_backup >= 21600` (Task #23, added 2026-04-30) |
+| Local DB backup | `backup_local_db()` | 21600s (6h) | `now - last_db_backup >= 21600` (Task #23) |
+| Sync unsynced drafts | `sync_unsynced_drafts()` | triggered on draft creation | uploads new drafts to server (Task #67) |
+| Push agent status | `push_agent_status()` | 60s (every iteration) | every loop tick — heartbeat for hosted dashboard SSE (Task #67) |
+| Process server commands | `process_server_commands()` | 60s (every iteration) | every loop tick — polls + executes commands sent from server (Task #67) |
+| Auto-update check | `check_for_updates()` | 86400s (24h) | daily — downloads and applies new installer if available (Task #68) |
 
 All `last_*` timestamps start at `0.0`, so every task runs on the first iteration.
 
