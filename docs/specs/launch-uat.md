@@ -59,7 +59,7 @@ Two surfaces compose "the user app" after the Phase D split:
 
 - Server live at `https://api.pointcapitalis.com`. `/health` returns 200.
 - Local Patchright + venv set up (`pip install -r requirements.txt && python -m patchright install chromium`).
-- Test user `uat-user-74@uat.local` with password `uat-pass-74`. Region `US`, ToS accepted, mode `semi_auto`. Profile already onboarded with linkedin / facebook / reddit persistent profiles in `profiles/`.
+- Test user `uat-user-74@pointcapitalis.com` with password `uat-pass-74`. Region `US`, ToS accepted, mode `semi_auto`. Profile already onboarded with linkedin / facebook / reddit persistent profiles in `profiles/`.
 - Local user app NOT yet running (the UAT will launch it). `data/local.db` exists (any prior run created it).
 - Chrome DevTools MCP available (`mcp__chrome-devtools__*` tools).
 - BYOK or env-var Gemini key in `data/local.db` settings (encrypted) so content gen path works.
@@ -83,7 +83,7 @@ Two surfaces compose "the user app" after the Phase D split:
 3. **Seed earnings fixture** (so the Earnings page has content for AC6):
    ```bash
    python scripts/uat/seed_stripe_fixtures.py \
-     --user-email uat-user-74@uat.local \
+     --user-email uat-user-74@pointcapitalis.com \
      --user-available-balance-cents 1500 \
      --user-pending-balance-cents 800 \
      --output data/uat/earnings_fixture.json
@@ -204,7 +204,7 @@ Two surfaces compose "the user app" after the Phase D split:
 
 | Field | Value |
 |-------|-------|
-| **Setup** | Local user app running on :5222. Use a synthetic token: `TOKEN=$(curl -s -X POST https://api.pointcapitalis.com/api/auth/user/login -H 'Content-Type: application/json' -d '{"email":"uat-user-74@uat.local","password":"uat-pass-74"}' \| jq -r .access_token)`. |
+| **Setup** | Local user app running on :5222. Use a synthetic token: `TOKEN=$(curl -s -X POST https://api.pointcapitalis.com/api/auth/user/login -H 'Content-Type: application/json' -d '{"email":"uat-user-74@pointcapitalis.com","password":"uat-pass-74"}' \| jq -r .access_token)`. |
 | **Action** | `new_page("http://localhost:5222/auth/callback?token=$TOKEN")` → wait for redirect → capture final URL. Verify local DB: `python -c "from scripts.utils.local_db import get_setting; print(bool(get_setting('jwt')))"`. |
 | **Expected** | Final URL is `https://api.pointcapitalis.com/user/onboarding`. `get_setting('jwt')` returns truthy. Local `data/.amplifier_auth.json` file exists with `access_token` field. Calling without `?token=` returns 400. |
 | **Automated** | yes |
@@ -391,8 +391,8 @@ Every page and action under `/company/*` on the hosted server (24 endpoints):
 
 - Server live at `https://api.pointcapitalis.com`. `/health` returns 200.
 - Stripe test mode active on VPS env. Webhook endpoint registered (per Task #19 AC2). Stripe CLI listening forwarded if needed.
-- Test company throwaway: `uat-co-742-<timestamp>@uat.local` / `uat-pass-742`. Will register fresh in AC2 (no pre-seed).
-- Pre-existing test company `uat-co-existing@uat.local` with $200 balance and 1 active campaign (for ACs that need state).
+- Test company throwaway: `uat-co-742-<timestamp>@pointcapitalis.com` / `uat-pass-742`. Will register fresh in AC2 (no pre-seed).
+- Pre-existing test company `uat-co-existing@pointcapitalis.com` with $200 balance and 1 active campaign (for ACs that need state).
 - Chrome DevTools MCP available. Stripe MCP authenticated (`mcp__stripe__list_products`).
 - Working Gemini key in env (for wizard ACs).
 
@@ -401,7 +401,7 @@ Every page and action under `/company/*` on the hosted server (24 endpoints):
 1. **Seed companion fixtures** for ACs that need pre-existing state:
    ```bash
    python scripts/uat/seed_company_fixtures.py \
-     --email uat-co-existing@uat.local \
+     --email uat-co-existing@pointcapitalis.com \
      --password uat-pass-existing \
      --balance-cents 20000 \
      --with-active-campaign true \
@@ -430,7 +430,7 @@ Every page and action under `/company/*` on the hosted server (24 endpoints):
 | Field | Value |
 |-------|-------|
 | **Setup** | DevTools MCP fresh page. No session cookie. |
-| **Action** | `new_page("https://api.pointcapitalis.com/company/login")` → click "Register" tab → fill name, email `uat-co-742-{ts}@uat.local`, password → leave ToS checkbox UNCHECKED → click "Create Account" → `take_snapshot`. |
+| **Action** | `new_page("https://api.pointcapitalis.com/company/login")` → click "Register" tab → fill name, email `uat-co-742-{ts}@pointcapitalis.com`, password → leave ToS checkbox UNCHECKED → click "Create Account" → `take_snapshot`. |
 | **Expected** | Page stays at `/company/login?register=1`. Error banner contains "terms of service" (case-insensitive). No 302 to `/company/`. SQL `SELECT count(*) FROM companies WHERE email='<email>'` → 0. |
 | **Automated** | yes |
 | **Automation** | DevTools MCP + SQL count via VPS cleanup helper |
@@ -465,7 +465,7 @@ Every page and action under `/company/*` on the hosted server (24 endpoints):
 
 | Field | Value |
 |-------|-------|
-| **Setup** | Logged in as `uat-co-existing@uat.local` (has $200 + active campaign). |
+| **Setup** | Logged in as `uat-co-existing@pointcapitalis.com` (has $200 + active campaign). |
 | **Action** | `navigate_page("/company/")` → `take_snapshot` → `take_screenshot`. |
 | **Expected** | DOM contains: balance card showing `\$200\.00` (or formatted equivalent), active-campaigns card with count >= 1, total-spend card (numeric), recent-posts list (or empty state with copy). Zero console errors, zero 5xx. |
 | **Automated** | yes |
@@ -699,7 +699,7 @@ Every page and action under `/company/*` on the hosted server (24 endpoints):
 | **Automated** | yes |
 | **Automation** | DevTools MCP |
 | **Evidence** | full JSON dumps embedded in report |
-| **Cleanup** | `close_page` on all DevTools-opened pages; cancel UAT campaigns; delete throwaway company `uat-co-742-*@uat.local` from prod DB |
+| **Cleanup** | `close_page` on all DevTools-opened pages; cancel UAT campaigns; delete throwaway company `uat-co-742-*@pointcapitalis.com` from prod DB |
 
 ---
 
@@ -867,7 +867,7 @@ Every page and action under `/admin/*` (36+ routes across 11 modular routers):
 
 | Field | Value |
 |-------|-------|
-| **Setup** | On detail page of test user "uat-suspend-target@uat.local". |
+| **Setup** | On detail page of test user "uat-suspend-target@pointcapitalis.com". |
 | **Action** | (1) Click "Suspend" → confirm. (2) From a separate browser/curl, attempt user login with that email's credentials. (3) Click "Unsuspend" → re-attempt login. |
 | **Expected** | (1) `users.is_suspended=True`. (2) Login attempt rejected with 403 (or 401 with `account suspended` detail). (3) After unsuspend, login succeeds. audit_log rows for both suspend and unsuspend events. |
 | **Automated** | yes |
