@@ -1232,6 +1232,46 @@
         "subtasks": [],
         "testStrategy": "/uat-task 85: register a fresh test user, generate at least 1 draft via daemon, then run cleanup_test_user.py — must cascade cleanly without manual intervention.",
         "createdAt": "2026-05-02T11:00:00Z"
+      },
+      {
+        "id": 86,
+        "title": "Profile scraping pipeline post-platform-connect — verification + auto-trigger",
+        "description": "LAUNCH BLOCKER. Discovered during /uat-task 75 holistic re-test (2026-05-02). The original cascading-impact analysis from Task #82 said: 'real user installs Amplifier → connects LinkedIn (session saves) → profile NEVER gets scraped → server has no niches → matching cannot match them → they earn $0 forever.' #82 fixed the daemon orphan, but I never actually verified that profile scraping fires post-platform-connect. The cascading downstream effect motivating #82 is still latent.\n\nObserved during /uat-task 75 re-test: scraped_profile table last entry is 2026-04-25, NEVER updated for ANY of today's platform connects (LinkedIn 14:23, Facebook 14:26, Reddit 14:27, plus rerun connects). Daemon is alive + pushing status, but profile scraping pipeline is broken or untriggered.\n\nRoot cause investigation needed:\n1. login_setup.py (called by local /connect/{platform} POST) only saves the Playwright session. It does NOT trigger any profile scrape after.\n2. background_agent.py refresh_profiles() runs every PROFILE_REFRESH_INTERVAL = 604800s (7 days). So new platform connect doesn't trigger immediate scrape — the daemon refreshes profiles 7 days later. New users sit with empty profile data for a WEEK.\n3. process_server_commands handles a 'scrape_profiles' command type. So an admin or some upstream code could inject this command. But nothing in the connect flow does this.\n\nFix scope:\n- After login_setup.py saves a session, it (or local_server.py /connect/{platform}) MUST trigger an immediate profile scrape for that platform. Either by:\n  (a) Direct call to scraper module in same process (login_setup.py extends to call scrape_<platform>_profile after session save)\n  (b) Inject AgentCommand type='scrape_profiles' with payload={'platforms': ['linkedin']} via server_client → daemon picks it up on next command poll (within COMMAND_POLL_INTERVAL=60s)\n- Approach (b) is preferred: it leverages the existing #67 + #82 + #84 infrastructure and keeps the local /connect handler thin.\n- Add a UAT test-mode flag AMPLIFIER_UAT_PROFILE_REFRESH_NOW=1 to force PROFILE_REFRESH_INTERVAL = 30s for the daemon's automatic refresh path (so end-to-end testing doesn't take 7 days).\n- Also add: server-side admin button on /admin/users/{id} 'Refresh profile' that injects a scrape_profiles AgentCommand for that user (operational tooling for rescues).\n- Verification: register fresh user → connect LinkedIn → within 60s, scraped_profile row inserted with non-empty data → server's User.scraped_profiles JSON updated via daemon's profile sync.",
+        "details": "Files: scripts/login_setup.py (or scripts/utils/local_server.py /connect/{platform}) to trigger AgentCommand. background_agent.py if PROFILE_REFRESH_INTERVAL UAT override needed. server/app/routers/admin/users.py for admin trigger button.\n\nSpec source: Task #82 description's CASCADING IMPACT section. Original onboarding flow design from migration #67 implies scraping is part of the onboarding completion, but the implementation never wired the trigger.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "82",
+          "84"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "discovered_during": "uat_75_rerun",
+          "cascading_blocker_for": "matching+earnings"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 86 with user monitoring. ACs: (1) After local /connect/linkedin completes (session saved), within 60s a scraped_profile row appears in local SQLite for that platform. (2) Server-side User.scraped_profiles JSON gets updated via daemon push. (3) AMPLIFIER_UAT_PROFILE_REFRESH_NOW=1 shortens daemon's auto-refresh from 7d to 30s. (4) Admin /admin/users/{id} 'Refresh profile' button injects AgentCommand correctly.",
+        "createdAt": "2026-05-02T11:15:00Z"
+      },
+      {
+        "id": 87,
+        "title": "Audit + improve ACs across ALL existing tasks based on LEARNINGS.md (post-#86)",
+        "description": "META-TASK. After #86 ships and tests are green, do a full pass through every spec'd task's Verification Procedure block and tighten the ACs to match the standards now codified in `docs/uat/skills/uat-task/LEARNINGS.md` (10 entries as of 2026-05-02).\n\nWhy: this session has surfaced repeated patterns of incomplete ACs — narrowed coverage, URL-jumping past clickable buttons, skipped daemon verification, missing cascading-impact-chain checks, missing per-platform variants, missing user-confirmation steps for 'is the scraped/generated/displayed value actually true'. Many existing tasks were authored before these learnings landed, so their ACs miss the same patterns we keep catching mid-UAT. Need a pre-emptive sweep so future /uat-task runs don't keep finding the same gaps.\n\nProcess (do BEFORE proposing any AC edits):\n1. Re-read every entry in `docs/uat/skills/uat-task/LEARNINGS.md` — they're the audit checklist.\n2. For each task with a Verification Procedure block in `docs/specs/*.md`, walk through every AC and ask:\n   - Does the AC cover EVERY platform variant the product exercises (LinkedIn + Facebook + Reddit minimum, never a single-platform proxy)?\n   - Does the AC verify FIELD-LEVEL coverage of scraped/generated/displayed data (not just 'a row exists')?\n   - Does the AC include a manual user-confirmation step where the user opens the actual external surface (LinkedIn profile, Stripe dashboard, Reddit post URL, etc.) and confirms what was scraped/posted/displayed matches reality?\n   - Does the AC drive every clickable button button-driven, not URL-jump?\n   - Does the AC verify the cascading-impact chain (the downstream user-visible outcome the fix was supposed to enable)?\n   - Does the AC observe all three: log line + local DB row + server-side row?\n   - Does the AC include explicit cleanup that doesn't leave test data on prod?\n\nExamples of the kind of AC additions to make (these are illustrative, not exhaustive):\n- 'AC: scraping works for LinkedIn, Facebook, AND Reddit — for each, scraped row contains display_name, follower_count, bio, recent_posts (>=3), niches (>=1)'\n- 'AC: open the user's actual https://www.linkedin.com/in/me/ in DevTools MCP and ask the user to confirm the scraped follower_count matches the live page (y/n)'\n- 'AC: post a draft to LinkedIn, then open the live post URL via DevTools MCP, screenshot it, ask user to confirm the post text + image matches the approved draft'\n- 'AC: company creates campaign, opens /admin/campaigns/{id} as admin in another tab, confirms the campaign row shows up there'\n\nDeliverables:\n- Updated AC blocks in EVERY `docs/specs/*.md` task spec (batch-1, batch-2, batch-3, batch-4, infra, uat-infra, onboarding, agent-control, installer-assets, admin-actions, profile-scraping, launch-uat).\n- Diff of additions per file in the PR description.\n- No regression: existing-passed UAT runs still pass against the new ACs (where applicable — some ACs may need to be re-run).\n- Update `docs/uat/AC-FORMAT.md` with any new format conventions surfaced.\n\nDo NOT touch: existing PASSED UAT reports in `docs/uat/reports/`. Those are historical record.",
+        "details": "This is essentially a code-review pass on every AC block, applied with the standards from LEARNINGS.md. Estimated 1-2 days of focused spec-writing work. Do via amplifier-coder per CLAUDE.md convention.\n\nPriority order for the audit (highest-impact first): #74 (launch UAT), #19 (Stripe), #76 (agent control), #66 (dashboards), #67 (creator app split), then everything else.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "86"
+        ],
+        "metadata": {
+          "phase": "E",
+          "meta": true,
+          "audit_pass": true
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 87 — meta-test: pick 3 randomly-chosen tasks whose ACs were amended, re-run their UAT against the new AC blocks. Each must PASS. Plus: re-read LEARNINGS.md and confirm every learning is reflected in at least one AC across the spec set.",
+        "createdAt": "2026-05-02T11:30:00Z"
       }
     ],
     "metadata": {
