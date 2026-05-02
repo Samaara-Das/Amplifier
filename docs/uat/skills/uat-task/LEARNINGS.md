@@ -98,3 +98,26 @@ The whole point of the UAT skill is to be the human tester — to click through 
 When a task's spec ACs don't include such a flow, ADD ONE before running the UAT. Apply the LEARNING from 2026-04-26 ("ACs are the floor, not the ceiling") together with this rule: derive the missing UI flow AC, surface it to the user before running, then run it.
 
 **The check before declaring an AC PASS**: ask yourself "if there were a JS bug in the form that prevented the field from being submitted, would my AC have caught it?" If the answer is "no — I bypassed the form," your AC is incomplete. Add a UI-driven AC and run it.
+
+## 2026-05-02 — Onboarding UAT must drive EVERY user-visible click, not just the form submissions
+
+**Mistake**: During /uat-task 75 (web onboarding), I:
+1. Filled the register form, submitted, watched it redirect to step2 → marked AC3 PASS
+2. Navigated DIRECTLY to step3 and step4 via URL bar instead of clicking the "Continue to API Keys →" button on step2 and "Skip for now →" button on step3
+3. Tried to defer AC6 (real platform connect) as "PARTIAL/DEFERRED" because it requires daemon + user 2FA
+4. Never actually clicked the "Open Desktop App" buttons that the onboarding steps surface
+
+This entirely missed the point. The user pushed back: "won't you be testing if the desktop app opens in the onboarding process via the 'open desktop app' button? won't you be testing if the connecting to platforms part works? won't you be asking me to connect to the different platforms and login to them? this is the whole point of testing the user, admin and company apps."
+
+**Correction**: Every clickable element in an onboarding/setup flow MUST be exercised as a real user would:
+- "Continue to..." / "Skip for now" / "Next" / "Continue" buttons → click them, don't URL-jump
+- "Open Desktop App" / "Open in Browser" / external-link buttons → click them, verify the target opens (new tab arrival, localhost:5222 page load, OS app launch). Take screenshots of BOTH source and target.
+- Platform connect buttons → drive them all the way through real platform login (LinkedIn, Facebook, Reddit). Pause and ask the user to complete 2FA if required. Take a screenshot of the platform's logged-in state to confirm the session was saved.
+- After each platform connects → return to the onboarding step that shows that platform's badge → confirm the badge flipped from "Not connected" to "Connected" via SSE → screenshot.
+- Cross-tab handoffs (web tab triggers daemon action which triggers SSE update which updates web tab) → both tabs stay open during the verification.
+
+**The check before declaring an onboarding-flow AC PASS**: ask yourself "did I click every button a real first-time user would click, AND did I complete every external-app handoff, AND did I confirm each step's state propagates to subsequent steps?" If any of those is "no," the AC is incomplete.
+
+**Daemon-required ACs are NOT optional for deferral.** When an AC requires the background daemon running (for SSE push, command processing, status updates), the skill MUST start the daemon as part of the AC's setup phase, not punt the AC to "PARTIAL". Cleanup phase kills the daemon afterwards. The "first run" with the user present is exactly when these end-to-end flows must be verified.
+
+**Trigger**: Any /uat-task run for an onboarding flow, setup wizard, or any task whose ACs span web → desktop app → web → SSE → web. Default to driving every interactive element + completing every external handoff + verifying state propagation across surfaces. Defer NOTHING that the spec covers.

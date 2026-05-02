@@ -1070,7 +1070,7 @@
       {
         "id": 76,
         "title": "Pause/Resume agent UI + dashboard agent_status visibility + drafts-ready count",
-        "description": "LAUNCH BLOCKER. Three related gaps from the second-pass audit folded into one coherent agent-control surface: (a) Pause/Resume buttons missing from /user/settings (Migration #67 AC11) — daemon side has _handle_pause_agent + _handle_resume_agent at background_agent.py:892 but no web UI to trigger them; (b) /user/dashboard shows no live agent_status (last_seen, platform_health JSON) so users can't tell if their daemon is alive; (c) /user/dashboard shows no 'drafts ready' count, only links out to localhost:5222/drafts.\n\nFile changes:\n- server/app/templates/user/settings.html — add Pause/Resume button + status badge wired to SSE from /sse/user/agent-status.\n- server/app/templates/user/dashboard.html — add 'last seen X minutes ago' agent indicator, per-platform health badges from agent_status.platform_health, 'X drafts ready' count widget linking to localhost:5222/drafts.\n- server/app/routers/user/settings.py — new POST /user/settings/pause-agent + POST /user/settings/resume-agent that create AgentCommand rows.\n- server/app/routers/user/dashboard.py — fetch agent_status + draft count for template.",
+        "description": "LAUNCH BLOCKER. Three related gaps from the second-pass audit folded into one coherent agent-control surface: (a) Pause/Resume buttons missing from /user/settings (Migration #67 AC11) — daemon side has _handle_pause_agent + _handle_resume_agent at background_agent.py:892 but no web UI to trigger them; (b) /user/dashboard shows no live agent_status (last_seen, platform_health JSON) so users can't tell if their daemon is alive; (c) /user/dashboard shows no 'drafts ready' count, only links out to localhost:5222/drafts.\n\nFile changes:\n- server/app/templates/user/settings.html — add Pause/Resume button + status badge wired to SSE from /sse/user/agent-status.\n- server/app/templates/user/dashboard.html — add 'last seen X minutes ago' agent indicator, per-platform health badges from agent_status.platform_health, 'X drafts ready' count widget linking to localhost:5222/drafts.\n- server/app/routers/user/settings.py — new POST /user/settings/pause-agent + POST /user/settings/resume-agent that create AgentCommand rows.\n- server/app/routers/user/dashboard.py — fetch agent_status + draft count for template.\n\nADDITIONAL SCOPE 2026-05-02 (caught during /uat-task 75 AC11): /user/dashboard \"Connected Platforms\" section lists X, TikTok, Instagram as connectable platforms. Per Task #40 (X disabled) and config/platforms.json (TikTok/IG enabled:false), only LinkedIn/Facebook/Reddit should appear. Fix: pass filter_disabled([\"linkedin\",\"facebook\",\"reddit\",\"x\",\"tiktok\",\"instagram\"]) to the template platform list (server/app/routers/user/dashboard.py + dashboard.html). One-line addition alongside the agent_status visibility work.",
         "details": "Existing infra to reuse: SSE endpoint /sse/user/agent-status already exists (sse.py:183). AgentCommand model + /api/agent/commands POST already exists (agent.py:80). Daemon's _process_server_commands already handles pause_agent + resume_agent types. Only UI work needed.",
         "status": "pending",
         "priority": "high",
@@ -1084,7 +1084,8 @@
         },
         "subtasks": [],
         "testStrategy": "/uat-task 76 with user monitoring first run. ~8 ACs covering: pause button renders, click pause creates AgentCommand row with type=pause_agent, daemon picks up command within 90s, agent_status.paused flips to true, SSE pushes badge update to web within 2s, resume reverses it, dashboard shows live last_seen, platform_health badges render correct color per agent_status JSON, drafts-ready count matches Draft.status='pending' query. Spec lives at docs/specs/agent-control.md.",
-        "createdAt": "2026-05-02T07:00:00Z"
+        "createdAt": "2026-05-02T07:00:00Z",
+        "updatedAt": "2026-05-02T08:45:00Z"
       },
       {
         "id": 77,
@@ -1144,6 +1145,30 @@
         "subtasks": [],
         "testStrategy": "/uat-task 80 with user monitoring first run. ~4 ACs covering: button renders on /admin/financial, click POSTs to /admin/financial/run-earning-promotion, success toast shows row count + audit_log gets new entry, same for run-payout-processing. Spec can co-locate in docs/specs/admin-actions.md (new) or be added inline to docs/specs/batch-3-product-features.md.",
         "createdAt": "2026-05-02T07:00:00Z"
+      },
+      {
+        "id": 82,
+        "title": "Background daemon continuous-loop entry point (orphan start_background_agent)",
+        "description": "LAUNCH BLOCKER + #76 BLOCKER. Discovered during /uat-task 75 third audit pass. scripts/background_agent.py has all the migration #67 daemon machinery (BackgroundAgent class, start_background_agent() at line 1296, process_server_commands, push_agent_status, sync_unsynced_drafts) — but the CLI entry point at line 1338 only supports --once and --task <name> modes. Without flags, _run_once() executes zero if blocks and exits silently with no output. Nothing in the codebase calls start_background_agent() either: user_app.py doesn't, tray.py only uses get_agent() read-only, CLI doesn't. Result: daemon class is orphan code, push_agent_status never runs in production, SSE-driven badge updates never fire, pause/resume commands never get processed, drafts never sync to server. Every user install would have a dead automation engine.\n\nFix scope:\n1. Add continuous-mode CLI entry to background_agent.py main() block: when no --once/--task flag is given, call asyncio.run(start_background_agent_blocking()) where the new helper awaits the BackgroundAgent.run() coroutine indefinitely. Handle SIGINT/SIGTERM gracefully via stop_background_agent().\n2. (Alternative or addition) Have scripts/utils/local_server.py @app.on_event('startup') call start_background_agent() so the daemon boots as a sidecar of the local FastAPI process. This matches the user mental model: 'I run the desktop app, the agent runs.'\n3. Add a minimal pytest in tests/server/ that imports start_background_agent, verifies it returns a non-None agent, and verifies agent.running becomes True within 2s.\n4. Update CLAUDE.md scripts/background_agent.py paragraph to document both --once and continuous modes.\n\nBlocks: Tasks #75 (full SSE verification ACs 5+6), #76 (pause/resume + agent visibility), every Phase E launch UAT.\nDiscovered: 2026-05-02 during /uat-task 75 first run. Spec source: docs/migrations/2026-04-28-migration-creator-app-split.md AC2/AC3/AC11.\n\nCASCADING IMPACT (caught during /uat-task 75 LinkedIn connect): login_setup.py only SAVES the session — it does NOT scrape the profile. Profile scraping is handled by the daemon (background_agent.py process_server_commands handler for scrape_profiles type, or _force_poll). With #82 broken: a real user installs Amplifier → onboards → connects LinkedIn (session saves) → profile NEVER gets scraped → server has no niches/follower_count for this user → AI matching cannot match them to any campaign → they earn $0 forever. This is launch-CATASTROPHIC, not just a UI bug.\n\nFix MUST also verify: after daemon starts, calling POST /api/agent/commands with type=scrape_profiles triggers a profile scrape within 60s, scraped_profile table gets new row, server profile API returns the scraped data.",
+        "details": "Likely entry-point body: \n\n```\nasync def _run_forever():\n    sys.path.insert(0, str(Path(__file__).resolve().parent))\n    agent = await start_background_agent()\n    try:\n        await agent._task  # awaits the async loop indefinitely\n    except asyncio.CancelledError:\n        pass\n\nif args.once or args.task:\n    asyncio.run(_run_once())\nelse:\n    asyncio.run(_run_forever())\n```\n\nVerification: run `python scripts/background_agent.py` with the test user JWT in local DB. Within 30s confirm: (a) process stays alive, (b) /api/agent/status GET returns agent_status row with last_seen recent, (c) when /sse/user/agent-status is open in a browser tab, an event fires with the agent_status payload.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "67"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "gap": "13",
+          "blocks": [
+            75,
+            76
+          ]
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 82 with user monitoring. ACs: (1) python scripts/background_agent.py with no flags stays alive >30s; (2) within 30s of start, GET /api/agent/status returns row with last_seen within 60s; (3) /sse/user/agent-status receives an event with the agent_status payload within heartbeat window. Spec lives at docs/specs/agent-control.md (extend) or new docs/specs/daemon-loop.md.",
+        "createdAt": "2026-05-02T08:50:00Z",
+        "updatedAt": "2026-05-02T08:55:00Z"
       }
     ],
     "metadata": {
