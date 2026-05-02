@@ -245,10 +245,27 @@ def create_app() -> FastAPI:
                 set_setting(key, val)
                 saved.append(label)
         msg = f"Saved: {', '.join(saved)}" if saved else "No keys provided — nothing saved."
+
+        # If the user arrived from the hosted onboarding flow, surface a CTA
+        # to return and continue to step 4. Detected via ?from=onboarding
+        # on the page load (referer query string preserved by browser).
+        referer = request.headers.get("referer", "")
+        from_onboarding = "from=onboarding" in referer
+
+        return_cta = ""
+        if saved and from_onboarding:
+            return_cta = f"""
+            <a href="{HOSTED_BASE_URL}/user/onboarding/step4"
+               class="inline-block mt-3 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
+              Return to onboarding &rarr;
+            </a>
+            """
+
         return HTMLResponse(
             content=f"""
             <div class="rounded-lg bg-green-900/40 border border-green-500/30 p-4 text-green-200 text-sm mb-4">
               {msg}
+              {return_cta}
             </div>
             """,
         )

@@ -1175,7 +1175,7 @@
         "title": "Onboarding /keys page → return-to-onboarding CTA + fix step3 'Skip' button label",
         "description": "POLISH (NOT launch-blocker; will fold into post-#82 holistic re-test). Discovered during /uat-task 75 third audit pass on the API keys flow.\n\nProblem 1 — Step 3 'Skip for now →' button says 'Skip' even when the user DID configure keys. The label should always say 'Continue →' (or 'Done →') to reflect that this is the canonical forward navigation, not a skip-only path.\n\nProblem 2 — After saving keys at localhost:5222/keys, the inline 'Saved: <providers>' banner has no 'Return to onboarding' link. User must manually switch back to the original onboarding tab. For a first-time user, this break in flow is confusing — they might think they're done with onboarding when they're actually still on step 3.\n\nFix scope:\n- scripts/templates/onboarding/step3.html — change 'Skip for now →' label to 'Continue →' (one-line text edit).\n- scripts/templates/user/keys.html — when the Save banner renders, include a 'Return to Amplifier onboarding' link/button if the request came from onboarding (could detect via Referer header or query param ?from=onboarding).\n- Optionally — consider auto-detecting the referrer in /keys handler, passing through to template, conditionally rendering the return CTA.\n\nNot doing this as part of #75 itself because it's separate UX scope; will be exercised in the post-#82 re-test.",
         "details": "Files: scripts/templates/onboarding/step3.html, scripts/templates/user/keys.html, scripts/utils/local_server.py (optional referrer detection). ~10 LOC total.",
-        "status": "pending",
+        "status": "done",
         "priority": "low",
         "dependencies": [
           "75"
@@ -1187,7 +1187,8 @@
         },
         "subtasks": [],
         "testStrategy": "/uat-task 83. Verify: (1) step3 button text reads 'Continue →', (2) after saving keys with onboarding referrer, banner includes 'Return to onboarding' CTA that takes user back to step4 or step3.",
-        "createdAt": "2026-05-02T09:40:00Z"
+        "createdAt": "2026-05-02T09:40:00Z",
+        "updatedAt": "2026-05-02T09:45:00Z"
       }
     ],
     "metadata": {
