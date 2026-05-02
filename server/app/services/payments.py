@@ -83,10 +83,12 @@ async def verify_checkout_session(session_id: str) -> dict | None:
         session = stripe.checkout.Session.retrieve(session_id)
         if session.payment_status != "paid":
             return None
-        # Stripe SDK 15.x: metadata is a StripeObject whose attribute access
-        # for `.get` raises AttributeError. dict() conversion is safe.
-        metadata = dict(session.metadata) if session.metadata else {}
-        company_id = metadata.get("company_id")
+        # Stripe SDK 15.x: metadata is a StripeObject. Subscript-with-try is
+        # the only access pattern that works (no .get(), no dict() iteration).
+        try:
+            company_id = session.metadata["company_id"]
+        except (KeyError, TypeError):
+            return None
         if not company_id:
             return None
         return {

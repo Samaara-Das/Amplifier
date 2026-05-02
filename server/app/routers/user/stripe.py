@@ -85,11 +85,16 @@ async def stripe_connect_return(
     if stripe:
         try:
             acct = stripe.Account.retrieve(account_id)
-            # Stripe SDK 15.x exposes acct.metadata as a StripeObject whose
-            # attribute access for `.get` raises AttributeError. Convert to a
-            # plain dict before .get() — safe across SDK versions.
-            metadata = dict(acct.metadata) if acct.metadata else {}
-            owner_id = metadata.get("user_id")
+            # Stripe SDK 15.x quirk: acct.metadata is a StripeObject. It
+            # supports subscript access (`md["k"]`) but does NOT support
+            # `.get(...)` (raises AttributeError) and `dict(md)` raises
+            # KeyError(0) because StripeObject lacks proper dict iteration.
+            # Subscript-with-try is the only API that works across SDK 15.x
+            # AND older SDKs.
+            try:
+                owner_id = acct.metadata["user_id"]
+            except (KeyError, TypeError):
+                owner_id = None
             if owner_id != str(user.id):
                 logger.warning(
                     "stripe_connect_return: account %s metadata.user_id=%s != user %d",
