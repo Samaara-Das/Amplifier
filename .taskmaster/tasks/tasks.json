@@ -305,7 +305,7 @@
         "id": 19,
         "title": "Stripe live integration â€” company Checkout + user Connect onboarding",
         "description": "Live Stripe integration in both directions: companies pay IN via Checkout (already built, needs live keys + webhook), users get paid OUT via Connect Express (not built). Use the Stripe MCP server (https://docs.stripe.com/mcp?mcp-client=claudecode) to do all setup work autonomously — create the Connect platform configuration, configure webhook endpoints (checkout.session.completed, transfer.paid, transfer.failed, account.updated), provision live API keys onto the VPS env, and validate the integration end-to-end. Do NOT block on the user except for the one-time live-mode activation that requires their Stripe dashboard login (and 2FA if prompted). Note: father's company has an existing live Stripe account that will be used — credentials available via `mempalace_search 'stripe account'` in wing auto_posting_system. Server cut: 20%. Minimum withdrawal: $10. Hold period: 7 days (already implemented in services/billing.py). **LAUNCH SCOPE 2026-05-02**: Ship for launch with **demo Stripe sandbox keys** (acct_1TCGfuABBUrjm7YF Stock Buddy sandbox already configured). Real Stripe Connect live keys + bank linking MUST replace demo keys before opening to public users. Documented in `server/.env.example` and `docs/migrations/2026-05-01-migration-gap-audit.md` pre-launch checklist. Implementation must include user-side Stripe Connect Express onboarding UI: redirect-link button on `/user/settings` → Stripe-hosted onboarding → return URL handler that stamps `users.stripe_account_id`.",
-        "status": "pending",
+        "status": "partial",
         "priority": "high",
         "dependencies": [
           "2",
