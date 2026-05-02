@@ -1090,8 +1090,8 @@
       },
       {
         "id": 77,
-        "title": "Windows installer icon.ico (multi-size, replaces placeholder)",
-        "description": "REQUIRED for Task #68 closure. scripts/build/installer/icon.ico is missing — only ICON_PLACEHOLDER.md exists. Inno Setup needs a real .ico file or the installer ships without an icon (or fails to build). Spec source: docs/migrations/2026-04-28-migration-stealth-and-packaging.md line 85.\n\nDeliverable: multi-size icon.ico containing 16x16, 32x32, 48x48, 64x64, 128x128, 256x256 px variants. Brand mark for 'Amplifier' — clean, recognizable at 16px (favicon-size), distinct at 256px (Windows installer). Place at scripts/build/installer/icon.ico and delete ICON_PLACEHOLDER.md.\n\nApproach: AI-generate via image provider (Gemini/Pollinations) → convert to .ico via Pillow (PIL.Image.save with format='ICO' and sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]). User reviews final.",
+        "title": "Installer assets bundled — Windows icon.ico + real EULA.rtf",
+        "description": "REQUIRED for Task #68 closure. Bundles two installer asset deliverables that share the same files (`scripts/build/installer/`), the same UAT (does Inno Setup build cleanly + does the resulting installer show right?), and zero functional dependencies between them.\n\n**Part A (was #77) — `scripts/build/installer/icon.ico`** is missing; only `ICON_PLACEHOLDER.md` exists. Inno Setup needs a real .ico file. Deliver multi-size icon.ico (16x16, 32x32, 48x48, 64x64, 128x128, 256x256). AI-generate the brand mark via image provider, convert to .ico via Pillow with `sizes=[(16,16),...]`. Delete ICON_PLACEHOLDER.md.\n\n**Part B (was #79) — `scripts/build/installer/eula.rtf`** is placeholder text. Need real EULA. Draft from `templates/public/terms.html` + `templates/public/privacy.html` + standard installer EULA boilerplate (license grant, no warranty, US jurisdiction, governing law, termination, contact info). Convert to RTF (`{\rtf1\u0007nsi...}`). User reviews legal accuracy before merge.\n\nSingle /uat-task pass: run `scripts/build/build_windows_installer.ps1` — verify Inno Setup compiles cleanly, resulting AmplifierSetup-vX.Y.Z.exe shows the icon in File Explorer + Programs and Features, License Agreement page renders the EULA without garbled formatting + scrollable. Merged from prior #77 + #79.",
         "details": "Reference in scripts/build/installer/windows.iss already correct (no path change needed). After this lands, run scripts/build/build_windows_installer.ps1 to verify the installer compiles and the icon shows up correctly in File Explorer.",
         "status": "pending",
         "priority": "medium",
@@ -1105,14 +1105,15 @@
         },
         "subtasks": [],
         "testStrategy": "Visual review of generated .ico at all 6 sizes. Run scripts/build/build_windows_installer.ps1 — verify Inno Setup reports no icon errors and the resulting AmplifierSetup-vX.Y.Z.exe shows the icon in File Explorer + after install in Programs and Features. Spec lives at docs/specs/installer-assets.md.",
-        "createdAt": "2026-05-02T07:00:00Z"
+        "createdAt": "2026-05-02T07:00:00Z",
+        "updatedAt": "2026-05-02T12:55:00Z"
       },
       {
         "id": 79,
-        "title": "Real EULA text for Inno Setup installer (replaces placeholder)",
-        "description": "REQUIRED for Task #68 closure. scripts/build/installer/eula.rtf currently contains placeholder text. Real EULA needed for legal protection during launch. Spec source: docs/migrations/2026-04-28-migration-stealth-and-packaging.md line 84.\n\nApproach: I draft from existing /terms (templates/public/terms.html) + /privacy (templates/public/privacy.html) content + standard installer EULA boilerplate (license grant, no warranty disclaimer, US jurisdiction, governing law, termination clause, contact info). Convert to RTF format. User reviews for legal accuracy before merge — legal content must not be shipped without owner sign-off.\n\nDeliverable: scripts/build/installer/eula.rtf (RTF format, ~1500-2500 words, displays correctly in Inno Setup License Agreement page).",
+        "title": "[MERGED INTO #77] Real EULA text for installer",
+        "description": "MERGED INTO TASK #77. See #77 description for both deliverables.",
         "details": "RTF format quirks: use `{\\rtf1\\ansi\\deff0 ... }` shell, `\\par` for paragraph breaks, `\\b ... \\b0` for bold. Keep formatting simple; Inno Setup's RTF renderer is conservative.",
-        "status": "pending",
+        "status": "deleted",
         "priority": "medium",
         "dependencies": [
           "68",
@@ -1125,7 +1126,8 @@
         },
         "subtasks": [],
         "testStrategy": "Run scripts/build/build_windows_installer.ps1 — verify EULA renders cleanly on the License Agreement page (no garbled formatting, no missing sections, scrollable). User signs off on legal text before merge. Spec lives at docs/specs/installer-assets.md.",
-        "createdAt": "2026-05-02T07:00:00Z"
+        "createdAt": "2026-05-02T07:00:00Z",
+        "updatedAt": "2026-05-02T12:55:00Z"
       },
       {
         "id": 80,
@@ -1236,9 +1238,9 @@
       {
         "id": 86,
         "title": "Profile scraping pipeline post-platform-connect — verification + auto-trigger",
-        "description": "LAUNCH BLOCKER. Discovered during /uat-task 75 holistic re-test (2026-05-02). The original cascading-impact analysis from Task #82 said: 'real user installs Amplifier → connects LinkedIn (session saves) → profile NEVER gets scraped → server has no niches → matching cannot match them → they earn $0 forever.' #82 fixed the daemon orphan, but I never actually verified that profile scraping fires post-platform-connect. The cascading downstream effect motivating #82 is still latent.\n\nObserved during /uat-task 75 re-test: scraped_profile table last entry is 2026-04-25, NEVER updated for ANY of today's platform connects (LinkedIn 14:23, Facebook 14:26, Reddit 14:27, plus rerun connects). Daemon is alive + pushing status, but profile scraping pipeline is broken or untriggered.\n\nRoot cause investigation needed:\n1. login_setup.py (called by local /connect/{platform} POST) only saves the Playwright session. It does NOT trigger any profile scrape after.\n2. background_agent.py refresh_profiles() runs every PROFILE_REFRESH_INTERVAL = 604800s (7 days). So new platform connect doesn't trigger immediate scrape — the daemon refreshes profiles 7 days later. New users sit with empty profile data for a WEEK.\n3. process_server_commands handles a 'scrape_profiles' command type. So an admin or some upstream code could inject this command. But nothing in the connect flow does this.\n\nFix scope:\n- After login_setup.py saves a session, it (or local_server.py /connect/{platform}) MUST trigger an immediate profile scrape for that platform. Either by:\n  (a) Direct call to scraper module in same process (login_setup.py extends to call scrape_<platform>_profile after session save)\n  (b) Inject AgentCommand type='scrape_profiles' with payload={'platforms': ['linkedin']} via server_client → daemon picks it up on next command poll (within COMMAND_POLL_INTERVAL=60s)\n- Approach (b) is preferred: it leverages the existing #67 + #82 + #84 infrastructure and keeps the local /connect handler thin.\n- Add a UAT test-mode flag AMPLIFIER_UAT_PROFILE_REFRESH_NOW=1 to force PROFILE_REFRESH_INTERVAL = 30s for the daemon's automatic refresh path (so end-to-end testing doesn't take 7 days).\n- Also add: server-side admin button on /admin/users/{id} 'Refresh profile' that injects a scrape_profiles AgentCommand for that user (operational tooling for rescues).\n- Verification: register fresh user → connect LinkedIn → within 60s, scraped_profile row inserted with non-empty data → server's User.scraped_profiles JSON updated via daemon's profile sync.",
+        "description": "LAUNCH BLOCKER. Discovered during /uat-task 75 holistic re-test (2026-05-02). The original cascading-impact analysis from Task #82 said: 'real user installs Amplifier → connects LinkedIn (session saves) → profile NEVER gets scraped → server has no niches → matching cannot match them → they earn $0 forever.' #82 fixed the daemon orphan, but I never actually verified that profile scraping fires post-platform-connect. The cascading downstream effect motivating #82 is still latent.\n\nObserved during /uat-task 75 re-test: scraped_profile table last entry is 2026-04-25, NEVER updated for ANY of today's platform connects (LinkedIn 14:23, Facebook 14:26, Reddit 14:27, plus rerun connects). Daemon is alive + pushing status, but profile scraping pipeline is broken or untriggered.\n\nRoot cause investigation needed:\n1. login_setup.py (called by local /connect/{platform} POST) only saves the Playwright session. It does NOT trigger any profile scrape after.\n2. background_agent.py refresh_profiles() runs every PROFILE_REFRESH_INTERVAL = 604800s (7 days). So new platform connect doesn't trigger immediate scrape — the daemon refreshes profiles 7 days later. New users sit with empty profile data for a WEEK.\n3. process_server_commands handles a 'scrape_profiles' command type. So an admin or some upstream code could inject this command. But nothing in the connect flow does this.\n\nFix scope:\n- After login_setup.py saves a session, it (or local_server.py /connect/{platform}) MUST trigger an immediate profile scrape for that platform. Either by:\n  (a) Direct call to scraper module in same process (login_setup.py extends to call scrape_<platform>_profile after session save)\n  (b) Inject AgentCommand type='scrape_profiles' with payload={'platforms': ['linkedin']} via server_client → daemon picks it up on next command poll (within COMMAND_POLL_INTERVAL=60s)\n- Approach (b) is preferred: it leverages the existing #67 + #82 + #84 infrastructure and keeps the local /connect handler thin.\n- Add a UAT test-mode flag AMPLIFIER_UAT_PROFILE_REFRESH_NOW=1 to force PROFILE_REFRESH_INTERVAL = 30s for the daemon's automatic refresh path (so end-to-end testing doesn't take 7 days).\n- Also add: server-side admin button on /admin/users/{id} 'Refresh profile' that injects a scrape_profiles AgentCommand for that user (operational tooling for rescues).\n- Verification: register fresh user → connect LinkedIn → within 60s, scraped_profile row inserted with non-empty data → server's User.scraped_profiles JSON updated via daemon's profile sync.\n\n--- UAT RESULT 2026-05-02 ---\nAC1 PASS: post-platform-connect → AgentCommand → daemon scrape wiring works. scraped_profile.linkedin row inserted at 2026-05-02T12:36:59 within 30s of LinkedIn connect on test user uat-task86-rerun.\n\nAC4-AC10 BLOCKED on environmental Chromium DNS issue (filed as Task #88). User Sammy reproduced ERR_NAME_NOT_RESOLVED inside Patchright/Chromium even with system DNS set to Google. Empty scraped data is downstream of Chromium DNS, not #86 wiring. Re-run AC4-AC10 once #88 ships OR on a network where Chromium DNS works.\n\n#86 actual fix (the wiring) is shippable as-is. Branch: flask-user-app commit 0876841.",
         "details": "Files: scripts/login_setup.py (or scripts/utils/local_server.py /connect/{platform}) to trigger AgentCommand. background_agent.py if PROFILE_REFRESH_INTERVAL UAT override needed. server/app/routers/admin/users.py for admin trigger button.\n\nSpec source: Task #82 description's CASCADING IMPACT section. Original onboarding flow design from migration #67 implies scraping is part of the onboarding completion, but the implementation never wired the trigger.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "82",
@@ -1252,7 +1254,8 @@
         },
         "subtasks": [],
         "testStrategy": "/uat-task 86 with user monitoring. ACs: (1) After local /connect/linkedin completes (session saved), within 60s a scraped_profile row appears in local SQLite for that platform. (2) Server-side User.scraped_profiles JSON gets updated via daemon push. (3) AMPLIFIER_UAT_PROFILE_REFRESH_NOW=1 shortens daemon's auto-refresh from 7d to 30s. (4) Admin /admin/users/{id} 'Refresh profile' button injects AgentCommand correctly.",
-        "createdAt": "2026-05-02T11:15:00Z"
+        "createdAt": "2026-05-02T11:15:00Z",
+        "updatedAt": "2026-05-02T13:05:00Z"
       },
       {
         "id": 87,
@@ -1272,6 +1275,25 @@
         "subtasks": [],
         "testStrategy": "/uat-task 87 — meta-test: pick 3 randomly-chosen tasks whose ACs were amended, re-run their UAT against the new AC blocks. Each must PASS. Plus: re-read LEARNINGS.md and confirm every learning is reflected in at least one AC across the spec set.",
         "createdAt": "2026-05-02T11:30:00Z"
+      },
+      {
+        "id": 88,
+        "title": "Chromium DNS robustness — Patchright launch args for users with flaky ISP DNS",
+        "description": "FOLLOW-UP from /uat-task 86 (2026-05-02). The #86 wiring (post-platform-connect → AgentCommand → daemon scrape) is empirically PROVEN to work — scraped_profile rows are inserted within 30s of platform connect. But on networks with flaky ISP DNS (specifically: dual-stack IPv6 where the ISP's IPv6 DNS server is timing out), Chromium inside Patchright fails to resolve www.linkedin.com / www.facebook.com / www.reddit.com with net::ERR_NAME_NOT_RESOLVED — even after Set-DnsClientServerAddress sets system DNS to Google's, even with --disable-features=AsyncDns flag, even after disabling IPv6 on the network adapter.\n\nReproduced today on Sammy's network: Jio IPv6 DNS (2402:e280:21fd:700::1) timed out, Set-DnsClientServerAddress to 8.8.8.8/8.8.4.4 + IPv6 Google DNS worked for system shell but Chromium kept failing. Even after restarting the daemon to inherit new DNS config + adding --disable-features=AsyncDns to Patchright launch args, scraped data stayed empty.\n\nReal users with similar ISP issues will hit the same wall — their profile scrapes will silently produce empty rows. AC4 (field-level coverage) will fail in production for that cohort.\n\nFix scope:\n1. Investigate the actual Chromium flag set that forces OS-resolver fallback in all cases. Candidates: --host-resolver-rules='MAP * <ip>' (forces a specific upstream resolver), --enable-features=DnsHttpsServerSupport with --dns-over-https-server=https://dns.google/dns-query (DoH bypasses ISP DNS), explicit hosts file munging via --host-rules.\n2. Test each candidate on a network where ISP IPv6 DNS is broken (replicate Sammy's failure mode by setting an unreachable IPv6 DNS as the only resolver).\n3. Add the working flag(s) to scripts/utils/browser_config.py DNS_HARDENING_ARGS.\n4. As a fallback for irrecoverable cases: detect ERR_NAME_NOT_RESOLVED in scraper output, log a clear error to local notification 'Profile scrape failed: DNS issue. Please check your network connection or VPN settings.'\n5. /uat-task 88: simulate broken ISP DNS via Windows host-block + verify Chromium still resolves via the hardening flags.\n\nNOT a #86 blocker — #86's wiring is correct and shippable as-is. This is a robustness improvement for a subset of user environments.",
+        "details": "Files likely affected: scripts/utils/browser_config.py (extend DNS_HARDENING_ARGS), possibly scripts/utils/profile_scraper.py error handling. Documentation: docs/troubleshooting.md should add a 'Profile scrape returns empty data' section explaining the DNS-resolver issue + user-facing remediation.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "86"
+        ],
+        "metadata": {
+          "phase": "E",
+          "polish": true,
+          "discovered_during": "uat_86_dns_failure"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 88: simulate broken IPv6 DNS, verify Chromium still resolves www.linkedin.com via the hardening flags. AC2: real-network test on a fresh laptop confirms scraping populates real follower_count etc.",
+        "createdAt": "2026-05-02T13:05:00Z"
       }
     ],
     "metadata": {
