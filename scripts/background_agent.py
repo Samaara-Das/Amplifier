@@ -1009,7 +1009,7 @@ async def push_agent_status(agent: "BackgroundAgent") -> dict:
             ai_keys_configured=ai_keys_configured,
             version="phase-d",
         )
-        logger.debug("Status pushed to server (running=%s paused=%s)", agent.running, agent.paused)
+        logger.info("Status pushed to server (running=%s paused=%s)", agent.running, agent.paused)
         return result
     except Exception as e:
         logger.warning("push_agent_status failed: %s", e)
@@ -1112,6 +1112,11 @@ class BackgroundAgent:
         self.last_status_push = 0.0
         self.last_draft_sync = 0.0
         self._task: asyncio.Task | None = None
+        # Phase D: concurrent loops for command poll + status push (Task #84).
+        # These run independently of the heavy main-loop work so content_gen
+        # cycles can't starve them.
+        self._cmd_task: asyncio.Task | None = None
+        self._status_task: asyncio.Task | None = None
         self._iteration_count = 0
         # UAT: allow overriding the content-gen check interval (default 120s)
         _raw = os.environ.get("AMPLIFIER_UAT_INTERVAL_SEC", "").strip()
@@ -1126,9 +1131,56 @@ class BackgroundAgent:
                 self._content_gen_interval, _raw,
             )
 
+    async def _command_poll_loop(self) -> None:
+        """Concurrent loop: poll server for AgentCommand rows + ack them.
+        Runs independently of heavy main-loop work so content_gen cannot starve
+        pause/resume + other commands. See Task #84."""
+        logger.info("Command-poll loop started (interval=%ds)", COMMAND_POLL_INTERVAL)
+        try:
+            while self.running:
+                try:
+                    await process_server_commands(self)
+                except Exception as e:
+                    logger.warning("Command poll error (will retry): %s", e)
+                try:
+                    await asyncio.sleep(COMMAND_POLL_INTERVAL)
+                except asyncio.CancelledError:
+                    break
+        except asyncio.CancelledError:
+            pass
+        logger.info("Command-poll loop stopped")
+
+    async def _status_push_loop(self) -> None:
+        """Concurrent loop: push agent_status to server every STATUS_PUSH_INTERVAL.
+        Runs independently of heavy main-loop work so SSE-driven badges stay
+        live even during long content_gen cycles. See Task #84."""
+        logger.info("Status-push loop started (interval=%ds)", STATUS_PUSH_INTERVAL)
+        try:
+            while self.running:
+                try:
+                    await push_agent_status(self)
+                except Exception as e:
+                    logger.warning("Status push error (will retry): %s", e)
+                try:
+                    await asyncio.sleep(STATUS_PUSH_INTERVAL)
+                except asyncio.CancelledError:
+                    break
+        except asyncio.CancelledError:
+            pass
+        logger.info("Status-push loop stopped")
+
     async def run(self):
-        """Main loop -- runs forever, checks what's due each iteration."""
+        """Main loop -- runs forever, checks what's due each iteration.
+
+        Spawns 2 concurrent loops at start for command_poll + status_push so
+        the heavy content_gen / posting work in this main loop cannot starve
+        them (Task #84). Spawned loops are cancelled cleanly on agent.stop().
+        """
         logger.info("Background agent started")
+
+        # Spawn the time-critical sync loops as concurrent tasks
+        self._cmd_task = asyncio.create_task(self._command_poll_loop())
+        self._status_task = asyncio.create_task(self._status_push_loop())
 
         while self.running:
             now = time.time()
@@ -1235,23 +1287,27 @@ class BackgroundAgent:
                 except Exception as e:
                     logger.error("Notification building failed: %s", e)
 
-            # Phase D: always run command poll + status push (even when paused)
-            # so the daemon can receive resume_agent and the web UI reflects paused state.
-            if now - self.last_command_poll >= COMMAND_POLL_INTERVAL:
-                try:
-                    await process_server_commands(self)
-                except Exception as e:
-                    logger.error("Command poll crashed: %s", e)
-                self.last_command_poll = now
-
-            if now - self.last_status_push >= STATUS_PUSH_INTERVAL:
-                try:
-                    await push_agent_status(self)
-                except Exception as e:
-                    logger.error("Status push crashed: %s", e)
-                self.last_status_push = now
+            # Phase D + Task #84: command_poll and status_push run as
+            # concurrent _cmd_task + _status_task spawned at run() start.
+            # They are independent of this loop so content_gen cannot starve
+            # them. The "always run even when paused" property is preserved
+            # because the spawned loops live outside this `if not self.paused`
+            # block.
 
             await asyncio.sleep(LOOP_INTERVAL)
+
+        # Cancel + reap the spawned concurrent loops on shutdown
+        for task in (self._cmd_task, self._status_task):
+            if task and not task.done():
+                task.cancel()
+        if self._cmd_task or self._status_task:
+            try:
+                await asyncio.gather(
+                    *(t for t in (self._cmd_task, self._status_task) if t),
+                    return_exceptions=True,
+                )
+            except Exception:
+                pass
 
         logger.info("Background agent stopped")
 

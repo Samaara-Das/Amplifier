@@ -103,3 +103,81 @@ async def test_start_background_agent_singleton_idempotent():
             "Second call must return the same agent instance (singleton guard)"
         )
         assert agent_first.running is True
+
+
+# ── Test 3 (Task #84): concurrent loops are spawned at run() start ──────────
+
+
+@pytest.mark.asyncio
+async def test_concurrent_loops_spawned():
+    """After start_background_agent(), _cmd_task and _status_task are running.
+
+    Task #84 refactor: command_poll + status_push run as independent
+    asyncio.Tasks so heavy main-loop work cannot starve them.
+    """
+    import asyncio
+    with patch.multiple("background_agent", **{
+        k.split("background_agent.")[-1]: v
+        for k, v in _all_task_patches().items()
+        if k.startswith("background_agent.")
+    }):
+        from background_agent import start_background_agent
+
+        agent = await start_background_agent()
+        # Yield once so the spawned tasks get to run their first scheduling step
+        await asyncio.sleep(0)
+
+        assert agent._cmd_task is not None, "_cmd_task must be spawned at run() start"
+        assert agent._status_task is not None, "_status_task must be spawned at run() start"
+        assert not agent._cmd_task.done(), "_cmd_task must still be running"
+        assert not agent._status_task.done(), "_status_task must still be running"
+
+
+# ── Test 4 (Task #84): status_push fires while main loop is blocked ─────────
+
+
+@pytest.mark.asyncio
+async def test_status_push_fires_during_long_main_loop():
+    """status_push_loop must fire even when generate_daily_content is slow.
+
+    This is the regression test for the loop-starvation bug discovered during
+    /uat-task 82: with content_gen taking ~25s+, the old sequential loop
+    couldn't reach push_agent_status. The concurrent-task design (#84) fixes
+    this — status push fires on its own schedule.
+    """
+    import asyncio
+
+    push_calls = {"count": 0}
+
+    async def slow_content_gen(*args, **kwargs):
+        # Simulate heavy content gen blocking the main loop
+        await asyncio.sleep(2.0)
+        return {"generated": 1}
+
+    async def counting_push(_agent):
+        push_calls["count"] += 1
+        return True
+
+    patches = _all_task_patches()
+    patches["background_agent.generate_daily_content"] = slow_content_gen
+    patches["background_agent.push_agent_status"] = counting_push
+
+    with patch.multiple("background_agent", **{
+        k.split("background_agent.")[-1]: v
+        for k, v in patches.items()
+        if k.startswith("background_agent.")
+    }):
+        # Force STATUS_PUSH_INTERVAL to a tiny value so the test runs fast.
+        # The constant is module-level — patch it directly.
+        with patch("background_agent.STATUS_PUSH_INTERVAL", 0.1):
+            from background_agent import start_background_agent
+
+            await start_background_agent()
+            # Wait long enough for status push to fire several times,
+            # while main-loop content_gen would still be in its first sleep.
+            await asyncio.sleep(0.5)
+
+            assert push_calls["count"] >= 2, (
+                f"push_agent_status must fire on its own schedule even when "
+                f"main loop is blocked. Got {push_calls['count']} calls."
+            )

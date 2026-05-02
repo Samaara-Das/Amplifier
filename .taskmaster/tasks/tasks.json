@@ -1189,6 +1189,28 @@
         "testStrategy": "/uat-task 83. Verify: (1) step3 button text reads 'Continue →', (2) after saving keys with onboarding referrer, banner includes 'Return to onboarding' CTA that takes user back to step4 or step3.",
         "createdAt": "2026-05-02T09:40:00Z",
         "updatedAt": "2026-05-02T09:45:00Z"
+      },
+      {
+        "id": 84,
+        "title": "Daemon loop: spawn push_agent_status + process_server_commands as concurrent asyncio tasks (loop-starvation fix)",
+        "description": "LAUNCH BLOCKER follow-up to #82. Discovered during /uat-task 82 first run.\n\nBackground daemon's `BackgroundAgent.run()` at scripts/background_agent.py:1129 is sequential — every iteration runs all checks (execute_due_posts, requeue_failed_posts, poll_campaigns, generate_daily_content, check_sessions, db_backup, update_check, refresh_profiles, run_metric_scraping, sync_unsynced_drafts, process_server_commands, push_agent_status) in one synchronous chain. If `generate_daily_content()` is heavy (multiple active campaigns × ~25s each for AI calls), the rest of the loop body — including command_poll and status_push — gets starved for minutes.\n\nObserved: with `AMPLIFIER_UAT_INTERVAL_SEC=15` and one stale leftover campaign assignment in local DB, content gen blocked the loop for 50+ seconds. /api/agent/status returned `last_seen=null` for 6 consecutive 10s polls. Direct call to `push_agent_status()` worked perfectly, proving the function itself is correct — the issue is purely loop scheduling.\n\nProduction impact: with default 120s content_gen interval and 1-3 campaigns, status push DOES eventually fire between content gen runs (verified architecturally, not measured). But:\n- A user with 10+ active campaigns can block status push for 5-10 min per cycle, making the SSE-driven 'last seen' indicator stale\n- Pause/Resume command latency (#76) becomes unbounded — user clicks Pause on web, daemon takes minutes to react\n- UAT runs with shortened intervals are unreliable\n\nFix scope:\n- Refactor `BackgroundAgent.run()` to spawn `process_server_commands` and `push_agent_status` as INDEPENDENT `asyncio.create_task()` loops, running concurrently with the heavy content/post/scrape work.\n- The two tasks: (a) command_poll_loop with COMMAND_POLL_INTERVAL=15s default; (b) status_push_loop with STATUS_PUSH_INTERVAL=60s default. Each is its own `while self.running: await asyncio.sleep(interval); ...` coroutine.\n- Main run() loop continues to handle the heavy non-time-critical tasks (content gen, posting, scraping, profile refresh, db backup) sequentially.\n- stop() cancels all spawned tasks cleanly.\n- Tests: extend tests/server/test_daemon_loop.py with concurrency tests verifying status push + command poll fire on schedule even when content gen blocks.\n\nWhy NOT fold into #82: #82's mechanical fix (continuous-mode CLI + sidecar boot) is correct and verified. This deeper refactor is a separate concern. Filing as #84 keeps the diff small + the test coverage focused.",
+        "details": "Concrete sketch:\n\n```python\nasync def run(self):\n    # Spawn concurrent loops for time-critical sync tasks\n    self._cmd_task = asyncio.create_task(self._command_poll_loop())\n    self._status_task = asyncio.create_task(self._status_push_loop())\n    try:\n        while self.running:\n            # heavy work continues sequentially as before\n            ...\n            await asyncio.sleep(LOOP_INTERVAL)\n    finally:\n        self._cmd_task.cancel(); self._status_task.cancel()\n        await asyncio.gather(self._cmd_task, self._status_task, return_exceptions=True)\n\nasync def _status_push_loop(self):\n    while self.running:\n        try: await push_agent_status(self)\n        except Exception as e: logger.warning('Status push failed: %s', e)\n        await asyncio.sleep(STATUS_PUSH_INTERVAL)\n```\n\nVerification: with the same loop-starvation reproduction (content gen blocking ~50s), /api/agent/status should still update within STATUS_PUSH_INTERVAL.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "82"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "blocks": [
+            76
+          ],
+          "discovered_during": "uat_82_first_run"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 84. ACs: (1) with AMPLIFIER_UAT_INTERVAL_SEC=15 + 1 active campaign, /api/agent/status updates within 30s of daemon start; (2) command_poll picks up an admin-injected pause_agent command within 30s even while content gen is mid-cycle; (3) graceful Ctrl+C still shuts down both spawned loops; (4) pytest 317+/317+ green (315 baseline + ~2 new concurrency tests).",
+        "createdAt": "2026-05-02T10:25:00Z"
       }
     ],
     "metadata": {
