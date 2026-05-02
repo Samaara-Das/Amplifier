@@ -234,6 +234,21 @@ def create_app() -> FastAPI:
             try:
                 from login_setup import run_login
                 await run_login(platform)
+                logger.info("Platform login completed for %s, scheduling scrape", platform)
+                # Inject scrape_profiles AgentCommand so daemon picks it up on next poll.
+                # This is the wiring that ensures profile data is scraped after every
+                # platform connect — without this, the scraped_profile table never gets
+                # a fresh row and the matching service can't score the user.
+                try:
+                    from utils.server_client import post_agent_command
+                    await asyncio.to_thread(
+                        post_agent_command,
+                        "scrape_profiles",
+                        {"platforms": [platform]},
+                    )
+                    logger.info("scrape_profiles command queued for %s", platform)
+                except Exception as exc:
+                    logger.warning("Failed to queue scrape_profiles command: %s", exc)
             except Exception as exc:
                 logger.error("Platform login for %s failed: %s", platform, exc)
 

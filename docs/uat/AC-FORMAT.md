@@ -252,5 +252,6 @@ Approved flags:
 - `AMPLIFIER_UAT_DRAFT_SYNC_NOW` — forces immediate draft upload to server, bypassing the daemon's 30s batch window. Used by Task #67 AC3.
 - `AMPLIFIER_UAT_SKIP_LOCAL_HANDOFF` — when set, `/register` on the hosted server stores the JWT in a session cookie directly and skips the `localhost:5222/auth/callback` redirect. Allows onboarding UAT to run without a paired local daemon (CI-safe path). Default: unset (daemon-redirect path is production behaviour). Used by Task #75.
 - `AMPLIFIER_DISABLE_AGENT=1` — skips daemon sidecar boot when `python scripts/user_app.py` starts. Use when testing the local FastAPI UI in isolation (UI-only debugging, CI tests that create TestClients against `create_app()`). Not a UAT shortcut flag — this is a production-safe isolation flag that keeps the UI testable without background tasks. Set by `tests/server/test_local_server.py` to prevent test pollution. Task #82.
+- `AMPLIFIER_UAT_PROFILE_REFRESH_NOW=1` — shortens `PROFILE_REFRESH_INTERVAL` in `background_agent.py` from 604800s (7 days) to 30s, so the daemon's automatic profile-refresh loop fires every 30s during UAT instead of once per week. Used by Task #86 AC8.
 
 Adding a new flag requires updating this file.

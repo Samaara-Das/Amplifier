@@ -311,6 +311,19 @@ def get_pending_commands() -> list[dict]:
     return []
 
 
+def post_agent_command(command_type: str, payload: dict) -> dict:
+    """POST /api/agent/commands. Insert a command for the current user (authenticated via JWT).
+
+    Used by local_server.py to queue scrape_profiles after platform connect.
+    The server's POST /api/agent/commands endpoint uses the user's JWT to set user_id.
+    """
+    resp = _request_with_retry(
+        "POST", "/api/agent/commands", json={"type": command_type, "payload": payload}
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def ack_command(command_id: int, result: str = "done", error: str | None = None) -> dict:
     """POST /api/agent/commands/{id}/ack. result: 'done' | 'failed'."""
     body: dict = {"result": result}

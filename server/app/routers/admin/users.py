@@ -13,6 +13,7 @@ from app.models.post import Post
 from app.models.metric import Metric
 from app.models.payout import Payout
 from app.models.penalty import Penalty
+from app.models.agent_command import AgentCommand
 from app.routers.admin import (
     _render, _check_admin, _login_redirect, paginate_scalars,
     log_admin_action, build_query_string,
@@ -301,6 +302,41 @@ async def ban_user(user_id: int, request: Request, admin_token: str = Cookie(Non
         await db.flush()
         await log_admin_action(db, request, "user_banned", "user", user_id, {"email": user.email})
     return RedirectResponse(url=f"/admin/users/{user_id}", status_code=303)
+
+
+@router.post("/users/{user_id}/refresh-profile")
+async def refresh_user_profile(
+    user_id: int,
+    request: Request,
+    admin_token: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Inject a scrape_profiles AgentCommand for the user so their daemon picks it up."""
+    if not _check_admin(admin_token):
+        return _login_redirect()
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        return RedirectResponse(url=f"/admin/users/{user_id}?error=user_not_found", status_code=303)
+
+    try:
+        cmd = AgentCommand(
+            user_id=user_id,
+            type="scrape_profiles",
+            payload={"platforms": ["linkedin", "facebook", "reddit"]},
+            status="pending",
+        )
+        db.add(cmd)
+        await db.flush()
+        await log_admin_action(
+            db, request, "profile_refresh_queued", "user", user_id,
+            {"email": user.email, "command_id": cmd.id},
+        )
+    except Exception:
+        return RedirectResponse(url=f"/admin/users/{user_id}?error=command_failed", status_code=303)
+
+    return RedirectResponse(url=f"/admin/users/{user_id}?success=profile_refresh_queued", status_code=303)
 
 
 @router.post("/users/{user_id}/adjust-trust")

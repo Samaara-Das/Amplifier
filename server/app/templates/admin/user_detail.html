@@ -47,6 +47,12 @@
         {% elif user.status == 'banned' %}
         <span class="badge badge-red" style="padding: 6px 12px;">Banned</span>
         {% endif %}
+        <form method="POST" action="/admin/users/{{ user.id }}/refresh-profile"
+              hx-post="/admin/users/{{ user.id }}/refresh-profile"
+              hx-swap="none"
+              hx-on::after-request="if(event.detail.successful){this.querySelector('button').textContent='Queued!';setTimeout(()=>{this.querySelector('button').textContent='Refresh Profile'},2000)}">
+            <button type="submit" class="btn btn-sm btn-primary">Refresh Profile</button>
+        </form>
         <a href="/admin/users" class="btn btn-sm btn-secondary">&larr; Back</a>
     </div>
 </div>

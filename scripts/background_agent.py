@@ -29,7 +29,8 @@ LOOP_INTERVAL = 60            # Main loop sleeps 60s between iterations
 POLL_INTERVAL = 600           # 10 minutes
 CONTENT_GEN_INTERVAL = 120    # 2 minutes — check for campaigns needing content
 HEALTH_CHECK_INTERVAL = 1800  # 30 minutes
-PROFILE_REFRESH_INTERVAL = 604800  # 7 days
+_uat_profile_refresh_now = os.environ.get("AMPLIFIER_UAT_PROFILE_REFRESH_NOW", "").strip() == "1"
+PROFILE_REFRESH_INTERVAL = 30 if _uat_profile_refresh_now else 604800  # 30s UAT / 7 days prod
 DB_BACKUP_INTERVAL = 21600         # 6 hours
 UPDATE_CHECK_INTERVAL = 86400      # 24 hours
 
@@ -887,7 +888,26 @@ def _get_command_handlers(agent: "BackgroundAgent") -> dict:
     async def _handle_scrape_profiles(cmd: dict) -> None:
         if agent.paused:
             return
-        await refresh_profiles()
+        payload = cmd.get("payload") or {}
+        platforms = payload.get("platforms")  # list[str] | None
+        if platforms:
+            # Bypass the staleness check — scrape the specified platforms immediately.
+            # refresh_profiles() skips fresh rows, which would cause a no-op right after
+            # the user connects a platform (the new row is 0s old).
+            from utils.profile_scraper import scrape_all_profiles, sync_profiles_to_server
+            try:
+                results = await scrape_all_profiles(platforms)
+                refreshed = len([r for r in results.values() if "error" not in r])
+                logger.info("Scrape-profiles command: %d platform(s) scraped", refreshed)
+                try:
+                    sync_profiles_to_server()
+                except Exception as sync_err:
+                    logger.warning("Profile sync to server failed: %s", sync_err)
+            except Exception as exc:
+                logger.error("Scrape-profiles command failed: %s", exc)
+        else:
+            # No specific platforms requested — fall back to the stale-check refresh.
+            await refresh_profiles()
 
     async def _handle_pause_agent(cmd: dict) -> None:
         agent.pause()
