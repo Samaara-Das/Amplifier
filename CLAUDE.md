@@ -31,7 +31,6 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 # Admin dashboard: http://localhost:8000/admin/login (password: "admin")
 
 # ── Amplifier User App ────────────────────────────────────
-python scripts/onboarding.py               # first-run setup (register, connect platforms, set mode)
 python scripts/user_app.py                 # local FastAPI at http://localhost:5222 (drafts, connect, keys)
 python scripts/utils/metric_scraper.py     # scrape engagement metrics from posted URLs
 # Hosted creator dashboard: https://api.pointcapitalis.com/user/
@@ -155,7 +154,7 @@ FastAPI + Supabase PostgreSQL / SQLite (local dev). ~130 routes total (28 JSON A
 - `scripts/utils/ai_profile_scraper.py` — AI-powered profile extraction. `ai_scrape_profile_from_text()` (Tier 1) routes through AiManager with per-platform extraction prompts; `ai_scrape_profile()` (Tier 3) uses Gemini Vision on a screenshot. `is_missing_key_fields()` is lenient — accepts posts/niches/bio as valid data even when follower_count=0.
 - `scripts/utils/browser_config.py` — `apply_full_screen(kwargs, headless)` helper standardises viewport setup for all Patchright `launch_persistent_context()` calls. Headless → 1920x1080 viewport. Headed → `--start-maximized` + `no_viewport=True`.
 - `scripts/generate_campaign.ps1` — Preserved but unused for campaigns (replaced by content_generator.py)
-- `scripts/uat/` — UAT helper scripts driven by the `/uat-task` skill (NOT for production). Contains `seed_campaign.py` (creates UAT campaign + force-accepts invitation), `reset_local_cache.py` (truncates research/drafts/schedule for one campaign), `dump_research.py` + `dump_drafts.py` (extract fields for AC verification), `cleanup_campaign.py` (voids UAT campaigns — refuses non-UAT-prefixed titles), `delete_post.py` (autonomous post deletion via Playwright + persistent profile, supports `--update-local-db`), `uat_task14.py` + `conftest.py` (pytest harness for Task #14 ACs).
+- `scripts/uat/` — UAT helper scripts driven by the `/uat-task` skill (NOT for production). **Campaign helpers**: `seed_campaign.py` (creates UAT campaign + force-accepts invitation), `cleanup_campaign.py` (voids UAT campaigns — refuses non-UAT-prefixed titles), `reset_local_cache.py` (truncates research/drafts/schedule for one campaign), `dump_research.py` + `dump_drafts.py` (extract fields for AC verification), `delete_post.py` (autonomous post deletion via Playwright + persistent profile, supports `--update-local-db`). **Task #74 launch-UAT seeders** (added 2026-05-01): `seed_company_fixtures.py` (UAT company + login), `seed_admin_fixtures.py` (admin-side test users/campaigns/posts/payouts/audit/queue rows), `seed_stripe_fixtures.py` (Stripe Connect Express seed for AC verification), `cleanup_admin_fixtures.py` (tears down admin-side rows). **Task-specific harnesses**: `uat_task14.py` (Task #14 4-phase content agent), `uat_task15.py` (Task #15 quality gate), `uat_task44.py` (ARQ worker), `uat_task45.py` (Alembic baseline), `verify_task71_72.py` (wizard audit_log + AI review revert checks), plus `seed_campaign_quality_test.py`, `cleanup_quality_test.py`, `seed_worker_fixtures.py`, `dump_models_ddl.py`, `infra/` (compose + fixtures), and `conftest.py` (shared pytest harness).
 
 ## Platform-Specific Selector Patterns
 

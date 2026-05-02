@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Status (2026-04-25):** Production server is **LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM 1 VPS (Mumbai, Ubuntu 24.04), Caddy reverse proxy, systemd `amplifier-web.service`. See `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md` for full details. The Vercel instructions below are preserved as historical reference for the connection/pgbouncer settings, which carry over.
+> **Status (2026-05-02):** Production server is **LIVE at `https://api.pointcapitalis.com`** — Hostinger KVM 1 VPS (Mumbai, Ubuntu 24.04), Caddy reverse proxy, systemd `amplifier-web.service` (web) + `amplifier-worker.service` (ARQ). Migration history in `docs/HOSTING-DECISION-RECORD.md` and `docs/MIGRATION-FROM-VERCEL.md`. **All Vercel-specific content has been removed from this guide.** The Supabase pgbouncer settings carry over and are documented below.
 
 How to run the Amplifier Server locally and deploy to the Hostinger VPS.
 
@@ -33,7 +33,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 By default, the server uses SQLite (`sqlite+aiosqlite:///./amplifier.db`). No setup required -- tables are auto-created on startup via `init_tables()` in the FastAPI lifespan handler (`app/main.py`).
 
-The SQLite file is created in the `server/` directory. On Vercel, if SQLite is used accidentally, it falls back to `/tmp/amplifier.db` (ephemeral -- data lost between cold starts).
+The SQLite file is created in the `server/` directory. In production (VPS), SQLite is never used — `DATABASE_URL` must be a Supabase PostgreSQL connection string.
 
 ---
 
@@ -124,34 +124,6 @@ Then verify dashboards:
 
 ---
 
-## vercel.json Configuration
-
-Located at `server/vercel.json`:
-
-```json
-{
-  "builds": [
-    {
-      "src": "app/main.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app/main.py"
-    }
-  ]
-}
-```
-
-**Important**: `rootDirectory` is a Vercel project-level setting (set via dashboard or CLI). Do NOT include it in `vercel.json` -- the CLI rejects it.
-
----
-
 ## Local vs Production Differences
 
 | Aspect | Local (SQLite) | Production (Supabase PostgreSQL) |
@@ -187,40 +159,31 @@ The database backend is auto-detected from `DATABASE_URL` prefix in `server/app/
 
 **Fix**: The codebase creates an SSL context with `check_hostname=False` and `verify_mode=ssl.CERT_NONE`. Ensure `DATABASE_URL` uses the transaction pooler endpoint (port 6543).
 
-### 3. (Vercel historical) Lambda Size Exceeded
-
-> This issue only applies if deploying to Vercel. The production server is now on Hostinger KVM VPS — this error will not occur there.
-
-**Symptom**: Vercel build fails with "Lambda exceeds maximum size."
-
-**Fix**: `maxLambdaSize` is set to `50mb` in `vercel.json`. If dependencies push past this, audit `server/requirements.txt`. The heaviest packages: `google-genai`, `supabase`, `stripe`, `PyPDF2`, `python-docx`.
-
-### 4. Tables Not Created
+### 3. Tables Not Created
 
 **Symptom**: 500 errors about missing tables on first deploy.
 
 **Cause**: `init_tables()` runs on every cold start via the FastAPI lifespan handler. If the database user lacks `CREATE TABLE` permissions, tables won't be created.
 
-**Fix**: Use a Supabase connection string with the default `postgres` user (has DDL permissions). Check the Vercel function logs for the `init_tables failed:` warning.
+**Fix**: Use a Supabase connection string with the default `postgres` user (has DDL permissions). Check `journalctl -u amplifier-web.service -n 100` on the VPS for the `init_tables failed:` warning.
 
-### 5. Environment Variable Corruption (Trailing Newlines)
+> **Note (Task #45, 2026-04-30):** Going forward, schema changes flow through Alembic migrations in `server/alembic/versions/`, not `init_tables()`. See CLAUDE.md "Schema migration policy" section.
+
+### 4. Environment Variable Corruption (Trailing Newlines)
 
 **Symptom**: Auth failures, database connection errors, or "invalid JWT" after setting env vars.
 
-**Cause**: `echo` adds a trailing newline on some shells, corrupting the value.
+**Cause**: `echo` adds a trailing newline on some shells, corrupting the value when written into the systemd unit file.
 
-**Fix**: Always use `printf` (not `echo`) when piping values to `vercel env add`:
-```bash
-printf "your-value" | vercel env add VAR_NAME production --cwd server
-```
+**Fix**: When editing `/etc/systemd/system/amplifier-web.service`, paste the value carefully without trailing whitespace. Use `printf "value"` (no `\n`) if scripting. After edits: `sudo systemctl daemon-reload && sudo systemctl restart amplifier-web.service`.
 
-### 6. CORS Errors from Frontend
+### 5. CORS Errors from Frontend
 
 **Symptom**: Browser console shows CORS errors when calling the API.
 
 **Cause**: Current config allows all origins (`allow_origins=["*"]`). If this is changed, update the allowed origins list in `server/app/main.py`.
 
-### 7. SQLite Used Accidentally in Production
+### 6. SQLite Used Accidentally in Production
 
 **Symptom**: Server starts but data is missing — it's writing to a local SQLite file instead of Supabase PostgreSQL.
 
@@ -228,7 +191,7 @@ printf "your-value" | vercel env add VAR_NAME production --cwd server
 
 **Fix**: Verify `DATABASE_URL` is set in the systemd unit's environment and starts with `postgresql+asyncpg://`. Restart the service after adding it.
 
-### 8. bcrypt / passlib Version Conflict
+### 7. bcrypt / passlib Version Conflict
 
 **Symptom**: `AttributeError` or hash verification failures during login.
 

@@ -304,7 +304,7 @@
       {
         "id": 19,
         "title": "Stripe live integration â€” company Checkout + user Connect onboarding",
-        "description": "Live Stripe integration in both directions: companies pay IN via Checkout (already built, needs live keys + webhook), users get paid OUT via Connect Express (not built). Use the Stripe MCP server (https://docs.stripe.com/mcp?mcp-client=claudecode) to do all setup work autonomously — create the Connect platform configuration, configure webhook endpoints (checkout.session.completed, transfer.paid, transfer.failed, account.updated), provision live API keys onto the VPS env, and validate the integration end-to-end. Do NOT block on the user except for the one-time live-mode activation that requires their Stripe dashboard login (and 2FA if prompted). Note: father's company has an existing live Stripe account that will be used — credentials available via `mempalace_search 'stripe account'` in wing auto_posting_system. Server cut: 20%. Minimum withdrawal: $10. Hold period: 7 days (already implemented in services/billing.py).",
+        "description": "Live Stripe integration in both directions: companies pay IN via Checkout (already built, needs live keys + webhook), users get paid OUT via Connect Express (not built). Use the Stripe MCP server (https://docs.stripe.com/mcp?mcp-client=claudecode) to do all setup work autonomously — create the Connect platform configuration, configure webhook endpoints (checkout.session.completed, transfer.paid, transfer.failed, account.updated), provision live API keys onto the VPS env, and validate the integration end-to-end. Do NOT block on the user except for the one-time live-mode activation that requires their Stripe dashboard login (and 2FA if prompted). Note: father's company has an existing live Stripe account that will be used — credentials available via `mempalace_search 'stripe account'` in wing auto_posting_system. Server cut: 20%. Minimum withdrawal: $10. Hold period: 7 days (already implemented in services/billing.py). **LAUNCH SCOPE 2026-05-02**: Ship for launch with **demo Stripe sandbox keys** (acct_1TCGfuABBUrjm7YF Stock Buddy sandbox already configured). Real Stripe Connect live keys + bank linking MUST replace demo keys before opening to public users. Documented in `server/.env.example` and `docs/migrations/2026-05-01-migration-gap-audit.md` pre-launch checklist. Implementation must include user-side Stripe Connect Express onboarding UI: redirect-link button on `/user/settings` → Stripe-hosted onboarding → return URL handler that stamps `users.stripe_account_id`.",
         "status": "pending",
         "priority": "high",
         "dependencies": [
@@ -1117,6 +1117,104 @@
         ],
         "testStrategy": "Three /uat-task runs, one per surface. Each writes its own report to docs/uat/reports/task-74-<sub>-<date>.md. Aggregate PASS rule: all 3 sub-task reports show every AC PASS, zero error-level console messages across all pages, zero severity=error rows in audit_log during the UAT window.",
         "createdAt": "2026-04-30T12:40:07.444697Z"
+      },
+      {
+        "id": 75,
+        "title": "Web onboarding flow — register page + 4 onboarding steps + auth callback wiring",
+        "description": "LAUNCH BLOCKER. The Phase D creator-app-split migration spec'd a 16-step web-driven onboarding flow (migration-creator-app-split.md lines 102-120) but the implementation only shipped the local /auth/callback endpoint. The hosted server has NO public register page, NO /onboarding/step2/3/4 routes, and NO /user/onboarding redirect target. Result: a fresh user literally cannot sign up — login.html says 'Install the desktop app and complete onboarding to create one' but scripts/onboarding.py doesn't exist either. Surfaced during Task #74 launch UAT prep when curl-registering uat-user-74 bypassed the broken UI flow.\n\nFile changes:\n- New `server/app/routers/onboarding.py` with: GET /register (HTML), POST /register (creates user, generates JWT, redirects to localhost:5222/auth/callback?token=...), GET /onboarding/step2 (Connect platforms — links to localhost:5222/connect + SSE-driven badge from /sse/user/agent-status), GET /onboarding/step3 (Set up AI keys — link to localhost:5222/keys), GET /onboarding/step4 (Done — redirect to /user/campaigns), GET /user/onboarding (redirect to step2 — fixes local_server.py:177 dead-end).\n- New templates: server/app/templates/auth/register.html, onboarding/step2.html, onboarding/step3.html, onboarding/step4.html.\n- Update server/app/templates/user/login.html — replace 'Install the desktop app...' with 'Sign Up' link to /register?agent=true.\n- Update scripts/utils/local_server.py:177 — change redirect target to /onboarding/step2 (explicit) instead of /user/onboarding.\n- Mount new router in server/app/main.py.\n- ToS checkbox required on /register (per Task #28 pattern).",
+        "details": "Spec source: docs/migrations/2026-04-28-migration-creator-app-split.md lines 102-120 (16-step Auth handoff sequence). Existing patterns to reuse: company /register flow at server/app/routers/company/login.py:53 + ToS gate at server/app/routers/auth.py:19 + JWT token creation already exists. Key edge cases: duplicate email (409), ToS not checked (400), invalid token in callback (400), user closes browser between steps (resume on next /user/login).",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "67",
+          "28"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "gap": "1+3"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 75 with user monitoring first run. ~10-12 ACs covering: register page renders, POST /register creates user + sets JWT cookie + redirects, JWT lands in local SQLite encrypted, /onboarding/step2 shows pending platform connections, completing one platform via local /connect updates SSE badge, step3 links to local /keys, step4 redirects to /user/campaigns, edge cases (duplicate email, ToS unchecked, invalid token, abandoned flow). Spec lives at docs/specs/onboarding.md.",
+        "createdAt": "2026-05-02T07:00:00Z"
+      },
+      {
+        "id": 76,
+        "title": "Pause/Resume agent UI + dashboard agent_status visibility + drafts-ready count",
+        "description": "LAUNCH BLOCKER. Three related gaps from the second-pass audit folded into one coherent agent-control surface: (a) Pause/Resume buttons missing from /user/settings (Migration #67 AC11) — daemon side has _handle_pause_agent + _handle_resume_agent at background_agent.py:892 but no web UI to trigger them; (b) /user/dashboard shows no live agent_status (last_seen, platform_health JSON) so users can't tell if their daemon is alive; (c) /user/dashboard shows no 'drafts ready' count, only links out to localhost:5222/drafts.\n\nFile changes:\n- server/app/templates/user/settings.html — add Pause/Resume button + status badge wired to SSE from /sse/user/agent-status.\n- server/app/templates/user/dashboard.html — add 'last seen X minutes ago' agent indicator, per-platform health badges from agent_status.platform_health, 'X drafts ready' count widget linking to localhost:5222/drafts.\n- server/app/routers/user/settings.py — new POST /user/settings/pause-agent + POST /user/settings/resume-agent that create AgentCommand rows.\n- server/app/routers/user/dashboard.py — fetch agent_status + draft count for template.",
+        "details": "Existing infra to reuse: SSE endpoint /sse/user/agent-status already exists (sse.py:183). AgentCommand model + /api/agent/commands POST already exists (agent.py:80). Daemon's _process_server_commands already handles pause_agent + resume_agent types. Only UI work needed.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "67"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "gap": "4+9+10"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 76 with user monitoring first run. ~8 ACs covering: pause button renders, click pause creates AgentCommand row with type=pause_agent, daemon picks up command within 90s, agent_status.paused flips to true, SSE pushes badge update to web within 2s, resume reverses it, dashboard shows live last_seen, platform_health badges render correct color per agent_status JSON, drafts-ready count matches Draft.status='pending' query. Spec lives at docs/specs/agent-control.md.",
+        "createdAt": "2026-05-02T07:00:00Z"
+      },
+      {
+        "id": 77,
+        "title": "Windows installer icon.ico (multi-size, replaces placeholder)",
+        "description": "REQUIRED for Task #68 closure. scripts/build/installer/icon.ico is missing — only ICON_PLACEHOLDER.md exists. Inno Setup needs a real .ico file or the installer ships without an icon (or fails to build). Spec source: docs/migrations/2026-04-28-migration-stealth-and-packaging.md line 85.\n\nDeliverable: multi-size icon.ico containing 16x16, 32x32, 48x48, 64x64, 128x128, 256x256 px variants. Brand mark for 'Amplifier' — clean, recognizable at 16px (favicon-size), distinct at 256px (Windows installer). Place at scripts/build/installer/icon.ico and delete ICON_PLACEHOLDER.md.\n\nApproach: AI-generate via image provider (Gemini/Pollinations) → convert to .ico via Pillow (PIL.Image.save with format='ICO' and sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]). User reviews final.",
+        "details": "Reference in scripts/build/installer/windows.iss already correct (no path change needed). After this lands, run scripts/build/build_windows_installer.ps1 to verify the installer compiles and the icon shows up correctly in File Explorer.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "68"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "gap": "7"
+        },
+        "subtasks": [],
+        "testStrategy": "Visual review of generated .ico at all 6 sizes. Run scripts/build/build_windows_installer.ps1 — verify Inno Setup reports no icon errors and the resulting AmplifierSetup-vX.Y.Z.exe shows the icon in File Explorer + after install in Programs and Features. Spec lives at docs/specs/installer-assets.md.",
+        "createdAt": "2026-05-02T07:00:00Z"
+      },
+      {
+        "id": 79,
+        "title": "Real EULA text for Inno Setup installer (replaces placeholder)",
+        "description": "REQUIRED for Task #68 closure. scripts/build/installer/eula.rtf currently contains placeholder text. Real EULA needed for legal protection during launch. Spec source: docs/migrations/2026-04-28-migration-stealth-and-packaging.md line 84.\n\nApproach: I draft from existing /terms (templates/public/terms.html) + /privacy (templates/public/privacy.html) content + standard installer EULA boilerplate (license grant, no warranty disclaimer, US jurisdiction, governing law, termination clause, contact info). Convert to RTF format. User reviews for legal accuracy before merge — legal content must not be shipped without owner sign-off.\n\nDeliverable: scripts/build/installer/eula.rtf (RTF format, ~1500-2500 words, displays correctly in Inno Setup License Agreement page).",
+        "details": "RTF format quirks: use `{\\rtf1\\ansi\\deff0 ... }` shell, `\\par` for paragraph breaks, `\\b ... \\b0` for bold. Keep formatting simple; Inno Setup's RTF renderer is conservative.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "68",
+          "28"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "gap": "11"
+        },
+        "subtasks": [],
+        "testStrategy": "Run scripts/build/build_windows_installer.ps1 — verify EULA renders cleanly on the License Agreement page (no garbled formatting, no missing sections, scrollable). User signs off on legal text before merge. Spec lives at docs/specs/installer-assets.md.",
+        "createdAt": "2026-05-02T07:00:00Z"
+      },
+      {
+        "id": 80,
+        "title": "Add missing admin financial action buttons (run-earning-promotion + run-payout-processing)",
+        "description": "OPERATIONAL LAUNCH BLOCKER. The /admin/financial page is missing 2 of its 4 manual cron-trigger buttons. Server routes exist at server/app/routers/admin/financial.py:207 (`/admin/financial/run-earning-promotion`) and :238 (`/admin/financial/run-payout-processing`), but templates/admin/financial.html has no UI buttons for them. When the ARQ worker has a hiccup, admins can't manually trigger earning promotion or payout processing without curl — bad incident-response posture for launch.\n\nFile changes:\n- server/app/templates/admin/financial.html — add 2 HTMX `<form hx-post>` blocks alongside the existing 'Run Billing' and 'Run Payout' buttons.\n- Reuse the success-toast pattern already used by the existing 2 buttons.\n\nNo backend changes — routes already work + audit logging already in place.",
+        "details": "Spec sources: Migration #66 AC28 (admin financial actions all functional), CLAUDE.md ('Financial: 5 routes including run-earning-promotion + run-payout-processing'). Discovered in third-pass audit 2026-05-02. ~0.5 day work — pure template addition + cosmetic alignment.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "44",
+          "66"
+        ],
+        "metadata": {
+          "phase": "E",
+          "launch": true,
+          "gap": "12"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 80 with user monitoring first run. ~4 ACs covering: button renders on /admin/financial, click POSTs to /admin/financial/run-earning-promotion, success toast shows row count + audit_log gets new entry, same for run-payout-processing. Spec can co-locate in docs/specs/admin-actions.md (new) or be added inline to docs/specs/batch-3-product-features.md.",
+        "createdAt": "2026-05-02T07:00:00Z"
       }
     ],
     "metadata": {

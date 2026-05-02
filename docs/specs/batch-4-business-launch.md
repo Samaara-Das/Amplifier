@@ -89,9 +89,11 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 
 ---
 
+**Launch scope (2026-05-02):** AC14–AC17 (user-side Stripe Connect UI) were verified against the Stock Buddy sandbox account `acct_1TCGfuABBUrjm7YF` for v1.0.0 launch. Real live keys are mandatory before public release — see pre-launch checklist in `docs/migrations/2026-05-01-migration-gap-audit.md`.
+
 ## Verification Procedure — Task #19
 
-> Format: `docs/uat/AC-FORMAT.md`. Heavy use of **Stripe MCP** (`https://docs.stripe.com/mcp?mcp-client=claudecode`) for autonomous setup work. Stripe **test mode** keys (`sk_test_...`) are used for ACs 1-12; live mode is only flipped for the final smoke after all ACs pass. **Do NOT run any AC against live Stripe except the final smoke (AC13).**
+> Format: `docs/uat/AC-FORMAT.md`. Heavy use of **Stripe MCP** (`https://docs.stripe.com/mcp?mcp-client=claudecode`) for autonomous setup work. Stripe **test mode** keys (`sk_test_...`) are used for ACs 1-13; live mode is only flipped for the final smoke after all ACs pass. **Do NOT run any AC against live Stripe except the final smoke (AC13).**
 
 ### Preconditions
 
@@ -102,7 +104,7 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 - Webhook endpoint reachable from Stripe — for local dev, use Stripe CLI's `stripe listen --forward-to https://api.pointcapitalis.com/api/stripe/webhook`. For prod, register the live URL in the Stripe Dashboard.
 - VPS env vars set in `/etc/amplifier/server.env`: `STRIPE_SECRET_KEY=sk_test_...`, `STRIPE_PUBLISHABLE_KEY=pk_test_...`, `STRIPE_WEBHOOK_SECRET=whsec_...`, `STRIPE_CONNECT_CLIENT_ID=ca_...`. Confirm via `ssh sammy@31.97.207.162 "sudo cat /etc/amplifier/server.env | grep STRIPE_"`.
 - `User.stripe_account_id` column exists on prod (added 2026-04-30 per `docs/migrations/2026-04-30-task18-stripe-account-id.md`).
-- Test fixtures: company `uat-stripe-co@uat.local` with starting balance $0; user `uat-stripe-user@uat.local` with $15.00 in available payouts (past 7-day hold).
+- Test fixtures: company `uat-task19-co@pointcapitalis.com` with starting balance $0; user `uat-task19-user@pointcapitalis.com` with $15.00 in available payouts (past 7-day hold).
 
 ### Test data setup
 
@@ -301,6 +303,60 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 | **Evidence** | Stripe Dashboard screenshot of charge + refund; balance audit_log; bank statement (next-day verification) |
 | **Cleanup** | nothing to clean — refund completes the round-trip |
 
+### AC14 — /user/settings shows "Connect Bank Account" button (not disabled) when STRIPE_SECRET_KEY is set
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Test user `uat-task19-user@pointcapitalis.com` logged into the hosted creator dashboard. VPS has `STRIPE_SECRET_KEY=sk_test_...` set in env. User has `stripe_account_id=NULL`. |
+| **Action** | DevTools MCP: `new_page("https://api.pointcapitalis.com/user/settings")` → `take_snapshot` → `take_screenshot("data/uat/screenshots/19_ac14_settings_connect.png")`. Inspect the "Connect Bank Account" button's `disabled` attribute: `evaluate_script("document.querySelector('button[id*=connect], button[class*=connect], .stripe-connect-btn')?.disabled")`. |
+| **Expected** | Page renders a "Connect Bank Account" button. The button is NOT disabled (no `disabled` attribute, no `title="coming soon"` tooltip). Button is clickable. This is a regression from the placeholder state where it was `disabled title="Stripe Connect onboarding — coming soon"` (templates/user/settings.html:125). Zero console errors. |
+| **Automated** | yes |
+| **Automation** | Chrome DevTools MCP |
+| **Evidence** | screenshot; `evaluate_script` returning `null` or `false` (not `true`) for `disabled` |
+| **Cleanup** | none |
+
+---
+
+### AC15 — Clicking "Connect Bank Account" returns Stripe-hosted onboarding URL and redirects
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC14 passed. Settings page loaded. User `stripe_account_id=NULL`. |
+| **Action** | DevTools MCP: `take_snapshot` → find UID of "Connect Bank Account" → `click(uid)` → wait for navigation. Capture final URL and any intermediate redirect URLs from `list_network_requests`. |
+| **Expected** | Server creates a Stripe Connect Express account via `services.payments.create_stripe_connect_account()`. Returns a `302` redirect to a `https://connect.stripe.com/express/onboarding/...` URL. Browser navigates to that Stripe-hosted form. Network log shows: (1) POST to a new server route (e.g. `/user/stripe/connect` or `/api/users/me/stripe-connect`) returning 302; (2) redirect target starts with `https://connect.stripe.com/`. `mcp__stripe__list_accounts(limit=1)` returns newest account of `type='express'`. |
+| **Automated** | yes |
+| **Automation** | Chrome DevTools MCP + Stripe MCP verify |
+| **Evidence** | URL transition log; network log; Stripe MCP account listing showing new `acct_...` |
+| **Cleanup** | `mcp__stripe__delete_account(account=acct_...)` to remove the test Connect account. Do NOT leave orphan test accounts. |
+
+---
+
+### AC16 — Return URL handler stamps users.stripe_account_id and redirects to /user/earnings
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC15 passed. Stripe Connect account `acct_...` created. Simulate Stripe returning the user to the return URL (the `return_url` set in `services.payments:119`). |
+| **Action** | Navigate directly to the return URL (from `services.payments` — typically `<SERVER_URL>/api/users/me` or a dedicated `/user/stripe/connect/return?account_id=acct_...` handler): `new_page("<return_url>")`. Also trigger `account.updated` event: `mcp__stripe__trigger_event(event_type="account.updated", account=acct_...)`. Verify DB: `python -c "import httpx; r=httpx.get('https://api.pointcapitalis.com/api/users/me', headers={'Authorization':'Bearer $TOKEN'}); import json; print(json.loads(r.text).get('stripe_account_id'))"`. |
+| **Expected** | After return URL navigation + account.updated webhook: `users.stripe_account_id = acct_...` (non-NULL). User is redirected to `/user/earnings`. Earnings page shows "Connected" badge or updated connect status. Zero console errors. |
+| **Automated** | yes |
+| **Automation** | Chrome DevTools MCP + curl + Stripe MCP |
+| **Evidence** | `/api/users/me` JSON showing `stripe_account_id`; URL transition to `/user/earnings`; screenshot `data/uat/screenshots/19_ac16_earnings_connected.png` |
+| **Cleanup** | Keep `stripe_account_id` for AC17. |
+
+---
+
+### AC17 — With stripe_account_id set, "Withdraw" button is enabled and payout POST succeeds
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC16 passed. User has `stripe_account_id=acct_...` (test/sandbox). User has `earnings_balance_cents >= 1000` (at least $10 available — minimum payout threshold). |
+| **Action** | DevTools MCP: `navigate_page("https://api.pointcapitalis.com/user/earnings")` → `take_snapshot` → check "Withdraw" button state: `evaluate_script("document.querySelector('[data-withdraw], .withdraw-btn, button[id*=withdraw]')?.disabled")` → click "Withdraw" button → wait 3s → `take_snapshot`. |
+| **Expected** | Withdraw button is NOT disabled (contrast with AC11 behaviour when `stripe_account_id=NULL`). Clicking it either: (a) shows a confirmation modal then POSTs to `/api/users/me/payout`, creating a `payouts` row with `status=processing`, OR (b) navigates to the payout confirmation page. `POST /api/users/me/payout` returns HTTP 200, not 400 "Stripe Connect bank account not linked". `users.earnings_balance_cents` decremented. `list_network_requests` shows zero 5xx. |
+| **Automated** | yes |
+| **Automation** | Chrome DevTools MCP |
+| **Evidence** | screenshot before/after withdraw; network log showing 200 on payout POST; balance before/after via `/api/users/me` |
+| **Cleanup** | Void the test payout via admin dashboard (logged in as admin): navigate to `/admin/financial`, find the payout row, click Void. Delete test Stripe Connect account: `mcp__stripe__delete_account(account=acct_...)`. Run: `python scripts/uat/cleanup_test_user.py --email uat-task19-user@pointcapitalis.com`. |
+
 ---
 
 ### Aggregated PASS rule for Task #19
@@ -308,10 +364,11 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 Task #19 is marked done in task-master ONLY when:
 1. AC1–AC12 all PASS in test mode (zero `sk_live_` exposure during test ACs)
 2. AC13 PASS — live $1 round-trip succeeds and refunds cleanly
-3. No `error|exception|traceback` lines in `journalctl -u amplifier-web` during the UAT window
-4. No orphan Stripe objects: `mcp__stripe__list_transfers(status=pending)` empty after run
-5. UAT report `docs/uat/reports/task-19-<yyyy-mm-dd>-<hhmm>.md` written with all evidence (webhook IDs, transfer IDs, screenshots) embedded
-6. Live keys remain on VPS env after AC13 (staying in live mode is the goal — Task #19 done == live Stripe is on)
+3. AC14–AC17 all PASS — user-side Stripe Connect UI verified end-to-end
+4. No `error|exception|traceback` lines in `journalctl -u amplifier-web` during the UAT window
+5. No orphan Stripe objects: `mcp__stripe__list_transfers(status=pending)` empty after run; test Connect account deleted
+6. UAT report `docs/uat/reports/task-19-<yyyy-mm-dd>-<hhmm>.md` written with all evidence (webhook IDs, transfer IDs, screenshots) embedded
+7. Live keys remain on VPS env after AC13 (staying in live mode is the goal — Task #19 done == live Stripe is on)
 
 ---
 

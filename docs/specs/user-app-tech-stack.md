@@ -1,8 +1,15 @@
 # User App Tech Stack — Analysis & Recommendation
 
+> **⚠️ SUPERSEDED 2026-04-28** by the three Phase D migration docs in `docs/migrations/`:
+> - `2026-04-28-migration-dashboards-htmx-upgrade.md` (HTMX + Alpine + Tailwind, replaces Tier 4 of this analysis)
+> - `2026-04-28-migration-creator-app-split.md` (slim local FastAPI + hosted `/user/*`, replaces Tier 5)
+> - `2026-04-28-migration-stealth-and-packaging.md` (Patchright + Nuitka, replaces Tier 6)
+>
+> **Phase D status**: shipped 2026-05-01 (Tasks #66, #67, #70 ✅; #68 partial). This document is kept for historical context only — do not act on its recommendations. For current architecture, read the migration docs above.
+
 **Date**: April 6, 2026
-**Status**: Approved architecture direction
-**Scope**: Amplifier user-facing desktop app (currently `scripts/user_app.py` + `scripts/background_agent.py`)
+**Status**: Historical (superseded — see banner above)
+**Scope**: Amplifier user-facing desktop app (now `scripts/utils/local_server.py` slim FastAPI + `scripts/background_agent.py`)
 
 ---
 

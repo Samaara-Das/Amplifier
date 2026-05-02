@@ -2,7 +2,7 @@
 
 This is the canonical list of all documentation files in Amplifier. The `/update-docs` skill uses this to know what exists and what each file covers.
 
-Last updated: 2026-04-30 evening (Phase C closure: Tasks #27, #28, #23 shipped + verified; #24/#25/#26 deferred; #52 closed; #74 added; Stripe MCP installed)
+Last updated: 2026-05-02 (Phase D fully closed via `a4828de`: Tasks #66 + #67 + #70 SHIPPED, #68 partial; Task #74 launch-UAT ACs authored at `docs/specs/launch-uat.md`; 4 new UAT seed helpers under `scripts/uat/`; Alembic head now `b1c2d3e4f5a6`; pytest count 303)
 
 ---
 
@@ -27,6 +27,12 @@ Last updated: 2026-04-30 evening (Phase C closure: Tasks #27, #28, #23 shipped +
 | `docs/specs/batch-4-business-launch.md` | Per-task specs (Tasks #6, #17, #19, #22). Task #19 has 13 ACs (Stripe MCP autonomous setup + test-mode → live smoke); Task #22 has 8 ACs (perf, dual-audience, OG tags, mobile, FAQ). Backfilled 2026-04-30 via Task #51. | Developers | When task scope changes |
 | `docs/specs/infra.md` | Per-task specs for non-batch infra: Task #18 (pytest suite), #44 (ARQ worker), #45 (Alembic baseline), #73 (gemini model id fix), #27 (post URL dedup, added 2026-04-30), #28 (ToS gate, added 2026-04-30), #23 (daemon DB backup, added 2026-04-30) — all with full Verification Procedure blocks | Developers | When infra task scope changes |
 | `docs/specs/uat-infra.md` | Per-task specs for UAT-harness bugs (Tasks #63, #64, #65) — added 2026-04-30 alongside Phase C bug cleanup batch | Developers | When UAT helper scripts evolve |
+| `docs/specs/launch-uat.md` | Phase E launch UAT spec — 64 ACs across 3 sub-tasks (74.1 user app, 74.2 company dashboard, 74.3 admin dashboard). Authored 2026-05-01. Pre-launch gate. | Developers | When launch UAT scope changes |
+| `docs/specs/onboarding.md` | Task #75 web onboarding spec — 12 ACs covering /register page, JWT handoff to localhost:5222, /onboarding/step2/3/4 flow, ToS gate, edge cases. Authored 2026-05-02. | Developers | When onboarding scope changes |
+| `docs/specs/agent-control.md` | Task #76 daemon control + dashboard agent visibility — 8 ACs covering pause/resume buttons + AgentCommand creation + SSE-driven badges + last_seen indicator + drafts-ready widget. Authored 2026-05-02. | Developers | When agent control surface changes |
+| `docs/specs/installer-assets.md` | Tasks #77 (icon.ico) + #79 (eula.rtf) — 8 ACs total covering Windows installer asset readiness. Authored 2026-05-02. | Developers | When installer assets change |
+| `docs/specs/admin-actions.md` | Task #80 admin financial UI buttons — 4 ACs for missing run-earning-promotion + run-payout-processing buttons on /admin/financial. Authored 2026-05-02. | Developers | When admin action UI changes |
+| `docs/migrations/2026-05-01-migration-gap-audit.md` | Phase D gap audit (3 audit passes) + final triage table + pre-launch checklist. Identifies 6 launch-blocker gaps mapped to tasks #75/#76/#77/#79/#80 + #19 update. Authored 2026-05-02. | Developers, Claude | One-shot historical record (do not modify after launch) |
 | `docs/specs/user-app-tech-stack.md` | ⚠️ SUPERSEDED 2026-04-28 by `docs/migrations/2026-04-28-*.md`. Kept for historical context only. | -- | Do not edit |
 | `docs/migrations/2026-04-25-task41-schema-fixes.md` | Vercel→Hostinger schema-fix runbook (Task #41 deployment) | DevOps | One-shot historical record |
 | `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` | Phase D blueprint: dashboards HTMX upgrade (#66) | Developers | When migration plan evolves |
@@ -97,8 +103,8 @@ Last updated: 2026-04-30 evening (Phase C closure: Tasks #27, #28, #23 shipped +
 | `amplifier.spec` | PyInstaller build spec (LEGACY — Phase D migrates to Nuitka per `docs/migrations/2026-04-28-migration-stealth-and-packaging.md`) |
 | `installer.iss` | Inno Setup Windows installer |
 | `server/deploy/amplifier-worker.service` | systemd unit file for ARQ worker (deployed to `/etc/systemd/system/` on VPS) |
-| `server/alembic/` | Alembic migrations directory. Baseline `c5967048d886` (Task #45). Current head `a1b2c3d4e5f6` (Task #28, 2026-04-30: adds `tos_accepted_at` to users + companies). |
-| `tests/conftest.py` + `tests/server/test_*.py` | 194-test pytest suite (was 181 before Task #27 + #28). Run via `pytest tests/`. See `docs/specs/infra.md` Task #18. |
+| `server/alembic/` | Alembic migrations directory. Baseline `c5967048d886` (Task #45) → `a1b2c3d4e5f6` (Task #28, ToS) → `63d9159c4ce6` (Task #67, drafts + agent_commands + agent_status) → `b1c2d3e4f5a6` (Task #70, company_api_keys). **Current head: `b1c2d3e4f5a6`** — applied to prod 2026-05-01. |
+| `tests/conftest.py` + `tests/server/test_*.py` | 303-test pytest suite (288 baseline + 15 BYOK from Task #70). Run via `python -m pytest tests/ -q` (~70s). See `docs/specs/infra.md` Task #18. |
 | `.mcp.json` | Project-scope MCP servers. Includes `tradingview` (stdio) and `stripe` (HTTP/OAuth at `https://mcp.stripe.com/`, added 2026-04-30 for Task #19 — needs one-time `/mcp` auth before tools become callable). |
 
 ## Key Codebase Areas to Monitor
