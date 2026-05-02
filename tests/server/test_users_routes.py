@@ -139,7 +139,7 @@ class TestPayoutRequest:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "pending"
+        assert data["status"] == "processing"
         assert abs(data["amount"] - 25.0) < 0.01
         assert abs(data["new_balance"] - 25.0) < 0.01
 

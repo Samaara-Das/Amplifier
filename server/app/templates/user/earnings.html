@@ -18,6 +18,13 @@
     <h1>Earnings</h1>
 </div>
 
+{% if connected %}
+<div id="stripe-connected-toast" style="background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: #86efac; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+    Bank account connected successfully! You can now withdraw your earnings.
+</div>
+{% endif %}
+
 <div class="stats">
     <div class="stat">
         <div class="stat-val green">${{ "%.2f"|format(total_earned_cents / 100) }}</div>

@@ -19,6 +19,7 @@ router = APIRouter()
 
 @router.get("/earnings", response_class=HTMLResponse)
 async def earnings_page(
+    connected: int = 0,
     user: User | None = Depends(get_user_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -62,6 +63,7 @@ async def earnings_page(
         pending_cents=pending_cents,
         campaign_breakdown=campaign_breakdown,
         payout_history=payout_history,
+        connected=connected,
     )
 
 

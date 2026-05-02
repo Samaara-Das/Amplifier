@@ -21,6 +21,7 @@ _ACTIVE_PLATFORMS = ["linkedin", "facebook", "reddit"]
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(
     action: str = "",
+    stripe_error: int = 0,
     user: User | None = Depends(get_user_from_cookie),
     db: AsyncSession = Depends(get_db),
 ):
@@ -73,6 +74,7 @@ async def settings_page(
         agent_status=agent_status,
         last_seen_iso=last_seen_iso,
         action_msg=action_msgs.get(action, ""),
+        stripe_error=stripe_error,
     )
 
 

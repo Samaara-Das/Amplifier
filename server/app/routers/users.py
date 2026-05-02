@@ -136,19 +136,22 @@ async def request_payout(
 
     # Create payout record
     now = datetime.now(timezone.utc)
+    amount_cents = int(amount * 100)
     payout = Payout(
         user_id=user.id,
         campaign_id=None,
         amount=amount,
+        amount_cents=amount_cents,
         period_start=now,
         period_end=now,
-        status="pending",
-        breakdown={"withdrawal": True},
+        status="processing",
+        breakdown={"withdrawal": True, "requested_via": "user_withdraw"},
     )
     db.add(payout)
 
-    # Deduct from balance
+    # Deduct from balance (both float and cents columns)
     user.earnings_balance = balance - amount
+    user.earnings_balance_cents = max(0, (user.earnings_balance_cents or 0) - amount_cents)
 
     await db.flush()
 

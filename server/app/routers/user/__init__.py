@@ -81,6 +81,7 @@ from app.routers.user.campaigns import router as campaigns_router
 from app.routers.user.posts import router as posts_router
 from app.routers.user.earnings import router as earnings_router
 from app.routers.user.settings import router as settings_router
+from app.routers.user.stripe import router as stripe_router
 
 router.include_router(login_router)
 router.include_router(dashboard_router)
@@ -88,3 +89,4 @@ router.include_router(campaigns_router)
 router.include_router(posts_router)
 router.include_router(earnings_router)
 router.include_router(settings_router)
+router.include_router(stripe_router)

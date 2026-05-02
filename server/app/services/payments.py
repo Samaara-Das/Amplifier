@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timezone
 
 from sqlalchemy import select, and_
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -115,8 +116,8 @@ async def create_user_stripe_account(user_id: int, email: str) -> str | None:
         # Create account link for onboarding
         link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url=f"{os.getenv('SERVER_URL', 'http://localhost:8000')}/api/users/me",
-            return_url=f"{os.getenv('SERVER_URL', 'http://localhost:8000')}/api/users/me",
+            refresh_url=f"{os.getenv('SERVER_URL', 'http://localhost:8000')}/user/stripe/connect/refresh",
+            return_url=f"{os.getenv('SERVER_URL', 'http://localhost:8000')}/user/stripe/connect/return?account_id={account.id}",
             type="account_onboarding",
         )
 
@@ -235,8 +236,7 @@ async def process_pending_payouts(db: AsyncSession) -> dict:
 
         if stripe:
             # Real Stripe transfer
-            # TODO: Get stripe_account_id from user profile
-            stripe_account_id = None  # placeholder until user Stripe onboarding
+            stripe_account_id = user.stripe_account_id
             if stripe_account_id:
                 try:
                     transfer = stripe.Transfer.create(
@@ -249,6 +249,7 @@ async def process_pending_payouts(db: AsyncSession) -> dict:
                     breakdown = payout.breakdown or {}
                     breakdown["processor_ref"] = transfer.id
                     payout.breakdown = breakdown
+                    flag_modified(payout, "breakdown")
                     paid += 1
                     logger.info("Stripe payout %d: $%.2f → user %d (transfer=%s)",
                                 payout.id, float(payout.amount), payout.user_id, transfer.id)
@@ -257,6 +258,7 @@ async def process_pending_payouts(db: AsyncSession) -> dict:
                     breakdown = payout.breakdown or {}
                     breakdown["failure_reason"] = str(e)
                     payout.breakdown = breakdown
+                    flag_modified(payout, "breakdown")
                     # Return funds to user balance
                     user.earnings_balance = float(user.earnings_balance) + float(payout.amount)
                     user.earnings_balance_cents = (user.earnings_balance_cents or 0) + (payout.amount_cents or 0)
@@ -268,6 +270,7 @@ async def process_pending_payouts(db: AsyncSession) -> dict:
                 breakdown = payout.breakdown or {}
                 breakdown["processor_ref"] = "test_mode_no_stripe_account"
                 payout.breakdown = breakdown
+                flag_modified(payout, "breakdown")
                 paid += 1
                 logger.info("Test mode payout %d: $%.2f → user %d (no Stripe account)",
                             payout.id, float(payout.amount), payout.user_id)
@@ -277,6 +280,7 @@ async def process_pending_payouts(db: AsyncSession) -> dict:
             breakdown = payout.breakdown or {}
             breakdown["processor_ref"] = "test_mode_no_stripe"
             payout.breakdown = breakdown
+            flag_modified(payout, "breakdown")
             paid += 1
 
     if payouts:
