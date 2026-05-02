@@ -322,11 +322,11 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 | Field | Value |
 |-------|-------|
 | **Setup** | AC14 passed. Settings page loaded. User `stripe_account_id=NULL`. |
-| **Action** | DevTools MCP: `take_snapshot` → find UID of "Connect Bank Account" → `click(uid)` → wait for navigation. Capture final URL and any intermediate redirect URLs from `list_network_requests`. |
-| **Expected** | Server creates a Stripe Connect Express account via `services.payments.create_stripe_connect_account()`. Returns a `302` redirect to a `https://connect.stripe.com/express/onboarding/...` URL. Browser navigates to that Stripe-hosted form. Network log shows: (1) POST to a new server route (e.g. `/user/stripe/connect` or `/api/users/me/stripe-connect`) returning 302; (2) redirect target starts with `https://connect.stripe.com/`. `mcp__stripe__list_accounts(limit=1)` returns newest account of `type='express'`. |
-| **Automated** | yes |
-| **Automation** | Chrome DevTools MCP + Stripe MCP verify |
-| **Evidence** | URL transition log; network log; Stripe MCP account listing showing new `acct_...` |
+| **Action** | DevTools MCP: `take_snapshot` → find UID of "Connect Bank Account" → `click(uid)` → wait for navigation. Capture final URL and any intermediate redirect URLs from `list_network_requests`. Take screenshot of the landed Stripe-hosted page: `take_screenshot("data/uat/screenshots/19_ac15_stripe_hosted.png")`. |
+| **Expected** | Server creates a Stripe Connect Express account via `services.payments.create_user_stripe_account()`. Returns a `302` redirect to a `https://connect.stripe.com/express/onboarding/...` URL. Browser navigates to that Stripe-hosted form. Network log shows: (1) POST to a new server route (`/user/stripe/connect`) returning 302; (2) redirect target starts with `https://connect.stripe.com/`. `mcp__stripe__list_accounts(limit=1)` returns newest account of `type='express'`. **Manual user-confirmation**: skill renders the screenshot inline and asks `Open the Stripe page. Is it a real Stripe-hosted onboarding form (not 404 / not error / not blank)? (y/n)`. |
+| **Automated** | partial — automated for redirect chain + Stripe MCP account listing; manual for "is the Stripe page real" |
+| **Automation** | Chrome DevTools MCP + Stripe MCP verify + manual y/n |
+| **Evidence** | URL transition log; network log; Stripe MCP account listing showing new `acct_...`; screenshot of Stripe-hosted onboarding page; manual y/n response |
 | **Cleanup** | `mcp__stripe__delete_account(account=acct_...)` to remove the test Connect account. Do NOT leave orphan test accounts. |
 
 ---
@@ -335,12 +335,12 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 
 | Field | Value |
 |-------|-------|
-| **Setup** | AC15 passed. Stripe Connect account `acct_...` created. Simulate Stripe returning the user to the return URL (the `return_url` set in `services.payments:119`). |
-| **Action** | Navigate directly to the return URL (from `services.payments` — typically `<SERVER_URL>/api/users/me` or a dedicated `/user/stripe/connect/return?account_id=acct_...` handler): `new_page("<return_url>")`. Also trigger `account.updated` event: `mcp__stripe__trigger_event(event_type="account.updated", account=acct_...)`. Verify DB: `python -c "import httpx; r=httpx.get('https://api.pointcapitalis.com/api/users/me', headers={'Authorization':'Bearer $TOKEN'}); import json; print(json.loads(r.text).get('stripe_account_id'))"`. |
-| **Expected** | After return URL navigation + account.updated webhook: `users.stripe_account_id = acct_...` (non-NULL). User is redirected to `/user/earnings`. Earnings page shows "Connected" badge or updated connect status. Zero console errors. |
-| **Automated** | yes |
-| **Automation** | Chrome DevTools MCP + curl + Stripe MCP |
-| **Evidence** | `/api/users/me` JSON showing `stripe_account_id`; URL transition to `/user/earnings`; screenshot `data/uat/screenshots/19_ac16_earnings_connected.png` |
+| **Setup** | AC15 passed. Stripe Connect account `acct_...` created. Simulate Stripe returning the user to the return URL. |
+| **Action** | Navigate directly to the return URL `<SERVER_URL>/user/stripe/connect/return?account_id=acct_...`: `new_page("<return_url>")`. Verify DB via authenticated probe: `curl -s -H "Authorization: Bearer $TOKEN" https://api.pointcapitalis.com/api/users/me`. Then verify the Stripe account's metadata via MCP: `mcp__stripe__retrieve_account(id=acct_...)`. Take screenshot of landed `/user/earnings` page. |
+| **Expected** | After return URL navigation: `users.stripe_account_id = acct_...` (non-NULL). User is redirected to `/user/earnings`. Earnings page shows "Connected" badge or "Bank account connected" state. Stripe MCP `retrieve_account` returns `type='express'` AND `metadata.user_id=<test_user_id>` (proves the account was created by US for THIS user — field-level verification). Zero console errors. **Manual user-confirmation**: skill displays Stripe Dashboard URL `https://dashboard.stripe.com/test/connect/accounts/<acct_id>` and asks `Open this in your Stripe Dashboard. Does the test Connect account appear (correct email + metadata.user_id)? (y/n)`. |
+| **Automated** | partial — automated for DB stamp + redirect + MCP account fields; manual for Stripe Dashboard verification |
+| **Automation** | Chrome DevTools MCP + curl + Stripe MCP + manual y/n |
+| **Evidence** | `/api/users/me` JSON showing `stripe_account_id`; URL transition to `/user/earnings`; Stripe MCP account dump showing `type='express'` + matching `metadata.user_id`; screenshot `data/uat/screenshots/19_ac16_earnings_connected.png`; manual y/n response |
 | **Cleanup** | Keep `stripe_account_id` for AC17. |
 
 ---
@@ -355,7 +355,35 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 | **Automated** | yes |
 | **Automation** | Chrome DevTools MCP |
 | **Evidence** | screenshot before/after withdraw; network log showing 200 on payout POST; balance before/after via `/api/users/me` |
-| **Cleanup** | Void the test payout via admin dashboard (logged in as admin): navigate to `/admin/financial`, find the payout row, click Void. Delete test Stripe Connect account: `mcp__stripe__delete_account(account=acct_...)`. Run: `python scripts/uat/cleanup_test_user.py --email uat-task19-user@pointcapitalis.com`. |
+| **Cleanup** | Keep payout in `processing` for AC18. |
+
+---
+
+### AC18 — Cascading chain: payout in `processing` → admin Run Payout Processing → real Stripe Transfer fires → status flips to `paid`
+
+| Field | Value |
+|-------|-------|
+| **Setup** | AC17 passed. Payout row in `processing` status, attached to `user.stripe_account_id=acct_...` (test). Admin logged into `/admin/financial`. Capture payout id `P` and `processing` count before. |
+| **Action** | On `/admin/financial`, click "Run Payout Processing" button (the one shipped in Task #80). Wait 5s. Then verify via Stripe MCP: `mcp__stripe__list_transfers(limit=3)` and via DB: `curl -s -H "Authorization: Bearer $TOKEN" https://api.pointcapitalis.com/api/users/me`. Take screenshot of `/admin/financial` showing the toast + payout row's new status. |
+| **Expected** | (1) Toast renders "Payout processing: 1 processed, 1 paid, 0 failed" (or similar with `paid >= 1`). (2) Stripe MCP `list_transfers` returns a NEW Transfer with `destination=acct_...`, `amount=1500` cents (or whatever AC17 used), `metadata.user_id=<test_user_id>`, `metadata.payout_id=<P>`. (3) DB row: `payouts.id=P` has `status='paid'`, `breakdown.processor_ref=tr_...` (Stripe Transfer ID). (4) Server log `journalctl -u amplifier-web --since '1 minute ago'` contains `Stripe payout <P>: $... → user <id> (transfer=tr_...)`. (5) **NO** `processor_ref='test_mode_no_stripe_account'` (proves the `payments.py:238` placeholder bug is fixed). **Manual user-confirmation**: skill renders `https://dashboard.stripe.com/test/connect/transfers/<tr_id>` and asks `Open this Transfer in your Stripe Dashboard. Does it show as a real test-mode Transfer to the test Connect account? (y/n)`. |
+| **Automated** | partial — automated for toast/MCP/DB; manual for Stripe Dashboard transfer visibility |
+| **Automation** | Chrome DevTools MCP + Stripe MCP + curl + manual y/n |
+| **Evidence** | screenshot `data/uat/screenshots/19_ac18_transfer_paid.png`; Stripe MCP `list_transfers` dump; DB row showing `status='paid'` + `processor_ref=tr_...`; server log line; manual y/n response |
+| **Cleanup** | Keep payout in `paid` for the report; do not refund (Stripe Transfers are not refundable in test mode). Delete the Connect account in the AC19 cleanup. |
+
+---
+
+### AC19 — Cascading chain: failed Transfer refunds funds to user balance
+
+| Field | Value |
+|-------|-------|
+| **Setup** | Repeat AC17 setup with a fresh $15 in `earnings_balance_cents` (re-seed via `python scripts/uat/seed_stripe_fixtures.py --user-email uat-task19-user@pointcapitalis.com --user-available-balance-cents 1500`). Click Withdraw to create a new payout row in `processing`. Capture the new payout id `P2` and `user.earnings_balance_cents` before. |
+| **Action** | Trigger a synthetic transfer-failed flow: directly mutate the test account to fail (via Stripe MCP `mcp__stripe__update_account(account=acct_..., capabilities={"transfers": {"requested": false}})`), then click "Run Payout Processing" on `/admin/financial`. Wait 5s. (Alternative if MCP doesn't support the capability mutation: use a test-only seam — set the user's `stripe_account_id` to a known-bad value `acct_invalid_test` for this AC, then run.) |
+| **Expected** | (1) Toast renders "Payout processing: 1 processed, 0 paid, 1 failed". (2) `payouts.id=P2` has `status='failed'`, `breakdown.failure_reason` populated (non-empty string). (3) `user.earnings_balance_cents` is RESTORED to its pre-AC19 value (proves refund-to-balance code path runs — `payments.py:261-263`). (4) Server log contains `Stripe payout <P2> failed: <error>`. |
+| **Automated** | yes |
+| **Automation** | Chrome DevTools MCP + Stripe MCP + curl |
+| **Evidence** | toast screenshot; DB row dump showing `status='failed'` + populated `failure_reason`; balance before/after showing restoration; server log line |
+| **Cleanup** | Restore `acct_...` capabilities or revert `stripe_account_id` back. Delete test Stripe Connect account: `mcp__stripe__delete_account(account=acct_...)`. Void any leftover payout rows via admin dashboard. Run: `python scripts/uat/cleanup_test_user.py --email uat-task19-user@pointcapitalis.com`. |
 
 ---
 
@@ -363,12 +391,16 @@ The server needs a webhook endpoint that handles events from both Checkout and C
 
 Task #19 is marked done in task-master ONLY when:
 1. AC1–AC12 all PASS in test mode (zero `sk_live_` exposure during test ACs)
-2. AC13 PASS — live $1 round-trip succeeds and refunds cleanly
-3. AC14–AC17 all PASS — user-side Stripe Connect UI verified end-to-end
+2. AC13 PASS — live $1 round-trip succeeds and refunds cleanly **(deferred to live-keys swap pre-public-launch; not required for v1.0.0 launch ship)**
+3. AC14–AC19 all PASS — user-side Stripe Connect UI + cascading Transfer chain verified end-to-end
 4. No `error|exception|traceback` lines in `journalctl -u amplifier-web` during the UAT window
 5. No orphan Stripe objects: `mcp__stripe__list_transfers(status=pending)` empty after run; test Connect account deleted
-6. UAT report `docs/uat/reports/task-19-<yyyy-mm-dd>-<hhmm>.md` written with all evidence (webhook IDs, transfer IDs, screenshots) embedded
-7. Live keys remain on VPS env after AC13 (staying in live mode is the goal — Task #19 done == live Stripe is on)
+6. UAT report `docs/uat/reports/task-19-<yyyy-mm-dd>-<hhmm>.md` written with all evidence (transfer IDs, screenshots, manual y/n responses) embedded
+7. **Launch ship gate**: AC14–AC19 all PASS with Stock Buddy sandbox keys (`acct_1TCGfuABBUrjm7YF`); live keys swap is post-launch per `docs/migrations/2026-05-01-migration-gap-audit.md`
+
+### Launch-critical AC subset (must pass for v1.0.0 ship)
+
+For v1.0.0 launch the **mandatory** ACs are AC14, AC15, AC16, AC17, AC18, AC19. AC1–AC13 are full Stripe MCP setup + live round-trip — these fully pass before public launch (when live keys swap in), but for the v1.0.0 ship the launch-critical surface is the user-side Connect UI + cascading payout chain (AC14–AC19) verified with sandbox keys.
 
 ---
 
