@@ -1134,7 +1134,7 @@
         "title": "Add missing admin financial action buttons (run-earning-promotion + run-payout-processing)",
         "description": "OPERATIONAL LAUNCH BLOCKER. The /admin/financial page is missing 2 of its 4 manual cron-trigger buttons. Server routes exist at server/app/routers/admin/financial.py:207 (`/admin/financial/run-earning-promotion`) and :238 (`/admin/financial/run-payout-processing`), but templates/admin/financial.html has no UI buttons for them. When the ARQ worker has a hiccup, admins can't manually trigger earning promotion or payout processing without curl — bad incident-response posture for launch.\n\nFile changes:\n- server/app/templates/admin/financial.html — add 2 HTMX `<form hx-post>` blocks alongside the existing 'Run Billing' and 'Run Payout' buttons.\n- Reuse the success-toast pattern already used by the existing 2 buttons.\n\nNo backend changes — routes already work + audit logging already in place.",
         "details": "Spec sources: Migration #66 AC28 (admin financial actions all functional), CLAUDE.md ('Financial: 5 routes including run-earning-promotion + run-payout-processing'). Discovered in third-pass audit 2026-05-02. ~0.5 day work — pure template addition + cosmetic alignment.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [
           "44",
@@ -1147,7 +1147,8 @@
         },
         "subtasks": [],
         "testStrategy": "/uat-task 80 with user monitoring first run. ~4 ACs covering: button renders on /admin/financial, click POSTs to /admin/financial/run-earning-promotion, success toast shows row count + audit_log gets new entry, same for run-payout-processing. Spec can co-locate in docs/specs/admin-actions.md (new) or be added inline to docs/specs/batch-3-product-features.md.",
-        "createdAt": "2026-05-02T07:00:00Z"
+        "createdAt": "2026-05-02T07:00:00Z",
+        "updatedAt": "2026-05-02T14:09:00Z"
       },
       {
         "id": 82,
