@@ -1052,7 +1052,7 @@
         "title": "Web onboarding flow — register page + 4 onboarding steps + auth callback wiring",
         "description": "LAUNCH BLOCKER. The Phase D creator-app-split migration spec'd a 16-step web-driven onboarding flow (migration-creator-app-split.md lines 102-120) but the implementation only shipped the local /auth/callback endpoint. The hosted server has NO public register page, NO /onboarding/step2/3/4 routes, and NO /user/onboarding redirect target. Result: a fresh user literally cannot sign up — login.html says 'Install the desktop app and complete onboarding to create one' but scripts/onboarding.py doesn't exist either. Surfaced during Task #74 launch UAT prep when curl-registering uat-user-74 bypassed the broken UI flow.\n\nFile changes:\n- New `server/app/routers/onboarding.py` with: GET /register (HTML), POST /register (creates user, generates JWT, redirects to localhost:5222/auth/callback?token=...), GET /onboarding/step2 (Connect platforms — links to localhost:5222/connect + SSE-driven badge from /sse/user/agent-status), GET /onboarding/step3 (Set up AI keys — link to localhost:5222/keys), GET /onboarding/step4 (Done — redirect to /user/campaigns), GET /user/onboarding (redirect to step2 — fixes local_server.py:177 dead-end).\n- New templates: server/app/templates/auth/register.html, onboarding/step2.html, onboarding/step3.html, onboarding/step4.html.\n- Update server/app/templates/user/login.html — replace 'Install the desktop app...' with 'Sign Up' link to /register?agent=true.\n- Update scripts/utils/local_server.py:177 — change redirect target to /onboarding/step2 (explicit) instead of /user/onboarding.\n- Mount new router in server/app/main.py.\n- ToS checkbox required on /register (per Task #28 pattern).",
         "details": "Spec source: docs/migrations/2026-04-28-migration-creator-app-split.md lines 102-120 (16-step Auth handoff sequence). Existing patterns to reuse: company /register flow at server/app/routers/company/login.py:53 + ToS gate at server/app/routers/auth.py:19 + JWT token creation already exists. Key edge cases: duplicate email (409), ToS not checked (400), invalid token in callback (400), user closes browser between steps (resume on next /user/login).",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "67",
@@ -1065,7 +1065,8 @@
         },
         "subtasks": [],
         "testStrategy": "/uat-task 75 with user monitoring first run. ~10-12 ACs covering: register page renders, POST /register creates user + sets JWT cookie + redirects, JWT lands in local SQLite encrypted, /onboarding/step2 shows pending platform connections, completing one platform via local /connect updates SSE badge, step3 links to local /keys, step4 redirects to /user/campaigns, edge cases (duplicate email, ToS unchecked, invalid token, abandoned flow). Spec lives at docs/specs/onboarding.md.",
-        "createdAt": "2026-05-02T07:00:00Z"
+        "createdAt": "2026-05-02T07:00:00Z",
+        "updatedAt": "2026-05-02T11:35:00Z"
       },
       {
         "id": 76,
@@ -1151,7 +1152,7 @@
         "title": "Background daemon continuous-loop entry point (orphan start_background_agent)",
         "description": "LAUNCH BLOCKER + #76 BLOCKER. Discovered during /uat-task 75 third audit pass. scripts/background_agent.py has all the migration #67 daemon machinery (BackgroundAgent class, start_background_agent() at line 1296, process_server_commands, push_agent_status, sync_unsynced_drafts) — but the CLI entry point at line 1338 only supports --once and --task <name> modes. Without flags, _run_once() executes zero if blocks and exits silently with no output. Nothing in the codebase calls start_background_agent() either: user_app.py doesn't, tray.py only uses get_agent() read-only, CLI doesn't. Result: daemon class is orphan code, push_agent_status never runs in production, SSE-driven badge updates never fire, pause/resume commands never get processed, drafts never sync to server. Every user install would have a dead automation engine.\n\nFix scope:\n1. Add continuous-mode CLI entry to background_agent.py main() block: when no --once/--task flag is given, call asyncio.run(start_background_agent_blocking()) where the new helper awaits the BackgroundAgent.run() coroutine indefinitely. Handle SIGINT/SIGTERM gracefully via stop_background_agent().\n2. (Alternative or addition) Have scripts/utils/local_server.py @app.on_event('startup') call start_background_agent() so the daemon boots as a sidecar of the local FastAPI process. This matches the user mental model: 'I run the desktop app, the agent runs.'\n3. Add a minimal pytest in tests/server/ that imports start_background_agent, verifies it returns a non-None agent, and verifies agent.running becomes True within 2s.\n4. Update CLAUDE.md scripts/background_agent.py paragraph to document both --once and continuous modes.\n\nBlocks: Tasks #75 (full SSE verification ACs 5+6), #76 (pause/resume + agent visibility), every Phase E launch UAT.\nDiscovered: 2026-05-02 during /uat-task 75 first run. Spec source: docs/migrations/2026-04-28-migration-creator-app-split.md AC2/AC3/AC11.\n\nCASCADING IMPACT (caught during /uat-task 75 LinkedIn connect): login_setup.py only SAVES the session — it does NOT scrape the profile. Profile scraping is handled by the daemon (background_agent.py process_server_commands handler for scrape_profiles type, or _force_poll). With #82 broken: a real user installs Amplifier → onboards → connects LinkedIn (session saves) → profile NEVER gets scraped → server has no niches/follower_count for this user → AI matching cannot match them to any campaign → they earn $0 forever. This is launch-CATASTROPHIC, not just a UI bug.\n\nFix MUST also verify: after daemon starts, calling POST /api/agent/commands with type=scrape_profiles triggers a profile scrape within 60s, scraped_profile table gets new row, server profile API returns the scraped data.",
         "details": "Likely entry-point body: \n\n```\nasync def _run_forever():\n    sys.path.insert(0, str(Path(__file__).resolve().parent))\n    agent = await start_background_agent()\n    try:\n        await agent._task  # awaits the async loop indefinitely\n    except asyncio.CancelledError:\n        pass\n\nif args.once or args.task:\n    asyncio.run(_run_once())\nelse:\n    asyncio.run(_run_forever())\n```\n\nVerification: run `python scripts/background_agent.py` with the test user JWT in local DB. Within 30s confirm: (a) process stays alive, (b) /api/agent/status GET returns agent_status row with last_seen recent, (c) when /sse/user/agent-status is open in a browser tab, an event fires with the agent_status payload.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "67"
@@ -1168,7 +1169,7 @@
         "subtasks": [],
         "testStrategy": "/uat-task 82 with user monitoring. ACs: (1) python scripts/background_agent.py with no flags stays alive >30s; (2) within 30s of start, GET /api/agent/status returns row with last_seen within 60s; (3) /sse/user/agent-status receives an event with the agent_status payload within heartbeat window. Spec lives at docs/specs/agent-control.md (extend) or new docs/specs/daemon-loop.md.",
         "createdAt": "2026-05-02T08:50:00Z",
-        "updatedAt": "2026-05-02T08:55:00Z"
+        "updatedAt": "2026-05-02T11:00:00Z"
       },
       {
         "id": 83,
@@ -1195,7 +1196,7 @@
         "title": "Daemon loop: spawn push_agent_status + process_server_commands as concurrent asyncio tasks (loop-starvation fix)",
         "description": "LAUNCH BLOCKER follow-up to #82. Discovered during /uat-task 82 first run.\n\nBackground daemon's `BackgroundAgent.run()` at scripts/background_agent.py:1129 is sequential — every iteration runs all checks (execute_due_posts, requeue_failed_posts, poll_campaigns, generate_daily_content, check_sessions, db_backup, update_check, refresh_profiles, run_metric_scraping, sync_unsynced_drafts, process_server_commands, push_agent_status) in one synchronous chain. If `generate_daily_content()` is heavy (multiple active campaigns × ~25s each for AI calls), the rest of the loop body — including command_poll and status_push — gets starved for minutes.\n\nObserved: with `AMPLIFIER_UAT_INTERVAL_SEC=15` and one stale leftover campaign assignment in local DB, content gen blocked the loop for 50+ seconds. /api/agent/status returned `last_seen=null` for 6 consecutive 10s polls. Direct call to `push_agent_status()` worked perfectly, proving the function itself is correct — the issue is purely loop scheduling.\n\nProduction impact: with default 120s content_gen interval and 1-3 campaigns, status push DOES eventually fire between content gen runs (verified architecturally, not measured). But:\n- A user with 10+ active campaigns can block status push for 5-10 min per cycle, making the SSE-driven 'last seen' indicator stale\n- Pause/Resume command latency (#76) becomes unbounded — user clicks Pause on web, daemon takes minutes to react\n- UAT runs with shortened intervals are unreliable\n\nFix scope:\n- Refactor `BackgroundAgent.run()` to spawn `process_server_commands` and `push_agent_status` as INDEPENDENT `asyncio.create_task()` loops, running concurrently with the heavy content/post/scrape work.\n- The two tasks: (a) command_poll_loop with COMMAND_POLL_INTERVAL=15s default; (b) status_push_loop with STATUS_PUSH_INTERVAL=60s default. Each is its own `while self.running: await asyncio.sleep(interval); ...` coroutine.\n- Main run() loop continues to handle the heavy non-time-critical tasks (content gen, posting, scraping, profile refresh, db backup) sequentially.\n- stop() cancels all spawned tasks cleanly.\n- Tests: extend tests/server/test_daemon_loop.py with concurrency tests verifying status push + command poll fire on schedule even when content gen blocks.\n\nWhy NOT fold into #82: #82's mechanical fix (continuous-mode CLI + sidecar boot) is correct and verified. This deeper refactor is a separate concern. Filing as #84 keeps the diff small + the test coverage focused.",
         "details": "Concrete sketch:\n\n```python\nasync def run(self):\n    # Spawn concurrent loops for time-critical sync tasks\n    self._cmd_task = asyncio.create_task(self._command_poll_loop())\n    self._status_task = asyncio.create_task(self._status_push_loop())\n    try:\n        while self.running:\n            # heavy work continues sequentially as before\n            ...\n            await asyncio.sleep(LOOP_INTERVAL)\n    finally:\n        self._cmd_task.cancel(); self._status_task.cancel()\n        await asyncio.gather(self._cmd_task, self._status_task, return_exceptions=True)\n\nasync def _status_push_loop(self):\n    while self.running:\n        try: await push_agent_status(self)\n        except Exception as e: logger.warning('Status push failed: %s', e)\n        await asyncio.sleep(STATUS_PUSH_INTERVAL)\n```\n\nVerification: with the same loop-starvation reproduction (content gen blocking ~50s), /api/agent/status should still update within STATUS_PUSH_INTERVAL.",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "dependencies": [
           "82"
@@ -1210,7 +1211,27 @@
         },
         "subtasks": [],
         "testStrategy": "/uat-task 84. ACs: (1) with AMPLIFIER_UAT_INTERVAL_SEC=15 + 1 active campaign, /api/agent/status updates within 30s of daemon start; (2) command_poll picks up an admin-injected pause_agent command within 30s even while content gen is mid-cycle; (3) graceful Ctrl+C still shuts down both spawned loops; (4) pytest 317+/317+ green (315 baseline + ~2 new concurrency tests).",
-        "createdAt": "2026-05-02T10:25:00Z"
+        "createdAt": "2026-05-02T10:25:00Z",
+        "updatedAt": "2026-05-02T11:00:00Z"
+      },
+      {
+        "id": 85,
+        "title": "scripts/uat/cleanup_test_user.py: cascade-delete drafts + correct table names + run-on-prod ergonomics",
+        "description": "POLISH (low priority, follow-up to #75 UAT). Discovered during /uat-task 75 holistic re-test cleanup.\n\nBugs:\n1. Script doesn't cascade-delete `drafts` table — fails with FK violation when user has any drafts (which any real user will after content_gen runs). Need to delete from drafts BEFORE delete from users.\n2. Script also missing some new Phase D tables: agent_commands, agent_status — need to be in cascade list.\n3. Some tables in the cascade list have wrong names. Verified during this run that `posts`, `metrics`, `campaign_invitation_logs` returned ProgrammingError when queried — actual model table names differ (probably `post`, `metric`, `campaign_invitation_log` singular per SQLAlchemy convention OR they have FK constraints requiring different deletion order).\n4. Script defaults to local SQLite via env DATABASE_URL — but real test users live on prod Supabase. Running against prod requires SSH'ing to VPS, exporting DATABASE_URL from systemd unit env, running with the right CWD (server/ for .env), and using the server venv python. Current invocation pattern is fragile across all those layers.\n\nFix:\n- Audit actual table names via `python -c 'from app.models import *; for t in Base.metadata.tables: print(t)'` and update the cascade list to match.\n- Order: delete child tables first (drafts, agent_*, campaign_*, post, metric, payout, penalty), then user. Each delete in its own transaction so one FK failure doesn't abort the whole cleanup.\n- Add `--target=prod` flag that auto-discovers DATABASE_URL via `ssh + systemctl show` (avoid manual SSH dance for routine UAT cleanups).\n- Or simpler: add a server admin DELETE endpoint behind admin auth that handles the cascade properly. Then cleanup script just curls it.",
+        "details": "Files: scripts/uat/cleanup_test_user.py (rewrite cascade + add --target flag), or possibly add server/app/routers/admin/users.py DELETE endpoint with cascade.",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [
+          "75"
+        ],
+        "metadata": {
+          "phase": "E",
+          "polish": true,
+          "discovered_during": "uat_75_rerun"
+        },
+        "subtasks": [],
+        "testStrategy": "/uat-task 85: register a fresh test user, generate at least 1 draft via daemon, then run cleanup_test_user.py — must cascade cleanly without manual intervention.",
+        "createdAt": "2026-05-02T11:00:00Z"
       }
     ],
     "metadata": {
