@@ -85,7 +85,11 @@ async def stripe_connect_return(
     if stripe:
         try:
             acct = stripe.Account.retrieve(account_id)
-            owner_id = (acct.metadata or {}).get("user_id")
+            # Stripe SDK 15.x exposes acct.metadata as a StripeObject whose
+            # attribute access for `.get` raises AttributeError. Convert to a
+            # plain dict before .get() — safe across SDK versions.
+            metadata = dict(acct.metadata) if acct.metadata else {}
+            owner_id = metadata.get("user_id")
             if owner_id != str(user.id):
                 logger.warning(
                     "stripe_connect_return: account %s metadata.user_id=%s != user %d",
