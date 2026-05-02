@@ -10,10 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.user import User
 from app.models.assignment import CampaignAssignment
+from app.models.draft import Draft
 from app.models.post import Post
 from app.models.metric import Metric
 from app.models.payout import Payout
+from app.models.agent_status import AgentStatus
 from app.routers.user import _render, _login_redirect, get_user_from_cookie
+
+# Active platforms only — X disabled (Task #40), TikTok/IG disabled in platforms.json.
+_ACTIVE_PLATFORMS = ["linkedin", "facebook", "reddit"]
 
 router = APIRouter()
 
@@ -94,15 +99,42 @@ async def dashboard_page(
             bucket = 29 - delta_days
             daily_earnings[bucket] += p.amount_cents / 100.0
 
-    # Connected platforms (defensive: handles both {"x": True} and {"x": {"connected": true}})
+    # Connected platforms — active platforms only (X/TikTok/IG filtered out)
     platforms_raw = user.platforms or {}
     connected_platforms = []
-    for platform, val in platforms_raw.items():
+    for platform in _ACTIVE_PLATFORMS:
+        val = platforms_raw.get(platform)
         if isinstance(val, dict):
             if val.get("connected"):
                 connected_platforms.append(platform)
         elif val:
             connected_platforms.append(platform)
+
+    # Fetch agent status for initial badge render
+    status_result = await db.execute(
+        select(AgentStatus).where(AgentStatus.user_id == user.id)
+    )
+    agent_status = status_result.scalar_one_or_none()
+
+    # Build per-platform health dict for template
+    platform_health = {}
+    if agent_status and agent_status.platform_health:
+        for p in _ACTIVE_PLATFORMS:
+            platform_health[p] = agent_status.platform_health.get(p)
+
+    # Count pending drafts for "drafts ready" widget
+    drafts_ready_count = await db.scalar(
+        select(func.count()).select_from(Draft).where(
+            Draft.user_id == user.id,
+            Draft.status == "pending",
+        )
+    ) or 0
+
+    last_seen_iso = (
+        agent_status.last_seen.isoformat()
+        if agent_status and agent_status.last_seen
+        else None
+    )
 
     return _render(
         "user/dashboard.html",
@@ -113,4 +145,9 @@ async def dashboard_page(
         recent_posts=recent_posts,
         connected_platforms=connected_platforms,
         daily_earnings=daily_earnings,
+        agent_status=agent_status,
+        last_seen_iso=last_seen_iso,
+        platform_health=platform_health,
+        active_platforms=_ACTIVE_PLATFORMS,
+        drafts_ready_count=drafts_ready_count,
     )

@@ -239,6 +239,7 @@ async def sse_user_agent_status(
                             "platform_health": status.platform_health or {},
                             "ai_keys_configured": status.ai_keys_configured or {},
                             "version": status.version,
+                            "last_seen": status.last_seen.isoformat() if status.last_seen else None,
                         }),
                     }
                 else:

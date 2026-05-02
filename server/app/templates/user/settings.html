@@ -26,6 +26,24 @@
     <h1>Settings</h1>
 </div>
 
+<!-- Agent Control -->
+<div class="settings-section">
+    <h2>Agent Control</h2>
+    <div class="card">
+        <div class="info-row" style="flex-direction:column; align-items:flex-start; gap:12px;">
+            {% set show_controls = true %}
+            {% include "user/_dashboard_agent.html" with context %}
+        </div>
+        <div style="margin-top:12px;" class="info-card">
+            Pausing the agent stops content generation and posting. The agent resumes automatically when you click Resume, or you can restart the desktop app.
+            Commands are queued and processed within ~30 seconds.
+        </div>
+        {% if action_msg %}
+        <div style="margin-top:10px; color:#86efac; font-size:13px;">{{ action_msg }}</div>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Profile -->
 <div class="settings-section">
     <h2>Profile</h2>

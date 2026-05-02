@@ -1,0 +1,148 @@
+{# Agent status badge — server-rendered initial state, updated live via SSE.
+   Context vars:
+     agent_status  — AgentStatus model row (or None)
+     last_seen_iso — ISO timestamp string from agent_status.last_seen (or None)
+     show_controls — bool; if True renders Pause/Resume button
+#}
+{% set _running = agent_status.running if agent_status else False %}
+{% set _paused  = agent_status.paused  if agent_status else False %}
+{% set _last_seen_js = ('"' ~ last_seen_iso ~ '"') if last_seen_iso else 'null' %}
+
+<div
+    id="agent-status-widget"
+    x-data="agentStatusWidget({{ 'true' if _running else 'false' }}, {{ 'true' if _paused else 'false' }}, {{ _last_seen_js }})"
+    x-init="init()"
+    style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;"
+>
+    <!-- Status dot -->
+    <span
+        :style="dotStyle()"
+        style="width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0;"
+    ></span>
+
+    <!-- Status label -->
+    <span style="font-size:14px; font-weight:600; color:#e2e8f0;" x-text="statusLabel()">
+        {{ 'Agent: Paused' if _paused else ('Agent: Online' if _running else 'Agent: Offline') }}
+    </span>
+
+    <!-- Last seen (relative time, updated reactively) -->
+    <span style="font-size:12px; color:#64748b;" x-text="lastSeenText()"></span>
+
+    {% if show_controls | default(false) %}
+    <!-- Pause form — shown when NOT paused -->
+    <form
+        id="form-pause-agent"
+        action="/user/settings/pause-agent"
+        method="post"
+        hx-post="/user/settings/pause-agent"
+        hx-target="#agent-cmd-result"
+        hx-swap="innerHTML"
+        x-show="!paused"
+        style="margin:0;"
+    >
+        <button type="submit" class="btn btn-secondary" style="font-size:13px; padding:6px 14px;" :disabled="cmdPending">
+            Pause Agent
+        </button>
+    </form>
+
+    <!-- Resume form — shown when paused -->
+    <form
+        id="form-resume-agent"
+        action="/user/settings/resume-agent"
+        method="post"
+        hx-post="/user/settings/resume-agent"
+        hx-target="#agent-cmd-result"
+        hx-swap="innerHTML"
+        x-show="paused"
+        style="margin:0;"
+    >
+        <button type="submit" class="btn btn-secondary" style="font-size:13px; padding:6px 14px;" :disabled="cmdPending">
+            Resume Agent
+        </button>
+    </form>
+
+    <!-- Result feedback area -->
+    <div id="agent-cmd-result" style="font-size:13px; color:#86efac;"></div>
+    {% endif %}
+</div>
+
+<script>
+function agentStatusWidget(initialRunning, initialPaused, initialLastSeenIso) {
+    return {
+        running:    initialRunning,
+        paused:     initialPaused,
+        lastSeen:   initialLastSeenIso ? new Date(initialLastSeenIso) : null,
+        now:        Date.now(),   // updated by ticker so Alpine re-evaluates lastSeenText()
+        cmdPending: false,
+        _es: null,
+        _ticker: null,
+
+        init() {
+            this._connectSSE();
+            // Tick every 10s to refresh relative "last seen" text
+            this._ticker = setInterval(() => { this.now = Date.now(); }, 10000);
+            document.addEventListener('htmx:beforeRequest', () => { this.cmdPending = true; });
+            document.addEventListener('htmx:afterRequest',  () => { this.cmdPending = false; });
+        },
+
+        _connectSSE() {
+            const self = this;
+            function connect() {
+                const es = new EventSource('/sse/user/agent-status');
+                self._es = es;
+                es.addEventListener('agent_status', function(e) {
+                    try {
+                        const d = JSON.parse(e.data);
+                        self.running  = d.running;
+                        self.paused   = d.paused;
+                        // Use server's authoritative last_seen timestamp
+                        if (d.last_seen) {
+                            self.lastSeen = new Date(d.last_seen);
+                        }
+                        self.now = Date.now();
+                        self.cmdPending = false;
+                    } catch(_) {}
+                });
+                es.onerror = function() {
+                    es.close();
+                    setTimeout(connect, 5000);
+                };
+            }
+            connect();
+        },
+
+        // Daemon is "offline" if last_seen is > 2 minutes old (or never seen).
+        _isOffline() {
+            if (!this.lastSeen) return true;
+            return (this.now - this.lastSeen.getTime()) > 120000;
+        },
+
+        statusLabel() {
+            if (this._isOffline()) return 'Agent: Offline';
+            if (this.paused)       return 'Agent: Paused';
+            if (this.running)      return 'Agent: Online';
+            return 'Agent: Offline';
+        },
+
+        dotStyle() {
+            let color = '#475569'; // gray = offline
+            if (!this._isOffline()) {
+                if (this.paused)       color = '#eab308'; // yellow
+                else if (this.running) color = '#22c55e'; // green
+            }
+            return `background:${color};box-shadow:0 0 4px ${color}40;`;
+        },
+
+        lastSeenText() {
+            if (!this.lastSeen) return '';
+            const sec = Math.floor((this.now - this.lastSeen.getTime()) / 1000);
+            if (sec < 5)  return 'Just now';
+            if (sec < 60) return `Last seen ${sec}s ago`;
+            const min = Math.floor(sec / 60);
+            if (min < 60) return `Last seen ${min}m ago`;
+            const hr = Math.floor(min / 60);
+            return `Last seen ${hr}h ago`;
+        },
+    };
+}
+</script>

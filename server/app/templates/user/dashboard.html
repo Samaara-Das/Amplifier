@@ -26,6 +26,11 @@
     <p>Here's your creator performance overview.</p>
 </div>
 
+<!-- Live agent status indicator -->
+<div class="card" style="margin-bottom:20px; padding:14px 16px;">
+    {% include "user/_dashboard_agent.html" with context %}
+</div>
+
 <div class="stats">
     <div class="stat">
         <div class="stat-val green">${{ "%.2f"|format(user.total_earned_cents / 100) }}</div>
@@ -51,6 +56,30 @@
     <a href="http://localhost:5222/drafts" class="btn btn-secondary" target="_blank" rel="noopener">Open Desktop App</a>
 </div>
 
+<!-- Drafts ready widget -->
+<div class="card" style="margin-bottom:24px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+    <div>
+        {% if drafts_ready_count > 0 %}
+        <div style="font-size:18px; font-weight:700; color:#f8fafc;">
+            {{ drafts_ready_count }} draft{{ 's' if drafts_ready_count != 1 else '' }} ready for review
+        </div>
+        <div style="font-size:13px; color:#64748b; margin-top:4px;">
+            Open the desktop app to approve or reject.
+        </div>
+        {% else %}
+        <div style="font-size:15px; font-weight:600; color:#94a3b8;">No drafts pending</div>
+        <div style="font-size:13px; color:#475569; margin-top:4px;">
+            The daemon will generate new ones automatically.
+        </div>
+        {% endif %}
+    </div>
+    {% if drafts_ready_count > 0 %}
+    <a href="http://localhost:5222/drafts" target="_blank" rel="noopener" class="btn btn-primary" style="white-space:nowrap;">
+        Review Drafts
+    </a>
+    {% endif %}
+</div>
+
 <div class="chart-wrap">
     <h3>Earnings — Last 30 Days</h3>
     <canvas id="earningsSparkline" height="80" data-chart="earnings-sparkline"></canvas>
@@ -58,12 +87,25 @@
 
 <div class="card" style="margin-bottom: 24px;">
     <div class="card-title">Connected Platforms</div>
-    {% set all_platforms = ['linkedin', 'facebook', 'reddit', 'x', 'tiktok', 'instagram'] %}
-    {% for platform in all_platforms %}
+    {% for platform in active_platforms %}
         {% set is_connected = platform in connected_platforms %}
-        <span class="platform-badge {{ 'connected' if is_connected else 'disconnected' }}">
+        {% set health = platform_health.get(platform) if platform_health else None %}
+        {% if health == 'ok' %}
+            {% set health_label = 'Healthy' %}
+            {% set health_class = 'badge-green' %}
+        {% elif health %}
+            {% set health_label = 'Warning' %}
+            {% set health_class = 'badge-yellow' %}
+        {% else %}
+            {% set health_label = '' %}
+            {% set health_class = '' %}
+        {% endif %}
+        <span class="platform-badge {{ 'connected' if is_connected else 'disconnected' }}" style="margin-bottom:8px;">
             {% if is_connected %}&#10003;{% else %}&#8211;{% endif %}
             {{ platform | title }}
+            {% if health_label %}
+            <span class="badge {{ health_class }}" style="font-size:11px; padding:1px 6px; margin-left:4px;">{{ health_label }}</span>
+            {% endif %}
         </span>
     {% endfor %}
     <p style="font-size: 12px; color: #475569; margin-top: 12px;">
