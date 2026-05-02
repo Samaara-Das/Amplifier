@@ -257,20 +257,34 @@ def create_app() -> FastAPI:
     async def keys_test(request: Request) -> HTMLResponse:
         form = await request.form()
         key_name = (form.get("key_name") or "").strip()
-        key_value = (form.get("key_value") or "").strip()
+        # HTMX submits the input under its own field name (e.g., gemini_api_key=...).
+        # Fall back to "key_value" for direct curl/test invocations.
+        key_value = (form.get(key_name) or form.get("key_value") or "").strip() if key_name else ""
+
+        # If nothing typed, fall back to the saved (encrypted) value in the DB —
+        # so the Test button works for "✓ Configured" providers without forcing
+        # the user to re-type a key they've already saved.
+        if key_name and not key_value:
+            saved = get_setting(key_name)
+            if saved:
+                try:
+                    from utils.crypto import decrypt_safe
+                    key_value = decrypt_safe(saved) or ""
+                except Exception:
+                    key_value = ""
 
         if not key_name or not key_value:
             return HTMLResponse(
-                content='<span class="text-red-400 text-sm">Missing key_name or key_value</span>'
+                content='<span class="text-red-400 text-sm">No key to test — type a key first.</span>'
             )
 
         ok = await asyncio.to_thread(_test_ai_key, key_name, key_value)
         if ok:
             return HTMLResponse(
-                content='<span class="text-green-400 text-sm font-medium">Key valid</span>'
+                content='<span class="text-green-400 text-sm font-medium">✓ Key valid</span>'
             )
         return HTMLResponse(
-            content='<span class="text-red-400 text-sm font-medium">Key invalid or unreachable</span>'
+            content='<span class="text-red-400 text-sm font-medium">✗ Key invalid or unreachable</span>'
         )
 
     # ── Drafts ────────────────────────────────────────────────────────────────

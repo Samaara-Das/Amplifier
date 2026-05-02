@@ -20,7 +20,7 @@
         <label for="{{ key_name }}" class="font-semibold text-white text-sm">{{ label }}</label>
         <div class="flex items-center gap-2">
           {% if key_statuses.get(key_name) %}
-            <span class="text-green-400 text-xs font-medium">Configured</span>
+            <span class="text-green-400 text-xs font-medium" title="A key is saved for this provider. Re-enter a new key to overwrite.">✓ Configured</span>
           {% else %}
             <span class="text-slate-500 text-xs">Not set</span>
           {% endif %}
@@ -42,7 +42,7 @@
         id="{{ key_name }}"
         name="{{ key_name }}"
         autocomplete="off"
-        placeholder="{{ placeholder }}"
+        placeholder="{% if key_statuses.get(key_name) %}•••••• (saved — type new key to overwrite){% else %}{{ placeholder }}{% endif %}"
         class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
       >
     </div>
