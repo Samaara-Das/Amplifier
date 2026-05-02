@@ -1093,7 +1093,7 @@
         "title": "Installer assets bundled — Windows icon.ico + real EULA.rtf",
         "description": "REQUIRED for Task #68 closure. Bundles two installer asset deliverables that share the same files (`scripts/build/installer/`), the same UAT (does Inno Setup build cleanly + does the resulting installer show right?), and zero functional dependencies between them.\n\n**Part A (was #77) — `scripts/build/installer/icon.ico`** is missing; only `ICON_PLACEHOLDER.md` exists. Inno Setup needs a real .ico file. Deliver multi-size icon.ico (16x16, 32x32, 48x48, 64x64, 128x128, 256x256). AI-generate the brand mark via image provider, convert to .ico via Pillow with `sizes=[(16,16),...]`. Delete ICON_PLACEHOLDER.md.\n\n**Part B (was #79) — `scripts/build/installer/eula.rtf`** is placeholder text. Need real EULA. Draft from `templates/public/terms.html` + `templates/public/privacy.html` + standard installer EULA boilerplate (license grant, no warranty, US jurisdiction, governing law, termination, contact info). Convert to RTF (`{\rtf1\u0007nsi...}`). User reviews legal accuracy before merge.\n\nSingle /uat-task pass: run `scripts/build/build_windows_installer.ps1` — verify Inno Setup compiles cleanly, resulting AmplifierSetup-vX.Y.Z.exe shows the icon in File Explorer + Programs and Features, License Agreement page renders the EULA without garbled formatting + scrollable. Merged from prior #77 + #79.",
         "details": "Reference in scripts/build/installer/windows.iss already correct (no path change needed). After this lands, run scripts/build/build_windows_installer.ps1 to verify the installer compiles and the icon shows up correctly in File Explorer.",
-        "status": "pending",
+        "status": "partial",
         "priority": "medium",
         "dependencies": [
           "68"
@@ -1113,7 +1113,7 @@
         "title": "[MERGED INTO #77] Real EULA text for installer",
         "description": "MERGED INTO TASK #77. See #77 description for both deliverables.",
         "details": "RTF format quirks: use `{\\rtf1\\ansi\\deff0 ... }` shell, `\\par` for paragraph breaks, `\\b ... \\b0` for bold. Keep formatting simple; Inno Setup's RTF renderer is conservative.",
-        "status": "deleted",
+        "status": "partial",
         "priority": "medium",
         "dependencies": [
           "68",
@@ -1283,7 +1283,7 @@
         "title": "Chromium DNS robustness — Patchright launch args for users with flaky ISP DNS",
         "description": "FOLLOW-UP from /uat-task 86 (2026-05-02). The #86 wiring (post-platform-connect → AgentCommand → daemon scrape) is empirically PROVEN to work — scraped_profile rows are inserted within 30s of platform connect. But on networks with flaky ISP DNS (specifically: dual-stack IPv6 where the ISP's IPv6 DNS server is timing out), Chromium inside Patchright fails to resolve www.linkedin.com / www.facebook.com / www.reddit.com with net::ERR_NAME_NOT_RESOLVED — even after Set-DnsClientServerAddress sets system DNS to Google's, even with --disable-features=AsyncDns flag, even after disabling IPv6 on the network adapter.\n\nReproduced today on Sammy's network: Jio IPv6 DNS (2402:e280:21fd:700::1) timed out, Set-DnsClientServerAddress to 8.8.8.8/8.8.4.4 + IPv6 Google DNS worked for system shell but Chromium kept failing. Even after restarting the daemon to inherit new DNS config + adding --disable-features=AsyncDns to Patchright launch args, scraped data stayed empty.\n\nReal users with similar ISP issues will hit the same wall — their profile scrapes will silently produce empty rows. AC4 (field-level coverage) will fail in production for that cohort.\n\nFix scope:\n1. Investigate the actual Chromium flag set that forces OS-resolver fallback in all cases. Candidates: --host-resolver-rules='MAP * <ip>' (forces a specific upstream resolver), --enable-features=DnsHttpsServerSupport with --dns-over-https-server=https://dns.google/dns-query (DoH bypasses ISP DNS), explicit hosts file munging via --host-rules.\n2. Test each candidate on a network where ISP IPv6 DNS is broken (replicate Sammy's failure mode by setting an unreachable IPv6 DNS as the only resolver).\n3. Add the working flag(s) to scripts/utils/browser_config.py DNS_HARDENING_ARGS.\n4. As a fallback for irrecoverable cases: detect ERR_NAME_NOT_RESOLVED in scraper output, log a clear error to local notification 'Profile scrape failed: DNS issue. Please check your network connection or VPN settings.'\n5. /uat-task 88: simulate broken ISP DNS via Windows host-block + verify Chromium still resolves via the hardening flags.\n\nNOT a #86 blocker — #86's wiring is correct and shippable as-is. This is a robustness improvement for a subset of user environments.",
         "details": "Files likely affected: scripts/utils/browser_config.py (extend DNS_HARDENING_ARGS), possibly scripts/utils/profile_scraper.py error handling. Documentation: docs/troubleshooting.md should add a 'Profile scrape returns empty data' section explaining the DNS-resolver issue + user-facing remediation.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [
           "86"

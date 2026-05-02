@@ -65,10 +65,10 @@ None.
 | Field | Value |
 |-------|-------|
 | **Setup** | AC1 passed. |
-| **Action** | `python -c "from PIL import Image; img=Image.open('scripts/build/installer/icon.ico'); sizes=[f.size for f in Image.open('scripts/build/installer/icon.ico').seek(i) or Image.open('scripts/build/installer/icon.ico') for i in range(getattr(img, 'n_frames', 1))]; print(sizes)"` — OR use the multi-frame enumerate approach: `python -c "from PIL import Image; img=Image.open('C:/Users/dassa/Work/Auto-Posting-System/scripts/build/installer/icon.ico'); sizes=set(); [sizes.add(img.size) or img.seek(i) for i in range(getattr(img, 'n_frames', 1)) if not img.seek(i) is None]; print(sorted(sizes))"` |
+| **Action** | `python -c "from PIL.IcoImagePlugin import IcoFile; sizes=IcoFile(open('scripts/build/installer/icon.ico','rb')).sizes(); print(sorted(sizes))"`. Note: Pillow's high-level Image API only exposes the default ICO frame, so we use `IcoImagePlugin.IcoFile.sizes()` to enumerate every embedded frame. |
 | **Expected** | Set of frame sizes includes all of: `(16,16)`, `(32,32)`, `(48,48)`, `(64,64)`, `(128,128)`, `(256,256)`. Any missing size → FAIL. |
 | **Automated** | yes |
-| **Automation** | `python -c "from PIL import Image; img=Image.open('scripts/build/installer/icon.ico'); n=getattr(img,'n_frames',1); sizes=set(); [img.seek(i) or sizes.add(img.size) for i in range(n)]; req={(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)}; missing=req-sizes; assert not missing, f'Missing sizes: {missing}'; print('PASS all 6 sizes present:', sorted(sizes))"` |
+| **Automation** | `python -c "from PIL.IcoImagePlugin import IcoFile; sizes=IcoFile(open('scripts/build/installer/icon.ico','rb')).sizes(); req={(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)}; missing=req-sizes; assert not missing, f'Missing sizes: {missing}'; print('PASS all 6 sizes present:', sorted(sizes))"` |
 | **Evidence** | stdout showing all 6 sizes; script exit 0 |
 | **Cleanup** | none |
 
