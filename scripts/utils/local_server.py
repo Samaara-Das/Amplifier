@@ -81,6 +81,21 @@ AI_KEY_FIELDS: list[tuple[str, str, str]] = [
 ]
 
 
+# ── Agent sidecar ─────────────────────────────────────────────────────────────
+
+
+async def _boot_agent_sidecar() -> None:
+    """Boot the background daemon as a fire-and-forget task on app startup."""
+    try:
+        from background_agent import start_background_agent
+        await start_background_agent()
+        logger.info("Background agent sidecar running")
+    except Exception as exc:
+        logger.error(
+            "Background agent sidecar boot failed: %s", exc, exc_info=True
+        )
+
+
 # ── App factory ───────────────────────────────────────────────────────────────
 
 
@@ -96,6 +111,20 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def _startup() -> None:
         init_db()
+        # Boot the background daemon as a sidecar, unless opted out (UAT/CI).
+        if os.environ.get("AMPLIFIER_DISABLE_AGENT") != "1":
+            asyncio.create_task(_boot_agent_sidecar())
+            logger.info("Background agent sidecar scheduled")
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:
+        if os.environ.get("AMPLIFIER_DISABLE_AGENT") != "1":
+            try:
+                from background_agent import stop_background_agent
+                await stop_background_agent()
+                logger.info("Background agent sidecar stopped")
+            except Exception as exc:
+                logger.warning("Error stopping background agent sidecar: %s", exc)
 
     # ── Custom Jinja2 filters ─────────────────────────────────────────────────
 

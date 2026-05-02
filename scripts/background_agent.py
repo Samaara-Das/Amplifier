@@ -1392,4 +1392,28 @@ if __name__ == "__main__":
             result = await check_sessions()
             logger.info("check_sessions result: %s", result)
 
-    asyncio.run(_run_once())
+    async def _run_forever():
+        """Run the BackgroundAgent indefinitely. Graceful shutdown on KeyboardInterrupt."""
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        agent = await start_background_agent()
+        logger.info(
+            "Background agent started in continuous mode (PID=%d)", os.getpid()
+        )
+        try:
+            # Block on the agent's run() task — it is an infinite async loop
+            await agent._task
+        except asyncio.CancelledError:
+            logger.info("Background agent task cancelled")
+        except KeyboardInterrupt:
+            logger.info("Received KeyboardInterrupt — shutting down")
+        finally:
+            await stop_background_agent()
+            logger.info("Background agent stopped cleanly")
+
+    if args.once or args.task:
+        asyncio.run(_run_once())
+    else:
+        try:
+            asyncio.run(_run_forever())
+        except KeyboardInterrupt:
+            pass

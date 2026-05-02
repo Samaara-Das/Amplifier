@@ -23,6 +23,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from starlette.testclient import TestClient
 
+# ── Disable daemon sidecar so TestClient startup doesn't spawn background tasks ──
+os.environ["AMPLIFIER_DISABLE_AGENT"] = "1"
+
 # ── Path setup ─────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
