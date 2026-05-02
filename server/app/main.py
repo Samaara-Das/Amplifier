@@ -18,6 +18,7 @@ from app.routers.user import router as user_pages_router
 from app.routers.sse import router as sse_router
 from app.routers.drafts import router as drafts_router
 from app.routers.agent import router as agent_router
+from app.routers.onboarding import router as onboarding_router
 
 settings = get_settings()
 
@@ -71,6 +72,7 @@ app.include_router(public_router.router, tags=["public"])
 app.include_router(sse_router)
 app.include_router(drafts_router, tags=["drafts"])
 app.include_router(agent_router, tags=["agent"])
+app.include_router(onboarding_router, tags=["onboarding"])
 
 # Static files (JS helpers, etc.)
 _static_dir = os.path.join(os.path.dirname(__file__), "static")

@@ -157,6 +157,10 @@ def create_app() -> FastAPI:
     async def auth_callback(token: Optional[str] = None) -> Response:
         if not token:
             raise HTTPException(status_code=400, detail="Missing token parameter")
+        # Structural JWT validation: must be 3 dot-separated base64url segments
+        parts = token.split(".")
+        if len(parts) != 3 or not all(parts):
+            raise HTTPException(status_code=400, detail="Invalid token format")
 
         # Store JWT in the auth file (daemon uses this for API calls)
         try:
@@ -174,7 +178,7 @@ def create_app() -> FastAPI:
             set_setting("jwt", token)
 
         logger.info("Auth callback: JWT stored, redirecting to onboarding step 2")
-        return RedirectResponse(url=f"{HOSTED_BASE_URL}/user/onboarding", status_code=302)
+        return RedirectResponse(url=f"{HOSTED_BASE_URL}/user/onboarding/step2", status_code=302)
 
     # ── Connect ───────────────────────────────────────────────────────────────
 

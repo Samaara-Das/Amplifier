@@ -318,36 +318,6 @@
         "subtasks": []
       },
       {
-        "id": 20,
-        "title": "PyInstaller packaging â€” Windows installer",
-        "description": "[SUPERSEDED 2026-04-28] Replaced by docs/migrations/2026-04-28-migration-stealth-and-packaging.md (uses Nuitka, not PyInstaller). Do not implement.",
-        "status": "deferred",
-        "priority": "high",
-        "dependencies": [],
-        "metadata": {
-          "tier": 4,
-          "launch": true
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-29T07:11:08.933333Z"
-      },
-      {
-        "id": 21,
-        "title": "Mac support â€” cross-platform audit + packaging",
-        "description": "[SUPERSEDED 2026-04-28] Replaced by docs/migrations/2026-04-28-migration-stealth-and-packaging.md (Nuitka cross-platform build matrix handles Mac). Do not implement.",
-        "status": "deferred",
-        "priority": "medium",
-        "dependencies": [
-          "20"
-        ],
-        "metadata": {
-          "tier": 4,
-          "launch": true
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-29T07:11:08.933333Z"
-      },
-      {
         "id": 22,
         "title": "Landing page â€” public-facing site for acquisition",
         "description": "Static site explaining Amplifier. CTAs for download (users) and create campaign (companies). Deploy to Vercel.",
@@ -374,48 +344,6 @@
         },
         "subtasks": [],
         "updatedAt": "2026-04-30T13:20:45.771148+00:00"
-      },
-      {
-        "id": 24,
-        "title": "Status label renaming in user app templates",
-        "description": "Replace internal names: pending_invitation to Invited, content_generated to Draft Ready, posted to Live, paid to Earned.",
-        "status": "deferred",
-        "priority": "low",
-        "dependencies": [],
-        "metadata": {
-          "tier": 5
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-30T13:17:45.130866+00:00",
-        "details": "\n\nDeferred 2026-04-30: targets `scripts/user_app.py` / `scripts/templates/user/` which CLAUDE.md marks as dead code post-Phase D migration. Requirement folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` so the new HTMX creator dashboard inherits it. Polishing soon-to-be-deleted templates is wasted work."
-      },
-      {
-        "id": 25,
-        "title": "Clipboard copy button for post URLs",
-        "description": "Add Copy URL button next to each post URL on Posts tab.",
-        "status": "deferred",
-        "priority": "low",
-        "dependencies": [],
-        "metadata": {
-          "tier": 5
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-30T13:17:45.130866+00:00",
-        "details": "\n\nDeferred 2026-04-30: targets `scripts/user_app.py` / `scripts/templates/user/` which CLAUDE.md marks as dead code post-Phase D migration. Requirement folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` so the new HTMX creator dashboard inherits it. Polishing soon-to-be-deleted templates is wasted work."
-      },
-      {
-        "id": 26,
-        "title": "Client-side form validation in user app",
-        "description": "Add required attributes, email format, number range validation to all forms.",
-        "status": "deferred",
-        "priority": "low",
-        "dependencies": [],
-        "metadata": {
-          "tier": 5
-        },
-        "subtasks": [],
-        "updatedAt": "2026-04-30T13:17:45.130866+00:00",
-        "details": "\n\nDeferred 2026-04-30: targets `scripts/user_app.py` / `scripts/templates/user/` which CLAUDE.md marks as dead code post-Phase D migration. Requirement folded into `docs/migrations/2026-04-28-migration-dashboards-htmx-upgrade.md` so the new HTMX creator dashboard inherits it. Polishing soon-to-be-deleted templates is wasted work."
       },
       {
         "id": 27,
@@ -608,13 +536,14 @@
       {
         "id": 42,
         "title": "[DEFERRED] Re-enable TikTok, Instagram, and X (cheap API path)",
-        "description": "Re-enable the three currently-disabled platforms so creators have full 6-platform reach. TikTok and Instagram use static test videos/images (no AI video generation in this task). X re-enables only via the official paid API v2 — never resume browser automation on X.",
+        "description": "[NEXT-AFTER-LAUNCH 2026-05-02] Promoted from deferred. To be implemented immediately after the remaining non-deferred launch-blocker queue completes (#75, #76, #77, #79, #80, #19, #74.1/2/3, v1.0.0 tag, installers). Re-enable TikTok, Instagram, and X for full 6-platform reach. TikTok/Instagram via existing JSON engine + Patchright stealth (test on throwaway accounts for 7 days minimum). X requires verified-safe path: X API v2 (cost-prohibitive at 00/mo basic tier) OR throwaway account on Patchright with 7-day soak + incident-response runbook. If X fails 7-day soak, ship 5-platform launch (LinkedIn/FB/Reddit/TikTok/IG) and queue X separately.",
         "details": "CONTEXT — current state:\n- X: hardcoded-disabled via scripts/utils/guard.py (Task #40 done) after 3 X account suspensions\n  caused by anti-bot detection. The user's father has indicated the X API is now cheaper than\n  before; verify the actual pricing of X API v2 'Basic' tier before committing budget.\n- TikTok: enabled=false in config/platforms.json. Code paths in scripts/post.py + config/scripts/\n  exist but are not actively maintained. TikTok requires VPN to non-India server (Surfshark or\n  equivalent) because it is geo-blocked from India. Document VPN setup in onboarding.\n- Instagram: enabled=false in config/platforms.json. Multi-step posting flow (Create → Post →\n  Upload → Next → Next → Caption → Share) preserved but not exercised in months. All clicks need\n  force=True due to overlay intercepts.\n\nSCOPE — three sub-tasks, each independently testable:\n\n1. X API integration (re-enable via official API only):\n   - Research X API v2 pricing as of implementation date. 'Basic' tier ($100/mo) allows up to\n     10K writes/month — enough for many users. 'Free' tier is read-only.\n   - If pricing acceptable: integrate via tweepy or direct httpx calls. Token stored encrypted\n     locally per-user (each user provides their own X API key in onboarding).\n   - Remove the hardcoded guard in scripts/utils/guard.py and server/app/utils/platform_guard.py.\n     Replace with a soft 'X API not configured' fallback so users without an X key just skip X.\n   - DO NOT re-enable browser automation on X under any circumstance — only the API path.\n   - Test on a fresh disposable X developer account before rolling out to existing users.\n\n2. TikTok (with test videos):\n   - Restore the existing posting flow in config/scripts/ (TikTok posting script).\n   - Onboarding addition: detect if user is in a geo-blocked region (e.g., India) and prompt\n     them to configure a VPN before connecting TikTok.\n   - For this task ONLY use static test videos from a local folder. NO AI video generation;\n     that is Task #31 (deferred separately).\n   - Verify TikTok still detects the Draft.js editor reliably (Ctrl+A → Backspace clear before typing).\n\n3. Instagram (images + test videos):\n   - Restore the multi-step dialog flow. Test images first; videos require Instagram's separate\n     Reel flow which is fragile.\n   - All buttons need force=True due to overlay intercepts — preserve this.\n   - Image upload via 'Photo/video' button + hidden file input.\n\nINTEGRATION POINTS:\n- All three platforms must show in the user app's Connect Platforms wizard\n- Matching engine must include them as eligible target platforms\n- Billing must support per-platform payout rates for all three\n- Profile scraping must work on all three (TikTok/IG already have stubs)",
         "testStrategy": "Per-platform smoke test:\n1. TikTok: connect on a VPN-enabled machine, post a 5-second test video, capture URL, scrape metrics 24h later. Verify metrics arrive.\n2. Instagram: connect, upload a test image with caption, capture URL, scrape metrics. Verify the permalink resolves to the actual post.\n3. X (API path): with a developer key configured, post a tweet via the API, capture URL, scrape metrics via the same API. Verify the user's X account is NOT suspended (key signal of API-vs-automation success).\nAcceptance: all three platforms post a test piece of content and metrics flow back to the server. X re-enable can be split into a separate sub-task if API cost remains prohibitive.",
-        "status": "deferred",
+        "status": "pending",
         "dependencies": [],
         "priority": "medium",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-05-02T08:30:00Z"
       },
       {
         "id": 43,

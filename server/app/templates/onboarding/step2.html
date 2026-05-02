@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connect Platforms — Amplifier Creator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .page { max-width: 640px; margin: 0 auto; padding: 40px 20px; }
+        .step-header { margin-bottom: 32px; }
+        .step-label { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .step-header h1 { font-size: 26px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
+        .step-header p { font-size: 14px; color: #64748b; line-height: 1.6; }
+        .platform-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+        .platform-item { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border-radius: 12px; padding: 16px 20px; border: 1px solid #334155; display: flex; align-items: center; gap: 16px; }
+        .platform-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .platform-icon.linkedin { background: rgba(10, 102, 194, 0.15); }
+        .platform-icon.facebook { background: rgba(24, 119, 242, 0.15); }
+        .platform-icon.reddit { background: rgba(255, 69, 0, 0.15); }
+        .platform-info { flex: 1; }
+        .platform-name { font-size: 15px; font-weight: 600; color: #f8fafc; }
+        .platform-desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .platform-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .platform-badge.connected { background: #14532d; color: #86efac; border: 1px solid rgba(134, 239, 172, 0.2); }
+        .platform-badge.disconnected { background: #334155; color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
+        .agent-status { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 8px; }
+        .agent-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; flex-shrink: 0; }
+        .agent-dot.online { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.4); }
+        .actions { display: flex; gap: 12px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.15s; font-family: inherit; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35); }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover { background: #3d4f66; }
+        .step-nav { display: flex; gap: 6px; margin-bottom: 24px; }
+        .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+        .step-dot.done { background: #4ade80; }
+        .step-dot.active { background: #3b82f6; }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="step-nav">
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+        </div>
+        <div class="step-header">
+            <div class="step-label">Step 2 of 4</div>
+            <h1>Connect Your Platforms</h1>
+            <p>Open the Amplifier desktop app and connect your social media accounts. Connected platforms will light up below in real time.</p>
+        </div>
+
+        <div class="agent-status" id="agent-status-bar">
+            <div class="agent-dot" id="agent-dot"></div>
+            <span id="agent-status-text">Waiting for desktop app...</span>
+        </div>
+
+        <div class="platform-list" id="platform-list">
+            <div class="platform-item">
+                <div class="platform-icon linkedin">&#128101;</div>
+                <div class="platform-info">
+                    <div class="platform-name">LinkedIn</div>
+                    <div class="platform-desc">Professional networking</div>
+                </div>
+                <span class="platform-badge disconnected" id="badge-linkedin">Not connected</span>
+            </div>
+            <div class="platform-item">
+                <div class="platform-icon facebook">&#128081;</div>
+                <div class="platform-info">
+                    <div class="platform-name">Facebook</div>
+                    <div class="platform-desc">Social networking</div>
+                </div>
+                <span class="platform-badge disconnected" id="badge-facebook">Not connected</span>
+            </div>
+            <div class="platform-item">
+                <div class="platform-icon reddit">&#128032;</div>
+                <div class="platform-info">
+                    <div class="platform-name">Reddit</div>
+                    <div class="platform-desc">Community discussions</div>
+                </div>
+                <span class="platform-badge disconnected" id="badge-reddit">Not connected</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="http://localhost:5222/connect" target="_blank" rel="noopener" class="btn btn-secondary">Open Desktop App</a>
+            <a href="/user/onboarding/step3" class="btn btn-primary">Continue to API Keys &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var PLATFORMS = ['linkedin', 'facebook', 'reddit'];
+
+        function updateBadge(platform, connected) {
+            var badge = document.getElementById('badge-' + platform);
+            if (!badge) return;
+            if (connected) {
+                badge.className = 'platform-badge connected';
+                badge.textContent = 'Connected';
+            } else {
+                badge.className = 'platform-badge disconnected';
+                badge.textContent = 'Not connected';
+            }
+        }
+
+        function setAgentOnline(online) {
+            var dot = document.getElementById('agent-dot');
+            var text = document.getElementById('agent-status-text');
+            if (online) {
+                dot.className = 'agent-dot online';
+                text.textContent = 'Desktop app connected';
+            } else {
+                dot.className = 'agent-dot';
+                text.textContent = 'Waiting for desktop app...';
+            }
+        }
+
+        var es = new EventSource('/sse/user/agent-status');
+
+        es.addEventListener('connected', function(e) {
+            setAgentOnline(true);
+        });
+
+        es.addEventListener('agent_status', function(e) {
+            try {
+                var data = JSON.parse(e.data);
+                setAgentOnline(true);
+                var health = data.platform_health || {};
+                PLATFORMS.forEach(function(p) {
+                    var info = health[p] || {};
+                    updateBadge(p, info.connected === true);
+                });
+            } catch(err) {}
+        });
+
+        es.addEventListener('ping', function(e) {
+            setAgentOnline(true);
+        });
+
+        es.onerror = function() {
+            setAgentOnline(false);
+        };
+    })();
+    </script>
+</body>
+</html>

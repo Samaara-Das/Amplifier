@@ -211,6 +211,11 @@ async def sse_user_agent_status(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    from app.models.agent_status import AgentStatus as _AgentStatus
+
+    _heartbeat_ms = int(os.environ.get("AMPLIFIER_UAT_SSE_HEARTBEAT_MS", 0))
+    _sleep_sec = (_heartbeat_ms / 1000.0) if _heartbeat_ms > 0 else _HEARTBEAT_SEC
+
     async def generator():
         yield {
             "event": "connected",
@@ -219,7 +224,27 @@ async def sse_user_agent_status(
         while True:
             if await request.is_disconnected():
                 break
-            yield {"event": "ping", "data": json.dumps({"alive": True})}
-            await asyncio.sleep(_HEARTBEAT_SEC)
+            # Query latest AgentStatus for this user and emit it
+            try:
+                status_result = await db.execute(
+                    select(_AgentStatus).where(_AgentStatus.user_id == user.id)
+                )
+                status = status_result.scalar_one_or_none()
+                if status is not None:
+                    yield {
+                        "event": "agent_status",
+                        "data": json.dumps({
+                            "running": status.running,
+                            "paused": status.paused,
+                            "platform_health": status.platform_health or {},
+                            "ai_keys_configured": status.ai_keys_configured or {},
+                            "version": status.version,
+                        }),
+                    }
+                else:
+                    yield {"event": "ping", "data": json.dumps({"alive": True})}
+            except Exception:
+                yield {"event": "ping", "data": json.dumps({"alive": True})}
+            await asyncio.sleep(_sleep_sec)
 
     return EventSourceResponse(generator())

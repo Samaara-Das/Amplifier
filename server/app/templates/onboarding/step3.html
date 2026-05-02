@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Configure API Keys — Amplifier Creator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .page { max-width: 640px; margin: 0 auto; padding: 40px 20px; }
+        .step-header { margin-bottom: 32px; }
+        .step-label { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .step-header h1 { font-size: 26px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
+        .step-header p { font-size: 14px; color: #64748b; line-height: 1.6; }
+        .card { background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155; margin-bottom: 24px; }
+        .card h3 { font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 8px; }
+        .card p { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 16px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.15s; font-family: inherit; text-decoration: none; display: inline-block; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35); }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover { background: #3d4f66; }
+        .actions { display: flex; gap: 12px; }
+        .step-nav { display: flex; gap: 6px; margin-bottom: 24px; }
+        .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+        .step-dot.done { background: #4ade80; }
+        .step-dot.active { background: #3b82f6; }
+        .key-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(51, 65, 85, 0.5); }
+        .key-row:last-child { border-bottom: none; }
+        .key-name { font-size: 13px; font-weight: 600; color: #e2e8f0; flex: 1; }
+        .key-desc { font-size: 12px; color: #64748b; }
+        .key-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #334155; color: #94a3b8; }
+        .key-badge.required { background: rgba(37, 99, 235, 0.15); color: #93bbfd; }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="step-nav">
+            <div class="step-dot done"></div>
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+        </div>
+        <div class="step-header">
+            <div class="step-label">Step 3 of 4</div>
+            <h1>Configure API Keys</h1>
+            <p>Amplifier uses free-tier AI APIs to generate high-quality content. Add your API keys in the desktop app — they are stored encrypted on your device and never sent to our servers.</p>
+        </div>
+
+        <div class="card">
+            <h3>AI Providers</h3>
+            <p>At least one key is required for content generation. Amplifier cycles through providers automatically.</p>
+            <div>
+                <div class="key-row">
+                    <div>
+                        <div class="key-name">Google Gemini</div>
+                        <div class="key-desc">Free tier — 60 requests/min. Recommended.</div>
+                    </div>
+                    <span class="key-badge required">Recommended</span>
+                </div>
+                <div class="key-row">
+                    <div>
+                        <div class="key-name">Mistral AI</div>
+                        <div class="key-desc">Free tier — fallback provider.</div>
+                    </div>
+                    <span class="key-badge">Optional</span>
+                </div>
+                <div class="key-row">
+                    <div>
+                        <div class="key-name">Groq</div>
+                        <div class="key-desc">Free tier — fallback provider.</div>
+                    </div>
+                    <span class="key-badge">Optional</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="http://localhost:5222/keys" target="_blank" rel="noopener" class="btn btn-primary">Configure API keys</a>
+            <a href="/user/onboarding/step4" class="btn btn-secondary">Skip for now &rarr;</a>
+        </div>
+    </div>
+</body>
+</html>

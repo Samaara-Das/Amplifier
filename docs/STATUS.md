@@ -27,7 +27,9 @@ A fresh agent should read in this order:
 
 ## Status counts
 
-- **48 done** · **1 partial** · **8 pending** · **22 deferred** · 0 in-progress · **79 total**
+- **48 done** · **1 partial** · **9 pending** · **16 deferred** · 0 in-progress · **74 total**
+
+**Cleanup 2026-05-02**: 5 tasks deleted (#20, #21 superseded by Nuitka migration; #24, #25, #26 absorbed into HTMX migration). Task #42 (re-enable TikTok/Instagram/X) promoted from deferred → pending with `NEXT-AFTER-LAUNCH` flag — to be implemented immediately after the remaining non-deferred launch-blocker queue completes. Counts: 79→74 total, deferred 22→16, pending 8→9.
 
 > **Phase D Gap Audit COMPLETE 2026-05-02.** Three audit passes (1 grep-driven first-pass + 2 deep Explore-agent passes) found **6 launch-blocker gaps** between the Phase D migration spec and shipped code. 5 new tasks filed: **#75 web onboarding flow** (no public register page, no /onboarding/step2/3/4, dead-end auth callback), **#76 pause/resume + dashboard agent visibility** (no UI for daemon control, no live agent_status, no drafts-ready count), **#77 installer icon** (only ICON_PLACEHOLDER.md exists), **#79 installer EULA** (placeholder text), **#80 admin financial buttons** (run-earning-promotion + run-payout-processing routes exist but have no UI). Task **#19 Stripe Connect** description updated: ship for launch with Stock Buddy sandbox keys, real Connect live keys MUST swap pre-public-launch (documented in `server/.env.example`). Full audit + pre-launch checklist at `docs/migrations/2026-05-01-migration-gap-audit.md`. AC blocks for new tasks at `docs/specs/onboarding.md`, `agent-control.md`, `installer-assets.md`, `admin-actions.md`, plus `batch-4-business-launch.md` AC14–AC17 update. **NEXT**: implement #75 → /uat-task 75 with user monitoring → #76 → /uat-task 76 → #80 → /uat-task 80 → #77 + #79 (block #68 closure) → re-run /uat-task 74.1/.2/.3 → launch.
 
