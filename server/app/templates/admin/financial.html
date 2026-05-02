@@ -53,11 +53,17 @@
 </div>
 
 <div class="action-row">
-    <form method="POST" action="/admin/financial/run-billing">
+    <form method="POST" action="/admin/financial/run-billing" onsubmit="var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.dataset.origLabel=b.textContent; b.textContent='Running…';">
         <button type="submit" class="btn btn-primary">Run Billing Cycle</button>
     </form>
-    <form method="POST" action="/admin/financial/run-payout">
+    <form method="POST" action="/admin/financial/run-payout" onsubmit="var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.dataset.origLabel=b.textContent; b.textContent='Running…';">
         <button type="submit" class="btn btn-success">Run Payout Cycle</button>
+    </form>
+    <form method="POST" action="/admin/financial/run-earning-promotion" onsubmit="var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.dataset.origLabel=b.textContent; b.textContent='Running…';">
+        <button type="submit" class="btn btn-secondary">Run Earning Promotion</button>
+    </form>
+    <form method="POST" action="/admin/financial/run-payout-processing" onsubmit="var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.dataset.origLabel=b.textContent; b.textContent='Running…';">
+        <button type="submit" class="btn btn-secondary">Run Payout Processing</button>
     </form>
 </div>
 
